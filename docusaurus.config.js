@@ -2,8 +2,12 @@ const themes = require('prism-react-renderer').themes;
 const { ssrTemplate } = require('./config/ssrTemplate');
 const customDocusaurusPlugin = require('./config/custom-docusaurus-plugin');
 const versionsPlugin = require('./config/versions-plugin');
-const lightCodeTheme = themes.dracula;
 const VERSIONS = require('./versions.json');
+const lightCodeTheme = themes.dracula;
+
+const logoImg = process.env.TEST_ENV_URL
+    ? `${process.env.TEST_ENV_URL}/images/logo.svg`
+    : 'https://cdnd.selectdb.com/images/logo.svg';
 
 function getDocsVersions() {
     const result = {};
@@ -13,7 +17,7 @@ function getDocsVersions() {
                 label: 'Dev',
                 path: 'dev',
                 banner: 'unreleased',
-                badge: false,
+                // badge: false,
             };
         } else {
             result[version] = {
@@ -40,6 +44,9 @@ const config = {
     onBrokenMarkdownLinks: 'ignore',
     favicon: 'images/favicon.ico',
     organizationName: 'Apache',
+    markdown: {
+        format: 'detect',
+    },
     i18n: {
         defaultLocale: 'en',
         locales: ['en', 'zh-CN'],
@@ -62,6 +69,9 @@ const config = {
     organizationName: 'apache/doris-website', // Usually your GitHub org/user name.
     projectName: 'apache/doris-website', // Usually your repo name.
     customFields: {},
+    future: {
+        experimental_faster: true,
+    },
     plugins: [
         'docusaurus-plugin-sass',
         'docusaurus-plugin-matomo',
@@ -141,7 +151,7 @@ const config = {
             return {
                 name: 'docusaurus-tailwindcss',
                 configurePostCss(postcssOptions) {
-                    // Appends TailwindCSS and AutoPrefixer.
+                    // Appends TailwindCSS and AutoPrefixer
                     postcssOptions.plugins.push(require('tailwindcss'));
                     postcssOptions.plugins.push(require('autoprefixer'));
                     return postcssOptions;
@@ -239,7 +249,7 @@ const config = {
                 title: '',
                 logo: {
                     alt: 'Apache Doris',
-                    src: 'https://cdnd.selectdb.com/images/logo.svg',
+                    src: logoImg,
                 },
                 items: [
                     // { to: '/', label: 'Home', position: 'left', exact: true },
@@ -297,7 +307,7 @@ const config = {
                 title: '',
                 logo: {
                     alt: 'Apache Doris',
-                    src: 'https://cdnd.selectdb.com/images/logo.svg',
+                    src: logoImg,
                 },
                 items: [
                     {
@@ -314,7 +324,8 @@ const config = {
                         // to: '/docs/install/source-install/compilation-with-docker',
                         type: 'doc',
                         docId: 'install/source-install/compilation-with-docker',
-                        activeBaseRegex: 'summary|install/cluster-deployment|install/source-install|db-connect|table-design|data-operate|query|lakehouse|compute-storage-decoupled|admin-manual|practical-guide|sql-manual',
+                        activeBaseRegex:
+                            'summary|install/cluster-deployment|install/source-install|db-connect|table-design|data-operate|query|lakehouse|compute-storage-decoupled|admin-manual|practical-guide|sql-manual',
                     },
                     {
                         label: '性能测试',
@@ -360,7 +371,7 @@ const config = {
                 title: '',
                 logo: {
                     alt: 'Apache Doris',
-                    src: 'https://cdnd.selectdb.com/images/logo.svg',
+                    src: logoImg,
                 },
                 items: [
                     {
@@ -377,7 +388,8 @@ const config = {
                         // to: '/docs/install/source-install/compilation-with-docker',
                         type: 'doc',
                         docId: 'install/source-install/compilation-with-docker',
-                        activeBaseRegex: 'summary|install/cluster-deployment|install/source-install|db-connect|table-design|data-operate|query|lakehouse|compute-storage-decoupled|admin-manual|practical-guide|sql-manual'
+                        activeBaseRegex:
+                            'summary|install/cluster-deployment|install/source-install|db-connect|table-design|data-operate|query|lakehouse|compute-storage-decoupled|admin-manual|practical-guide|sql-manual',
                     },
                     {
                         label: 'Benchmark',
