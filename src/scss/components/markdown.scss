@@ -6,6 +6,7 @@
     --custom-leading: 1rem;
     --custom-heading-rhythm-bottom: 1.25;
     --custom-heading-rhythm-top: 2.5;
+    --custom-h2-rhythm-top: 1.25;
     --custom-tabs-rhythm-top: 1.25;
     --custom-list-rhythm-bottom: 0.625;
     --custom-h4-rhythm-bottom: 2;
@@ -76,11 +77,25 @@
         margin-top: calc(var(--custom-leading) * var(--custom-other-rhythm-margin));
     }
 
+    details {
+        padding: 0.75rem 1.625rem;
+    }
+
+    details > div > div {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+    }
+
     .theme-admonition-tip {
         padding: calc(var(--custom-leading) * 2);
     }
 
-    h2,
+    h2 {
+        margin-top: calc(var(--custom-leading) * var(--custom-h2-rhythm-top));
+        padding-top: calc(var(--custom-leading) * var(--custom-h2-rhythm-top));
+        border-top: 1px solid #e6e7e9;
+    }
+
     h3 {
         margin-top: calc(var(--custom-leading) * var(--custom-heading-rhythm-top));
     }
