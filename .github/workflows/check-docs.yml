@@ -1,8 +1,9 @@
 name: PR File Check
 
 on:
-    pull_request:
-        types: [opened, synchronize, reopened] # 在这些事件触发时运行工作流
+    push:
+        branches:
+        - '**'
 
 jobs:
     check-files:
