@@ -21,7 +21,7 @@ jobs:
                   # 使用 git diff 获取 PR 的文件改动列表
                   git remote -v
                   git fetch origin
-                  git diff --name-only origin master  > changed_files.txt
+                  git diff --name-only origin/master  > changed_files.txt
 
             # Step 3: 检查是否包含 .mdx 文件
             - name: Check for .mdx files
