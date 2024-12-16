@@ -42,8 +42,7 @@ jobs:
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
                   cd docusaurus-mdx-checker
                   npm install
-                  sed -i 's/\*\*\/\*\.{mdx,md}/\*\*\/\*\.mdx/g' src/constants.js
-                  sed -i 's/\.\.\/docs\/\*\*\/\*\.{mdx,md}/\.\.\/docs\/\*\*\/\*\.mdx/g' src/constants.js
+                  sed -i 's/\*\*\/\*\.\{md,mdx\}/\*\*\/\*\.\{mdx\}/g; s/\.\.\/docs\/\*\*\.\{md,mdx\}/\.\.\/docs\/\*\*\.\{mdx\}/g' src/constants.js
                   cat src/constants.js
                   rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
