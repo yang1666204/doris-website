@@ -40,14 +40,13 @@ jobs:
               run: |
                   echo "MDX files detected. Proceeding with the next step..."
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
-                  npm install
-                  node tools/modify_mdx_checker.js
-                  cat docusaurus-mdx-checker/src/constants.js
-                  rm -rf docusaurus-mdx-checker/__test__
-                  cd docusaurus-mdx-checker
+                  cd docusaurus-mdx-checker && npm install
+                  node ../tools/modify_mdx_checker.js
+                  cat src/constants.js
+                  rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
                   cd ..
-
+                  rm -rf docusaurus-mdx-checker
             # Step 5: 跳过任务
             - name: Skip task if no .mdx files
               if: env.contains_mdx == 'false'
