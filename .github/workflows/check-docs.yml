@@ -41,10 +41,11 @@ jobs:
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
                   cd docusaurus-mdx-checker
                   npm install
-                  sed -i 's/\*\*\/\*\.{mdx,md}/\*\*\/\*\.mdx/g' path/to/constants.js
-                  sed -i 's/\.\.\/docs\/\*\*\/\*\.{mdx,md}/\.\.\/docs\/\*\*\/\*\.mdx/g' path/to/constants.js
+                  sed -i 's/\*\*\/\*\.{mdx,md}/\*\*\/\*\.mdx/g' ./src/constants.js
+                  sed -i 's/\.\.\/docs\/\*\*\/\*\.{mdx,md}/\.\.\/docs\/\*\*\/\*\.mdx/g' ./src/constants.js
                   rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
+                  cd ..
 
             # Step 5: 跳过任务
             - name: Skip task if no .mdx files
