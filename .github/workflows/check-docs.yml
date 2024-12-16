@@ -34,6 +34,7 @@ jobs:
                   fi
 
             # Step 4: 根据检查结果执行后续任务
+              # 看起来没有删除成功，本地试试看这些命令
             - name: Continue if .mdx files exist
               if: env.contains_mdx == 'true'
               run: |
@@ -41,8 +42,9 @@ jobs:
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
                   cd docusaurus-mdx-checker
                   npm install
-                  sed -i 's/\*\*\/\*\.{mdx,md}/\*\*\/\*\.mdx/g' ./src/constants.js
-                  sed -i 's/\.\.\/docs\/\*\*\/\*\.{mdx,md}/\.\.\/docs\/\*\*\/\*\.mdx/g' ./src/constants.js
+                  sed -i 's/\*\*\/\*\.{mdx,md}/\*\*\/\*\.mdx/g' src/constants.js
+                  sed -i 's/\.\.\/docs\/\*\*\/\*\.{mdx,md}/\.\.\/docs\/\*\*\/\*\.mdx/g' src/constants.js
+                  cat src/constants.js
                   rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
                   cd ..
