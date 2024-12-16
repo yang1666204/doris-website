@@ -40,11 +40,10 @@ jobs:
               run: |
                   echo "MDX files detected. Proceeding with the next step..."
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
+                  node tools/modify_mdx_checker.js
+                  cat docusaurus-mdx-checker/src/constants.js
+                  rm -rf docusaurus-mdx-checker/__test__
                   cd docusaurus-mdx-checker
-                  npm install
-                  sed -i 's/\"**\/*\.\{md,mdx\}\"/\"**\/*\.\{mdx\}\"/g' constants.js
-                  cat src/constants.js
-                  rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
                   cd ..
 
