@@ -19,7 +19,7 @@ jobs:
               id: changed-files
               run: |
                   # 使用 git diff 获取 PR 的文件改动列表
-                  git remove -v
+                  git remote -v
                   git fetch ${{ github.base_ref }}
                   git diff --name-only ${{ github.base_ref }} > changed_files.txt
 
