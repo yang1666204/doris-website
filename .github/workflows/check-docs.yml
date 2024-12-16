@@ -46,7 +46,6 @@ jobs:
                   rm -rf __test__
                   npx docusaurus-mdx-checker -c ..
                   cd ..
-                  rm -rf docusaurus-mdx-checker
             # Step 5: 跳过任务
             - name: Skip task if no .mdx files
               if: env.contains_mdx == 'false'
