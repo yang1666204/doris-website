@@ -1,29 +1,23 @@
 name: PR File Check
 
 on:
-    push:
-        branches:
-        - '**'
+    pull_request:
 
 jobs:
     check-files:
         runs-on: ubuntu-latest
 
         steps:
-            # Step 1: 检出代码
             - name: Checkout code
               uses: actions/checkout@v3
 
-            # Step 2: 获取 PR 中的文件改动
             - name: Get changed files
               id: changed-files
               run: |
-                  # 使用 git diff 获取 PR 的文件改动列表
                   git remote -v
                   git fetch origin
                   git diff --name-only origin/master  > changed_files.txt
 
-            # Step 3: 检查是否包含 .mdx 文件
             - name: Check for .mdx files
               id: check-mdx
               run: |
@@ -33,8 +27,6 @@ jobs:
                     echo "contains_mdx=false" >> $GITHUB_ENV
                   fi
 
-            # Step 4: 根据检查结果执行后续任务
-              # 看起来没有删除成功，本地试试看这些命令
             - name: Continue if .mdx files exist
               if: env.contains_mdx == 'true'
               run: |
@@ -42,12 +34,10 @@ jobs:
                   git clone --depth=1 https://github.com/slorber/docusaurus-mdx-checker.git
                   cd docusaurus-mdx-checker && npm install
                   node ../tools/modify_mdx_checker.js
-                  cat src/constants.js
                   rm -rf __tests__
                   npx docusaurus-mdx-checker -c ..
                   cd ..
                   rm -rf docusaurus-mdx-checker
-            # Step 5: 跳过任务
             - name: Skip task if no .mdx files
               if: env.contains_mdx == 'false'
               run: |
