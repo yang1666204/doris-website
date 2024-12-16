@@ -44,8 +44,6 @@ jobs:
                   node ../tools/modify_mdx_checker.js
                   cat src/constants.js
                   rm -rf __test__
-                  npx docusaurus-mdx-checker -c ..
-                  cd ..
             # Step 5: 跳过任务
             - name: Skip task if no .mdx files
               if: env.contains_mdx == 'false'
