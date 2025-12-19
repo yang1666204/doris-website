@@ -1,5 +1,5 @@
 ---
-{ "title": "MILLISECONDS_ADD", "language": "en" }
+{ "title": "MILLISECONDS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,30 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## milliseconds_add
+## milliseconds_diff
 
 ### description
 
 #### Syntax
 
-`DATETIMEV2 milliseconds_add(DATETIMEV2 basetime, INT delta)`
+`INT milliseconds_diff(DATETIME enddate, DATETIME startdate)`
 
-- basetime: Base time whose type is DATETIMEV2
-- delta:Milliseconds to add to basetime
-- Return type of this function is DATETIMEV2
+How many milliseconds is the difference between the start time and the end time?
 
 ### example
 
 ```
-mysql> select milliseconds_add('2023-09-08 16:02:08.435123', 1);
-+--------------------------------------------------------------------------+
-| milliseconds_add(cast('2023-09-08 16:02:08.435123' as DATETIMEV2(6)), 1) |
-+--------------------------------------------------------------------------+
-| 2023-09-08 16:02:08.436123                                               |
-+--------------------------------------------------------------------------+
-1 row in set (0.04 sec)
+mysql> select milliseconds_diff('2020-12-25 21:00:00.623000','2020-12-25 21:00:00.123000');
++-----------------------------------------------------------------------------------------------------------------------------+
+| milliseconds_diff(cast('2020-12-25 21:00:00.623000' as DATETIMEV2(6)), cast('2020-12-25 21:00:00.123000' as DATETIMEV2(6))) |
++-----------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                         500 |
++-----------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.03 sec)
 ```
 
 ### keywords
 
     ```
-    milliseconds_add
-    
+    milliseconds_diff
     ```
