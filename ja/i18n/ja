@@ -1,5 +1,5 @@
 ---
-{ "title": "MINUTES_DIFF", "language": "en" }
+{ "title": "MINUTES_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## minutes_diff
+## minutes_sub
 
 ### description
 
 #### Syntax
 
-`INT minutes_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIME MINUTES_SUB(DATETIME date, INT minutes)`
 
-The difference between the start time and the end time is a few minutes
+Subtracts a specified number of minutes from a datetime or date
+
+The parameter date can be DATETIME or DATE, and the return type is DATETIME.
 
 ### example
 
 ```
-mysql> select minutes_diff('2020-12-25 22:00:00','2020-12-25 21:00:00');
-+------------------------------------------------------------+
-| minutes_diff('2020-12-25 22:00:00', '2020-12-25 21:00:00') |
-+------------------------------------------------------------+
-|                                                         60 |
-+------------------------------------------------------------+
+mysql> select minutes_sub("2020-02-02 02:02:02", 1);
++---------------------------------------+
+| minutes_sub('2020-02-02 02:02:02', 1) |
++---------------------------------------+
+| 2020-02-02 02:01:02                   |
++---------------------------------------+
 ```
 
 ### keywords
 
     ```
-    minutes_diff
+    MINUTES_SUB
     ```
