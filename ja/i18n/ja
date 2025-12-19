@@ -1,5 +1,5 @@
 ---
-{ "title": "TAN", "language": "en" }
+{ "title": "TANH", "language": "en" }
 ---
 
 <!-- 
@@ -19,34 +19,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## tan
+## tanh
 
 ### description
 
 #### Syntax
 
-`DOUBLE tan(DOUBLE x)`
-Returns the tangent of `x`, where `x` is in radians.
+`DOUBLE tanh(DOUBLE x)`
+Returns the hyperbolic tangent of `x`, tanh(x) = sinh(x) / cosh(x).
 
 ### example
 
 ```
-mysql> select tan(0);
-+----------+
-| tan(0.0) |
-+----------+
-|        0 |
-+----------+
-mysql> select tan(1);
-+--------------------+
-| tan(1.0)           |
-+--------------------+
-| 1.5574077246549023 |
-+--------------------+
+mysql> select tanh(0);
++---------+
+| tanh(0) |
++---------+
+|       0 |
++---------+
+
+mysql> select tanh(1);
++---------------------+
+| tanh(1)             |
++---------------------+
+| 0.76159415595576485 |
++---------------------+
 ```
 
 ### keywords
 
  ```
- TAN
+ TANH
  ```
