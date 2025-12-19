@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-FRONTENDS-DISKS", "language": "en" }
+{ "title": "SHOW-FRONTENDS", "language": "en" }
 ---
 
 <!--
@@ -21,42 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-FRONTENDS-DISKS
+## SHOW-FRONTENDS
 
 ### Name
 
-SHOW FRONTENDS DISKS
+SHOW FRONTENDS
 
 ### Description
 
-This statement is used to view FE nodes's important paths' disk information, such as meta, log, audit-log and temp dir.
+This statement is used to view FE nodes
 
 grammar:
 
 ```sql
-SHOW FRONTENDS DISKS;
+SHOW FRONTENDS;
 ```
 
 illustrate:
 
-1. Name indicates the name of the FE node in bdbje.
-2. Host indicates the ip of the FE node.
-3. DirType indicates the type of dir type, such as meta, log, audit-log temp and deploy dir.
-4. Dir indicates the dir path of FE node dir in which type.
-5. FileSystem indicates the dir path in which file system on the linux operation system.
-6. Capacity indicates total capacity of the filesystem.
-7. Used indicates the size of the filesystem already used.
-8. Available indicates the size of the filesystem remained.
-9. UseRate indicates File system usage capacity ratio.
-10. MountOn indicates the mount dir of the filesystem.
+1. name indicates the name of the FE node in bdbje.
+2. If Join is true, it means that the node has joined the cluster before. But it does not mean that it is still in the cluster (may have lost contact)
+3. Alive indicates whether the node is alive or not.
+4. ReplayedJournalId indicates the maximum metadata journal id that has been replayed by the node.
+5. LastHeartbeat is the last heartbeat.
+6. IsHelper indicates whether the node is a helper node in bdbje.
+7. ErrMsg is used to display the error message when the heartbeat fails.
+8. CurrentConnected indicates whether the FE node is currently connected
 
 ### Example
-
-`mysql> show frontends disks; 
-+-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+ | Name                                    | Host        | DirType   | Dir                             | Filesystem | Capacity | Used | Available | UseRate | MountOn    |
-+-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+ | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | meta      | /home/disk/output/fe/doris-meta | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | log       | /home/disk/output/fe/log        | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | audit-log | /home/disk/output/fe/log        | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | temp      | /home/disk/output/fe/temp_dir   | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | deploy    | /home/disk/output/fe            | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk |
-+-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+
-5 rows in set (0.00 sec)`
 
 ### Keywords
 
