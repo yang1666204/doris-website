@@ -1,5 +1,5 @@
 ---
-{ "title": "ALTER-SYSTEM-DROP-BROKER", "language": "en" }
+{ "title": "ALTER-SYSTEM-DROP-FOLLOWER", "language": "en" }
 ---
 
 <!--
@@ -21,44 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-SYSTEM-DROP-BROKER
+## Name
 
-### Name
+ALTER SYSTEM DROP FOLLOWER
 
-ALTER SYSTEM DROP BROKER
+## Description
 
-### Description
+This statement is to delete the node of the FOLLOWER role of FRONTEND, (only for administrators!)
 
-This statement is to delete the BROKER node, (administrator only)
-
-grammar:
+Grammar:
 
 ```sql
--- Delete all brokers
-ALTER SYSTEM DROP ALL BROKER broker_name
--- Delete a Broker node
-ALTER SYSTEM DROP BROKER broker_name "host:port"[,"host:port"...];
+ALTER SYSTEM DROP FOLLOWER "follower_host:edit_log_port"
 ```
 
-### Example
+Illustration:
 
-1. Delete all brokers
+1. host can be a hostname or an ip address
+
+2. edit_log_port : edit_log_port in its configuration file fe.conf
+
+## Example
+
+1. Delete a FOLLOWER node
 
     ```sql
-    ALTER SYSTEM DROP ALL BROKER broker_name
+    ALTER SYSTEM DROP FOLLOWER "host_ip:9010"
     ```
 
-2. Delete a Broker node
+## Keywords
 
-    ```sql
-    ALTER SYSTEM DROP BROKER broker_name "host:port"[,"host:port"...];
-    ```
+ALTER, SYSTEM, DROP, FOLLOWER, ALTER SYSTEM
 
-### Keywords
-
-    ```
-    ALTER, SYSTEM, DROP, FOLLOWER, ALTER SYSTEM
-    ```
-
-### Best Practice
 
