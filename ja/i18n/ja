@@ -1,5 +1,5 @@
 ---
-{ "title": "SIN", "language": "en" }
+{ "title": "SQRT", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,44 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## sin
+## sqrt
 
 ### description
 
 #### Syntax
 
-`DOUBLE sin(DOUBLE x)`
-Returns the sine of `x`, where `x` is in radians
+`DOUBLE sqrt(DOUBLE x)`
+Returns the square root of `x`.`x` is required to be greater than or equal to `0`.
+
+:::tip
+Another alias for this function is `dsqrt`.
+:::
 
 ### example
 
 ```
-mysql> select sin(0);
-+----------+
-| sin(0.0) |
-+----------+
-|        0 |
-+----------+
-mysql> select sin(1);
+mysql> select sqrt(9);
++-----------+
+| sqrt(9.0) |
++-----------+
+|         3 |
++-----------+
+mysql> select sqrt(2);
 +--------------------+
-| sin(1.0)           |
+| sqrt(2.0)          |
 +--------------------+
-| 0.8414709848078965 |
+| 1.4142135623730951 |
 +--------------------+
-mysql> select sin(0.5 * Pi());
-+-----------------+
-| sin(0.5 * pi()) |
-+-----------------+
-|               1 |
-+-----------------+
+mysql> select sqrt(100.0);
++-------------+
+| sqrt(100.0) |
++-------------+
+|          10 |
++-------------+
 ```
 
 ### keywords
 
  ```
- SIN
+ SQRT, DSQRT
  ```
