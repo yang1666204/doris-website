@@ -1,5 +1,5 @@
 ---
-{ "title": "day_ceil", "language": "en" }
+{ "title": "day_floor", "language": "en" }
 ---
 
 <!-- 
@@ -21,20 +21,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## day_ceil
+## day_floor
 
 ### Description
 
 **Syntax**
 
 ```sql
-DATETIME DAY_CEIL(DATETIME datetime)
-DATETIME DAY_CEIL(DATETIME datetime, DATETIME origin)
-DATETIME DAY_CEIL(DATETIME datetime, INT period)
-DATETIME DAY_CEIL(DATETIME datetime, INT period, DATETIME origin)
+DATETIME DAY_FLOOR(DATETIME datetime)
+DATETIME DAY_FLOOR(DATETIME datetime, DATETIME origin)
+DATETIME DAY_FLOOR(DATETIME datetime, INT period)
+DATETIME DAY_FLOOR(DATETIME datetime, INT period, DATETIME origin)
 ```
 
-Convert the date to the nearest rounding up time of the specified time interval period.
+Convert the date to the nearest rounding down time of the specified time interval period.
 
 - datetime: a valid date expression.
 - period: specifies how many days each cycle consists of.
@@ -43,21 +43,21 @@ Convert the date to the nearest rounding up time of the specified time interval 
 ### Example
 
 ```
-mysql> select day_ceil("2023-07-13 22:28:18", 5);
-+-----------------------------------------------------------+
-| day_ceil(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+-----------------------------------------------------------+
-| 2023-07-17 00:00:00                                       |
-+-----------------------------------------------------------+
-1 row in set (0.01 sec)
+mysql> select day_floor("2023-07-13 22:28:18", 5);
++------------------------------------------------------------+
+| day_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
++------------------------------------------------------------+
+| 2023-07-12 00:00:00                                        |
++------------------------------------------------------------+
+1 row in set (0.07 sec)
 ```
 
 ### Keywords
 
     ```
-    DAY_CEIL, DAY, CEIL
+    DAY_FLOOR,DAY,FLOOR
     ```
 
 ### Best Practices
 
-See also [date_ceil](./date_ceil)
+See also [date_floor](./date_floor)
