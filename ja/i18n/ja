@@ -1,5 +1,5 @@
 ---
-{ "title": "Help Action", "language": "en" }
+{ "title": "Import Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Help Action
+# Import Action
 
 ## Request
 
-`GET /rest/v1/help`
+`POST /api/import/file_review`
 
 ## Description
 
-Used to obtain help through fuzzy query.
+View the contents of the file in CSV or PARQUET format.
 
 ## Path parameters
 
@@ -37,22 +37,12 @@ None
 
 ## Query parameters
 
-- `query`
-
-  Keywords to be matched, such as array and select.
+None
 
 ## Request body
 
-None
+TO DO
 
 ## Response
 
-```
-{
-    "msg":"success",
-    "code":0,
-    "data":{"fuzzy":"No Fuzzy Matching Topic","matching":"No Matching Category"},
-    "count":0
-}
-```
-
+TO DO
