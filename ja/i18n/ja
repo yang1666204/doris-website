@@ -1,5 +1,5 @@
 ---
-{ "title": "DATEDIFF", "language": "en" }
+{ "title": "DAY", "language": "en" }
 ---
 
 <!-- 
@@ -21,40 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## datediff
+## day
 
 ### Description
 
 #### Syntax
 
-`INT DATEDIFF (DATETIME expr1, DATETIME expr2)`
+`INT DAY(DATETIME date)`
 
-Calculate expr1 - expr2, the result is accurate to the unit of a day.
+Get the day information in the date, and return values range from 1 to 31.
 
-Expr1 and expr2 parameters are valid date or date/time expressions.
+The parameter is Date or Datetime type
 
-Note: Only the date part of the value participates in the calculation.
-
-#### example
+### example
 
 ```
-mysql> select datediff(CAST('2007-12-31 23:59:59' AS DATETIME), CAST('2007-12-30' AS DATETIME));
-+-----------------------------------------------------------------------------------+
-| datediff(CAST('2007-12-31 23:59:59' AS DATETIME), CAST('2007-12-30' AS DATETIME)) |
-+-----------------------------------------------------------------------------------+
-|                                                                                 1 |
-+-----------------------------------------------------------------------------------+
-
-mysql> select datediff(CAST('2010-11-30 23:59:59' AS DATETIME), CAST('2010-12-31' AS DATETIME));
-+-----------------------------------------------------------------------------------+
-| datediff(CAST('2010-11-30 23:59:59' AS DATETIME), CAST('2010-12-31' AS DATETIME)) |
-+-----------------------------------------------------------------------------------+
-|                                                                               -31 |
-+-----------------------------------------------------------------------------------+
+mysql> select day('1987-01-31');
++----------------------------+
+| day('1987-01-31 00:00:00') |
++----------------------------+
+|                         31 |
++----------------------------+
 ```
 
 ### keywords
 
     ```
-    DATEDIFF
+    DAY
     ```
