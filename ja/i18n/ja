@@ -1,5 +1,5 @@
 ---
-{ "title": "STRUCT_ELEMENT", "language": "en" }
+{ "title": "STRUCT", "language": "en" }
 ---
 
 <!-- 
@@ -19,64 +19,54 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## struct_element
+## struct()
 
-struct_element
+struct()
 
 ### description
 
-Function allows getting a field from a struct.
-
 #### Syntax
 
-```
-struct_element(struct, n/s)
-```
+`STRUCT<T1, T2, T3, ...> struct(T1, T2, T3, ...)`
 
-#### Arguments
-
-```
-struct - The input struct column. If null, null will be returned.
-n - The position of field，starting from 1，only supports constants.
-s - The name of field，only supports constants.
-```
-
-#### Returned value
-
-Returns the specified field column, of any type.
+construct an struct with variadic elements and return it, Tn could be column or literal
 
 ### example
 
 ```
-mysql> select struct_element(named_struct('f1', 1, 'f2', 'a'), 'f2');
-+--------------------------------------------------------+
-| struct_element(named_struct('f1', 1, 'f2', 'a'), 'f2') |
-+--------------------------------------------------------+
-| a                                                      |
-+--------------------------------------------------------+
+mysql> select struct(1, 'a', "abc");
++-----------------------+
+| struct(1, 'a', 'abc') |
++-----------------------+
+| {1, 'a', 'abc'}       |
++-----------------------+
 1 row in set (0.03 sec)
 
-mysql> select struct_element(named_struct('f1', 1, 'f2', 'a'), 1);
-+-----------------------------------------------------+
-| struct_element(named_struct('f1', 1, 'f2', 'a'), 1) |
-+-----------------------------------------------------+
-|                                                   1 |
-+-----------------------------------------------------+
+mysql> select struct(null, 1, null);
++-----------------------+
+| struct(NULL, 1, NULL) |
++-----------------------+
+| {NULL, 1, NULL}       |
++-----------------------+
 1 row in set (0.02 sec)
 
-mysql> select struct_col, struct_element(struct_col, 'f1') from test_struct;
-+-------------------------------------------------+-------------------------------------+
-| struct_col                                      | struct_element(`struct_col `, 'f1') |
-+-------------------------------------------------+-------------------------------------+
-| {1, 2, 3, 4, 5}                                 |                                   1 |
-| {1, 1000, 10000000, 100000000000, 100000000000} |                                   1 |
-| {5, 4, 3, 2, 1}                                 |                                   5 |
-| NULL                                            |                                NULL |
-| {1, NULL, 3, NULL, 5}                           |                                   1 |
-+-------------------------------------------------+-------------------------------------+
-9 rows in set (0.01 sec)
+mysql> select struct(cast('2023-03-16' as datetime));
++----------------------------------------+
+| struct(CAST('2023-03-16' AS DATETIME)) |
++----------------------------------------+
+| {2023-03-16 00:00:00}                  |
++----------------------------------------+
+1 row in set (0.01 sec)
+
+mysql> select struct(k1, k2, null) from test_tb;
++--------------------------+
+| struct(`k1`, `k2`, NULL) |
++--------------------------+
+| {1, 'a', NULL}           |
++--------------------------+
+1 row in set (0.04 sec)
 ```
 
 ### keywords
 
-STRUCT, ELEMENT, STRUCT_ELEMENT
+STRUCT,CONSTRUCTOR
