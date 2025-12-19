@@ -1,5 +1,5 @@
 ---
-{ "title": "hour_floor", "language": "en" }
+{ "title": "HOURS_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,43 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## hour_floor
+## hours_add
 
 ### description
 
 #### Syntax
 
-```sql
-DATETIME HOUR_FLOOR(DATETIME datetime)
-DATETIME HOUR_FLOOR(DATETIME datetime, DATETIME origin)
-DATETIME HOUR_FLOOR(DATETIME datetime, INT period)
-DATETIME HOUR_FLOOR(DATETIME datetime, INT period, DATETIME origin)
-```
+`DATETIME HOURS_ADD(DATETIME date, INT hours)`
 
-Convert the date to the nearest rounding down time of the specified time interval period.
+Add specified hours from date time or date
 
-- datetime: a valid date expression.
-- period: specifies how many hours each cycle consists of.
-- origin: starting from 0001-01-01T00:00:00.
+The parameter date can be DATETIME or DATE, and the return type is DATETIME.
 
 ### example
 
 ```
-mysql> select hour_floor("2023-07-13 22:28:18", 5);
-+-------------------------------------------------------------+
-| hour_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+-------------------------------------------------------------+
-| 2023-07-13 21:00:00                                         |
-+-------------------------------------------------------------+
-1 row in set (0.23 sec)
+mysql> select hours_add("2020-02-02 02:02:02", 1);
++-------------------------------------+
+| hours_add('2020-02-02 02:02:02', 1) |
++-------------------------------------+
+| 2020-02-02 03:02:02                 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    HOUR_FLOOR, HOUR, FLOOR
+    HOURS_ADD
     ```
-
-### Best Practice
-
-See also [date_floor](./date_floor)
