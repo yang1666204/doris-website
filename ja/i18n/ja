@@ -1,5 +1,5 @@
 ---
-{ "title": "NOT_NULL_OR_EMPTY", "language": "en" }
+{ "title": "NULL_OR_EMPTY", "language": "en" }
 ---
 
 <!--
@@ -21,43 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## not_null_or_empty
+## null_or_empty
 
 ### description
 
 #### Syntax
 
-`BOOLEAN NOT_NULL_OR_EMPTY (VARCHAR str)`
+`BOOLEAN NULL_OR_EMPTY (VARCHAR str)`
 
-It returns false if the string is an empty string or NULL. Otherwise it returns true.
+It returns true if the string is an empty string or NULL. Otherwise it returns false.
 
 ### example
 
 ```
-MySQL [(none)]> select not_null_or_empty(null);
-+-------------------------+
-| not_null_or_empty(NULL) |
-+-------------------------+
-|                       0 |
-+-------------------------+
+MySQL [(none)]> select null_or_empty(null);
++---------------------+
+| null_or_empty(NULL) |
++---------------------+
+|                   1 |
++---------------------+
 
-MySQL [(none)]> select not_null_or_empty("");
-+-----------------------+
-| not_null_or_empty('') |
-+-----------------------+
-|                     0 |
-+-----------------------+
+MySQL [(none)]> select null_or_empty("");
++-------------------+
+| null_or_empty('') |
++-------------------+
+|                 1 |
++-------------------+
 
-MySQL [(none)]> select not_null_or_empty("a");
-+------------------------+
-| not_null_or_empty('a') |
-+------------------------+
-|                      1 |
-+------------------------+
+MySQL [(none)]> select null_or_empty("a");
++--------------------+
+| null_or_empty('a') |
++--------------------+
+|                  0 |
++--------------------+
 ```
 
 ### keywords
 
     ```
-    NOT_NULL_OR_EMPTY
+    NULL_OR_EMPTY
     ```
