@@ -1,5 +1,5 @@
 ---
-{ "title": "REFRESH-MATERIALIZED-VIEW", "language": "en" }
+{ "title": "REFRESH", "language": "en" }
 ---
 
 <!--
@@ -21,55 +21,54 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## REFRESH-MATERIALIZED-VIEW
+## REFRESH
 
 ### Name
 
-REFRESH MATERIALIZED VIEW
+REFRESH
 
 ### Description
 
-This statement is used to manually refresh the specified asynchronous materialized view
+This statement refreshes the metadata of the specified Catalog/Database/Table.
 
 syntax:
 
 ```sql
-REFRESH MATERIALIZED VIEW mvName=multipartIdentifier (partitionSpec | COMPLETE | AUTO)
+REFRESH CATALOG catalog_name;
+REFRESH DATABASE [catalog_name.]database_name;
+REFRESH TABLE [catalog_name.][database_name.]table_name;
 ```
 
-Explanation:
+When the Catalog is refreshed, the object-related Cache is forced to be invalidated.
 
-Asynchronous refresh of data for a materialized view
-
-- AUTO: The calculation will determine which partitions of the materialized view are not synchronized with the base table. (Currently, if the base table is an external table, it is considered to be always synchronized with the materialized view. Therefore, if the base table is an external table, it is necessary to specify `COMPLETE` or designate the partitions to be refreshed), and then proceed to refresh the corresponding partitions accordingly.
-- COMPLETE: It will forcibly refresh all partitions of the materialized view without checking whether the partitions are synchronized with the base table.
-- partitionSpec: It will forcibly refresh the specified partitions without checking whether the partitions are synchronized with the base table.
+Including Partition Cache, Schema Cache, File Cache, etc.
 
 ### Example
 
-1. Refresh materialized view mv1 (automatically calculate the partition to be refreshed)
+1. Refresh hive catalog
 
     ```sql
-    REFRESH MATERIALIZED VIEW mv1 AUTO;
+    REFRESH CATALOG hive;
     ```
 
-2. Refresh partition named p_19950801_19950901和p_19950901_19951001
+2. Refresh database1
 
     ```sql
-    REFRESH MATERIALIZED VIEW mv1 partitions(p_19950801_19950901,p_19950901_19951001);
+    REFRESH DATABASE ctl.database1;
+    REFRESH DATABASE database1;
     ```
 
-3. Force refresh of all materialized view data
+3. Refresh table1
 
     ```sql
-    REFRESH MATERIALIZED VIEW mv1 complete;
+    REFRESH TABLE ctl.db.table1;
+    REFRESH TABLE db.table1;
+    REFRESH TABLE table1;
     ```
 
 ### Keywords
 
-    ```
-    REFRESH, MATERIALIZED, VIEW
-    ```
+REFRESH, CATALOG, DATABASE, TABLE
 
 ### Best Practice
 
