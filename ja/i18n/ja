@@ -1,5 +1,5 @@
 ---
-{ "title": "column_privileges", "language": "en" }
+{ "title": "column_statistics", "language": "en" }
 ---
 
 <!--
@@ -23,22 +23,17 @@ under the License.
 
 ## Overview
 
-This table is solely used for compatibility with MySQL behavior and is always empty. It does not truly reflect the column permission information of Doris.
+This table is solely used for compatibility with MySQL behavior and is always empty. It does not truly reflect the statistical information of the data within Doris. To view the statistical information collected by Doris, please refer to the [Statistics](../../../query-acceleration/statistics#manual-collection) section.
 
 ## Database
 
-```
-information_schema
-```
+`information_schema`
 
 ## Table Information
 
-| Column Name                         | Type                            | Description |
-| ----------------------------------- | ------------------------------- | ----------- |
-| GRANTEE                             | varchar(128) |             |
-| TABLE_CATALOG  | varchar(512) |             |
-| TABLE_SCHEMA   | varchar(64)  |             |
-| TABLE_NAME     | varchar(64)  |             |
-| COLUMN_NAME    | varchar(64)  |             |
-| PRIVILEGE_TYPE | varchar(64)  |             |
-| IS_GRANTABLE   | varchar(3)   |             |
+| Column Name                      | Type                           | Description |
+| -------------------------------- | ------------------------------ | ----------- |
+| SCHEMA_NAME | varchar(64) |             |
+| TABLE_NAME  | varchar(64) |             |
+| COLUMN_NAME | varchar(64) |             |
+| HISTOGRAM                        | json                           |             |
