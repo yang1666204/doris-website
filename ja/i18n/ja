@@ -1,8 +1,8 @@
 ---
-{ "title": "ALTER-TABLE-REPLACE", "language": "en" }
+{ "title": "ALTER-TABLE-ROLLUP", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,79 +21,117 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-TABLE-REPLACE
+## ALTER-TABLE-ROLLUP
 
 ### Name
 
-ALTER TABLE REPLACE
+ALTER TABLE ROLLUP
 
 ### Description
 
-Atomic substitution of two tables. This operation applies only to OLAP tables.
+This statement is used to perform a rollup modification operation on an existing table. The rollup is an asynchronous operation, and the task is returned when the task is submitted successfully. After that, you can use the [SHOW ALTER](../../Show-Statements/SHOW-ALTER.md) command to view the progress.
+
+grammar:
 
 ```sql
-ALTER TABLE [db.]tbl1 REPLACE WITH TABLE tbl2
-[PROPERTIES('swap' = 'true')] FORCE?;
+ALTER TABLE [database.]table alter_clause;
 ```
 
-Replace table tbl1 with table tbl2.
+The alter_clause of rollup supports the following creation methods
 
-If the `swap` parameter is `true`, the data in the table named `tbl1` will be the data in the original table named `tbl2` after the replacement. The data in the table named `tbl2` is the data in the original `tbl1` table. That is, two tables of data have been swapped.
+1. Create a rollup index
 
-If the `swap` parameter is `false`, the data in the `tbl1` table will be the data in the `tbl2` table after the replacement. The table named `tbl2` is deleted.
+grammar:
 
-#### Theory
+```sql
+ADD ROLLUP rollup_name (column_name1, column_name2, ...)
+[FROM from_index_name]
+[PROPERTIES ("key"="value", ...)]
+```
 
-The replace table function actually turns the following set of operations into an atomic operation.
+properties: Support setting timeout time, the default timeout time is 1 day.
 
-If you want to replace table A with table B and `swap` is `true`, do the following:
+2. Create rollup indexes in batches
 
-1. Rename table B as table A.
-2. Rename table A as table B.
+grammar:
 
-If `swap` is `false`, do as follows:
+```sql
+ADD ROLLUP [rollup_name (column_name1, column_name2, ...)
+                    [FROM from_index_name]
+                    [PROPERTIES ("key"="value", ...)],...]
+```
 
-1. Delete table A.
-2. Rename table B as table A.
+Notice:
 
-#### Notice
+- If from_index_name is not specified, it will be created from base index by default
+- Columns in rollup table must be columns already in from_index
+- In properties, the storage format can be specified. For details, see [CREATE TABLE](../Create/CREATE-TABLE.md)
 
-1. The default `swap` parameter is `true`. That is, a table replacement operation is equivalent to an exchange of data between two tables.
-2. If the `swap` parameter is set to false, for a period of time, the replaced table (table A) can be recovered through the RECOVER statement. See [RECOVER](../../../../sql-manual/sql-statements/Database-Administration-Statements/RECOVER) statement for details. If you execute command with FORCE, the table will be deleted directly and cannot be recovered, this operation is generally not recommended.
-3. The replacement operation can only occur between two OLAP tables and does not check whether the table structure of the two tables is consistent.
-4. The original permission Settings are not changed. Because the permission check is based on the table name.
+3. Delete rollup index
+
+grammar:
+
+```sql
+DROP ROLLUP rollup_name [PROPERTIES ("key"="value", ...)]
+```
+
+4. Batch delete rollup index
+
+grammar:
+
+```sql
+DROP ROLLUP [rollup_name [PROPERTIES ("key"="value", ...)],...]
+```
+
+Notice:
+
+- cannot delete base index
 
 ### Example
 
-1. Atomic swap `tbl1` with `tbl2` without dropping any tables(Note: if you delete it, you actually delete tbl1 and rename tbl2 to tbl1.)
+1. Create index: example_rollup_index, based on base index (k1,k2,k3,v1,v2). Columnar storage.
 
 ```sql
-ALTER TABLE tbl1 REPLACE WITH TABLE tbl2;
+ALTER TABLE example_db.my_table
+ADD ROLLUP example_rollup_index(k1, k3, v1, v2);
 ```
 
-or
+2. Create index: example_rollup_index2, based on example_rollup_index (k1,k3,v1,v2)
 
 ```sql
-ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'true');
+ALTER TABLE example_db.my_table
+ADD ROLLUP example_rollup_index2 (k1, v1)
+FROM example_rollup_index;
 ```
 
-2. Atomic swap `tbl1` with `tbl2` and deleting the `tbl2` table(Keep `tbl1` and the data of the original `tbl2`)
+3. Create index: example_rollup_index3, based on base index (k1,k2,k3,v1), with a custom rollup timeout of one hour.
 
 ```sql
-ALTER TABLE tbl1 REPLACE WITH TABLE tbl2 PROPERTIES('swap' = 'false');
+ALTER TABLE example_db.my_table
+ADD ROLLUP example_rollup_index(k1, k3, v1)
+PROPERTIES("timeout" = "3600");
 ```
 
-This case data in tb1 data will moved to recycle-bin and can be recovered using recover statement.
-If you execute command with FORCE, the table data (tb1) will be deleted directly and cannot be recovered, this operation is generally not recommended.
+4. Delete index: example_rollup_index2
 
-### Keywords
+```sql
+ALTER TABLE example_db.my_table
+DROP ROLLUP example_rollup_index2;
+```
+
+5. Batch Delete rollup index
+
+```sql
+ALTER TABLE example_db.my_table
+DROP ROLLUP example_rollup_index2,example_rollup_index3;
+```
+
+###
+
+4. Keywords
 
 ```text
-ALTER, TABLE, REPLACE, ALTER TABLE
+ALTER, TABLE, ROLLUP, ALTER TABLE
 ```
 
 ### Best Practice
-
-1. Atomic overlay write operations
-
-In some cases, the user wants to be able to rewrite the data of a certain table, but if the data is deleted first and then imported, the data cannot be viewed for a period of time in between. At this time, the user can first use the `CREATE TABLE LIKE` statement to create a new table with the same structure, import the new data into the new table, and use the replacement operation to atomically replace the old table to achieve the goal. Atomic overwrite write operations at the partition level, see [temp partition documentation](../../../../advanced/partition/table-temp-partition.md).
