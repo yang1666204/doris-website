@@ -1,5 +1,5 @@
 ---
-{ "title": "PERCENTILE_ARRAY", "language": "en" }
+{ "title": "PERCENTILE", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## PERCENTILE_ARRAY
-
 ### Description
 
 #### Syntax
 
-`ARRAY_DOUBLE PERCENTILE_ARRAY(expr, ARRAY_DOUBLE p)`
+`PERCENTILE(expr, DOUBLE p)`
 
-Calculate exact percentiles, suitable for small data volumes. Sorts the specified column in descending order first, then takes the exact pth percentile.
-The return value is the result of sequentially taking the specified percentages in the array p.
-Parameter Description:
-expr: Required. Columns whose values are of type integer (up to bigint).
-p: The exact percentile is required, an array of constants, taking the value [0.0, 1.0].
+Calculates the exact percentile for small amounts of data. The specified columns are sorted in descending order and then the exact `p` percentile is taken. The value of `p` is between `0` and `1`.
+If `p` does not point to an exact position, the linear interpolation of the values adjacent to either side of the pointed position at the position pointed to by `p` is returned. Note that this is not an average of the two numbers.
 
-### example
+Parameters:
+`expr`: required. The value is an integer (`bigint` at most).
+`p`: required. The const value is `[0.0,1.0]`.
 
+### Example
+
+```sql
+MySQL > select `table`, percentile(cost_time,0.99) from log_statis group by `table`;
++---------------------+---------------------------+
+| table    |         percentile(`cost_time`, 0.99)|
++----------+--------------------------------------+
+| test     |                                54.22 |
++----------+--------------------------------------+
+
+MySQL > select percentile(NULL,0.3) from table1;
++-----------------------+
+| percentile(NULL, 0.3) |
++-----------------------+
+|                  NULL |
++-----------------------+
 ```
-mysql> select percentile_array(k1,[0.3,0.5,0.9]) from baseall;
-+----------------------------------------------+
-| percentile_array(`k1`, ARRAY(0.3, 0.5, 0.9)) |
-+----------------------------------------------+
-| [5.2, 8, 13.6]                               |
-+----------------------------------------------+
-1 row in set (0.02 sec)
 
-```
+### Keywords
 
-### keywords
-
-PERCENTILE_ARRAY
+    ```
+    PERCENTILE
+    ```
