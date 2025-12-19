@@ -1,5 +1,5 @@
 ---
-{ "title": "Spill Disk", "language": "en" }
+{ "title": "Query Circuit Breaker", "language": "en" }
 ---
 
 <!--
@@ -21,326 +21,352 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## 概述
+Query circuit breaking is a protective mechanism used to prevent long-running or resource-consuming queries from having a negative impact on the system. When a query exceeds predefined resource or time limits, the circuit breaker mechanism automatically terminates the query to avoid adverse effects on system performance, resource usage, and other queries. This mechanism ensures the stability of the cluster in a multi-user environment, preventing a single query from exhausting system resources or slowing down responses, thereby improving overall availability and efficiency.
 
-Doris's computing layer adopts an MPP (Massively Parallel Processing) architecture, where all computing tasks are completed in the memory of BEs (Backends), and data exchange between BEs is also conducted through memory. Therefore, memory management plays a crucial role in ensuring the stability of queries. According to online query statistics, a significant portion of query errors are related to memory issues. As more and more users migrate tasks such as ETL data processing, multi-table materialized view processing, and complex AdHoc queries to Doris, it is necessary to offload intermediate operation results to disk to enable the execution of queries that require more memory than each query or each node can handle. Specifically, when processing large datasets or executing complex queries, memory consumption can increase rapidly, exceeding the memory limits of a single node or the entire query processing process. Doris alleviates memory pressure by writing intermediate results (such as intermediate states of aggregation, temporary data for sorting, etc.) to disk rather than relying solely on memory to store these data. This approach offers several benefits:
+In Doris, there are two types of circuit breaker strategies:
 
-- Scalability: Allows Doris to handle datasets much larger than the memory limit of a single node.
-- Stability: Reduces the risk of query failures or system crashes due to insufficient memory.
-- Flexibility: Enables users to execute more complex queries without increasing hardware resources.
+- **Planning-time circuit breaking**, namely **SQL Block Rule**, which is used to prevent the execution of statements that match specific patterns. Block rules apply to any statements, including DDL and DML. Typically, block rules are configured by database administrators (DBAs) to enhance cluster stability. For example,
 
-To avoid triggering OOM (Out of Memory) when requesting memory, Doris has introduced a reserve memory mechanism. The workflow of this mechanism is as follows:
+  - Preventing a query from scanning too many rows of data
+  - Preventing a query from scanning too many partitions
+  - Preventing a statement that modifies global variables to avoid accidental changes to cluster configurations.
+  - Preventing a query pattern that typically consumes excessive resources
 
-- During execution, Doris estimates the memory size required to process each block and then requests it from a unified memory manager.
-- The global memory allocator determines whether the current memory request exceeds the memory limit of the query or the entire process. If it does, the request fails.
-- When Doris receives a failure message, it suspends the current query, selects the largest operator for spilling to disk, and resumes query execution after spilling is complete.
+- **Runtime circuit breaking**, namely **Workload Policy**, which monitors in real-time during runtime the execution time of queries, the amount of data scanned, and memory consumption to implement rule-based query circuit breaking.
 
-Currently, the operators that support spilling include:
+## SQL Block Rule
 
-- Hash Join operator
-- Aggregation operator
-- Sort operator
-- CTE
+According to the block pattern, it can be divided into:
 
-When a query triggers spilling, additional disk read/write operations may significantly increase query time. It is recommended to increase the FE Session variable query_timeout. Additionally, spilling can generate significant disk I/O, so it is advisable to configure a separate disk directory or use SSD disks to reduce the impact of query spilling on normal data ingestion or queries. The query spilling feature is currently disabled by default.
+- Scan row count block rule
+- Scan partition count block rule
+- Scan bucket count block rule
+- Query statement regex matching block rule
+- Query statement hash value matching block rule
 
-\##Memory Management Mechanism
-Doris's memory management is divided into three levels: process level, WorkloadGroup level, and Query level.
-![spill_disk_memory](/images/workload-management/spill_disk_memory.png)
+Blocking rules can be categorized according to the scope of blocking into:
 
-### BE Process Memory Configuration
+- Global-level blocking rules
+- User-level blocking rules
 
-The memory of the entire BE process is controlled by the mem_limit parameter in be.conf. Once Doris's memory usage exceeds this threshold, Doris cancels the current query that is requesting memory. Additionally, a background task asynchronously kills some queries to release memory or cache. Therefore, Doris's internal management operations (such as spilling to disk, flushing memtable, etc.) need to run when approaching this threshold to avoid reaching it. Once the threshold is reached, to prevent the entire process from experiencing OOM, Doris takes some drastic self-protection measures.
-When Doris's BE is collocated with other processes (such as Doris FE, Kafka, HDFS), the actual available memory for Doris BE may be significantly less than the user-set mem_limit, causing the internal memory release mechanism to fail and potentially leading to the Doris process being killed by the operating system's OOM Killer.
-When the Doris process is deployed in K8S or managed by Cgroup, Doris automatically senses the memory configuration of the container.
+### Usage
 
-### Workload Group Memory Configuration
+#### Global-level blocking rules
 
-- memory_limit，default is 30%. Represents the percentage of memory allocated to the current workload group as a fraction of the entire process memory.
-- enable_memory_overcommit, default is true. Indicates whether the memory limit for the current workload group is a hard or soft limit. When this value is true, it means that the memory usage of all tasks within this workload group can exceed the memory_limit. However, when the memory of the entire process is insufficient, to ensure rapid memory reclamation, BE will prioritize canceling queries from workload groups that exceed their limits without waiting for spilling to disk. This is a user-friendly configuration strategy when users are unsure how much memory to allocate to multiple workload groups.
-- write_buffer_ratio，default is 20%. Represents the size of the write buffer within the current workload group. To speed up data ingestion, Doris first accumulates data in memory (i.e., constructs a Memtable), sorts it in its entirety when it reaches a certain size, and then writes it to disk. However, accumulating too many Memtables in memory can affect the memory available for normal queries, leading to query cancellation. Therefore, Doris allocates a separate write buffer for each workload group. For workload groups with heavy write operations, a larger write buffer can effectively improve ingestion throughput; for workload groups with more query operations, this value can be reduced.
-- low watermark: Default is 75%.
-- high watermark: Default is 90%.
-
-## Query Memory Management
-
-### Static Memory Allocation
-
-The memory used by a query is controlled by the following two parameters:
-
-- exec_mem_limit, representing the maximum memory that a query can use, with a default value of 2GB.
-- enable_mem_overcommit, default is true. Indicates whether the memory used by a query can exceed the exec_mem_limit. The default value is true, meaning it can exceed this limit. When the process memory is insufficient, queries that exceed the memory limit will be killed. If set to false, the query's memory usage cannot exceed this limit. When exceeded, spilling to disk or query killing will occur based on user settings. These two parameters must be set by the user in the session variable before query execution and cannot be dynamically modified during execution.
-
-### Slot-Based Memory Allocation
-
-In practice, we found that with static memory allocation, users often do not know how much memory to allocate to a query. Therefore, exec_mem_limit is frequently set to half of the entire BE process memory, meaning that the memory used by all queries within the BE cannot exceed half of the process memory. In this scenario, this feature effectively becomes a kind of fuse. When we need to implement more granular policy control based on memory size, such as spilling to disk, this value is too large to rely on for control.
-Therefore, we have implemented a new slot-based memory limitation method based on workload groups. The principle of this strategy is as follows:
-
-- Each workload group is configured with two parameters by the user: memory_limit and max_concurrency. It is assumed that the memory of the entire BE is divided into max_concurrency slots, with each slot occupying memory_limit / max_concurrency of memory.
-- By default, each query occupies one slot during execution. If the user wants a query to use more memory, they need to modify the query_slot_count value.
-- Since the total number of slots in a workload group is fixed, increasing query_slot_count means each query occupies more slots, dynamically reducing the number of queries that can run concurrently in the workload group, causing new queries to automatically queue.
-
-The slot_memory_policy for workload groups can have three optional values:
-
-- disabled, the default value, indicating that it is not enabled and the static memory allocation method is used.
-- fixed, where the memory that each query can use is calculated as workload group's mem_limit \* query_slot_count / max_concurrency.
-- dynamic, where the memory that each query can use is calculated as workload group's mem_limit \* query_slot_count / sum(running query slots). This mainly overcomes the issue of unused slots in fixed mode. Both fixed and dynamic set hard limits for queries. Once exceeded, spilling to disk or query killing will occur, and these will override the static memory allocation parameters set by the user. Therefore, when setting slot_memory_policy, it is essential to properly configure max_concurrency for the workload group to avoid memory insufficiency issues.
-
-## Spilling
-
-### Enabling Query Intermediate Result Spilling
-
-#### BE Configuration Items
-
-```
-spill_storage_root_path=/mnt/disk1/spilltest/doris/be/storage;/mnt/disk2/doris-spill;/mnt/disk3/doris-spill
-spill_storage_limit=100%
+```sql
+CREATE SQL_BLOCK_RULE rule_001
+PROPERTIES (
+  "SQL"="select \\* from t",
+  "global" = "true",
+  "enable" = "true"
+)
 ```
 
-- spill_storage_root_path: The storage path for query intermediate result spilling files, which defaults to the same as storage_root_path.
-- spill_storage_limit: The disk space limit for spilling files. It can be configured with a specific space size (e.g., 100GB, 1TB) or a percentage, with a default of 20%. If spill_storage_root_path is configured with a separate disk, it can be set to 100%. This parameter primarily prevents spilling from occupying too much disk space, impeding normal data storage. After modifying the configuration items, you need to restart BE for them to take effect.
+In this way, we have created a global-level blocking rule. The rule is named rule_001. A query statement regex matching rule has been configured to block all query statements that match the regex `select \\* from t`.
 
-#### FE Session Variable
+Since this is a global-level blocking rule, any user executing statements that match the above regex will be blocked. For example:
 
-```
-set enable_spill=true;
-set exec_mem_limit = 10g
-set enable_mem_overcommit = false
+```sql
+MySQL root@127.0.0.1:test> select * from t;
+(1105, 'errCode = 2, detailMessage = errCode = 2, detailMessage = SQL match regex SQL block rule: rule_001')
 ```
 
-- enable_spill, indicates whether spilling is enabled for a query.
-- exec_mem_limit, represents the maximum memory size used by a query.
-- enable_mem_overcommit, indicates whether a query can use memory exceeding the exec_mem_limit.
+#### User-level Blocking Rule
 
-#### Workload Group
-
-The default memory_limit for workload groups is 30%, which can be adjusted based on the actual number of workload groups. If there is only one workload group, it can be adjusted to 90%.
-
-```
-alter workload group normal properties ( 'memory_limit'='90%' );
-```
-
-### Monitoring Spilling
-
-#### Audit Logs
-
-The FE audit log has added the SpillWriteBytesToLocalStorage and SpillReadBytesFromLocalStorage fields, representing the total amount of data written to and read from local storage during spilling, respectively.
-
-```
-SpillWriteBytesToLocalStorage=503412182|SpillReadBytesFromLocalStorage=503412182
+```sql
+CREATE SQL_BLOCK_RULE rule_001
+PROPERTIES (
+  "SQL"="select * from t",
+  "global" = "false",
+  "enable" = "true"
+)
 ```
 
-#### Profile
+Unlike global-level blocking rules, user-level blocking rules only apply to specified users. When we create a blocking rule, set the property "global" to "false". Then, this blocking rule will be considered a user-level blocking rule.
 
-If spilling is triggered during a query, some Spill-prefixed counters are added to the Query Profile to mark and count spilling-related activities. Taking HashJoin's Build HashTable as an example, you can see the following counters:
+To make user-level blocking rules effective, you also need to set the corresponding properties for the users who need to use this rule. For example:
 
-```
-PARTITIONED_HASH_JOIN_SINK_OPERATOR  (id=4  ,  nereids_id=179):(ExecTime:  6sec351ms)
-      -  Spilled:  true
-      -  CloseTime:  528ns
-      -  ExecTime:  6sec351ms
-      -  InitTime:  5.751us
-      -  InputRows:  6.001215M  (6001215)
-      -  MemoryUsage:  0.00  
-      -  MemoryUsagePeak:  554.42  MB
-      -  MemoryUsageReserved:  1024.00  KB
-      -  OpenTime:  2.267ms
-      -  PendingFinishDependency:  0ns
-      -  SpillBuildTime:  2sec437ms
-      -  SpillInMemRow:  0
-      -  SpillMaxRowsOfPartition:  68.569K  (68569)
-      -  SpillMinRowsOfPartition:  67.455K  (67455)
-      -  SpillPartitionShuffleTime:  836.302ms
-      -  SpillPartitionTime:  131.839ms
-      -  SpillTotalTime:  5sec563ms
-      -  SpillWriteBlockBytes:  714.13  MB
-      -  SpillWriteBlockCount:  1.344K  (1344)
-      -  SpillWriteFileBytes:  244.40  MB
-      -  SpillWriteFileTime:  350.754ms
-      -  SpillWriteFileTotalCount:  32
-      -  SpillWriteRows:  6.001215M  (6001215)
-      -  SpillWriteSerializeBlockTime:  4sec378ms
-      -  SpillWriteTaskCount:  417
-      -  SpillWriteTaskWaitInQueueCount:  0
-      -  SpillWriteTaskWaitInQueueTime:  8.731ms
-      -  SpillWriteTime:  5sec549ms
+```sql
+set property for 'root' 'SQL_block_rules' = 'rule_001';
 ```
 
-#### System Tables
+Thus, after the above configuration, when the root user executes a query, the blocking rule named rule_001 will be applied.
 
-##### backend_active_tasks
+```sql
+MySQL root@127.0.0.1:test> set property for 'root' 'SQL_block_rules' = '';
+Query OK, 0 rows affected
+Time: 0.018s
+MySQL root@127.0.0.1:test> select * from t;
++----+----+
+| id | c1 |
++----+----+
+| 1  | 1  |
++----+----+
 
-The SPILL_WRITE_BYTES_TO_LOCAL_STORAGE and SPILL_READ_BYTES_FROM_LOCAL_STORAGE fields have been added, representing the total amount of data currently being written to and read from local storage for intermediate results during a query.
-
-```
-mysql [information_schema]>select * from backend_active_tasks;
-+-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
-| BE_ID | FE_HOST    | WORKLOAD_GROUP_ID | QUERY_ID                          | TASK_TIME_MS | TASK_CPU_TIME_MS | SCAN_ROWS | SCAN_BYTES | BE_PEAK_MEMORY_BYTES | CURRENT_USED_MEMORY_BYTES | SHUFFLE_SEND_BYTES | SHUFFLE_SEND_ROWS | QUERY_TYPE | SPILL_WRITE_BYTES_TO_LOCAL_STORAGE | SPILL_READ_BYTES_FROM_LOCAL_STORAGE |
-+-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
-| 10009 | 10.16.10.8 |                 1 | 6f08c74afbd44fff-9af951270933842d |        13612 |            11025 |  12002430 | 1960955904 |            733243057 |                  70113260 |                  0 |                 0 | SELECT     |                          508110119 |                            26383070 |
-| 10009 | 10.16.10.8 |                 1 | 871d643b87bf447b-865eb799403bec96 |            0 |                0 |         0 |          0 |                    0 |                         0 |                  0 |                 0 | SELECT     |                                  0 |                                   0 |
-+-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
-2 rows in set (0.00 sec)
-```
-
-##### workload_group_resource_usage
-
-The WRITE_BUFFER_USAGE_BYTES field has been added, representing the memory usage of Memtables for ingestion tasks within the workload group.
-
-```
-mysql [information_schema]>select * from workload_group_resource_usage;
-+-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
-| BE_ID | WORKLOAD_GROUP_ID | MEMORY_USAGE_BYTES | CPU_USAGE_PERCENT | LOCAL_SCAN_BYTES_PER_SECOND | REMOTE_SCAN_BYTES_PER_SECOND | WRITE_BUFFER_USAGE_BYTES |
-+-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
-| 10009 |                 1 |          102314948 |              0.69 |                           0 |                            0 |                 23404836 |
-+-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
-1 row in set (0.01 sec)
+1 row in set
+Time: 0.027s
+MySQL root@127.0.0.1:test> set property for 'root' 'SQL_block_rules' = 'rule_001';
+Query OK, 0 rows affected
+Time: 0.008s
+MySQL root@127.0.0.1:test> select * from t;
+(1105, 'errCode = 2, detailMessage = errCode = 2, detailMessage = SQL match regex SQL block rule: rule_001')
 ```
 
-## Testing
+- If you want to add multiple user-level blocking rules for a user, list all the rule names in the rule list, separated by commas.
+- If you want to remove all user-level blocking rules for a user, set the rule list to an empty string.
 
-### Test Environment
+#### Other Operations
 
-#### Machine Configuration
+If you need to modify or delete blocking rules, refer to the SQL manual for blocking rules.
 
-The test used Alibaba Cloud servers with the following specific configurations:
+### Use Cases
 
-1FE:
+You can use the following scenarios:
 
-```
-16 cores(vCPU) 32 GiB 200 Mbps ecs.c6.4xlarge
-```
+- Blocking scans that exceed a specified number of rows
+- Blocking scans that exceed a specified number of partitions
+- Blocking scans that exceed a specified number of buckets
+- Blocking queries with specific patterns
 
-3BE:
+#### Blocking Scans that Exceed a Specified Number of Rows
 
-```
-16 cores(vCPU) 64 GiB 0 Mbps ecs.g6.4xlarge
-```
+Scanning data significantly consumes BE's IO and CPU resources. Therefore, unnecessary data scans pose a substantial challenge to cluster stability. In daily use, blind full table scan operations often occur, such as `SELECT * FROM t`. To prevent such queries from damaging the cluster, you can set an upper limit on the number of rows scanned by a single query on a single table.
 
-#### 测试数据
-
-The test data used TPC-DS 10TB as input, sourced from Alibaba Cloud DLF, and mounted to Doris using the Catalog method. The SQL statement is as follows:
-
-```
-CREATE CATALOG dlf PROPERTIES (
-"type"="hms",
-"hive.metastore.type" = "dlf",
-"dlf.proxy.mode" = "DLF_ONLY",
-"dlf.endpoint" = "dlf-vpc.cn-beijing.aliyuncs.com",
-"dlf.region" = "cn-beijing",
-"dlf.uid" = "217316283625971977",
-"dlf.catalog.id" = "emr_dev",
-"dlf.access_key" = "fill in as applicable",
-"dlf.secret_key" = "fill in as applicable"
+```sql
+CREATE SQL_BLOCK_RULE rule_card 
+PROPERTIES
+(
+   "cardinality" = "1000",
+   "global" = "true",
+   "enable" = "true"
 );
 ```
 
-Reference website: https://doris.apache.org/zh-CN/docs/dev/benchmark/tpcds
+When the above rules are set, if a single table scan exceeds 1000 rows, the execution of the query is prohibited.
+It should be noted that since the calculation of the number of rows scanned is done during the planning phase, not the execution phase. Therefore, when calculating the number of rows, only partition and bucket pruning are considered, and the impact of other filtering conditions on the number of rows scanned is not taken into account. In other words, the worst-case scenario is considered. Therefore, queries where the actual number of rows scanned is less than the set value may also be blocked.
 
-### Test Results
+#### Prevent Scanning Data from Exceeding the Specified Number of Partitions
 
-The dataset size was 10TB. The ratio of memory to dataset size was 1:52. The overall runtime was 32,000 seconds, and all 99 queries were successfully executed. In the future, we will provide spilling capabilities for more operators (such as window functions, Intersect, etc.) and continue to optimize performance under spilling conditions, reduce disk consumption, and improve query stability.
+Scanning too many partitions can significantly increase the CPU consumption of BE. Additionally, if the query is on an external table, it is more likely to incur significant network overhead and metadata retrieval overhead. In daily use, this is often due to forgetting to write filtering conditions on partition columns or writing them incorrectly. To prevent such queries from damaging the cluster, you can set an upper limit on the number of partitions scanned by a single query on a single table.
 
-| query   | Time(ms) |
-| ------- | --------------------------- |
-| query1  | 25590                       |
-| query2  | 126445                      |
-| query3  | 103859                      |
-| query4  | 1174702                     |
-| query5  | 266281                      |
-| query6  | 62950                       |
-| query7  | 212745                      |
-| query8  | 67000                       |
-| query9  | 602291                      |
-| query10 | 70904                       |
-| query11 | 544436                      |
-| query12 | 25759                       |
-| query13 | 229144                      |
-| query14 | 1120895                     |
-| query15 | 29409                       |
-| query16 | 117287                      |
-| query17 | 260122                      |
-| query18 | 97453                       |
-| query19 | 127384                      |
-| query20 | 32749                       |
-| query21 | 4471                        |
-| query22 | 10162                       |
-| query23 | 1772561                     |
-| query24 | 535506                      |
-| query25 | 272458                      |
-| query26 | 83342                       |
-| query27 | 175264                      |
-| query28 | 887007                      |
-| query29 | 427229                      |
-| query30 | 13661                       |
-| query31 | 108778                      |
-| query32 | 37303                       |
-| query33 | 181351                      |
-| query34 | 84159                       |
-| query35 | 81701                       |
-| query36 | 152990                      |
-| query37 | 36815                       |
-| query38 | 172531                      |
-| query39 | 20155                       |
-| query40 | 75749                       |
-| query41 | 527                         |
-| query42 | 95910                       |
-| query43 | 66821                       |
-| query44 | 209947                      |
-| query45 | 26946                       |
-| query46 | 131490                      |
-| query47 | 158011                      |
-| query48 | 149482                      |
-| query49 | 303515                      |
-| query50 | 298089                      |
-| query51 | 156487                      |
-| query52 | 97440                       |
-| query53 | 98258                       |
-| query54 | 202583                      |
-| query55 | 93268                       |
-| query56 | 185255                      |
-| query57 | 80308                       |
-| query58 | 252746                      |
-| query59 | 171545                      |
-| query60 | 202915                      |
-| query61 | 272184                      |
-| query62 | 38749                       |
-| query63 | 94327                       |
-| query64 | 247074                      |
-| query65 | 270705                      |
-| query66 | 101465                      |
-| query67 | 3744186                     |
-| query68 | 151543                      |
-| query69 | 15559                       |
-| query70 | 132505                      |
-| query71 | 180079                      |
-| query72 | 3085373                     |
-| query73 | 82623                       |
-| query74 | 330087                      |
-| query75 | 830993                      |
-| query76 | 188805                      |
-| query77 | 239730                      |
-| query78 | 1895765                     |
-| query79 | 144829                      |
-| query80 | 463652                      |
-| query81 | 15319                       |
-| query82 | 76961                       |
-| query83 | 32437                       |
-| query84 | 22849                       |
-| query85 | 58186                       |
-| query86 | 33933                       |
-| query87 | 185421                      |
-| query88 | 434867                      |
-| query89 | 108265                      |
-| query90 | 31131                       |
-| query91 | 18864                       |
-| query92 | 24510                       |
-| query93 | 281904                      |
-| query94 | 67761                       |
-| query95 | 3738968                     |
-| query96 | 47245                       |
-| query97 | 536702                      |
-| query98 | 97800                       |
-| query99 | 62210                       |
-| sum     | 31797707                    |
+```sql
+CREATE SQL_BLOCK_RULE rule_part_num 
+PROPERTIES
+(
+   "partition_num" = "30",
+   "global" = "true",
+   "enable" = "true"
+);
+```
+
+When the above rules are set, if the number of partitions scanned for a single table exceeds 30, the execution of the query is prohibited.
+It should be noted that the calculation of the number of scanned partitions is completed during the planning phase, not the execution phase. Therefore, there may be cases where more partitions are retained due to incomplete partition pruning. Thus, queries where the actual number of scanned partitions is less than the set value may also be blocked.
+
+#### Prevent Scanning Data with Excessive Bucket Counts
+
+Scanning too many buckets can significantly increase the BE's CPU consumption. To prevent such queries from harming the cluster, you can set an upper limit on the number of partitions a single query can scan on a single table.
+
+```sql
+CREATE SQL_BLOCK_RULE rule_teblet_num 
+PROPERTIES
+(
+   "tablet_num" = "200",
+   "global" = "true",
+   "enable" = "true"
+);
+```
+
+When the above rules are set, if the number of buckets scanned in a single table exceeds 200, the execution of the query is prohibited.
+
+It is important to note that the calculation of the number of scanned buckets is done during the planning phase, not the execution phase. Therefore, it is possible that due to incomplete bucket pruning, more partitions are retained. As a result, queries with an actual number of scanned buckets less than the set value may also be blocked.
+
+#### Blocking Queries with Specific Patterns
+
+For various reasons, such as high computational complexity or long planning time, you may want to block queries that use certain patterns.
+
+For example, to block the `abs` function. You can use the following regular expression block rule to achieve this purpose.
+
+```sql
+CREATE SQL_BLOCK_RULE rule_abs
+PROPERTIES(
+  "SQL"="(?i)abs\\s*\\(.+\\)",
+  "global"="true",
+  "enable"="true"
+);
+```
+
+In the above regular expressions:
+
+- `(?i)` indicates case-insensitive matching.
+- `abs` is the target function to be blocked.
+- `\s*` signifies that any amount of whitespace is allowed between `abs` and the left parenthesis.
+- `\(.+\)` matches the function parameters.
+
+Similarly, similar methods can be used to block `set global` to prevent unintended variable changes, or block `truncate table` to prevent unintended data deletions.
+
+### FAQ
+
+#### Q: Will regular expression blocking rules have side effects on the cluster?
+
+A: Yes. Regular expression matching is computationally intensive. When using complex regular expressions or too many regex blocking rules, it can significantly increase the CPU load on the FE. Therefore, add regex blocking rules cautiously. Avoid using complex regular expressions unless necessary.
+
+#### Q: Can a blocking rule be temporarily disabled?
+
+A: Yes. Modify the blocking rule by setting its "enable" property to "false".
+
+#### Q: What standard do the regular expressions in blocking rules use?
+
+A: The regular expressions in blocking rules use Java's regular expression syntax. Common expressions can refer to the SQL syntax manual. The complete manual can be found at https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html
+
+## Workload Policy
+
+SQL Block Rule is a configuration for circuit breaking during planning, but because the cost calculation during planning may be inaccurate (especially for very complex queries, making it difficult to estimate accurately), it can lead to rules not being effective or false positives. Workload Policy addresses this limitation by allowing real-time monitoring of certain metrics during query execution, and circuit breaking queries whose runtime state does not meet expectations. This prevents unexpected large queries from consuming excessive resources and affecting cluster stability. Common runtime monitoring metrics include:
+
+- Query execution time
+- Number of rows scanned per BE
+- Number of bytes scanned per BE
+- Memory usage per BE
+
+### Version Notes
+
+Since Doris version 2.1, Workload Policy can be used to implement circuit breaking for large queries.
+
+| Version            | 2.1 |
+| ------------------ | ------------------- |
+| select             | √                   |
+| insert into select | √                   |
+| insert into values | X                   |
+| stream load        | √                   |
+| routine load       | √                   |
+| backup             | X                   |
+| compaction         | X                   |
+
+### Creating Workload Policy
+
+Use the `CREATE WORKLOAD Policy` command to create a resource management policy.
+
+In the example below, create a Policy named `test_cancel_Policy`, which will cancel queries running in the cluster for more than 1000ms. The current status is enabled. Creating a Workload Policy requires `admin_priv` privileges.
+
+```sql
+create workload Policy test_cancel_Policy
+Conditions(query_time > 1000)
+Actions(cancel_query) 
+properties('enabled'='true'); 
+```
+
+When creating a Workload Policy, the following must be specified:
+
+- **Condition** represents the policy trigger condition. Multiple Conditions can be linked using commas "," to represent an "AND" relationship. In the example above, `query_time > 1000` indicates that the Policy is triggered when the query time exceeds 1 second. Currently supported Conditions are:
+
+| Conditions                                                                           | Description                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| username                                                                             | The username carried by the query, only triggers the `set_session_variable` Action in FE.                                                                                                       |
+| be_scan_rows                               | The number of rows scanned by a SQL in a single BE process. If the SQL is executed concurrently on BE, it is the cumulative value of multiple concurrent executions.            |
+| be_scan_bytes                              | The number of bytes scanned by a SQL in a single BE process. If the SQL is executed concurrently on BE, it is the cumulative value of multiple concurrent executions, in bytes. |
+| query_time                                                      | The runtime of a SQL in a single BE process, in milliseconds.                                                                                                                                   |
+| query_be_memory_bytes | The memory usage of a SQL in a single BE process. If the SQL is executed concurrently on BE, it is the cumulative value of multiple concurrent executions, in bytes.            |
+
+- **Action** represents the action taken when the condition is triggered. Currently, a Policy can only define one Action (except for `set_session_variable`). In the example above, `cancel_query` indicates cancelling the query. Currently supported Actions are:
+
+| Actions                                                        | Description                                                                                                                                                                                                  |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| cancel_query                              | Cancel the query.                                                                                                                                                                            |
+| set_session_variable | Triggers the `set session variable` statement. A single policy can have multiple `set_session_variable` options, currently only triggered in FE by the `username` Condition. |
+
+- **Properties** define the attributes of the current Policy, including whether it is enabled and its priority.
+
+| Properties                          | Description                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enabled                             | Can be `true` or `false`, default is `true`, indicating the Policy is enabled. `false` indicates the Policy is disabled.                                                                                                                                                             |
+| priority                            | An integer ranging from 0 to 100, default is 0, representing the Policy's priority. The higher the value, the higher the priority. This attribute mainly ensures that when a query matches multiple Policies, only the Policy with the highest priority is selected. |
+| workload_group | Currently, a Policy can bind to one workload group, meaning this Policy only applies to queries from a specific Workload Group. The default is empty, meaning it applies to all queries.                                                                                             |
+
+### Binding Workload Policy to Workload Group
+
+By default, Workload Policies apply to all supported queries. If you want to specify that a Policy only targets a specific Workload Group, you need to bind the Workload Group through the `workload_group` option. The statement is as follows:
+
+```sql
+create workload Policy test_cancel_big_query
+Conditions(query_time > 1000)
+Actions(cancel_query) 
+properties('workload_group'='normal')
+```
+
+### Important Notes
+
+- The Conditions and Actions of the same Policy must either both be FE or both be BE. For example, `set_session_variable` and `cancel_query` cannot be configured within the same Policy. Conditions `be_scan_rows` and `username` cannot be configured within the same Policy.
+- Currently, Policies are executed by asynchronous threads at fixed time intervals, which introduces a certain latency in policy enforcement. For example, if a user configures a policy to cancel a query when the number of scanned rows exceeds 1,000,000, and the cluster resources are relatively idle at that time, the query may finish before the cancellation policy takes effect. The current interval is 500ms, meaning that queries with run times shorter than this interval may bypass the policy check.
+- Currently supported load types include select/insert, select/stream load, broker load, and routine load.
+- A single query may match multiple Policies, but only the Policy with the highest priority will take effect.
+- Modifications to Actions and Conditions are currently not supported; they can only be modified by deleting and recreating them.
+
+### Workload Policy Demonstration
+
+#### 1. Session Variable Modification Test
+
+Attempt to modify concurrency-related parameters in the session variables of the Admin account.
+
+```sql
+// log on admin to check variables
+mySQL [(none)]>show variables like '%parallel_fragment_exec_instance_num%';
++-------------------------------------+-------+---------------+---------+
+| Variable_name                       | Value | Default_Value | Changed |
++-------------------------------------+-------+---------------+---------+
+| parallel_fragment_exec_instance_num | 8     | 8             | 0       |
++-------------------------------------+-------+---------------+---------+
+1 row in set (0.00 sec)
+
+// Create a Policy to modify the concurrency parameters of the admin account.
+create workload Policy test_set_var_Policy
+Conditions(username='admin')
+Actions(set_session_variable 'parallel_fragment_exec_instance_num=1') 
+
+// After some time, check the admin account's parameters again.
+mySQL [(none)]>show variables like '%parallel_fragment_exec_instance_num%';
++-------------------------------------+-------+---------------+---------+
+| Variable_name                       | Value | Default_Value | Changed |
++-------------------------------------+-------+---------------+---------+
+| parallel_fragment_exec_instance_num | 1     | 8             | 1       |
++-------------------------------------+-------+---------------+---------+
+1 row in set (0.01 sec)
+```
+
+#### 2. Big Query Circuit Breaker Test
+
+Test to circuit break queries that run longer than 3s. Below is an audit log of a successful run of ckbench's q29, showing that this SQL took 4.5s to complete.
+
+```sql
+mySQL [hits]>SELECT REGEXP_REPLACE(Referer, '^https?://(?:www\.)?([^/]+)/.*$', '\1') AS k, AVG(length(Referer)) AS l, COUNT(*) AS c, MIN(Referer) FROM hits WHERE Referer <> '' GROUP BY k HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
++-----------------------------------------------------------------------+------------------+----------+---------------------------------------------------------------------------------------------------------------------+
+| k                                                                     | l                | c        | min(Referer)                                                                                                        |
++-----------------------------------------------------------------------+------------------+----------+---------------------------------------------------------------------------------------------------------------------+
+| 1                                                                     | 85.4611926713085 | 67259319 | http://%26ad%3D1%25EA%25D0%26utm_source=web&cd=19590&input_onlist/би-2 место будущей кондицин                       |
+| http:%2F%2Fwwww.regnancies/search&evL8gE&where=all&filmId=bEmYZc_WTDE |               69 |   207347 | http:%2F%2Fwwww.regnancies/search&evL8gE&where=all&filmId=bEmYZc_WTDE                                               |
+| http://новострашная                                                   |               31 |   740277 | http://новострашная                                                                                                 |
+| http://loveche.html?ctid                                              |               24 |   144901 | http://loveche.html?ctid                                                                                            |
+| http://rukodeliveresult                                               |               23 |   226135 | http://rukodeliveresult                                                                                             |
+| http://holodilnik.ru                                                  |               20 |   133893 | http://holodilnik.ru                                                                                                |
+| http://smeshariki.ru                                                  |               20 |   210736 | http://smeshariki.ru                                                                                                |
+| http:%2F%2Fviewtopic                                                  |               20 |   391115 | http:%2F%2Fviewtopic                                                                                                |
+| http:%2F%2Fwwww.ukr                                                   |               19 |   655178 | http:%2F%2Fwwww.ukr                                                                                                 |
+| http:%2F%2FviewType                                                   |               19 |   148907 | http:%2F%2FviewType                                                                                                 |
+| http://state=2008                                                     |               17 |   139630 | http://state=2008                                                                                                   |
++-----------------------------------------------------------------------+------------------+----------+---------------------------------------------------------------------------------------------------------------------+
+11 rows in set (4.50 sec)
+```
+
+Create a Policy that cancels a query if it runs longer than 3 seconds.
+
+```sql
+create workload Policy test_cancel_3s_query
+Conditions(query_time > 3000)
+Actions(cancel_query) 
+```
+
+Upon re-executing the SQL, you can see that the SQL execution will directly report an error.
+
+```sql
+mySQL [hits]>SELECT REGEXP_REPLACE(Referer, '^https?://(?:www\.)?([^/]+)/.*$', '\1') AS k, AVG(length(Referer)) AS l, COUNT(*) AS c, MIN(Referer) FROM hits WHERE Referer <> '' GROUP BY k HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
+ERROR 1105 (HY000): errCode = 2, detailMessage = (127.0.0.1)[CANCELLED]query cancelled by workload Policy,id:12345
+```
 
