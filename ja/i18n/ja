@@ -1,5 +1,5 @@
 ---
-{ "title": "HOURS_SUB", "language": "en" }
+{ "title": "LAST_DAY", "language": "en" }
 ---
 
 <!-- 
@@ -10,9 +10,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,31 +19,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## hours_sub
+## last_day
 
-### description
+### Description
 
 #### Syntax
 
-`DATETIME HOURS_SUB(DATETIME date, INT hours)`
+`DATE last_day(DATETIME date)`
 
-Subtracts a specified number of hours from a datetime or date
-
-The parameter date can be DATETIME or DATE, and the return type is DATETIME.
+Return the last day of the month, the return day may be :
+'28'(February and not a leap year),
+'29'(February and a leap year),
+'30'(April, June, September, November),
+'31'(January, March, May, July, August, October, December)
 
 ### example
 
 ```
-mysql> select hours_sub("2020-02-02 02:02:02", 1);
-+-------------------------------------+
-| hours_sub('2020-02-02 02:02:02', 1) |
-+-------------------------------------+
-| 2020-02-02 01:02:02                 |
-+-------------------------------------+
+mysql > select last_day('2000-02-03');
++-------------------+
+| last_day('2000-02-03 00:00:00') |
++-------------------+
+| 2000-02-29        |
++-------------------+
 ```
 
 ### keywords
 
     ```
-    HOURS_SUB
+    LAST_DAY,DAYS
     ```
