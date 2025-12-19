@@ -1,8 +1,8 @@
 ---
-{ "title": "ARRAY_AVG", "language": "en" }
+{ "title": "ARRAY_COMPACT", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -10,9 +10,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,39 +19,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_avg
+## array_compact
 
-array_avg
+array_compact
 
 ### description
 
+Removes consecutive duplicate elements from an array. The order of result values is determined by the order in the source array.
+
 #### Syntax
 
-`Array<T> array_avg(arr)`
+`Array<T> array_compact(arr)`
 
-Get the average of all elements in an array (`NULL` values are skipped).
-When the array is empty or all elements in the array are `NULL` values, the function returns `NULL`.
+#### Arguments
+
+`arr` — The array to inspect.
+
+#### Returned value
+
+The array without continuous duplicate.
+
+Type: Array.
 
 ### example
 
-```shell
-mysql> create table array_type_table(k1 INT, k2 Array<int>) duplicate key (k1)
-    -> distributed by hash(k1) buckets 1 properties('replication_num' = '1');
-mysql> insert into array_type_table values (0, []), (1, [NULL]), (2, [1, 2, 3]), (3, [1, NULL, 3]);
-mysql> select k2, array_avg(k2) from array_type_table;
-+--------------+-----------------+
-| k2           | array_avg(`k2`) |
-+--------------+-----------------+
-| []           |            NULL |
-| [NULL]       |            NULL |
-| [1, 2, 3]    |               2 |
-| [1, NULL, 3] |               2 |
-+--------------+-----------------+
-4 rows in set (0.01 sec)
+```
+select array_compact([1, 2, 3, 3, null, null, 4, 4]);
 
++----------------------------------------------------+
+| array_compact(ARRAY(1, 2, 3, 3, NULL, NULL, 4, 4)) |
++----------------------------------------------------+
+| [1, 2, 3, NULL, 4]                                 |
++----------------------------------------------------+
+
+select array_compact(['aaa','aaa','bbb','ccc','ccccc',null, null,'dddd']);
+
++-------------------------------------------------------------------------------+
+| array_compact(ARRAY('aaa', 'aaa', 'bbb', 'ccc', 'ccccc', NULL, NULL, 'dddd')) |
++-------------------------------------------------------------------------------+
+| ['aaa', 'bbb', 'ccc', 'ccccc', NULL, 'dddd']                                  |
++-------------------------------------------------------------------------------+
+
+select array_compact(['2015-03-13','2015-03-13']);
+
++--------------------------------------------------+
+| array_compact(ARRAY('2015-03-13', '2015-03-13')) |
++--------------------------------------------------+
+| ['2015-03-13']                                   |
++--------------------------------------------------+
 ```
 
 ### keywords
 
-ARRAY,AVG,ARRAY_AVG
+ARRAY,COMPACT,ARRAY_COMPACT
 
