@@ -1,11 +1,8 @@
 ---
-{
-  "title": "Integration with Apache Ranger",
-  "language": "en"
-}
+{ "title": "Elastic Scaling", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -24,259 +21,118 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Ranger is a security framework used to monitor, enable services, and manage all-round data security access on the Hadoop platform.
+Doris supports online elastic scaling, allowing users to dynamically add or remove nodes without interrupting services. This capability ensures businesses can meet growing demands or reduce idle resource waste. Scaling up or down BE nodes does not affect cluster availability but involves data migration, so it is recommended to perform scaling operations during periods of low business activity.
 
-In version 2.1.0, Doris supports unified permission management by integrating Apache Ranger.
+## Scale In/Out the FE Clusters
 
-> Note:
->
-> - This feature is currently experimental, and the resource objects and permissions configurable in Ranger may change in subsequent versions.
->
-> - Apache Ranger version needs to be above 2.4.0.
+Doris FE nodes are divided into the following three roles, with each FE node containing a full set of metadata:
 
-## Installation
+- Master Node: Responsible for reading and writing metadata. When metadata changes occur on the Master node, they are synchronized to non-Master nodes via the BDB JE protocol. There can be only one Master FE node in the cluster.
 
-### Install Doris Ranger plug-in
+- Follower Node: Responsible for reading metadata. In the event of a Master node failure, Follower nodes initiate a leader election to select a new Master node. Within the cluster, the total number of Master and Follower nodes is recommended to be an odd number.
 
-1. Download the following files
+- Observer Node: Responsible for reading metadata but does not participate in leader election. It is used to extend the read service capacity of FE nodes.
 
-   - [ranger-doris-plugin-3.0.0-SNAPSHOT.jar](https://selectdb-doris-1308700295.cos.ap-beijing.myqcloud.com/ranger/ranger-doris-plugin-3.0.0-SNAPSHOT.jar)
-   - [mysql-connector-java-8.0.25.jar](https://selectdb-doris-1308700295.cos.ap-beijing.myqcloud.com/release/jdbc_driver/mysql-connector-java-8.0.25.jar)
+Typically, each FE node can handle the load operations of 10-20 BE nodes. A configuration of 3 FE nodes is sufficient to meet the requirements of most business scenarios.
 
-2. Place the downloaded file in the `ranger-plugins/doris` directory of the Ranger service, such as:
+### Scale the FE out
 
-   ```
-   /usr/local/service/ranger/ews/webapp/WEB-INF/classes/ranger-plugins/doris/ranger-doris-plugin-3.0.0-SNAPSHOT.jar
-   /usr/local/service/ranger/ews/webapp/WEB-INF/classes/ranger-plugins/doris/mysql-connector-java-8.0.25.jar
-   ```
+:::info Note:
 
-3. Restart the Ranger service.
+When adding a new FE node, please pay attention to the following:
 
-4. Download [ranger-servicedef-doris.json](https://github.com/morningman/ranger/blob/doris-plugin/agents-common/src/main/resources/service-defs/ranger-servicedef-doris.json)
+- The `http_port` of the new FE node must match the `http_port` of all existing FE nodes in the cluster.
 
-5. Execute the following command to upload the definition file to the Ranger service:
+- If adding a Follower node, it is recommended that the total number of Master and Follower nodes in the cluster be an odd number.
 
-   ```
-   curl -u user:password -X POST \
-   	-H "Accept: application/json" \
-   	-H "Content-Type: application/json" \
-   	http://172.21.0.32:6080/service/plugins/definitions \
-   	-d@ranger-servicedef-doris.json
-   ```
+- You can view the ports and roles of the current cluster nodes using the `show frontends` command.
+  :::
 
-   The username and password are the username and password used to log in to Ranger WebUI.
+1. Start FE Node:
 
-   The service address port can be viewed in the `ranger.service.http.port` configuration item of the `ranger-admin-site.xml` configuration file.
+```bash
+fe/bin/start_fe.sh --helper <leader_fe_host>:<edit_log_port> --daemon
+```
 
-   If the execution is successful, the service definition in Json format will be returned, such as:
+- Register FE Node:
 
-   ```
-   {
-     "id": 207,
-     "guid": "d3ff9e41-f9dd-4217-bb5f-3fa9996454b6",
-     "isEnabled": true,
-     "createdBy": "Admin",
-     "updatedBy": "Admin",
-     "createTime": 1705817398112,
-     "updateTime": 1705817398112,
-     "version": 1,
-     "name": "doris",
-     "displayName": "Apache Doris",
-     "implClass": "org.apache.ranger.services.doris.RangerServiceDoris",
-     "label": "Doris",
-     "description": "Apache Doris",
-     "options": {
-       "enableDenyAndExceptionsInPolicies": "true"
-     },
-     ...
-   }
-   ```
+  - Register the node as a Follower FE:
 
-   If you want to recreate it, you can use the following command to delete the service definition and then upload it again:
-
-   ```
-   curl -v -u user:password -X DELETE \
-   http://172.21.0.32:6080/service/plugins/definitions/207
-   ```
-
-   Where `207` is the id returned when created. Before deletion, you need to delete the created Doris service in the Ranger WebUI.
-
-   You can also use the following command to list the currently added service definitions in order to obtain the id:
-
-   ```
-   curl -v -u user:password -X GET \
-   http://172.21.0.32:6080/service/plugins/definitions/
-   ```
-
-### Configure the Doris Ranger plug-in
-
-After the installation is complete, open the Ranger WebUI and you can see the Apache Doris plug-in in the Service Manger interface:
-
-![ranger1](/images/ranger/ranger1.png)
-
-Click the `+` button next to the plugin to add a Doris service:
-
-![ranger2](/images/ranger/ranger2.png)
-
-The meaning of some parameters of Config Properties is as follows:
-
-- `Username`/`Password`: the username and password of the Doris cluster. It is recommended to use the Admin user here.
-- `jdbc.driver_class`: Connect to the JDBC driver used by Doris. `com.mysql.cj.jdbc.Driver`
-- `jdbc.url`: JDBC url connection string of Doris cluster. `jdbc:mysql://172.21.0.101:9030?useSSL=false`
-- Additional parameters:
-  - `resource.lookup.timeout.value.in.ms`: timeout for obtaining meta-information. It is recommended to fill in `10000`, which is 10 seconds.
-
-You can click `Test Connection` to check whether the connection can be made.
-
-Then click `Add` to add the service.
-
-Afterwards, you can see the created service in the Apache Doris plug-in on the Service Manger page. Click on the service to start configuring Ranger.
-
-### Configure Doris cluster
-
-1. Create a `ranger-doris-security.xml` file in the conf directory of all FEs with the following content:
-
-   ```
-   <?xml version="1.0" encoding="UTF-8"?>
-   <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-   <configuration>
-       <property>
-           <name>ranger.plugin.doris.policy.cache.dir</name>
-           <value>/path/to/ranger/cache/</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.policy.pollIntervalMs</name>
-           <value>30000</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.policy.rest.client.connection.timeoutMs</name>
-           <value>60000</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.policy.rest.client.read.timeoutMs</name>
-           <value>60000</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.policy.rest.url</name>
-           <value>http://172.21.0.32:6080</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.policy.source.impl</name>
-           <value>org.apache.ranger.admin.client.RangerAdminRESTClient</value>
-       </property>
-       <property>
-           <name>ranger.plugin.doris.service.name</name>
-           <value>doris</value>
-       </property>
-   </configuration>
-   ```
-
-   You need to change `ranger.plugin.doris.policy.cache.dir` and `ranger.plugin.doris.policy.rest.url` to actual values.
-
-2. Create a `ranger-doris-audit.xml` file in the conf directory of all FEs with the following content:
-
-    ```
-    <?xml version="1.0" encoding="UTF-8"?>
-    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-    <configuration>
-    </configuration>
+    ```sql
+    ALTER SYSTEM ADD FOLLOWER "<follower_host>:<edit_log_port>";
     ```
 
-3. Create a `log4j.properties` file in the conf directory of all FEs with the following content:
+  - Register the node as a Observer FE:
 
+    ```sql
+    ALTER SYSTEM ADD OBSERVER "<observer_host>:<edit_log_port>";
+    ```
+
+- Check the status of the newly added FE node
+
+  ```sql
+  show frontends;
+  ```
+
+### Scale In the FE Cluster
+
+When scaling in FE nodes, ensure that the total number of Master and Follower nodes in the cluster remains an odd number. Use the following commands to remove nodes:
+
+```sql
+ALTER SYSTEM DROP FOLLOWER[OBSERVER] "<fe_host>:<edit_log_port>";
+```
+
+After scaling in, you need to manually delete the FE directory.
+
+## Scale In/Out the BE Cluster
+
+### Scale Out the BE Cluster
+
+1. Start the BE process:
+
+   ```sql
+   be/bin/start_be.sh
    ```
-   log4j.rootLogger = warn,stdout,D
 
-   log4j.appender.stdout = org.apache.log4j.ConsoleAppender
-   log4j.appender.stdout.Target = System.out
-   log4j.appender.stdout.layout = org.apache.log4j.PatternLayout
-   log4j.appender.stdout.layout.ConversionPattern = [%-5p] %d{yyyy-MM-dd HH:mm:ss,SSS} method:%l%n%m%n
+2. Register the BE node:
 
-   log4j.appender.D = org.apache.log4j.DailyRollingFileAppender
-   log4j.appender.D.File = /path/to/fe/log/ranger.log
-   log4j.appender.D.Append = true
-   log4j.appender.D.Threshold = INFO
-   log4j.appender.D.layout = org.apache.log4j.PatternLayout
-   log4j.appender.D.layout.ConversionPattern = %-d{yyyy-MM-dd HH:mm:ss}  [ %t:%r ] - [ %p ]  %m%n
+   ```sql
+   ALTER SYSTEM ADD backend '<be_host>:<be_heartbeat_service_port>';
    ```
 
-   You need to change `log4j.appender.D.File` to the actual value, which is used to store the log of the Ranger plug-in.
+### Scale In the BE Cluster
 
-4. Add configuration in fe.conf of all FEs:
+When scaling in BE nodes, you can choose between the DROP or DECOMMISSION methods:
 
-   `access_controller_type=ranger-doris`
+|                                        | DROP                                                            | DECOMMISSION                                                                                                                                                         |
+| -------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Principle                              | Directly remove the node, deleting the BE node. | Initiates a command to migrate data on the BE node to other nodes. Once migration is complete, the BE node is automatically removed. |
+| Effective Time                         | Takes effect immediately after execution.       | Takes effect after data migration is completed. Depending on the cluster's existing data volume, this can take hours to up to a day. |
+| Single Replica Table Handling          | May result in data loss.                        | Does not result in data loss.                                                                                                                        |
+| Removing Multiple Nodes Simultaneously | May result in data loss.                        | Does not result in data loss.                                                                                                                        |
+| Production Recommendation              | Not recommended for production environments.    | Recommended for production environments.                                                                                                             |
 
-5. Restart all FE nodes.
+- Use the following command to remove a BE node using the DROP method:
 
-## Resources and permissions
+  ```sql
+  ALTER SYSTEM DROP backend "<be_host>:<be_heartbeat_service_port>";
+  ```
 
-1. Doris resources currently supported in Ranger include:
+- Use the following command to remove a BE node using the DECOMMISSION method:
 
-   - `Catalog`
-   - `Database`
-   - `Table`
-   - `Column`
-   - `Resource`
-   - `Workload Group`
+  ```sql
+  ALTER SYSTEM DECOMMISSION backend "<be_host>:<be_heartbeat_service_port>";
+  ```
 
-2. Doris permissions currently supported in Ranger include:
+### DECOMMISSION Command Description:
 
-   - `SHOW`
-   - `SHOW_VIEW`
-   - `SHOW_RESOURCES`
-   - `SHOW_WORKLOAD_GROUP`
-   - `LOAD`
-   - `ALTER`
-   - `CREATE`
-   - `ALTER_CREATE`
-   - `ALTER_CREATE_DROP`
-   - `DROP`
-   - `SELECT`
-   - `USAGE`
+- DECOMMISSION is an asynchronous operation. After execution, you can see the BE node's `SystemDecommissioned` status set to `true` via `SHOW backends;`. This indicates the node is being removed.
 
-## Best Practices
+- The DECOMMISSION command may fail. For instance, if there is insufficient storage space on the remaining BE nodes to accommodate the data from the BE being removed, or if the remaining nodes do not meet the minimum replication requirements, the command will not complete, and the BE will remain in a `SystemDecommissioned` state set to `true`.
 
-### Configuring Permissions
+- The progress of DECOMMISSION can be monitored using `SHOW PROC '/backends';`. If the operation is in progress, the `TabletNum` value will decrease continuously.
 
-1. Create `user1` in Doris.
+- You can cancel the operation using the command `CANCEL DECOMMISSION BACKEND "be_host:be_heartbeat_service_port";`. After cancellation, the BE node will retain its current remaining data, and Doris will re-balance the load.
 
-2. Using the `admin` user in Doris, create a Catalog named `hive`.
-
-3. Create `user1` in Ranger.
-
-4. Add a Policy in Ranger named `show_hive_catalog`
-
-   ![ranger3](/images/ranger/ranger3.png)
-
-5. Log in to Doris as `user1` and execute `show catalogs`; only the `hive` catalog should be visible.
-
-6. Add a Policy in Ranger named `select_hive_catalog`
-
-   !4ranger3](/images/ranger/ranger4.png)
-
-7. Log in to Doris as `user1`. This user can now view or query all tables under any database starting with `tpch` in the `hive` catalog.
-
-### Row Policy Example
-
-> Supported in version 2.1.3
-
-1. Refer to Configuring Permissions to assign select permissions for the table internal.db1.user to user1.
-
-2. Add a Row Level Filter policy in Ranger
-
-   ![Row Policy Example](/images/ranger/ranger-row-policy.jpeg)
-
-3. Log in to Doris as user1. Execute `select * from internal.db1.user` and only see data that satisfies `id > 3` and `age = 2`.
-
-### Data Mask Example
-
-> Supported in version 2.1.3
-
-1. Refer to Configuring Permissions to assign select permissions for the table internal.db1.user to user1.
-
-2. Add a Masking policy in Ranger
-
-   ![Data Mask Example](/images/ranger/ranger-data-mask.png)
-
-3. Log in to Doris as user1. Execute `select * from internal.db1.user` and observe that the phone numbers are masked according to the specified rules.
+- The data migration rate can be adjusted by modifying the `balance_slot_num_per_path` parameter.
 
