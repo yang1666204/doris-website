@@ -1,5 +1,5 @@
 ---
-{ "title": "HOUR", "language": "en" }
+{ "title": "hour_ceil", "language": "en" }
 ---
 
 <!-- 
@@ -21,37 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## hour_ceil
 
-Retrieves the hour information from a date.
+### description
 
-The parameter can be of type Date, DateTime, or Time.
-
-When the parameter is of type Date or DateTime, the return value ranges from 0 to 23. When the parameter is of type Time, the return value can exceed 24.
-
-## Syntax
-
-`INT HOUR(DATETIME date)`
-
-## Example
+#### Syntax
 
 ```sql
-mysql> select hour('2018-12-31 23:59:59');
-+-----------------------------+
-| hour('2018-12-31 23:59:59') |
-+-----------------------------+
-|                          23 |
-+-----------------------------+
-mysql> select cast(4562632 as time),hour(cast(4562632 as time)), minute(cast(4562632 as time)),second(cast(4562632 as time));
-+-----------------------+-----------------------------+-------------------------------+-------------------------------+
-| cast(4562632 as TIME) | hour(cast(4562632 as TIME)) | minute(cast(4562632 as TIME)) | second(cast(4562632 as TIME)) |
-+-----------------------+-----------------------------+-------------------------------+-------------------------------+
-| 456:26:32             |                         456 |                            26 |                            32 |
-+-----------------------+-----------------------------+-------------------------------+-------------------------------+
+DATETIME HOUR_CEIL(DATETIME datetime)
+DATETIME HOUR_CEIL(DATETIME datetime, DATETIME origin)
+DATETIME HOUR_CEIL(DATETIME datetime, INT period)
+DATETIME HOUR_CEIL(DATETIME datetime, INT period, DATETIME origin)
 ```
 
-## Keywords
+Convert the date to the nearest rounding up time of the specified time interval period.
+
+- datetime: a valid date expression.
+- period: specifies how many hours each cycle consists of.
+- origin: starting from 0001-01-01T00:00:00.
+
+### example
+
+```
+mysql> select hour_ceil("2023-07-13 22:28:18", 5);
++------------------------------------------------------------+
+| hour_ceil(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
++------------------------------------------------------------+
+| 2023-07-14 02:00:00                                        |
++------------------------------------------------------------+
+1 row in set (0.03 sec)
+```
+
+### keywords
 
     ```
-    HOUR
+    HOUR_CEIL, HOUR, CEIL
     ```
+
+### Best Practice
+
+See also [date_ceil](./date_ceil)
