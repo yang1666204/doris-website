@@ -1,5 +1,5 @@
 ---
-{ "title": "SUBSTRING", "language": "en" }
+{ "title": "TO_BASE64", "language": "en" }
 ---
 
 <!-- 
@@ -21,69 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## substring
+## to_base64
 
 ### description
 
 #### Syntax
 
-`VARCHAR substring(VARCHAR str, INT pos[, INT len])`
+`VARCHAR to_base64(VARCHAR str)`
 
-The forms without a `len` argument return a substring from string `str` starting at position `pos`.
-The forms with a `len` argument return a substring len characters long from string `str`, starting at position pos.
-It is also possible to use a negative value for `pos`. In this case,
-the beginning of the substring is `pos` characters from the end of the string, rather than the beginning.
-A negative value may be used for `pos` in any of the forms of this function.
-A value of 0 for `pos` returns an empty string.
-
-For all forms of SUBSTRING(),
-the position of the first character in the string from which the substring is to be extracted is reckoned as 1.
-
-If len is less than 1, the result is the empty string.
-
-The function have a alias named `substr`.
+Returns the result of Base64 encoding the input string
 
 ### example
 
 ```
-mysql> select substring('abc1', 2);
-+-----------------------------+
-| substring('abc1', 2)        |
-+-----------------------------+
-| bc1                         |
-+-----------------------------+
+mysql> select to_base64('1');
++----------------+
+| to_base64('1') |
++----------------+
+| MQ==           |
++----------------+
 
-mysql> select substring('abc1', -2);
-+-----------------------------+
-| substring('abc1', -2)       |
-+-----------------------------+
-| c1                          |
-+-----------------------------+
-
-mysql> select substring('abc1', 0);
-+----------------------+
-| substring('abc1', 0) |
-+----------------------+
-|                      |
-+----------------------+
-
-mysql> select substring('abc1', 5);
-+-----------------------------+
-| substring('abc1', 5)        |
-+-----------------------------+
-|                             |
-+-----------------------------+
-
-mysql> select substring('abc1def', 2, 2);
-+-----------------------------+
-| substring('abc1def', 2, 2)  |
-+-----------------------------+
-| bc                          |
-+-----------------------------+
+mysql> select to_base64('234');
++------------------+
+| to_base64('234') |
++------------------+
+| MjM0             |
++------------------+
 ```
 
 ### keywords
 
     ```
-    SUBSTRING, STRING, SUBSTR
+    to_base64
     ```
