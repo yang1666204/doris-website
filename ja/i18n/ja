@@ -1,5 +1,5 @@
 ---
-{ "title": "Migration Tablet", "language": "en" }
+{ "title": "Reload Tablet", "language": "en" }
 ---
 
 <!-- 
@@ -21,21 +21,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Migration Tablet
+# Reload Tablet
 
 ## Request
 
-`GET /api/tablet_migration?goal={enum}&tablet_id={int}&schema_hash={int}&disk={string}`
+`GET /api/reload_tablet?tablet_id={int}&schema_hash={int}&path={string}"`
 
 ## Description
 
-Migrate a tablet to the specified disk.
+Reload tablet
 
 ## Query parameters
-
-- `goal`
-  - `run`：submit the migration task
-  - `status`：show the status of migration task
 
 - `tablet_id`
   ID of the tablet
@@ -43,8 +39,8 @@ Migrate a tablet to the specified disk.
 - `schema_hash`
   Schema hash
 
-- `disk`
-  The specified disk.
+- `path`
+  Path of file
 
 ## Request body
 
@@ -52,59 +48,17 @@ None
 
 ## Response
 
-### Submit Task
-
-```
-    {
-        status: "Success",
-        msg: "migration task is successfully submitted."
-    }
-```
-
-Or
-
-```
-    {
-        status: "Fail",
-        msg: "Migration task submission failed"
-    }
-```
-
-### Show Status
-
-```
-    {
-        status: "Success",
-        msg: "migration task is running",
-        dest_disk: "xxxxxx"
-    }
-```
-
-Or
-
-```
-    {
-        status: "Success",
-        msg: "migration task has finished successfully",
-        dest_disk: "xxxxxx"
-    }
-```
-
-Or
-
-```
-    {
-        status: "Success",
-        msg: "migration task failed.",
-        dest_disk: "xxxxxx"
-    }
-```
+    ````
+    ```
+    load header succeed
+    ```
+    ````
 
 ## Examples
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/tablet_migration?goal=run&tablet_id=123&schema_hash=333&disk=/disk1"
+    curl "http://127.0.0.1:8040/api/reload_tablet?tablet_id=123456&schema_hash=1111111&path=/abc"
     
     ```
     ````
