@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_INTERSECT", "language": "en" }
+{ "title": "BITMAP_MAX", "language": "en" }
 ---
 
 <!-- 
@@ -21,41 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_intersect
+## bitmap_max
 
 ### description
 
-Aggregation function, used to calculate the bitmap intersection after grouping. Common usage scenarios such as: calculating user retention rate.
-
 #### Syntax
 
-`BITMAP BITMAP_INTERSECT(BITMAP value)`
+`BIGINT BITMAP_MAX(BITMAP input)`
 
-Enter a set of bitmap values, find the intersection of the set of bitmap values, and return.
+Calculate and return the max values of a bitmap.
 
 ### example
 
-Table schema
+```
+mysql> select bitmap_max(bitmap_from_string('')) value;
++-------+
+| value |
++-------+
+|  NULL |
++-------+
 
-```
-KeysType: AGG_KEY
-Columns: tag varchar, date datetime, user_id bitmap bitmap_union
-```
-
-```
-Find the retention of users between 2020-05-18 and 2020-05-19 under different tags.
-mysql> select tag, bitmap_intersect(user_id) from (select tag, date, bitmap_union(user_id) user_id from table where date in ('2020-05-18', '2020-05-19') group by tag, date) a group by tag;
-```
-
-Used in combination with the bitmap_to_string function to obtain the specific data of the intersection
-
-```
-Who are the users retained under different tags between 2020-05-18 and 2020-05-19?
-mysql> select tag, bitmap_to_string(bitmap_intersect(user_id)) from (select tag, date, bitmap_union(user_id) user_id from table where date in ('2020-05-18', '2020-05-19') group by tag, date) a group by tag;
+mysql> select bitmap_max(bitmap_from_string('1,9999999999')) value;
++------------+
+| value      |
++------------+
+| 9999999999 |
++------------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_INTERSECT, BITMAP
+    BITMAP_MAX,BITMAP
     ```
