@@ -1,5 +1,5 @@
 ---
-{ "title": "COS", "language": "en" }
+{ "title": "COSH", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## cos
+## cosh
 
 ### description
 
 #### Syntax
 
-`DOUBLE cos(DOUBLE x)`
-Returns the cosine of `x`, where `x` is in radians
+`DOUBLE cosh(DOUBLE x)`
+Returns the hyperbolic cosine of `x`.
 
 ### example
 
 ```
-mysql> select cos(1);
+mysql> select cosh(0);
++---------+
+| cosh(0) |
++---------+
+|       1 |
++---------+
+
+mysql> select cosh(1);
 +---------------------+
-| cos(1.0)            |
+| cosh(1)             |
 +---------------------+
-| 0.54030230586813977 |
+| 1.5430806348152437  |
 +---------------------+
-mysql> select cos(0);
-+----------+
-| cos(0.0) |
-+----------+
-|        1 |
-+----------+
-mysql> select cos(Pi());
-+-----------+
-| cos(pi()) |
-+-----------+
-|        -1 |
-+-----------+
 ```
 
 ### keywords
 
  ```
- COS
+ COSH
  ```
