@@ -1,5 +1,5 @@
 ---
-{ "title": "ANY_VALUE", "language": "en" }
+{ "title": "APPROX_COUNT_DISTINCT", "language": "en" }
 ---
 
 <!-- 
@@ -21,32 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ANY_VALUE
-
-ANY_VALUE
-
-### description
+### Description
 
 #### Syntax
 
-`ANY_VALUE(expr)`
+`APPROX_COUNT_DISTINCT(expr)`
 
-If there is a non NULL value in expr, any non NULL value is returned; otherwise, NULL is returned.
+Returns an approximate aggregation function similar to the result of `COUNT(DISTINCT col)`.
 
-Alias function: `ANY(expr)`
+It is implemented based on the HyperLogLog algorithm, which uses a fixed size of memory to estimate the column base. The algorithm is based on the assumption of a null distribution in the tails, and the accuracy depends on the data distribution. Based on the fixed bucket size used by Doris, the relative standard error of the algorithm is 0.8125%.
 
-### example
+For a more detailed and specific analysis, see [related paper](https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf)
 
+### Example
+
+```sql
+MySQL > select approx_count_distinct(query_id) from log_statis group by datetime;
++-----------------+
+| approx_count_distinct(`query_id`) |
++-----------------+
+| 17721           |
++-----------------+
 ```
-mysql> select id, any_value(name) from cost2 group by id;
-+------+-------------------+
-| id   | any_value(`name`) |
-+------+-------------------+
-|    3 | jack              |
-|    2 | jack              |
-+------+-------------------+
-```
 
-### keywords
+### Keywords
 
-ANY_VALUE, ANY
+APPROX_COUNT_DISTINCT
