@@ -1,5 +1,5 @@
 ---
-{ "title": "XXHASH_32", "language": "en" }
+{ "title": "XXHASH_64", "language": "en" }
 ---
 
 <!-- 
@@ -19,43 +19,65 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## xxhash_32
+## xxhash_64
 
 ### description
 
 #### Syntax
 
-`INT XXHASH_32(VARCHAR input, ...)`
+`BIGINT XXHASH_64(VARCHAR input, ...)`
 
-Return the 32 bits xxhash of input string.
+Return the 64 bits xxhash of input string.
 
-Note: When calculating hash values, it is more recommended to use `xxhash_32` instead of `murmur_hash3_32`.
+Note: When calculating hash values, it is more recommended to use `xxhash_64` instead of `murmur_hash3_64`.
 
 ### example
 
 ```
-mysql> select xxhash_32(NULL);
+mysql> select xxhash_64(NULL);
 +-----------------+
-| xxhash_32(NULL) |
+| xxhash_64(NULL) |
 +-----------------+
 |            NULL |
 +-----------------+
 
-mysql> select xxhash_32("hello");
-+--------------------+
-| xxhash_32('hello') |
-+--------------------+
-|          -83855367 |
-+--------------------+
+mysql> select xxhash_64("hello");
++----------------------+
+| xxhash_64('hello')   |
++----------------------+
+| -7685981735718036227 |
++----------------------+
 
-mysql> select xxhash_32("hello", "world");
+mysql> select xxhash_64("hello", "world");
 +-----------------------------+
-| xxhash_32('hello', 'world') |
+| xxhash_64('hello', 'world') |
 +-----------------------------+
-|                  -920844969 |
+|         7001965798170371843 |
 +-----------------------------+
+```
+
+### benchmark
+
+Through TPCH Benchmark testing, it was found that `xxhash_64` has significantly improved performance compared to `murmur_hash3_64`. Therefore, in scenarios where hash values need to be calculated, it is more recommended to use `xxhash_64`.
+
+```
+mysql> select count(murmur_hash3_64(l_comment)) from lineitem;
++-----------------------------------+
+| count(murmur_hash3_64(l_comment)) |
++-----------------------------------+
+|                         600037902 |
++-----------------------------------+
+1 row in set (17.18 sec)
+
+mysql> select count(xxhash_64(l_comment)) from lineitem;
++-----------------------------+
+| count(xxhash_64(l_comment)) |
++-----------------------------+
+|                   600037902 |
++-----------------------------+
+1 row in set (8.41 sec)
 ```
 
 ### keywords
 
-XXHASH_32,HASH
+XXHASH_64,HASH
