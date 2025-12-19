@@ -1,5 +1,5 @@
 ---
-{ "title": "GROUPING", "language": "en" }
+{ "title": "HISTOGRAM", "language": "en" }
 ---
 
 <!-- 
@@ -21,85 +21,85 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## GROUPING
+## HISTOGRAM
 
-### Name
+### description
 
-GROUPING
+#### Syntax
 
-### Description
+`histogram(expr[, INT num_buckets])`
 
-Indicates whether a specified column expression in a `GROUP BY` list is aggregated or not. `GROUPING` returns 1 for aggregated or 0 for not aggregated in the result set. `GROUPING` can be used only in the `SELECT <select> list`, `HAVING`, and `ORDER BY` clauses when `GROUP BY` is specified.
+The histogram function is used to describe the distribution of the data. It uses an "equal height" bucking strategy, and divides the data into buckets according to the value of the data. It describes each bucket with some simple data, such as the number of values that fall in the bucket. It is mainly used by the optimizer to estimate the range query.
 
-`GROUPING` is used to distinguish the null values that are returned by `ROLLUP`, `CUBE` or `GROUPING SETS` from standard null values. The `NULL` returned as the result of a `ROLLUP`, `CUBE` or `GROUPING SETS` operation is a special use of `NULL`. This acts as a column placeholder in the result set and means all.
+The result of the function returns an empty or Json string.
 
-```sql
-GROUPING( <column_expression> )
+Parameter description：
+
+- num_buckets：Optional. Limit the number of histogram buckets. The default value is 128.
+
+Alias function: `hist(expr[, INT num_buckets])`
+
+### example
+
+```
+MySQL [test]> SELECT histogram(c_float) FROM histogram_test;
++-------------------------------------------------------------------------------------------------------------------------------------+
+| histogram(`c_float`)                                                                                                                |
++-------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":3,"buckets":[{"lower":"0.1","upper":"0.1","count":1,"pre_sum":0,"ndv":1},...]} |
++-------------------------------------------------------------------------------------------------------------------------------------+
+
+MySQL [test]> SELECT histogram(c_string, 2) FROM histogram_test;
++-------------------------------------------------------------------------------------------------------------------------------------+
+| histogram(`c_string`)                                                                                                               |
++-------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":2,"buckets":[{"lower":"str1","upper":"str7","count":4,"pre_sum":0,"ndv":3},...]} |
++-------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
-`<column_expression>`
-Is a column or an expression that contains a column in a `GROUP BY` clause.
+Query result description：
 
-Return Types: BIGINT
-
-### Example
-
-The following example groups `camp` and aggregates `occupation` amounts in the database. The `GROUPING` function is applied to the `camp` column.
-
-```sql
-CREATE TABLE `roles` (
-  role_id       INT,
-  occupation    VARCHAR(32),
-  camp          VARCHAR(32),
-  register_time DATE
-)
-UNIQUE KEY(role_id)
-DISTRIBUTED BY HASH(role_id) BUCKETS 1
-PROPERTIES (
-  "replication_allocation" = "tag.location.default: 1"
-);
-
-INSERT INTO `roles` VALUES
-(0, 'who am I', NULL, NULL),
-(1, 'mage', 'alliance', '2018-12-03 16:11:28'),
-(2, 'paladin', 'alliance', '2018-11-30 16:11:28'),
-(3, 'rogue', 'horde', '2018-12-01 16:11:28'),
-(4, 'priest', 'alliance', '2018-12-02 16:11:28'),
-(5, 'shaman', 'horde', NULL),
-(6, 'warrior', 'alliance', NULL),
-(7, 'warlock', 'horde', '2018-12-04 16:11:28'),
-(8, 'hunter', 'horde', NULL);
-
-SELECT 
-  camp, 
-  COUNT(occupation) AS 'occ_cnt',
-  GROUPING(camp)    AS 'grouping'
-FROM
-   `roles`
-GROUP BY
-  ROLLUP(camp); -- CUBE(camp) and GROUPING SETS((camp)) also can work;
+```
+{
+    "num_buckets": 3, 
+    "buckets": [
+        {
+            "lower": "0.1", 
+            "upper": "0.2", 
+            "count": 2, 
+            "pre_sum": 0, 
+            "ndv": 2
+        }, 
+        {
+            "lower": "0.8", 
+            "upper": "0.9", 
+            "count": 2, 
+            "pre_sum": 2, 
+            "ndv": 2
+        }, 
+        {
+            "lower": "1.0", 
+            "upper": "1.0", 
+            "count": 2, 
+            "pre_sum": 4, 
+            "ndv": 1
+        }
+    ]
+}
 ```
 
-The result set shows two null value under `camp`. The first NULL is in the summary row added by the `ROLLUP` operation. The summary row shows the occupation counts for all `camp` groups and is indicated by 1 in the Grouping column. The second NULL represents the group of null values from this column in the table.
+Field description：
 
-Here is the result set.
+- num_buckets：The number of buckets
+- buckets：All buckets
+  - lower：Upper bound of the bucket
+  - upper：Lower bound of the bucket
+  - count：The number of elements contained in the bucket
+  - pre_sum：The total number of elements in the front bucket
+  - ndv：The number of different values in the bucket
 
-```log
-+----------+---------+----------+
-| camp     | occ_cnt | grouping |
-+----------+---------+----------+
-| NULL     |       9 |        1 |
-| NULL     |       1 |        0 |
-| alliance |       4 |        0 |
-| horde    |       4 |        0 |
-+----------+---------+----------+
-4 rows in set (0.01 sec)
-```
+> Total number of histogram elements = number of elements in the last bucket(count) + total number of elements in the previous bucket(pre_sum).
 
-### Keywords
+### keywords
 
-GROUPING
-
-### Best Practice
-
-See also [GROUPING_ID](./grouping_id.md)
+HISTOGRAM, HIST
