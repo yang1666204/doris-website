@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Presto/Trino SQL Convertor Guide",
-  "language": "zh-CN"
-}
+{ "title": "SQL Convertor Overview", "language": "zh-CN" }
 ---
 
 <!--
