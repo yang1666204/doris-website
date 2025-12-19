@@ -1,5 +1,5 @@
 ---
-{ "title": "LN", "language": "en" }
+{ "title": "LOG", "language": "en" }
 ---
 
 <!-- 
@@ -19,44 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ln
+## log
 
 ### description
 
 #### Syntax
 
-`DOUBLE ln(DOUBLE x)`
-Returns the natural logarithm of `x` to base `e`.
-
-:::tip
-Another alias for this function is `dlog1`.
-:::
+`DOUBLE log(DOUBLE b, DOUBLE x)`
+Returns the logarithm of `x` based on base `b`.
 
 ### example
 
 ```
-mysql> select ln(1);
-+---------+
-| ln(1.0) |
-+---------+
-|       0 |
-+---------+
-mysql> select ln(e());
-+---------+
-| ln(e()) |
-+---------+
-|       1 |
-+---------+
-mysql> select ln(10);
+mysql> select log(5,1);
++---------------+
+| log(5.0, 1.0) |
++---------------+
+|             0 |
++---------------+
+mysql> select log(3,20);
 +--------------------+
-| ln(10.0)           |
+| log(3.0, 20.0)     |
 +--------------------+
-| 2.3025850929940459 |
+| 2.7268330278608417 |
 +--------------------+
+mysql> select log(2,65536);
++-------------------+
+| log(2.0, 65536.0) |
++-------------------+
+|                16 |
++-------------------+
 ```
 
 ### keywords
 
  ```
- LN, DLOG1
+ LOG
  ```
