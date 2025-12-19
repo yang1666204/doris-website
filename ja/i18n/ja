@@ -1,5 +1,5 @@
 ---
-{ "title": "date_floor", "language": "en" }
+{ "title": "DATEDIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,95 +21,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## date_floor
+## datediff
 
 ### Description
 
-**Syntax**
+#### Syntax
 
-`DATETIME DATE_FLOOR(DATETIME datetime, INTERVAL period type)`
+`INT DATEDIFF (DATETIME expr1, DATETIME expr2)`
 
-Converts a date to the nearest rounding down time of a specified time interval period.
+Calculate expr1 - expr2, the result is accurate to the unit of a day.
 
-The datetime parameter is a valid date expression.
+Expr1 and expr2 parameters are valid date or date/time expressions.
 
-The period parameter specifies how many units each cycle consists of, starting from 0001-01-01T00:00:00
+Note: Only the date part of the value participates in the calculation.
 
-Type: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND.
-
-### Example
+#### example
 
 ```
-mysql>select date_floor("0001-01-01 00:00:16",interval 5 second);
-+---------------------------------------------------------------+
-| second_floor('0001-01-01 00:00:16', 5, '0001-01-01 00:00:00') |
-+---------------------------------------------------------------+
-| 0001-01-01 00:00:15                                           |
-+---------------------------------------------------------------+
-1 row in set (0.00 sec)
+mysql> select datediff(CAST('2007-12-31 23:59:59' AS DATETIME), CAST('2007-12-30' AS DATETIME));
++-----------------------------------------------------------------------------------+
+| datediff(CAST('2007-12-31 23:59:59' AS DATETIME), CAST('2007-12-30' AS DATETIME)) |
++-----------------------------------------------------------------------------------+
+|                                                                                 1 |
++-----------------------------------------------------------------------------------+
 
-mysql>select date_floor("0001-01-01 00:00:18",interval 5 second);
-+---------------------------------------------------------------+
-| second_floor('0001-01-01 00:00:18', 5, '0001-01-01 00:00:00') |
-+---------------------------------------------------------------+
-| 0001-01-01 00:00:15                                           |
-+---------------------------------------------------------------+
-1 row in set (0.01 sec)
-
-mysql>select date_floor("2023-07-13 22:28:18",interval 5 minute);
-+---------------------------------------------------------------+
-| minute_floor('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
-+---------------------------------------------------------------+
-| 2023-07-13 22:25:00                                           |
-+---------------------------------------------------------------+
-1 row in set (0.00 sec)
-
-mysql>select date_floor("2023-07-13 22:28:18",interval 5 hour);
-+-------------------------------------------------------------+
-| hour_floor('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
-+-------------------------------------------------------------+
-| 2023-07-13 18:00:00                                         |
-+-------------------------------------------------------------+
-1 row in set (0.01 sec)
-
-mysql>select date_floor("2023-07-13 22:28:18",interval 5 day);
-+------------------------------------------------------------+
-| day_floor('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
-+------------------------------------------------------------+
-| 2023-07-10 00:00:00                                        |
-+------------------------------------------------------------+
-1 row in set (0.00 sec)
-
-mysql>select date_floor("2023-07-13 22:28:18",interval 5 month);
-+--------------------------------------------------------------+
-| month_floor('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
-+--------------------------------------------------------------+
-| 2023-07-01 00:00:00                                          |
-+--------------------------------------------------------------+
-1 row in set (0.01 sec)
-
-mysql>select date_floor("2023-07-13 22:28:18",interval 5 year);
-+-------------------------------------------------------------+
-| year_floor('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
-+-------------------------------------------------------------+
-| 2021-01-01 00:00:00                                         |
-+-------------------------------------------------------------+
-
+mysql> select datediff(CAST('2010-11-30 23:59:59' AS DATETIME), CAST('2010-12-31' AS DATETIME));
++-----------------------------------------------------------------------------------+
+| datediff(CAST('2010-11-30 23:59:59' AS DATETIME), CAST('2010-12-31' AS DATETIME)) |
++-----------------------------------------------------------------------------------+
+|                                                                               -31 |
++-----------------------------------------------------------------------------------+
 ```
 
-### Keywords
+### keywords
 
     ```
-    DATE_FLOOR,DATE,FLOOR
+    DATEDIFF
     ```
-
-### Best Practices
-
-See also
-
-- [second_floor](./second_floor)
-- [minute_floor](./minute_floor)
-- [hour_floor](./hour_floor)
-- [day_floor](./day_floor)
-- [month_floor](./month_floor)
-- [year_floor](./year_floor)
