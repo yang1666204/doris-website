@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.1.0", "language": "en" }
+{ "title": "Release 2.1.1", "language": "en" }
 ---
 
 <!--
@@ -21,134 +21,219 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Dear community, we are pleased to share with you the official release of Apache Doris 2.1.0, now available for download and use as of March 8th. This latest version marks a significant milestone in our journey towards enhancing data analysis capabilities, particularly for handling massive and complex datasets.
-
-With Doris 2.1.0, our primary focus has been on optimizing analysis performance, and the results speak for themselves. We have achieved an impressive performance improvement of over 100% on the TPC-DS 1TB test dataset, making Apache Doris more capable of challenging real-world business scenarios.
+Dear community members, Apache Doris 2.1.1 has been officially released on April 3, 2024, with several enhancements and bug fixes based on 2.1.0, enabling smoother user experience.
 
 - **Quick Download:** [https://doris.apache.org/download/](https://doris.apache.org/download/)
 
 - **GitHub：** [https://github.com/apache/doris/releases](https://github.com/apache/doris/releases)
 
-## Performance improvement
+## Behavior Changed
 
-### Smarter optimizer
+1. Change float type output format to improve float type serialization performance.
 
-On the basis of V2.0, the query optimizer in Doris V2.1 comes with enhanced statistics-based inference and enumeration framework. We have upgraded the cost model and expanded the optimization rules to serve the needs of more use cases
+- https://github.com/apache/doris/pull/32049
 
-### Better heuristic optimization
+2. Change system table value functions active_queries(), workload_groups() to system tables.
 
-For data analytics at scale or data lake scenarios, Doris V2.1 provides better heuristic query plans. Meanwhile, the RuntimeFilter is more self-adaptive to enable higher performance even without statistical information.
+- https://github.com/apache/doris/pull/32314
 
-### Parallel adaptive scan
+3. Disable show query/load profile stmt because there are not so many developers use it and the pipeline and pipelinex engine not support it.
 
-Doris V2.1 has adopted parallel adaptive scan to optimize scan I/O and thus improve query performance. It can avoid the negative impact of unreasonable numbers of buckets. (This feature is currently available on the Duplicate Key model and Merge-on-Write Unique Key model.)
+- https://github.com/apache/doris/pull/32467
 
-### Local shuffle
+4. Upgrade arrow flight version to 15.0.2 to fix some bugs, so that please use ADBC 15.0.2 version to access Doris.
 
-We have introduced Local Shuffle to prevent uneven data distribution. Benchmark tests show that Local Shuffle in combination with Parallel Adaptive Scan can guarantee fast query performance in spite of unreasonable bucket number settings upon table creation.
+- https://github.com/apache/doris/pull/32827.
 
-### Faster INSERT INTO SELECT
+## Upgrade Problem
 
-To further improve the performance of INSERT INTO SELECT, which is a frequent operation in ETL, we have moved forward the MemTable execution-wise to reduce data ingestion overheads. Tests show that this can double the data ingestion speed in most cases compared to V2.0.
-Improved data lake analytics capabilities
+1. BE will core when rolling pgrade problem from 2.0.x to 2.1.x
 
-## Data lake analytic performance
+- https://github.com/apache/doris/pull/32672
 
-### TPC-DS Benchmark
+- https://github.com/apache/doris/pull/32444
 
-According to TPC-DS benchmark tests (1TB) of Doris V2.1 against Trino,
+- https://github.com/apache/doris/pull/32162
 
-- Without caching, the total execution time of Doris is 56% of that of Trino V435. (717s VS 1296s)
-- Enabling file cache can further increase the overall performance of Doris by 2.2 times. (323s)
-  This is achieved by a series of optimizations in I/O, parquet/ORC file reading, predicate pushdown, caching, and scan task scheduling, etc.
+2. JDBC Catalog will have query errors when rolling grade rom 2.0.x to 2.1.x.
 
-### SQL dialects compatibility
+- https://github.com/apache/doris/pull/32618
 
-To facilitate migration to Doris and increase its compatibility with other DBMS, we have enabled SQL dialect conversion in V2.1. ([read more](../../lakehouse/sql-dialect)) For example, by set sql_dialect = "trino" in Doris, you can use the Trino SQL dialect as you're used to, without modifying your current business logic, and Doris will execute the corresponding queries for you. Tests in user production environment show that Doris V2.1 is compatible with 99% of Trino SQL.
+## New Feature
 
-### Arrow Flight SQL protocol
+1. Enable column auth by default.
 
-As a column-oriented database compatible with MySQL 8.0 protocol, Doris V2.1 now supports the Arrow Flight SQL protocol as well so users can have fast access to Doris data via Pandas/Numpy without data serialization and deserialization. For most common data types, the Arrow Flight protocol enables tens of times faster performance than the MySQL protocol.
+- https://github.com/apache/doris/pull/32659
 
-## Asynchronous materialized view
+2. Get correct cores for pipeline and pipelinex engine when running within docker or k8s.
 
-V2.1 allows creating a materialized view based on multiple tables. This feature currently supports:
+- https://github.com/apache/doris/pull/32370
 
-- Transparent rewriting: supports transparent rewriting of common operators including Select, Where, Join, Group By, and Aggregation.
-- Auto refresh: supports regular refresh, manual refresh, full refresh, incremental refresh, and partition-based refresh.
-- Materialized view of external tables: supports materialized views based on external data tables such as those on Hive, Hudi, and Iceberg; supported synchronizing data from data lakes into Doris internal tables via materialized views.
-- Direct query on materialized views: Materialized views can be regarded as the result set after ETL. In this sense, materialized views are data tables, so users can conduct queries on them directly.
+3. Support read parquet int96 type.
 
-## Enhanced storage
+- https://github.com/apache/doris/pull/32394
 
-### Auto-increment column
+4. Enable proxy protocol to support IP transparency. Using this protocol, IP transparency for load balancing can be achieved, so that after load balancing, Doris can still obtain the client's real IP and implement permission control such as whitelisting.
 
-V2.1 supports auto-increment columns, which can ensure data uniqueness of each row. This lays the foundation for efficient dictionary encoding and query pagination. For example, for precise UV calculation and customer grouping, users often apply the bitmap type in Doris, the process of which entails dictionary encoding. With V2.1, users can first create a dictionary table using the auto-increment column, and then simply load user data into it.
+- https://github.com/apache/doris/pull/32338/files
 
-### Auto partition
+5. Add workload group queue related columns for active_queries system table. Uses could use this system to monitor the workload queue usage.
 
-To further release burden on operation and maintenance, V2.1 allows auto data partitioning. Upon data ingestion, it detects whether a partition exists for the data based on the partitioning column. If not, it automatically creates one and starts data ingestion.
+- https://github.com/apache/doris/pull/32259
 
-### High-concurrency real-time data ingestion
+6. Add new system table backend_active_tasks to monitor the realtime query statics on every BE.
 
-For data writing, a back pressure mechanism is in place to avoid execessive data versions, so as to reduce resource consumption by data version merging. In addition, V2.1 supports group commit ([read more](../../data-operate/import/group-commit-manual)), which means to accumulate multiple writing and commit them as one. Benchmark tests on group commit with JDBC ingestion and the Stream Load method present great results.
+- https://github.com/apache/doris/pull/31945
 
-## Semi-structured data analysis
+7. Add ipv4 and ipv6 support for spark-doris connector.
 
-### A new data type: Variant
+- https://github.com/apache/doris/pull/32240
 
-V2.1 supports a new data type named Variant. It can accommodate semi-structured data such as JSON as well as compound data types that contain integers, strings, booleans, etcs. Users don't have to pre-define the exact data types for a Variant column in the table schema. The Variant type is handy when processing nested data structures.
-You can include Variant columns and static columns with pre-defined data types in the same table. This will provide you with more flexibility in storage and queries.
-Tests with ClickBench datasets prove that data in Variant columns takes up the same storage space as data in static columns, which is half of that in JSON format. In terms of query performance, the Variant type enables 8 times higher query speed than JSON in hot runs and even more in cold runs.
+8. Add inverted index support for CCR.
 
-### IP types
+- https://github.com/apache/doris/pull/32101
 
-Doris V2.1 provides native support for IPv4 and IPv6. It stores IP data in binary format, which cuts down storage space usage by 60% compared to IP string in plain texts. Along with these IP types, we have added over 20 functions for IP data processing.
+9. Support select experimental session variable.
 
-### More powerful functions for compound data types
+- https://github.com/apache/doris/pull/31837
 
-- explode_map: supports exploding rows into columns for the Map data type.
-- Supports the STRUCT data type in the IN predicates
+10. Support materialized view with bitmap_union(bitmap_from_array()) case.
 
-## Workload Management
+- https://github.com/apache/doris/pull/31962
 
-### Hard isolation of resources
+11. Support partition prune for _HIVE_DEFAULT_PARTITION_.
 
-On the basis of the Workload Group mechanism, which imposes a soft limit on the resources that a workload group can use, Doris 2.1 introduces a hard limit on CPU resource consumption for workload groups as a way to ensure higher stability in query performance.
+- https://github.com/apache/doris/pull/31736
 
-### TopSQL
+12. Support function in set variable statement.
 
-V2.1 allows users to check the most resource-consuming SQL queries in the runtime. This can be a big help when handling cluster load spike caused by unexpected large queries.
+- https://github.com/apache/doris/pull/32492
 
-## Others
+13. Support arrow serialization for varint type.
 
-### Decimal 256
+- https://github.com/apache/doris/pull/32809
 
-For users in the financial sector or high-end manufacturing, V2.1 supports a high-precision data type: Decimal, which supports up to 76 significant digits (an experimental feature, please set enable_decimal256=true.)
+## Optimization
 
-### Job scheduler
+1. Auto resume routine load when be restart or during upgrade. And keep the routine load stable.
 
-V2.1 provides a good option for regular task scheduling: Doris Job Scheduler. It can trigger the pre-defined operations on schedule or at fixed intervals. The Doris Job Scheduler is accurate to the second. It provides consistency guarantee for data writing, high efficiency and flexibility, high-performance processing queues, retraceable scheduling records, and high availability of jobs.
+- https://github.com/apache/doris/pull/32239
 
-### Support Docker fast start to experience the new version
+2. Routine Load: optimize allocate task to be algorithm for load balance.
 
-Starting from version 2.1.0, we will provide a separate Docker Image to support the rapid creation of a 1FE, 1BE Docker container to experience the new version of Doris. The container will complete the initialization of FE and BE, BE registration and other steps by default. After creating the container, it can directly access and use the Doris cluster about 1 [minute.In](http://minute.in/) this image version, the default `max_map_count`, `ulimit`, `Swap` and other hard limits are removed. It supports X64 (avx2) machines and ARM machines for deployment. The default open ports are 8000, 8030, 8040, 9030.If you need to experience the Broker component, you can add the environment variable `--env BROKER=true` at startup to start the Broker process synchronously. After startup, it will automatically complete the registration. The Broker name is `test`.
+- https://github.com/apache/doris/pull/32021
 
-Please note that this version is only suitable for quick experience and functional testing, not for production environment!
+3. Spark Load: update spark version for spark load to resolve cve problem.
 
-## Behavior changed
+- https://github.com/apache/doris/pull/30368
 
-- The default data model is the Merge-on-Write Unique Key model. enable_unique_key_merge_on_write will be included as a default setting when a table is created in the Unique Key model.
-- As inverted index has proven to be more performant than bitmap index, V2.1 stops supporting bitmap index. Existing bitmap indexes will remain effective but new creation is not allowed. We will remove bitmap index-related code in the future.
-- cpu_resource_limit is no longer supported. It is to put a limit on the number of scanner threads on Doris BE. Since the workload group mechanism also supports such settings, the already configured cpu_resource_limit will be invalid.
-- The default value of enable_segcompaction is true. This means Doris supports compaction of multiple segments in the same rowset.
-- Audit log plug-in
-  - Since V2.1.0, Doris has a built-in audit log plug-in. Users can simply enable or disable it by setting the enable_audit_plugin parameter.
-  - If you have already installed your own audit log plug-in, you can either continue using it after upgrading to Doris V2.1, or uninstall it and use the one in Doris. Please note that the audit log table will be relocated after switching plug-in.
-  - For more details, please see the [docs](../../admin-manual/audit-plugin).
+4. Skip cooldown if the tablet is dropped.
 
-## Credits
+- https://github.com/apache/doris/pull/32079
 
-Thanks all who contribute to this release:
+5. Support using workload group to manage routine load.
 
-467887319, 924060929, acnot, airborne12, AKIRA, alan_rodriguez, AlexYue, allenhooo, amory, amory, AshinGau, beat4ocean, BePPPower, bigben0204, bingquanzhao, BirdAmosBird, BiteTheDDDDt, bobhan1, caiconghui, camby, camby, CanGuan, caoliang-web, catpineapple, Centurybbx, chen, ChengDaqi2023, ChenyangSunChenyang, Chester, ChinaYiGuan, ChouGavinChou, chunping, colagy, CSTGluigi, czzmmc, daidai, dalong, dataroaring, DeadlineFen, DeadlineFen, deadlinefen, deardeng, didiaode18, DongLiang-0, dong-shuai, Doris-Extras, Dragonliu2018, DrogonJackDrogon, DuanXujianDuan, DuRipeng, dutyu, echo-dundun, ElvinWei, englefly, Euporia, feelshana, feifeifeimoon, feiniaofeiafei, felixwluo, figurant, flynn, fornaix, FreeOnePlus, Gabriel39, gitccl, gnehil, GoGoWen, gohalo, guardcrystal, hammer, HappenLee, HB, hechao, HelgeLarsHelge, herry2038, HeZhangJianHe, HHoflittlefish777, HonestManXin, hongkun-Shao, HowardQin, hqx871, httpshirley, htyoung, huanghaibin, HuJerryHu, HuZhiyuHu, Hyman-zhao, i78086, irenesrl, ixzc, jacktengg, jacktengg, jackwener, jayhua, Jeffrey, jiafeng.zhang, Jibing-Li, JingDas, julic20s, kaijchen, kaka11chen, KassieZ, kindred77, KirsCalvinKirs, KirsCalvinKirs, kkop, koarz, LemonLiTree, LHG41278, liaoxin01, LiBinfeng-01, LiChuangLi, LiDongyangLi, Lightman, lihangyu, lihuigang, LingAdonisLing, liugddx, LiuGuangdongLiu, LiuHongLiu, liuJiwenliu, LiuLijiaLiu, lsy3993, LuGuangmingLu, LuoMetaLuo, luozenglin, Luwei, Luzhijing, lxliyou001, Ma1oneZhang, mch_ucchi, Miaohongkai, morningman, morrySnow, Mryange, mymeiyi, nanfeng, nanfeng, Nitin-Kashyap, PaiVallishPai, Petrichor, plat1ko, py023, q763562998, qidaye, QiHouliangQi, ranxiang327, realize096, rohitrs1983, sdhzwc, seawinde, seuhezhiqiang, seuhezhiqiang, shee, shuke987, shysnow, songguangfan, Stalary, starocean999, SunChenyangSun, sunny, SWJTU-ZhangLei, TangSiyang2001, Tanya-W, taoxutao, Uniqueyou, vhwzIs, walter, walter, wangbo, Wanghuan, wangqt, wangtao, wangtianyi2004, wenluowen, whuxingying, wsjz, wudi, wudongliang, wuwenchihdu, wyx123654, xiangran0327, Xiaocc, XiaoChangmingXiao, xiaokang, XieJiann, Xinxing, xiongjx, xuefengze, xueweizhang, XueYuhai, XuJianxu, xuke-hat, xy, xy720, xyfsjq, xzj7019, yagagagaga, yangshijie, YangYAN, yiguolei, yiguolei, yimeng, YinShaowenYin, Yoko, yongjinhou, ytwp, yuanyuan8983, yujian, yujun777, Yukang-Lian, Yulei-Yang, yuxuan-luo, zclllyybb, ZenoYang, zfr95, zgxme, zhangdong, zhangguoqiang, zhangstar333, zhangstar333, zhangy5, ZhangYu0123, zhannngchen, ZhaoLongZhao, zhaoshuo, zhengyu, zhiqqqq, ZhongJinHacker, ZhuArmandoZhu, zlw5307, ZouXinyiZou, zxealous, zy-kkk, zzwwhh, zzzxl1993, zzzzzzzs
+- https://github.com/apache/doris/pull/31671
+
+6. [MTMV ]Improve the performance for query rewritting by materialized view.
+
+- https://github.com/apache/doris/pull/31886
+
+7. Reduce jvm heap memory consumed by profiles of BrokerLoadJob.
+
+- https://github.com/apache/doris/pull/31985
+
+8. Imporve the high QPS query by speed up PartitionPrunner.
+
+- https://github.com/apache/doris/pull/31970
+
+9. Reduce duplicated memory consumption for column name and column path for schema cache.
+
+- https://github.com/apache/doris/pull/31141
+
+10. Support more join types for query rewriting by materialized view such as INNER JOIN, LEFT OUTER JOIN, RIGHT OUTER JOIN, FULL OUTER JOIN, LEFT SEMI JOIN, RIGHT SEMI JOIN, LEFT ANTI JOIN, RIGHT ANTI JOIN
+
+- https://github.com/apache/doris/pull/32909
+
+## Bugfix
+
+1. Do not push down topn-filter through right/full outer join if the first orderkey is nulls first.
+
+- https://github.com/apache/doris/pull/32633
+
+2. Fix memory leak in Java UDF
+
+- https://github.com/apache/doris/pull/32630
+
+3. If some odbc tables use the same resource, and restore not all odbc tables, it will not retain the resource.
+   and check some conf for backup/restore
+
+- https://github.com/apache/doris/pull/31989
+
+4. Fold constant will core for variant type.
+
+- https://github.com/apache/doris/pull/32265
+
+5. Routine load will pause when transaction fail in some cases.
+
+- https://github.com/apache/doris/pull/32638
+
+6. the result of left semi join with empty right side should be false instead of null.
+
+- https://github.com/apache/doris/pull/32477
+
+7. Fix core when build inverted index for a new column with no data.
+
+- https://github.com/apache/doris/pull/32669
+
+8. Fix be core caused by null-safe-equal join.
+
+- https://github.com/apache/doris/pull/32623
+
+9. Partial update: fix data correctness risk when load delete sign data into a table with sequence col.
+
+- https://github.com/apache/doris/pull/32574
+
+10. Select outfile: Fix the column type mapping in the orc/parquet file format.
+
+- https://github.com/apache/doris/pull/32281
+
+11. Fix BE core during restore stage.
+
+- https://github.com/apache/doris/pull/32489
+
+12. Use array_agg func after other agg func like count, sum, may make be core.
+
+- https://github.com/apache/doris/pull/32387
+
+13. Variant type should always nullable or there will some bugs.
+
+- https://github.com/apache/doris/pull/32248
+
+14. Fix the bug of handling empty blocks in schema change.
+
+- https://github.com/apache/doris/pull/32396
+
+15. Fix BE will core when use json_length() in some cases.
+
+- https://github.com/apache/doris/pull/32145
+
+16. Fix error when query iceberg table using date cast predicate
+
+- https://github.com/apache/doris/pull/32194
+
+17. Fix some bugs when build inverted index for variant type.
+
+- https://github.com/apache/doris/pull/31992
+
+18. Wrong result of two or more map_agg functions in query.
+
+- https://github.com/apache/doris/pull/31928
+
+19. Fix wrong result of money_format function.
+
+- https://github.com/apache/doris/pull/31883
+
+20. Fix connection hang after too many connections.
+
+- https://github.com/apache/doris/pull/31594
