@@ -1,5 +1,5 @@
 ---
-{ "title": "EXPORT", "language": "en" }
+{ "title": "INSERT-OVERWRITE", "language": "en" }
 ---
 
 <!--
@@ -21,365 +21,278 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## EXPORT
+## INSERT OVERWRITE
 
 ### Name
 
-EXPORT
+INSERT OVERWRITE
 
 ### Description
 
-The `EXPORT` command is used to export the data of a specified table to a designated location as a file. Currently, it supports exporting to remote storage such as HDFS, S3, BOS, and COS (Tencent Cloud) through Broker process, S3 protocol, or HDFS protocol.
+The function of this statement is to overwrite a table or some partitions of a table
 
-`EXPORT` is an asynchronous operation, and the command submits an `EXPORT JOB` to Doris. The task will be successfully submitted and returns immediately. After execution, you can use the [SHOW EXPORT](../../Show-Statements/SHOW-EXPORT.md) to view the progress.
+```sql
+INSERT OVERWRITE table table_name
+    [ PARTITION (p1, ... | *) ]
+    [ WITH LABEL label]
+    [ (column [, ...]) ]
+    [ [ hint [, ...] ] ]
+    { VALUES ( { expression | DEFAULT } [, ...] ) [, ...] | query }
+```
 
-**grammar**
+Parameters
 
-  ```sql
-  EXPORT TABLE table_name
-  [PARTITION (p1[,p2])]
-  [WHERE]
-  TO export_path
-  [opt_properties]
-  WITH BROKER/S3/HDFS
-  [broker_properties];
-  ```
+> table_name: the destination table to overwrite. This table must exist. It can be of the form `db_name.table_name`
+>
+> partitions: the table partitions that needs to be overwritten. The following two formats are supported
+>
+> > 1. partition names. must be one of the existing partitions in `table_name` separated by a comma
+> > 2. asterisk(\*)。Enable [auto-detect-partition](#overwrite-auto-detect-partition). The write operation will automatically detect the partitions involved in the data and overwrite those partitions.
+>
+> label: specify a label for the Insert task
+>
+> column_name: the specified destination column must be one of the existing columns in `table_name`
+>
+> expression: the corresponding expression that needs to be assigned to a column
+>
+> DEFAULT: let the column use the default value
+>
+> query: a common query, the result of the query will overwrite the target.
+>
+> hint: some indicator used to indicate the execution behavior of `INSERT`. You can choose one of this values: `/*+ STREAMING */`, `/*+ SHUFFLE */` or \`/\*+ NOSHUFFLE \*/.
+>
+> 1. STREAMING: At present, it has no practical effect and is only reserved for compatibility with previous versions. (In the previous version, adding this hint would return a label, but now it defaults to returning a label)
+> 2. SHUFFLE: When the target table is a partition table, enabling this hint will do repartiiton.
+> 3. NOSHUFFLE: Even if the target table is a partition table, repartiiton will not be performed, but some other operations will be performed to ensure that the data is correctly dropped into each partition.
 
-**principle**
+Notice:
 
-The bottom layer of the `Export` statement actually executes the `select...outfile..` statement. The `Export` task will be decomposed into multiple `select...outfile..` statements to execute concurrently according to the value of the `parallelism` parameter. Each `select...outfile..` is responsible for exporting some tablets of table.
+1. In the current version, the session variable `enable_insert_strict` is set to `true` by default. If some data that does not conform to the format of the target table is filtered out during the execution of the `INSERT OVERWRITE` statement, such as when overwriting a partition and not all partition conditions are satisfied, overwriting the target table will fail.
+2. The `INSERT OVERWRITE` statement first creates a new table, inserts the data to be overwritten into the new table, and then atomically replaces the old table with the new table and modifies its name. Therefore, during the process of overwriting the table, the data in the old table can still be accessed normally until the overwriting is completed.
 
-**illustrate:**
+#### For Auto Partition Table
 
-- `table_name`
+If the target table of the INSERT OVERWRITE is an autopartitioned table, the behaviour is controlled by the [Session Variable](../#variable)  `enable_auto_create_when_overwrite` controls the behaviour as follows:
 
-  The table name of the table currently being exported. Only the export of Doris local table / View / External Table data is supported.
+1. If PARTITION is not specified (overwrite the whole table), when `enable_auto_create_when_overwrite` is `true`, the table is overwritten and partitions are created according to the table's auto-partitioning rules for data that does not have a corresponding partition, and those datas is admit. If `enable_auto_create_when_overwrite` is `false`, data for which no partition is found will accumulate error rows until it fails.
+2. If an overwrite PARTITION is specified, the AUTO PARTITION table behaves as a normal partitioned table during this process, and data that does not satisfy the conditions of an existing partition is filtered instead of creating a new partition.
+3. If you specify PARTITION as `partition(*)` (auto detect partition and overwrite), when `enable_auto_create_when_overwrite` is `true`, for the data that have corresponding partitions in the table, overwrite their corresponding partitions, and leave the other existing partitions unchanged. At the same time, for data without corresponding partitions, create partitions according to the table's auto-partitioning rules, and accommodate the data without corresponding partitions. If `enable_auto_create_when_overwrite` is `false`, data for which no partition is found will accumulate error rows until it fails.
 
-- `partition`
+In versions without `enable_auto_create_when_overwrite`, the behaviour is as if the variable had a value of `false`.
 
-  It is possible to export only some specified partitions of the specified table
+Examples are shown below:
 
-- `export_path`
+```sql
+mysql> create table auto_list(
+    ->              k0 varchar null
+    ->          )
+    ->          auto partition by list (k0)
+    ->          (
+    ->              PARTITION p1 values in (("Beijing"), ("BEIJING")),
+    ->              PARTITION p2 values in (("Shanghai"), ("SHANGHAI")),
+    ->              PARTITION p3 values in (("xxx"), ("XXX")),
+    ->              PARTITION p4 values in (("list"), ("LIST")),
+    ->              PARTITION p5 values in (("1234567"), ("7654321"))
+    ->          )
+    ->          DISTRIBUTED BY HASH(`k0`) BUCKETS 1
+    ->          properties("replication_num" = "1");
+Query OK, 0 rows affected (0.14 sec)
 
-  The exported file path can be a directory or a file directory with a file prefix, for example: `hdfs://path/to/my_file_`
+mysql> insert into auto_list values ("Beijing"),("Shanghai"),("xxx"),("list"),("1234567");
+Query OK, 5 rows affected (0.22 sec)
 
-- `opt_properties`
+mysql> insert overwrite table auto_list partition(*) values ("BEIJING"), ("new1");
+Query OK, 2 rows affected (0.28 sec)
 
-  Used to specify some export parameters.
+mysql> select * from auto_list;
++----------+ --- p1 is overwritten, new1 gets the new partition, and the other partitions remain unchanged.
+| k0       |
++----------+
+| 1234567  |
+| BEIJING  |
+| list     |
+| xxx      |
+| new1     |
+| Shanghai |
++----------+
+6 rows in set (0.48 sec)
 
-  ```sql
-  [PROPERTIES ("key"="value", ...)]
-  ```
+mysql> insert overwrite table auto_list values ("SHANGHAI"), ("new2");
+Query OK, 2 rows affected (0.17 sec)
 
-  The following parameters can be specified:
-
-  - `label`: This parameter is optional, specifies the label of the export task. If this parameter is not specified, the system randomly assigns a label to the export task.
-
-  - `column_separator`: Specifies the exported column separator, default is `\t`, mulit-bytes is supported. This parameter is only used for `CSV` file format.
-
-  - `line_delimiter`: Specifies the line delimiter for export, the default is `\n`, mulit-bytes is supported. This parameter is only used for `CSV` file format.
-
-  - `timeout`: The timeout period of the export job, the default is 2 hours, the unit is seconds.
-
-  - `columns`: Specifies certain columns of the export job table
-
-  - `format`: Specifies the file format, support: parquet, orc, csv, csv_with_names, csv_with_names_and_types.The default is csv format.
-
-  - `parallelism`: The concurrency degree of the `export` job, the default is `1`. The export job will be divided into `select..outfile..` statements of the number of `parallelism` to execute concurrently. (If the value of `parallelism` is greater than the number of tablets in the table, the system will automatically set `parallelism` to the number of tablets, that is, each `select..outfile..` statement is responsible for one tablet)
-
-  - `delete_existing_files`: default `false`. If it is specified as true, you will first delete all files specified in the directory specified by the file_path, and then export the data to the directory.For example: "file_path" = "/user/tmp", then delete all files and directory under "/user/"; "file_path" = "/user/tmp/", then delete all files and directory under "/user/tmp/"
-
-  - `max_file_size`: it is the limit for the size of a single file in the export job. If the result file exceeds this value, it will be split into multiple files. The valid range for `max_file_size` is [5MB, 2GB], with a default value of 1GB. (When exporting to the ORC file format, the actual size of the split files will be multiples of 64MB, for example, if max_file_size is specified as 5MB, the actual split size will be 64MB; if max_file_size is specified as 65MB, the actual split size will be 128MB.)
-
-  - `with_bom`: The default is false. If it is set to true, the exported file is encoded in UTF8 with BOM (valid only for CSV-related file format).
-
-  - `timeout`: This is the timeout parameter of the export job, the default timeout is 2 hours, and the unit is seconds.
-
-  - `compress_type`: (since 2.1.5) When specifying the export file format as Parquet or ORC, you can choose the compression method for the Parquet or ORC files. For Parquet file format, you can specify the compression method as SNAPPY, GZIP, BROTLI, ZSTD, LZ4, or PLAIN, with the default being SNAPPY. For ORC file format, you can specify the compression method as PLAIN, SNAPPY, ZLIB, or ZSTD, with the default being ZLIB. This parameter is supported starting from version 2.1.5. (PLAIN means no compression is used.)
-
-  > Note that to use the `delete_existing_files` parameter, you also need to add the configuration `enable_delete_existing_files = true` to the fe.conf file and restart the FE. Only then will the `delete_existing_files` parameter take effect. Setting `delete_existing_files = true` is a dangerous operation and it is recommended to only use it in a testing environment.
-
-- `WITH BROKER`
-
-  The export function needs to write data to the remote storage through the Broker process. Here you need to define the relevant connection information for the broker to use.
-
-  ```sql
-  WITH BROKER "broker_name"
-  ("key"="value"[,...])
-
-  Broker related properties:
-        username: user name
-        password: password
-        hadoop.security.authentication: specify the authentication method as kerberos
-        kerberos_principal: specifies the principal of kerberos
-        kerberos_keytab: specifies the path to the keytab file of kerberos. The file must be the absolute path to the file on the server where the broker process is located. and can be accessed by the Broker process
-  ```
-
-- `WITH HDFS`
-
-  You can directly write data to the remote HDFS.
-
-  ```sql
-  WITH HDFS ("key"="value"[,...])
-
-  HDFS related properties:
-        fs.defaultFS: namenode address and port
-        hadoop.username: hdfs username
-        dfs.nameservices: if hadoop enable HA, please set fs nameservice. See hdfs-site.xml
-        dfs.ha.namenodes.[nameservice ID]：unique identifiers for each NameNode in the nameservice. See hdfs-site.xml
-        dfs.namenode.rpc-address.[nameservice ID].[name node ID]: the fully-qualified RPC address for each NameNode to listen on. See hdfs-site.xml
-        dfs.client.failover.proxy.provider.[nameservice ID]：the Java class that HDFS clients use to contact the Active NameNode, usually it is org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider
-
-        For a kerberos-authentication enabled Hadoop cluster, additional properties need to be set:
-        dfs.namenode.kerberos.principal: HDFS namenode service principal
-        hadoop.security.authentication: kerberos
-        hadoop.kerberos.principal: the Kerberos pincipal that Doris will use when connectiong to HDFS.
-        hadoop.kerberos.keytab: HDFS client keytab location.
-  ```
-
-- `WITH S3`
-
-  You can directly write data to a remote S3 object store
-
-  ```sql
-  WITH S3 ("key"="value"[,...])
-
-  S3 related properties:
-    AWS_ENDPOINT
-    AWS_ACCESS_KEY
-    AWS_SECRET_KEY
-    AWS_REGION
-    use_path_style: (optional) default false . The S3 SDK uses the virtual-hosted style by default. However, some object storage systems may not be enabled or support virtual-hosted style access. At this time, we can add the use_path_style parameter to force the use of path style access method.
-  ```
+mysql> select * from auto_list;
++----------+ --- The whole table is overwritten, and new2 gets the new partition.
+| k0       |
++----------+
+| new2     |
+| SHANGHAI |
++----------+
+2 rows in set (0.15 sec)
+```
 
 ### Example
 
-#### export to local
-
-> Export data to the local file system needs to add `enable_outfile_to_local = true` to the fe.conf and restart the Fe.
-
-1. You can export the `test` table to a local store. Export csv format file by default.
+Assuming there is a table named `test`. The table contains two columns `c1` and `c2`, and two partitions `p1` and `p2`
 
 ```sql
-EXPORT TABLE test TO "file:///home/user/tmp/";
-```
-
-2. You can export the k1 and k2 columns in `test` table to a local store, and set export label. Export csv format file by default.
-
-```sql
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "label" = "label1",
-  "columns" = "k1,k2"
-);
-```
-
-3. You can export the rows where `k1 < 50` in `test` table to a local store, and set column_separator to `,`. Export csv format file by default.
-
-```sql
-EXPORT TABLE test WHERE k1 < 50 TO "file:///home/user/tmp/"
-PROPERTIES (
-  "columns" = "k1,k2",
-  "column_separator"=","
-);
-```
-
-4. Export partitions p1 and p2 from the test table to local storage, with the default exported file format being csv.
-
-```sql
-EXPORT TABLE test PARTITION (p1,p2) TO "file:///home/user/tmp/" 
-PROPERTIES ("columns" = "k1,k2");
-```
-
-5. Export all data in the test table to local storage with a non-default file format.
-
-```sql
-// parquet file format
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "columns" = "k1,k2",
-  "format" = "parquet"
-);
-
-// orc file format
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "columns" = "k1,k2",
-  "format" = "orc"
-);
-
-// csv_with_names file format. Using 'AA' as the column delimiter and 'zz' as the line delimiter.
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "format" = "csv_with_names",
-  "column_separator"="AA",
-  "line_delimiter" = "zz"
-);
-
-// csv_with_names_and_types file format
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "format" = "csv_with_names_and_types"
-);
-
-```
-
-6. set max_file_sizes
-
-```sql
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "format" = "parquet",
-  "max_file_size" = "5MB"
-);
-```
-
-When the exported file size is larger than 5MB, the data will be split into multiple files, with each file containing a maximum of 5MB.
-
-7. set parallelism
-
-```sql
-EXPORT TABLE test TO "file:///home/user/tmp/"
-PROPERTIES (
-  "format" = "parquet",
-  "max_file_size" = "5MB",
-  "parallelism" = "5"
-);
-```
-
-8. set delete_existing_files
-
-```sql
-EXPORT TABLE test TO "file:///home/user/tmp"
-PROPERTIES (
-  "format" = "parquet",
-  "max_file_size" = "5MB",
-  "delete_existing_files" = "true"
-)
-```
-
-Before exporting data, all files and directories in the `/home/user/` directory will be deleted, and then the data will be exported to that directory.
-
-#### export with S3
-
-1. Export all data from the `testTbl` table to S3 using invisible character '\x07' as a delimiter for columns and rows.If you want to export data to minio, you also need to specify use_path_style=true.
-
-  ```sql
-  EXPORT TABLE testTbl TO "s3://bucket/a/b/c" 
-  PROPERTIES (
-    "column_separator"="\\x07", 
-    "line_delimiter" = "\\x07"
-  ) WITH s3 (
-    "s3.endpoint" = "xxxxx",
-    "s3.region" = "xxxxx",
-    "s3.secret_key"="xxxx",
-    "s3.access_key" = "xxxxx"
-  )
-  ```
-
-2. Export all data in the test table to HDFS in the format of parquet, limit the size of a single file to 1024MB, and reserve all files in the specified directory.
-
-#### export with HDFS
-
-1. Export all data from the `test` table to HDFS in `Parquet` format, with a limit of 512MB for the size of a single file in the export job, and retain all files under the specified directory.
-
-  ```sql
-  EXPORT TABLE test TO "hdfs://hdfs_host:port/a/b/c/" 
-  PROPERTIES(
-      "format" = "parquet",
-      "max_file_size" = "512MB",
-      "delete_existing_files" = "false"
-  )
-  with HDFS (
-  "fs.defaultFS"="hdfs://hdfs_host:port",
-  "hadoop.username" = "hadoop"
-  );
-  ```
-
-#### export with Broker
-
-You need to first start the broker process and add it to the FE before proceeding.
-
-1. Export the `test` table to hdfs
-
-  ```sql
-  EXPORT TABLE test TO "hdfs://hdfs_host:port/a/b/c" 
-  WITH BROKER "broker_name" 
-  (
-    "username"="xxx",
-    "password"="yyy"
-  );
-  ```
-
-2. Export partitions 'p1' and 'p2' from the 'testTbl' table to HDFS using ',' as the column delimiter and specifying a label.
-
-  ```sql
-  EXPORT TABLE testTbl PARTITION (p1,p2) TO "hdfs://hdfs_host:port/a/b/c" 
-  PROPERTIES (
-    "label" = "mylabel",
-    "column_separator"=","
-  ) 
-  WITH BROKER "broker_name" 
-  (
-    "username"="xxx",
-    "password"="yyy"
-  );
-  ```
-
-3. Export all data from the 'testTbl' table to HDFS using the non-visible character '\x07' as the column and row delimiter.
-
-```sql
-EXPORT TABLE testTbl TO "hdfs://hdfs_host:port/a/b/c" 
-PROPERTIES (
-  "column_separator"="\\x07", 
-  "line_delimiter" = "\\x07"
-) 
-WITH BROKER "broker_name" 
+CREATE TABLE IF NOT EXISTS test (
+  `c1` int NOT NULL DEFAULT "1",
+  `c2` int NOT NULL DEFAULT "4"
+) ENGINE=OLAP
+UNIQUE KEY(`c1`)
+PARTITION BY LIST (`c1`)
 (
-  "username"="xxx", 
-  "password"="yyy"
+PARTITION p1 VALUES IN ("1","2","3"),
+PARTITION p2 VALUES IN ("4","5","6")
 )
+DISTRIBUTED BY HASH(`c1`) BUCKETS 3
+PROPERTIES (
+  "replication_allocation" = "tag.location.default: 1",
+  "in_memory" = "false",
+  "storage_format" = "V2"
+);
 ```
+
+#### Overwrite Table
+
+1. Overwrite the `test` table using the form of `VALUES`.
+
+   ```sql
+   // Single-row overwrite.
+   INSERT OVERWRITE table test VALUES (1, 2);
+   INSERT OVERWRITE table test (c1, c2) VALUES (1, 2);
+   INSERT OVERWRITE table test (c1, c2) VALUES (1, DEFAULT);
+   INSERT OVERWRITE table test (c1) VALUES (1);
+   // Multi-row overwrite.
+   INSERT OVERWRITE table test VALUES (1, 2), (3, 2 + 2);
+   INSERT OVERWRITE table test (c1, c2) VALUES (1, 2), (3, 2 * 2);
+   INSERT OVERWRITE table test (c1, c2) VALUES (1, DEFAULT), (3, DEFAULT);
+   INSERT OVERWRITE table test (c1) VALUES (1), (3);
+   ```
+
+- The first and second statements have the same effect. If the target column is not specified during overwriting, the column order in the table will be used as the default target column. After the overwrite is successful, there is only one row of data in the `test` table.
+- The third and fourth statements have the same effect. The unspecified column `c2` will be overwritten with the default value 4. After the overwrite is successful, there is only one row of data in the `test` table.
+- The fifth and sixth statements have the same effect. Expressions (such as `2+2`, `2*2`) can be used in the statement. The result of the expression will be computed during the execution of the statement and then overwritten into the `test` table. After the overwrite is successful, there are two rows of data in the `test` table.
+- The seventh and eighth statements have the same effect. The unspecified column `c2` will be overwritten with the default value 4. After the overwrite is successful, there are two rows of data in the `test` table.
+
+2. Overwrite the `test` table in the form of a query statement. The data format of the `test2` table and the `test` table must be consistent. If they are not consistent, implicit data type conversion will be triggered.
+
+   ```sql
+   INSERT OVERWRITE table test SELECT * FROM test2;
+   INSERT OVERWRITE table test (c1, c2) SELECT * from test2;
+   ```
+
+- The first and second statements have the same effect. The purpose of these statements is to take data from the `test2` table and overwrite the `test` table with the taken data. After the overwrite is successful, the data in the `test` table will be consistent with the data in the `test2` table.
+
+3. Overwrite the `test` table and specify a label.
+
+   ```sql
+   INSERT OVERWRITE table test WITH LABEL `label1` SELECT * FROM test2;
+   INSERT OVERWRITE table test WITH LABEL `label2` (c1, c2) SELECT * from test2;
+   ```
+
+- Users can use the `SHOW LOAD;` command to check the status of the job imported by this `label`. It should be noted that the label is unique.
+
+#### Overwrite Table Partition
+
+When using INSERT OVERWRITE to rewrite partitions, we actually encapsulate the following three steps into a single transaction and execute it. If it fails halfway through, the operations that have been performed will be rolled back:
+
+1. Assuming that partition `p1` is specified to be rewritten, first create an empty temporary partition `pTMP` with the same structure as the target partition to be rewritten.
+2. Write data to `pTMP`.
+3. replace `p1` with the `pTMP` atom
+
+The following is examples:
+
+1. Overwrite partitions `P1` and `P2` of the `test` table using the form of `VALUES`.
+
+   ```sql
+   // Single-row overwrite.
+   INSERT OVERWRITE table test PARTITION(p1,p2) VALUES (1, 2);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1, c2) VALUES (1, 2);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1, c2) VALUES (1, DEFAULT);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1) VALUES (1);
+   // Multi-row overwrite.
+   INSERT OVERWRITE table test PARTITION(p1,p2) VALUES (1, 2), (4, 2 + 2);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1, c2) VALUES (1, 2), (4, 2 * 2);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1, c2) VALUES (1, DEFAULT), (4, DEFAULT);
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1) VALUES (1), (4);
+   ```
+
+   Unlike overwriting an entire table, the above statements are overwriting partitions in the table. Partitions can be overwritten one at a time or multiple partitions can be overwritten at once. It should be noted that only data that satisfies the corresponding partition filtering condition can be overwritten successfully. If there is data in the overwritten data that does not satisfy any of the partitions, the overwrite will fail. An example of a failure is shown below.
+
+   ```sql
+   INSERT OVERWRITE table test PARTITION(p1,p2) VALUES (7, 2);
+   ```
+
+   The data overwritten by the above statements (`c1=7`) does not satisfy the conditions of partitions `P1` and `P2`, so the overwrite will fail.
+
+2. Overwrite partitions `P1` and `P2` of the `test` table in the form of a query statement. The data format of the `test2` table and the `test` table must be consistent. If they are not consistent, implicit data type conversion will be triggered.
+
+   ```sql
+   INSERT OVERWRITE table test PARTITION(p1,p2) SELECT * FROM test2;
+   INSERT OVERWRITE table test PARTITION(p1,p2) (c1, c2) SELECT * from test2;
+   ```
+
+3. Overwrite partitions `P1` and `P2` of the `test` table and specify a label.
+
+   ```sql
+   INSERT OVERWRITE table test PARTITION(p1,p2) WITH LABEL `label3` SELECT * FROM test2;
+   INSERT OVERWRITE table test PARTITION(p1,p2) WITH LABEL `label4` (c1, c2) SELECT * from test2;
+   ```
+
+#### Overwrite Auto Detect Partition
+
+> This feature is available since version 2.1.3.
+
+When the PARTITION clause specified by the INSERT OVERWRITE command is `PARTITION(*)`, this overwrite will automatically detect the partition where the data is located. Example:
+
+```sql
+mysql> create table test(
+    -> k0 int null
+    -> )
+    -> partition by range (k0)
+    -> (
+    -> PARTITION p10 values less than (10),
+    -> PARTITION p100 values less than (100),
+    -> PARTITION pMAX values less than (maxvalue)
+    -> )
+    -> DISTRIBUTED BY HASH(`k0`) BUCKETS 1
+    -> properties("replication_num" = "1");
+Query OK, 0 rows affected (0.11 sec)
+
+mysql> insert into test values (1), (2), (15), (100), (200);
+Query OK, 5 rows affected (0.29 sec)
+
+mysql> select * from test order by k0;
++------+
+| k0   |
++------+
+|    1 |
+|    2 |
+|   15 |
+|  100 |
+|  200 |
++------+
+5 rows in set (0.23 sec)
+
+mysql> insert overwrite table test partition(*) values (3), (1234);
+Query OK, 2 rows affected (0.24 sec)
+
+mysql> select * from test order by k0;
++------+
+| k0   |
++------+
+|    3 |
+|   15 |
+| 1234 |
++------+
+3 rows in set (0.20 sec)
+```
+
+As you can see, all data in partitions `p10` and `pMAX`, where data 3 and 1234 are located, are overwritten, while partition `p100` remains unchanged. This operation can be interpreted as syntactic sugar for specifying a specific partition to be overwritten by the PARTITION clause during an INSERT OVERWRITE operation, which is implemented in the same way as [specify a partition to overwrite](#overwrite-table-partition). The `PARTITION(*)` syntax eliminates the need to manually fill in all the partition names when overwriting a large number of partitions.
 
 ### Keywords
 
     ```
-    EXPORT
+    INSERT OVERWRITE, OVERWRITE, AUTO DETECT
     ```
-
-### Best Practice
-
-#### Concurrent Export
-
-An Export job can be configured with the `parallelism` parameter to concurrently export data. The `parallelism` parameter specifies the number of threads to execute the `EXPORT Job`. Each thread is responsible for exporting a subset of the total tablets.
-
-The underlying execution logic of an `Export Job `is actually the `SELECT INTO OUTFILE` statement. Each thread specified by the `parallelism` parameter executes independent `SELECT INTO OUTFILE` statements.
-
-The specific logic for splitting an `Export Job` into multiple `SELECT INTO OUTFILE` is, to evenly distribute all the tablets of the table among all parallel threads. For example:
-
-- If num(tablets) = 40 and parallelism = 3, then the three threads will be responsible for 14, 13, and 13 tablets, respectively.
-- If num(tablets) = 2 and parallelism = 3, then Doris automatically sets the parallelism to 2, and each thread is responsible for one tablet.
-
-When the number of tablets responsible for a thread exceeds the `maximum_tablets_of_outfile_in_export` value (default is 10, and can be modified by adding the `maximum_tablets_of_outfile_in_export` parameter in fe.conf), the thread will split the tablets which are responsibled for this thread into multiple `SELECT INTO OUTFILE` statements. For example:
-
-- If a thread is responsible for 14 tablets and `maximum_tablets_of_outfile_in_export = 10`, then the thread will be responsible for two `SELECT INTO OUTFILE` statements. The first `SELECT INTO OUTFILE` statement exports 10 tablets, and the second `SELECT INTO OUTFILE` statement exports 4 tablets. The two `SELECT INTO OUTFILE` statements are executed serially by this thread.
-
-#### memory limit
-
-The query plan for an `Export Job` typically involves only `scanning and exporting`, and does not involve compute logic that requires a lot of memory. Therefore, the default memory limit of 2GB is usually sufficient to meet the requirements.
-
-However, in certain scenarios, such as a query plan that requires scanning too many tablets on the same BE, or when there are too many data versions of tablets, it may result in insufficient memory. In these cases, you can adjust the session variable `exec_mem_limit` to increase the memory usage limit.
-
-#### Precautions
-
-- Exporting a large amount of data at one time is not recommended. The maximum recommended export data volume for an Export job is several tens of GB. An overly large export results in more junk files and higher retry costs. If the amount of table data is too large, it is recommended to export by partition.
-
-- If the Export job fails, the generated files will not be deleted, and the user needs to delete it manually.
-
-- The Export job only exports the data of the Base table / View / External table, not the data of the materialized view.
-
-- The export job scans data and occupies IO resources, which may affect the query latency of the system.
-
-- Currently, The `Export Job` is simply check whether the `Tablets version` is the same, it is recommended not to import data during the execution of the `Export Job`.
-
-- The maximum number of partitions that an `Export job` allows is 2000. You can add a parameter to the fe.conf `maximum_number_of_export_partitions` and restart FE to modify the setting.
