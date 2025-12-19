@@ -1,8 +1,5 @@
 ---
-{
-  "title": "ST_LINEFROMTEXT,ST_LINESTRINGFROMTEXT",
-  "language": "en"
-}
+{ "title": "ST_POINT", "language": "en" }
 ---
 
 <!-- 
@@ -24,27 +21,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ST_LineFromText,ST_LineStringFromText
+## St_Point
 
 ### Description
 
 #### Syntax
 
-`GEOMETRY ST LineFromText (VARCHAR wkt)`
+`POINT ST_Point(DOUBLE x, DOUBLE y)`
 
-Converting a WKT (Well Known Text) into a Line-style memory representation
+Given the X coordinate value, the Y coordinate value returns the corresponding Point.
+The current value is meaningful only for spherical sets, and X/Y corresponds to longitude/latitude.
 
 ### example
 
 ```
-mysql> SELECT ST_AsText(ST_LineFromText("LINESTRING (1 1, 2 2)"));
-+---------------------------------------------------------+
-| st_astext(st_geometryfromtext('LINESTRING (1 1, 2 2)')) |
-+---------------------------------------------------------+
-| LINESTRING (1 1, 2 2)                                   |
-+---------------------------------------------------------+
+mysql> SELECT ST_AsText(ST_Point(24.7, 56.7));
++---------------------------------+
+| st_astext(st_point(24.7, 56.7)) |
++---------------------------------+
+| POINT (24.7 56.7)               |
++---------------------------------+
 ```
 
 ### keywords
 
-ST_LINEFROMTEXT, ST_LINESTRINGFROMTEXT,ST,LINEFROMTEXT,LINESTRINGFROMTEXT
+ST_POINT,ST,POINT
