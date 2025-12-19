@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAY_COMPACT", "language": "en" }
+{ "title": "ARRAY_CONCAT", "language": "en" }
 ---
 
 <!-- 
@@ -19,57 +19,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_compact
+## array_concat
 
-array_compact
+array_concat
 
 ### description
 
-Removes consecutive duplicate elements from an array. The order of result values is determined by the order in the source array.
+Concat all arrays passed in the arguments
 
 #### Syntax
 
-`Array<T> array_compact(arr)`
-
-#### Arguments
-
-`arr` — The array to inspect.
+`Array<T> array_concat(Array<T>, ...)`
 
 #### Returned value
 
-The array without continuous duplicate.
+The concated array.
 
 Type: Array.
 
 ### example
 
 ```
-select array_compact([1, 2, 3, 3, null, null, 4, 4]);
+mysql> select array_concat([1, 2], [7, 8], [5, 6]);
++-----------------------------------------------------+
+| array_concat(ARRAY(1, 2), ARRAY(7, 8), ARRAY(5, 6)) |
++-----------------------------------------------------+
+| [1, 2, 7, 8, 5, 6]                                  |
++-----------------------------------------------------+
+1 row in set (0.02 sec)
 
-+----------------------------------------------------+
-| array_compact(ARRAY(1, 2, 3, 3, NULL, NULL, 4, 4)) |
-+----------------------------------------------------+
-| [1, 2, 3, NULL, 4]                                 |
-+----------------------------------------------------+
-
-select array_compact(['aaa','aaa','bbb','ccc','ccccc',null, null,'dddd']);
-
-+-------------------------------------------------------------------------------+
-| array_compact(ARRAY('aaa', 'aaa', 'bbb', 'ccc', 'ccccc', NULL, NULL, 'dddd')) |
-+-------------------------------------------------------------------------------+
-| ['aaa', 'bbb', 'ccc', 'ccccc', NULL, 'dddd']                                  |
-+-------------------------------------------------------------------------------+
-
-select array_compact(['2015-03-13','2015-03-13']);
-
-+--------------------------------------------------+
-| array_compact(ARRAY('2015-03-13', '2015-03-13')) |
-+--------------------------------------------------+
-| ['2015-03-13']                                   |
-+--------------------------------------------------+
+mysql> select col2, col3, array_concat(col2, col3) from array_test;
++--------------+-----------+------------------------------+
+| col2         | col3      | array_concat(`col2`, `col3`) |
++--------------+-----------+------------------------------+
+| [1, 2, 3]    | [3, 4, 5] | [1, 2, 3, 3, 4, 5]           |
+| [1, NULL, 2] | [NULL]    | [1, NULL, 2, NULL]           |
+| [1, 2, 3]    | NULL      | NULL                         |
+| []           | []        | []                           |
++--------------+-----------+------------------------------+
 ```
 
 ### keywords
 
-ARRAY,COMPACT,ARRAY_COMPACT
-
+ARRAY,CONCAT,ARRAY_CONCAT
