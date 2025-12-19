@@ -1,5 +1,5 @@
 ---
-{ "title": "MONTHNAME", "language": "en" }
+{ "title": "MONTHS_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## monthname
+## months_add
 
-### Description
+### description
 
 #### Syntax
 
-`VARCHAR MONTHNAME (DATE)`
+`DATETIME MONTHS_ADD(DATETIME date, INT months)`
 
-Month name corresponding to return date
+Add the specified month from the date
 
-The parameter is Date or Datetime type
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select monthname('2008-02-03 00:00:00');
-+----------------------------------+
-| monthname('2008-02-03 00:00:00') |
-+----------------------------------+
-| February                         |
-+----------------------------------+
+mysql> select months_add("2020-01-31 02:02:02", 1);
++--------------------------------------+
+| months_add('2020-01-31 02:02:02', 1) |
++--------------------------------------+
+| 2020-02-29 02:02:02                  |
++--------------------------------------+
 ```
 
 ### keywords
 
     ```
-    MONTHNAME
+    MONTHS_ADD
     ```
