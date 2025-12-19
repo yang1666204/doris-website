@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_IPV4", "language": "en" }
+{ "title": "TO_IPV6_OR_DEFAULT", "language": "en" }
 ---
 
 <!-- 
@@ -19,35 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## TO_IPV4
+## TO_IPV6_OR_DEFAULT
 
-TO_IPV4
+TO_IPV6_OR_DEFAULT
 
 ### Description
 
 #### Syntax
 
-`IPV4 TO_IPV4(STRING ipv4_str)`
+`IPV6 TO_IPV6_OR_DEFAULT(STRING ipv6_str)`
 
-This function like ipv4_string_to_num that takes a string form of IPv4 address and returns value of IPv4 type,
-which is binary equal to value returned by ipv4_string_to_num.
-If the IPv4 address has an invalid format, throw an exception.
+Same as to_ipv6, but if the IPv6 address has an invalid format, it returns :: (0 as IPv6).
 
 #### Notice
 
-`Input cannot be NULL. If it is NULL, an exception will be thrown.`
+`If input is NULL, return :: (0 as IPv6).`
 
 ### Example
 
 ```sql
-mysql> select to_ipv4('255.255.255.255');
-+----------------------------+
-| to_ipv4('255.255.255.255') |
-+----------------------------+
-| 255.255.255.255            |
-+----------------------------+
+mysql> select to_ipv6_or_default('.');
++-------------------------+
+| to_ipv6_or_default('.') |
++-------------------------+
+| ::                      |
++-------------------------+
+
+mysql> select to_ipv6_or_default(NULL);
++--------------------------+
+| to_ipv6_or_default(NULL) |
++--------------------------+
+| ::                       |
++--------------------------+
 ```
 
 ### Keywords
 
-TO_IPV4, IP
+TO_IPV6_OR_DEFAULT, IP
