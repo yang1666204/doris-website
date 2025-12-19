@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_DATE", "language": "en" }
+{ "title": "TO_DAYS", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## to_date
+## to_days
 
-### description
+### Description
 
 #### Syntax
 
-`DATE TO_DATE(DATETIME)`
+`INT TO DAYS`
 
-Return the DATE part of DATETIME value.
+Days of returning date distance 0000-01-01
+
+The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select to_date("2020-02-02 00:00:00");
-+--------------------------------+
-| to_date('2020-02-02 00:00:00') |
-+--------------------------------+
-| 2020-02-02                     |
-+--------------------------------+
+mysql> select to_days('2007-10-07');
++-----------------------+
+| to_days('2007-10-07') |
++-----------------------+
+|                733321 |
++-----------------------+
 ```
 
 ### keywords
 
     ```
-    TO_DATE
+    TO_DAYS,TO,DAYS
     ```
