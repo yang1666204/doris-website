@@ -1,8 +1,8 @@
 ---
-{ "title": "MICROSECONDS_DIFF", "language": "en" }
+{ "title": "MICROSECONDS_SUB", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,30 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## microseconds_diff
+## microseconds_sub
 
 ### description
 
 #### Syntax
 
-`INT microseconds_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIMEV2 microseconds_sub(DATETIMEV2 basetime, INT delta)`
 
-How many microseconds is the difference between the start time and the end time.
+- basetime: Base time whose type is DATETIMEV2
+- delta: Microseconds to subtract from basetime
+- Return type of this function is DATETIMEV2
 
 ### example
 
 ```
-mysql> select microseconds_diff('2020-12-25 21:00:00.623000','2020-12-25 21:00:00.123000');
-+-----------------------------------------------------------------------------------------------------------------------------+
-| microseconds_diff(cast('2020-12-25 21:00:00.623000' as DATETIMEV2(6)), cast('2020-12-25 21:00:00.123000' as DATETIMEV2(6))) |
-+-----------------------------------------------------------------------------------------------------------------------------+
-|                                                                                                                      500000 |
-+-----------------------------------------------------------------------------------------------------------------------------+
-1 row in set (0.12 sec)
+mysql> select now(3), microseconds_sub(now(3), 100000);
++-------------------------+----------------------------------+
+| now(3)                  | microseconds_sub(now(3), 100000) |
++-------------------------+----------------------------------+
+| 2023-02-25 02:03:05.174 | 2023-02-25 02:03:05.074          |
++-------------------------+----------------------------------+
 ```
+
+`now(3)` returns current time as type DATETIMEV2 with precision `3`，`microseconds_sub(now(3), 100000)` means 100000 microseconds before current time
 
 ### keywords
 
     ```
-    microseconds_diff
+    microseconds_sub
     ```
