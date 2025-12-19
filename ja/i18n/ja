@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-RESOURCE", "language": "en" }
+{ "title": "DROP-SQL-BLOCK-RULE", "language": "en" }
 ---
 
 <!--
@@ -21,35 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-RESOURCE
+## DROP-SQL-BLOCK-RULE
 
 ### Name
 
-DROP RESOURCE
+DROP SQL BLOCK RULE
 
 ### Description
 
-This statement is used to delete an existing resource. Only the root or admin user can delete resources.
+Delete SQL blocking rules, support multiple rules, separated by ,
+
 grammar:
 
 ```sql
-DROP RESOURCE 'resource_name'
+DROP SQL_BLOCK_RULE test_rule1,...
 ```
-
-Note: ODBC/S3 resources in use cannot be deleted.
 
 ### Example
 
-1. Delete the Spark resource named spark0:
+1. Delete the test_rule1 and test_rule2 blocking rules
 
-     ```sql
-     DROP RESOURCE 'spark0';
-     ```
+    ```sql
+    mysql> DROP SQL_BLOCK_RULE test_rule1,test_rule2;
+    Query OK, 0 rows affected (0.00 sec)
+    ```
 
 ### Keywords
 
-     ```
-      DROP, RESOURCE
-     ```
+```text
+DROP, SQL_BLOCK_RULE
+```
 
 ### Best Practice
