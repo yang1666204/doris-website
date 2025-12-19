@@ -1,5 +1,5 @@
 ---
-{ "title": "Table Schema Action", "language": "en" }
+{ "title": "Upload Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,137 +21,136 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Table Schema Action
+# Upload Action
 
-## Request
+Upload Action currently mainly serves the front-end page of FE, and is used for users to load small test files.
 
-`GET /api/<db>/<table>/_schema`
+## Upload load file
 
-## Description
+Used to upload a file to the FE node, which can be used to load the file later. Currently only supports uploading files up to 100MB.
 
-Used to obtain the table structure information of the specified table. This interface is currently used in Spark/Flink Doris Connector.  obtains Doris table structure information.
+### Request
 
-## Path parameters
+```
+POST /api/<namespace>/<db>/<tbl>/upload
+```
+
+### Path parameters
+
+- `<namespace>`
+
+  Namespace, currently only supports `default_cluster`
 
 - `<db>`
 
   Specify database
 
-- `<table>`
+- `<tbl>`
 
   Specify table
 
-## Query parameters
+### Query parameters
 
-None
+- `column_separator`
 
-## Request body
+  Optional, specify the column separator of the file. Default is `\t`
 
-None
+- `preview`
 
-## Response
+  Optional, if set to `true`, up to 10 rows of data rows split according to `column_separator` will be displayed in the returned result.
 
-- The http interface returns as follows:
+### Request body
 
-```
-{
-	"msg": "success",
-	"code": 0,
-	"data": {
-		"properties": [{
-			"type": "INT",
-			"name": "k1",
-			"comment": "",
-			"aggregation_type":""
-		}, {
-			"type": "INT",
-			"name": "k2",
-			"comment": "",
-			"aggregation_type":"MAX"
-		}],
-		"keysType":UNIQUE_KEYS,
-		"status": 200
-	},
-	"count": 0
-}
-```
+The content of the file to be uploaded, the Content-type is `multipart/form-data`
 
-- The http v2 interface returns as follows:
+### Response
 
 ```
 {
 	"msg": "success",
 	"code": 0,
 	"data": {
-		"properties": [{
-			"type": "INT",
-			"name": "k1",
-			"comment": ""
-		}, {
-			"type": "INT",
-			"name": "k2",
-			"comment": ""
-		}],
-		"keysType":UNIQUE_KEYS,
-		"status": 200
+        "id": 1,
+        "uuid": "b87824a4-f6fd-42c9-b9f1-c6d68c5964c2",
+        "originFileName": "data.txt",
+        "fileSize": 102400,
+        "absPath": "/path/to/file/data.txt"
+        "maxColNum" : 5
 	},
-	"count": 0
+	"count": 1
 }
 ```
 
-Note: The difference is that the `http` method returns more `aggregation_type` fields than the `http v2` method. The `http v2` is enabled by setting `enable_http_server_v2`. For detailed parameter descriptions, see [fe parameter settings](../../config/fe-config.md)
+## Load the uploaded file
 
-## Examples
+### Request
 
-1. Get the table structure information of the specified table via http interface.
+```
+PUT /api/<namespace>/<db>/<tbl>/upload
+```
 
-    ```
-    GET /api/db1/tbl1/_schema
-    
-    Response:
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": {
-    		"properties": [{
-    			"type": "INT",
-    			"name": "k1",
-    			"comment": "",
-    			"aggregation_type":""
-    		}, {
-    			"type": "INT",
-    			"name": "k2",
-    			"comment": "",
-    			"aggregation_type":"MAX"
-    		}],
-    		"keysType":UNIQUE_KEYS,
-    		"status": 200
-    	},
-    	"count": 0
-    }
-    ```
-2. Get the table structure information of the specified table via http v2 interface.
+### Path parameters
 
-    ```
-    GET /api/db1/tbl1/_schema
-    
-    Response:
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": {
-    		"properties": [{
-    			"type": "INT",
-    			"name": "k1",
-    			"comment": ""
-    		}, {
-    			"type": "INT",
-    			"name": "k2",
-    			"comment": ""
-    		}],
-    		"keysType":UNIQUE_KEYS,
-    		"status": 200
-    	},
-    	"count": 0
-    }
-    ```
+- `<namespace>`
+
+  Namespace, currently only supports `default_cluster`
+
+- `<db>`
+
+  Specify database
+
+- `<tbl>`
+
+  Specify table
+
+### Query parameters
+
+- `file_id`
+
+  Specify the load file id, which is returned by the API that uploads the file.
+
+- `file_uuid`
+
+  Specify the file uuid, which is returned by the API that uploads the file.
+
+### Header
+
+The options in the header are the same as those in the header in the Stream Load request.
+
+### Request body
+
+None
+
+### Response
+
+```
+{
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"TxnId": 7009,
+		"Label": "9dbdfb0a-120b-47a2-b078-4531498727cb",
+		"Status": "Success",
+		"Message": "OK",
+		"NumberTotalRows": 3,
+		"NumberLoadedRows": 3,
+		"NumberFilteredRows": 0,
+		"NumberUnselectedRows": 0,
+		"LoadBytes": 12,
+		"LoadTimeMs": 71,
+		"BeginTxnTimeMs": 0,
+		"StreamLoadPutTimeMs": 1,
+		"ReadDataTimeMs": 0,
+		"WriteDataTimeMs": 13,
+		"CommitAndPublishTimeMs": 53
+	},
+	"count": 1
+}
+```
+
+### Example
+
+```
+PUT /api/default_cluster/db1/tbl1/upload?file_id=1&file_uuid=b87824a4-f6fd-42c9-b9f1-c6d68c5964c2
+```
+
