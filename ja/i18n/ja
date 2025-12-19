@@ -1,8 +1,8 @@
 ---
-{ "title": "RTRIM_IN", "language": "en" }
+{ "title": "MULTI_MATCH_ANY", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,32 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## multi_match_any
 
-## Syntax
+### Description
 
-`VARCHAR rtrim_in(VARCHAR str[, VARCHAR rhs])`
+#### Syntax
 
-When there is no rhs parameter, remove the spaces that appear consecutively in the parameter str starting from the right part; when there is an rhs parameter, search and remove any characters in the rhs character set at the right end of the string (regardless of order)
+`TINYINT multi_match_any(VARCHAR haystack, ARRAY<VARCHAR> patterns)`
 
-## Example
+Checks whether the string `haystack` matches the regular expressions `patterns` in re2 syntax. returns 0 if none of the regular expressions are matched and 1 if any of the patterns matches.
 
-```sql
-mysql> SELECT rtrim_in('ab d   ') str;
-+------+
-| str  |
-+------+
-| ab d |
-+------+
+### example
 
-mysql> SELECT rtrim_in('ababccaab','ab') str;
-+--------+
-| str    |
-+--------+
-| ababcc |
-+--------+
+```
+mysql> select multi_match_any('Hello, World!', ['hello', '!', 'world']);
++-----------------------------------------------------------+
+| multi_match_any('Hello, World!', ['hello', '!', 'world']) |
++-----------------------------------------------------------+
+| 1                                                         |
++-----------------------------------------------------------+
+
+mysql> select multi_match_any('abc', ['A', 'bcd']);
++--------------------------------------+
+| multi_match_any('abc', ['A', 'bcd']) |
++--------------------------------------+
+| 0                                    |
++--------------------------------------+
 ```
 
-## Keywords
+### keywords
 
-RTRIM_IN
+    ```
+    MULTI_MATCH,MATCH,ANY
+    ```
