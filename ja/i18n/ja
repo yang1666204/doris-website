@@ -1,5 +1,5 @@
 ---
-{ "title": "View Meta", "language": "en" }
+{ "title": "Metrics", "language": "en" }
 ---
 
 <!-- 
@@ -21,25 +21,25 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# View Meta
+# Metrics
 
 ## Request
 
-`GET /api/meta/header/{tablet_id}?byte_to_base64={bool}`
+`GET /metrics?type={enum}&with_tablet={bool}`
 
 ## Description
 
-View meta of a tablet
-
-## Path parameters
-
-- `tablet_id`
-  ID of the tablet
+Provided for prometheus
 
 ## Query parameters
 
-- `byte_to_base64`
-  Whether to encode by base64. Optional with default `false`.
+- `type`
+  Output style, Optional with default `all` and the following values:
+  - `core`: Only core items
+  - `json`: Json format
+
+- `with_tablet`
+  Whether to output tablet-related items，Optional with default `false`.
 
 ## Request body
 
@@ -49,17 +49,12 @@ None
 
     ````
     ```
-    {
-        "table_id": 148107,
-        "partition_id": 148104,
-        "tablet_id": 148193,
-        "schema_hash": 2090621954,
-        "shard_id": 38,
-        "creation_time": 1673253868,
-        "cumulative_layer_point": -1,
-        "tablet_state": "PB_RUNNING",
-        ...
-    }
+    doris_be__max_network_receive_bytes_rate LONG 60757
+    doris_be__max_network_send_bytes_rate LONG 16232
+    doris_be_process_thread_num LONG 1120
+    doris_be_process_fd_num_used LONG 336
+    ，，，
+    
     ```
     ````
 
@@ -67,8 +62,7 @@ None
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/meta/header/148193&byte_to_base64=true"
-    
+        curl "http://127.0.0.1:8040/metrics?type=json&with_tablet=true"
     ```
     ````
 
