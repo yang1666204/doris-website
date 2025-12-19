@@ -1,5 +1,5 @@
 ---
-{ "title": "MONTHS_SUB", "language": "en" }
+{ "title": "NOW", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## months_sub
+## now
 
-### description
+### Description
 
 #### Syntax
 
-`DATETIME MONTHS_SUB(DATETIME date, INT months)`
+`DATETIME NOW ()`
 
-Subtracts a specified number of months from a datetime or date
-
-The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
+Get the current time and return it in Datetime type.
 
 ### example
 
 ```
-mysql> select months_sub("2020-02-02 02:02:02", 1);
-+--------------------------------------+
-| months_sub('2020-02-02 02:02:02', 1) |
-+--------------------------------------+
-| 2020-01-02 02:02:02                  |
-+--------------------------------------+
+mysql> select now();
++---------------------+
+| now()               |
++---------------------+
+| 2019-05-27 15:58:25 |
++---------------------+
 ```
+
+`DATETIMEV2 NOW(INT precision)`
+
+Get the current time and return it in DatetimeV2 type.
+Precision represents the second precision that the user wants. The current precision supports up to microseconds, that is, the value range of precision is [0, 6].
+
+### example
+
+```
+mysql> select now(3);
++-------------------------+
+| now(3)                  |
++-------------------------+
+| 2022-09-06 16:13:30.078 |
++-------------------------+
+```
+
+Note:
+
+1. Currently, only DatetimeV2 type supports precision.
+2. Limited by the JDK implementation, if you use jdk8 to build FE, the precision can be up to milliseconds (three decimal places), and the larger precision bits will be filled with 0. If you need higher accuracy, please use jdk11 to build FE.
 
 ### keywords
 
     ```
-    MONTHS_SUB
+    NOW
     ```
