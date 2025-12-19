@@ -1,5 +1,5 @@
 ---
-{ "title": "HDFS", "language": "en" }
+{ "title": "Huawei OBS", "language": "en" }
 ---
 
 <!-- 
@@ -21,18 +21,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Doris provides two ways to load files from HDFS:
+Doris provides two ways to load files from Huawei OBS:
 
-- Use HDFS Load to load HDFS files into Doris, which is an asynchronous load method.
-- Use TVF to load HDFS files into Doris, which is a synchronous load method.
+- Use S3 Load to load Huawei OBS files into Doris, which is an asynchronous load method.
+- Use TVF to load Huawei OBS files into Doris, which is a synchronous load method.
 
-## load with HDFS Load
+## load with S3 Load
 
-Use HDFS Load to import files on HDFS. For detailed steps, please refer to the [Broker Load Manual](../import-way/broker-load-manual)
+Use S3 Load to import files on object storage. For detailed steps, please refer to the [Broker Load Manual](../import-way/broker-load-manual)
 
 ### Step 1: Prepare the data
 
-Create a CSV file hdfsload_example.csv The file is stored on HDFS and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Huawei OBS and its content is as follows:
 
 ```
 1,Emily,25
@@ -50,7 +50,7 @@ Create a CSV file hdfsload_example.csv The file is stored on HDFS and its conten
 ### Step 2: Create a table in Doris
 
 ```sql
-CREATE TABLE test_hdfsload(
+CREATE TABLE test_s3load(
     user_id            BIGINT       NOT NULL COMMENT "user id",
     name               VARCHAR(20)           COMMENT "name",
     age                INT                   COMMENT "age"
@@ -59,21 +59,24 @@ DUPLICATE KEY(user_id)
 DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-### Step 3: Load data using HDFS Load
+### Step 3: Load data using S3 Load
 
 ```sql
-LOAD LABEL hdfs_load_2022_04_01
+LOAD LABEL s3_load_2022_04_01
 (
-    DATA INFILE("hdfs://127.0.0.1:8020/tmp/hdfsload_example.csv")
-    INTO TABLE test_hdfsload
+    DATA INFILE("s3://your_bucket_name/s3load_example.csv")
+    INTO TABLE test_s3load
     COLUMNS TERMINATED BY ","
     FORMAT AS "CSV"
     (user_id, name, age)
 )
-with HDFS
+WITH S3
 (
-    "fs.defaultFS" = "hdfs://127.0.0.1:8020",
-    "hadoop.username" = "user"
+    "provider" = "OBS",
+    "s3.endpoint" = "obs.cn-north-1.myhuaweicloud.com",
+    "s3.region" = "cn-north-1",
+    "s3.access_key" = "<your-ak>",
+    "s3.secret_key" = "<your-sk>"
 )
 PROPERTIES
 (
@@ -84,13 +87,13 @@ PROPERTIES
 ### Step 4: Check the imported data
 
 ```sql
-SELECT * FROM test_hdfsload;
+SELECT * FROM test_s3load;
 ```
 
 Results:
 
 ```
-mysql> select * from test_hdfsload;
+mysql> select * from test_s3load;
 +---------+-----------+------+
 | user_id | name      | age  |
 +---------+-----------+------+
@@ -112,7 +115,7 @@ mysql> select * from test_hdfsload;
 
 ### Step 1: Prepare the data
 
-Create a CSV file hdfsload_example.csv The file is stored on HDFS and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Huawei OBS and its content is as follows:
 
 ```
 1,Emily,25
@@ -130,7 +133,7 @@ Create a CSV file hdfsload_example.csv The file is stored on HDFS and its conten
 ### Step 2: Create a table in Doris
 
 ```sql
-CREATE TABLE test_hdfsload(
+CREATE TABLE test_s3load(
     user_id            BIGINT       NOT NULL COMMENT "user id",
     name               VARCHAR(20)           COMMENT "name",
     age                INT                   COMMENT "age"
@@ -142,12 +145,17 @@ DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ### Step 3: Load data using TVF
 
 ```sql
-INSERT INTO test_hdfsload
-SELECT * FROM hdfs (
-    "uri" = "hdfs://127.0.0.1:8020/tmp/hdfsload_example.csv",
-    "fs.defaultFS" = "hdfs://127.0.0.1:8020",
-    "hadoop.username" = "doris",
+INSERT INTO test_s3load
+SELECT * FROM S3
+(
+    "uri" = "s3://your_bucket_name/s3load_example.csv",
     "format" = "csv",
+    "provider" = "OBS",
+    "s3.endpoint" = "obs.cn-north-1.myhuaweicloud.com",
+    "s3.region" = "cn-north-1",
+    "s3.access_key" = "<your-ak>",
+    "s3.secret_key" = "<your-sk>",
+    "column_separator" = ",",
     "csv_schema" = "user_id:int;name:string;age:int"
 );
 ```
@@ -155,13 +163,13 @@ SELECT * FROM hdfs (
 ### Step 4: Check the imported data
 
 ```sql
-SELECT * FROM test_hdfsload;
+SELECT * FROM test_s3load;
 ```
 
 Results:
 
 ```
-mysql> select * from test_hdfsload;
+mysql> select * from test_s3load;
 +---------+-----------+------+
 | user_id | name      | age  |
 +---------+-----------+------+
