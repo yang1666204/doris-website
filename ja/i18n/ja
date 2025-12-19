@@ -1,5 +1,5 @@
 ---
-{ "title": "FLOOR", "language": "en" }
+{ "title": "GREATEST", "language": "en" }
 ---
 
 <!-- 
@@ -19,70 +19,49 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## floor
+## greatest
 
 ### description
 
 #### Syntax
 
-`T floor(T x[, d])`
+`greatest(col_a, col_b, …, col_n)`
 
-If not specified `d`: returns the largest integer value less than or equal to `x`, which is **the most common usage**.
-Otherwise, returns the largest round number that is less than or equal to `x` and flowing the rules:
+`column` supports the following types: `TINYINT` `SMALLINT` `INT` `BIGINT` `LARGEINT` `FLOAT` `DOUBLE` `STRING` `DATETIME` `DECIMAL`
 
-If `d` is specified as literal:  
-`d` = 0: just like without `d`
-`d` > 0 or `d` < 0: the round number would be a multiple of `1/(10^d)`, or the nearest number of the appropriate data type if `1/(10^d)` isn't exact.
-
-Else if `d` is a column, and `x` has Decimal type, scale of result Decimal will always be same with input Decimal.
-
-:::tip
-Another alias for this function is `dfloor`.
-:::
+Compares the size of `n columns` and returns the largest among them. If there is `NULL` in `column`, it returns `NULL`.
 
 ### example
 
 ```
-mysql> select floor(1);
-+------------+
-| floor(1.0) |
-+------------+
-|          1 |
-+------------+
-mysql> select floor(2.4);
-+------------+
-| floor(2.4) |
-+------------+
-|          2 |
-+------------+
-mysql> select floor(-10.3);
-+--------------+
-| floor(-10.3) |
-+--------------+
-|          -11 |
-+--------------+
-mysql> select floor(123.45, 1), floor(123.45), floor(123.45, 0), floor(123.45, -1);
-+------------------+---------------+------------------+-------------------+
-| floor(123.45, 1) | floor(123.45) | floor(123.45, 0) | floor(123.45, -1) |
-+------------------+---------------+------------------+-------------------+
-|            123.4 |           123 |              123 |               120 |
-+------------------+---------------+------------------+-------------------+
-mysql> SELECT number
-    -> , floor(number * 2.5, number - 1) AS f_decimal_column
-    -> , floor(number * 2.5, 0) AS f_decimal_literal
-    -> , floor(cast(number * 2.5 AS DOUBLE), number - 1) AS f_double_column
-    -> , floor(cast(number * 2.5 AS DOUBLE), 0) AS f_double_literal
-    -> FROM test_enhanced_round
-    -> WHERE rid = 1;
-+--------+------------------+-------------------+-----------------+------------------+
-| number | f_decimal_column | f_decimal_literal | f_double_column | f_double_literal |
-+--------+------------------+-------------------+-----------------+------------------+
-|      1 |              2.0 |                 2 |               2 |                2 |
-+--------+------------------+-------------------+-----------------+------------------+
+mysql> select greatest(-1, 0, 5, 8);
++-----------------------+
+| greatest(-1, 0, 5, 8) |
++-----------------------+
+|                     8 |
++-----------------------+
+mysql> select greatest(-1, 0, 5, NULL);
++--------------------------+
+| greatest(-1, 0, 5, NULL) |
++--------------------------+
+| NULL                     |
++--------------------------+
+mysql> select greatest(6.3, 4.29, 7.6876);
++-----------------------------+
+| greatest(6.3, 4.29, 7.6876) |
++-----------------------------+
+|                      7.6876 |
++-----------------------------+
+mysql> select greatest("2022-02-26 20:02:11","2020-01-23 20:02:11","2020-06-22 20:02:11");
++-------------------------------------------------------------------------------+
+| greatest('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11') |
++-------------------------------------------------------------------------------+
+| 2022-02-26 20:02:11                                                           |
++-------------------------------------------------------------------------------+
 ```
 
 ### keywords
 
  ```
- FLOOR, DFLOOR
+ GREATEST
  ```
