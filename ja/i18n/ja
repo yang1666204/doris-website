@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Download Log about Load Error",
-  "language": "en"
-}
+{ "title": "Check Alive", "language": "en" }
 ---
 
 <!-- 
@@ -24,23 +21,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Download Log about Load Error
+# Check Alive
 
 ## Request
 
-`GET /api/_load_error_log?token={string}&file={string}`
+`GET /api/health`
 
 ## Description
 
-Download log file about load error
+Provided for the monitoring service to Check whether the BE is alive，Be will respond if alive.
 
 ## Query parameters
 
-- `file`
-  Path of log
-
-- `token`
-  token
+None
 
 ## Request body
 
@@ -48,15 +41,17 @@ None
 
 ## Response
 
+    ````
     ```
-    File of log
+    {"status": "OK","msg": ""}
     ```
+    ````
 
 ## Examples
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/_load_error_log?file=a&token=1"
+    curl http://127.0.0.1:8040/api/health
     ```
     ````
 
