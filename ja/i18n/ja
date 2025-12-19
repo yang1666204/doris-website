@@ -1,5 +1,5 @@
 ---
-{ "title": "Deploy Doris Cluster", "language": "en" }
+{ "title": "Deploy Doris Operator", "language": "en" }
 ---
 
 <!-- 
@@ -19,48 +19,47 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-To deploy a Doris cluster on Kubernetes, ensure that [the Doris Operator is deployed](install-doris-operator.md).  
-The deployment process for a Doris cluster consists of three steps: download the deployment template, custom the template and deploy cluster, and verify the cluster status.
+Deploying the Doris Operator involves three steps: install the CustomResourceDefinitions, deploy the Operator service, verify the deployment status.
 
-## Step 1: Download the Doris deployment template
+## Step 1: Install CustomResourceDefinitions
+
+Add the custom resource (CRD) of Doris Operator using the following command:
 
 ```shell
-curl -O https://raw.githubusercontent.com/apache/doris-operator/master/doc/examples/doriscluster-sample.yaml
+kubectl create -f https://raw.githubusercontent.com/apache/doris-operator/master/config/crd/bases/doris.apache.com_dorisclusters.yaml
 ```
 
-## Step 2: Custom the template and deploy cluster
+## Step 2: Install Doris Operator and RBAC rules
 
-Perform customized configuration as needed according to the doc of [Config Doris to Deploy](./install-config-cluster.md). After the configuration is completed, deploy it with the following command:
-
-```shell
-kubectl apply -f doriscluster-sample.yaml
-```
-
-## Step 3: Verify the cluster status
-
-Check the status of the cluster by checking the status of pods:
+Install Doris Operator using the following command:
 
 ```shell
-kubectl get pods
+kubectl apply -f https://raw.githubusercontent.com/apache/doris-operator/master/config/operator/operator.yaml
 ```
 
 Expected output:
 
 ```shell
-NAME                       READY   STATUS    RESTARTS   AGE
-doriscluster-sample-fe-0   1/1     Running   0          2m
-doriscluster-sample-be-0   1/1     Running   0          3m
+namespace/doris created
+role.rbac.authorization.k8s.io/leader-election-role created
+rolebinding.rbac.authorization.k8s.io/leader-election-rolebinding created
+clusterrole.rbac.authorization.k8s.io/doris-operator created
+clusterrolebinding.rbac.authorization.k8s.io/doris-operator-rolebinding created
+serviceaccount/doris-operator created
+deployment.apps/doris-operator created
 ```
 
-Check the status of the deployed resources:
+## Step 3: Verify Doris Operator status
+
+Check the deployment status of Doris Operator using the following command:
 
 ```shell
-kubectl get dcr -n doris
+kubectl get pods -n doris
 ```
 
 Expected output:
 
 ```shell
-NAME                  FESTATUS    BESTATUS    CNSTATUS   BROKERSTATUS
-doriscluster-sample   available   available
+NAME                              READY   STATUS    RESTARTS   AGE
+doris-operator-7f578c86cb-nz6jn   1/1     Running   0          19m
 ```
