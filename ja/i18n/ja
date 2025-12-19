@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-INDEX", "language": "en" }
+{ "title": "DROP-JOB", "language": "en" }
 ---
 
 <!--
@@ -21,33 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-INDEX
+## DROP-JOB
 
 ### Name
 
-DROP INDEX
+DROP JOB
 
 ### Description
 
-This statement is used to delete the index of the specified name from a table.
-grammar:
+User stops a JOB. A stopped job cannot be resumed.
 
 ```sql
-DROP INDEX [IF EXISTS] index_name ON [db_name.]table_name;
+DROP JOB WHERE jobName = 'job_name';
 ```
 
 ### Example
 
-1. Delete the index
+1. DROP the job named test1.
 
-    ```sql
-    DROP INDEX [IF NOT EXISTS] index_name ON table1 ;
-    ```
+   ```sql
+   DROP JOB where jobName = 'test1';
+   ```
 
 ### Keywords
 
-     ```
-      DROP, INDEX
-     ```
+        ```
+            DROP, JOB
+        ```
 
 ### Best Practice
+
