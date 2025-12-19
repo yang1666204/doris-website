@@ -1,5 +1,5 @@
 ---
-{ "title": "MILLISECONDS_DIFF", "language": "en" }
+{ "title": "MILLISECONDS_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -21,30 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## milliseconds_diff
+## milliseconds_sub
 
 ### description
 
 #### Syntax
 
-`INT milliseconds_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIMEV2 milliseconds_sub(DATETIMEV2 basetime, INT delta)`
 
-How many milliseconds is the difference between the start time and the end time?
+- basetime: Base time whose type is DATETIMEV2
+- delta: Milliseconds to subtract from basetime
+- Return type of this function is DATETIMEV2
 
 ### example
 
 ```
-mysql> select milliseconds_diff('2020-12-25 21:00:00.623000','2020-12-25 21:00:00.123000');
-+-----------------------------------------------------------------------------------------------------------------------------+
-| milliseconds_diff(cast('2020-12-25 21:00:00.623000' as DATETIMEV2(6)), cast('2020-12-25 21:00:00.123000' as DATETIMEV2(6))) |
-+-----------------------------------------------------------------------------------------------------------------------------+
-|                                                                                                                         500 |
-+-----------------------------------------------------------------------------------------------------------------------------+
-1 row in set (0.03 sec)
+mysql> select milliseconds_sub('2023-09-08 16:02:08.435123', 1);
++--------------------------------------------------------------------------+
+| milliseconds_sub(cast('2023-09-08 16:02:08.435123' as DATETIMEV2(6)), 1) |
++--------------------------------------------------------------------------+
+| 2023-09-08 16:02:08.434123                                               |
++--------------------------------------------------------------------------+
+1 row in set (0.11 sec)
 ```
 
 ### keywords
 
     ```
-    milliseconds_diff
+    milliseconds_sub
+    
     ```
