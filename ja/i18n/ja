@@ -1,8 +1,8 @@
 ---
-{ "title": "EXTRACT", "language": "en" }
+{ "title": "FROM_DAYS", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,35 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## extract
+## from_days
 
-### description
+### Description
 
 #### Syntax
 
-`INT extract(unit FROM DATETIME)`
+`DATE FROM_DAYS(INT N)`
 
-Extract DATETIME The value of a specified unit. The unit can be year, day, hour, minute, second or microsecond
+Given a day number, returns a DATE. Note that to maintain consistent behavior with MySQL, the date 0000-02-29 does not exist.
 
-### Example
+### example
 
 ```
-mysql> select extract(year from '2022-09-22 17:01:30') as year,
-    -> extract(month from '2022-09-22 17:01:30') as month,
-    -> extract(day from '2022-09-22 17:01:30') as day,
-    -> extract(hour from '2022-09-22 17:01:30') as hour,
-    -> extract(minute from '2022-09-22 17:01:30') as minute,
-    -> extract(second from '2022-09-22 17:01:30') as second,
-    -> extract(microsecond from cast('2022-09-22 17:01:30.000123' as datetimev2(6))) as microsecond;
-+------+-------+------+------+--------+--------+-------------+
-| year | month | day  | hour | minute | second | microsecond |
-+------+-------+------+------+--------+--------+-------------+
-| 2022 |     9 |   22 |   17 |      1 |     30 |         123 |
-+------+-------+------+------+--------+--------+-------------+
+mysql > select from_days (730669);
++-------------------+
+| from_days(730669) |
++-------------------+
+| 2000-07-03        |
++-------------------+
+
+mysql> select from_days (5);
++--------------+
+| from_days(5) |
++--------------+
+| 0000-01-05   |
++--------------+
+
+mysql> select from_days (59);
++---------------+
+| from_days(59) |
++---------------+
+| 0000-02-28    |
++---------------+
+
+mysql> select from_days (60);
++---------------+
+| from_days(60) |
++---------------+
+| 0000-03-01    |
++---------------+
 ```
 
 ### keywords
 
     ```
-    extract
+    FROM_DAYS,FROM,DAYS
     ```
