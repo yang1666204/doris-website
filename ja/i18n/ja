@@ -1,5 +1,5 @@
 ---
-{ "title": "FOREACH", "language": "en" }
+{ "title": "GROUP_ARRAY_INTERSECT", "language": "en" }
 ---
 
 <!-- 
@@ -21,58 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## FOREACH
+## group_array_intersect
 
 ### description
 
 #### Syntax
 
-`AGGREGATE_FUNCTION_FOREACH(arg...)`
-Converts an aggregate function for tables into an aggregate function for arrays that aggregates the corresponding array items and returns an array of results. For example, sum_foreach for the arrays [1, 2], [3, 4, 5]and[6, 7]returns the result [10, 13, 5] after adding together the corresponding array items.
+`expr GROUP_ARRAY_INTERSECT(expr)`
+
+calculate the intersect element from all arrays given, return a new array
 
 ### example
 
 ```
-mysql [test]>select a , s from db;
-+-----------+---------------+
-| a         | s             |
-+-----------+---------------+
-| [1, 2, 3] | ["ab", "123"] |
-| [20]      | ["cd"]        |
-| [100]     | ["efg"]       |
-| NULL      | NULL          |
-| [null, 2] | [null, "c"]   |
-+-----------+---------------+
+mysql> select c_array_string from group_array_intersect_test where id in (18, 20);
++--------------------------------+
+| c_array_string                 |
++--------------------------------+
+| ["a", "b", "c", "d", "e", "f"] |
+| ["a", null]                    |
++--------------------------------+
+2 rows in set (0.02 sec)
 
-mysql [test]>select sum_foreach(a) from db;
-+----------------+
-| sum_foreach(a) |
-+----------------+
-| [121, 4, 3]    |
-+----------------+
-
-mysql [test]>select count_foreach(s) from db;
-+------------------+
-| count_foreach(s) |
-+------------------+
-| [3, 2]           |
-+------------------+
-
-mysql [test]>select array_agg_foreach(a) from db;
-+-----------------------------------+
-| array_agg_foreach(a)              |
-+-----------------------------------+
-| [[1, 20, 100, null], [2, 2], [3]] |
-+-----------------------------------+
-
-mysql [test]>select map_agg_foreach(a,a) from db;
+mysql> select group_array_intersect(c_array_string) from group_array_intersect_test where id in (18, 20);
 +---------------------------------------+
-| map_agg_foreach(a, a)                 |
+| group_array_intersect(c_array_string) |
 +---------------------------------------+
-| [{1:1, 20:20, 100:100}, {2:2}, {3:3}] |
+| ["a"]                                 |
 +---------------------------------------+
+1 row in set (0.03 sec)
 ```
 
 ### keywords
 
-FOREACH
+GROUP_ARRAY_INTERSECT, ARRAY
