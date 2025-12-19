@@ -1,5 +1,5 @@
 ---
-{ "title": "DAYNAME", "language": "en" }
+{ "title": "DAYOFMONTH", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## dayname
+## dayofmonth
 
 ### Description
 
 #### Syntax
 
-`VARCHAR DAYNAME (DATE)`
+`INT DAYOFMONTH (DATETIME date)`
 
-Date name corresponding to return date
+Get the day information in the date, and return values range from 1 to 31.
 
 The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select dayname('2007-02-03 00:00:00');
-+--------------------------------+
-| dayname('2007-02-03 00:00:00') |
-+--------------------------------+
-| Saturday                       |
-+--------------------------------+
+mysql> select dayofmonth('1987-01-31');
++-----------------------------------+
+| dayofmonth('1987-01-31 00:00:00') |
++-----------------------------------+
+|                                31 |
++-----------------------------------+
 ```
 
 ### keywords
 
     ```
-    DAYNAME
+    DAYOFMONTH
     ```
