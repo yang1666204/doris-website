@@ -1,5 +1,5 @@
 ---
-{ "title": "character_sets", "language": "en" }
+{ "title": "collations", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-View the supported character sets. This table is only used for compatibility with MySQL behavior and does not truly reflect the character sets used by Doris.
+View all collation methods for character sets. This table is only used for compatibility with MySQL behavior and holds no practical significance. It does not truly reflect the character collation methods used by Doris.
 
 ## Database
 
@@ -31,9 +31,11 @@ View the supported character sets. This table is only used for compatibility wit
 
 ## Table Information
 
-| Column Name                                                    | Type                            | Description                                                                     |
-| -------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
-| CHARACTER_SET_NAME   | varchar(512) | The name of the character set                                                   |
-| DEFAULT_COLLATE_NAME | varchar(64)  | The default collation name                                                      |
-| DESCRIPTION                                                    | varchar(64)  | A detailed description of the character set                                     |
-| MAXLEN                                                         | bigint                          | The maximum number of bytes occupied by a single character in the character set |
+| Column Name                                                  | Type                            | Description                                                              |
+| ------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------ |
+| COLLATION_NAME                          | varchar(512) | The name of the character set collation method                           |
+| CHARACTER_SET_NAME | varchar(64)  | The name of the associated character set                                 |
+| ID                                                           | bigint                          | The ID of the collation method                                           |
+| IS_DEFAULT                              | varchar(64)  | Indicates if it is the current default collation method. |
+| IS_COMPILED                             | varchar(64)  | Indicates if it is compiled into the service                             |
+| SORTLEN                                                      | bigint                          | Related to the memory used by this collation algorithm                   |
