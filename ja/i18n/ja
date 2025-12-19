@@ -1,8 +1,8 @@
 ---
-{ "title": "QUARTER", "language": "en" }
+{ "title": "QUARTERS_ADD", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,29 +21,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## quarter
-
-### description
+### Description
 
 #### Syntax
 
-`INT quarter(DATETIME date)`
+`DATE/DATETIME QUARTERS_ADD(DATE/DATETIME date, INT years)`
 
-Returns the quarter to which the specified date belongs, as an INT
+Add a specified number of quarters to a given date
+
+The parameter `date` can be of type `DATETIME` or `DATE`, and the return type is the same as the type of the parameter `date`.
 
 ### Example
 
-```
-mysql> select quarter('2022-09-22 17:00:00');
-+--------------------------------+
-| quarter('2022-09-22 17:00:00') |
-+--------------------------------+
-|                              3 |
-+--------------------------------+
+```sql
+mysql> select quarters_add("2020-01-31 02:02:02", 1);
++---------------------------------------------------------------+
+| quarters_add(cast('2020-01-31 02:02:02' as DATETIMEV2(0)), 1) |
++---------------------------------------------------------------+
+| 2020-04-30 02:02:02                                           |
++---------------------------------------------------------------+
+1 row in set (0.10 sec)
 ```
 
 ### keywords
 
-    ```
-    quarter
-    ```
+QUARTERS, ADD, QUARTERS_ADD
