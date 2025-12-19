@@ -1,5 +1,5 @@
 ---
-{ "title": "MINUTES_ADD", "language": "en" }
+{ "title": "MINUTES_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## minutes_add
+## minutes_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME MINUTES_ADD(DATETIME date, INT minutes)`
+`INT minutes_diff(DATETIME enddate, DATETIME startdate)`
 
-Add specified minutes from date time or date
-
-The parameter date can be DATETIME or DATE, and the return type is DATETIME.
+The difference between the start time and the end time is a few minutes
 
 ### example
 
 ```
-mysql> select minutes_add("2020-02-02", 1);
-+---------------------------------------+
-| minutes_add('2020-02-02 00:00:00', 1) |
-+---------------------------------------+
-| 2020-02-02 00:01:00                   |
-+---------------------------------------+
+mysql> select minutes_diff('2020-12-25 22:00:00','2020-12-25 21:00:00');
++------------------------------------------------------------+
+| minutes_diff('2020-12-25 22:00:00', '2020-12-25 21:00:00') |
++------------------------------------------------------------+
+|                                                         60 |
++------------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    MINUTES_ADD
+    minutes_diff
     ```
