@@ -1,5 +1,5 @@
 ---
-{ "title": "WEEKS_DIFF", "language": "en" }
+{ "title": "WEEKS_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## weeks_diff
+## weeks_sub
 
 ### description
 
 #### Syntax
 
-`INT weeks_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIME WEEKS_SUB(DATETIME date, INT weeks)`
 
-The difference between the start time and the end time is weeks
+Subtracts a specified number of weeks from a datetime or date
+
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select weeks_diff('2020-12-25','2020-10-25');
-+----------------------------------------------------------+
-| weeks_diff('2020-12-25 00:00:00', '2020-10-25 00:00:00') |
-+----------------------------------------------------------+
-|                                                        8 |
-+----------------------------------------------------------+
+mysql> select weeks_sub("2020-02-02 02:02:02", 1);
++-------------------------------------+
+| weeks_sub('2020-02-02 02:02:02', 1) |
++-------------------------------------+
+| 2020-01-26 02:02:02                 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    weeks_diff
+    WEEKS_SUB
     ```
