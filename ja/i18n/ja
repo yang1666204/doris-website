@@ -1,5 +1,5 @@
 ---
-{ "title": "QuickSight", "language": "en" }
+{ "title": "Smartbi", "language": "en" }
 ---
 
 <!--
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,32 +21,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Introduction
+## Smartbi Introduction
 
-QuickSight is a robust data visualization and analysis platform that seamlessly integrates data computation with visually appealing charts. It does not necessitate programming skills from users, as data insights can be quickly obtained through simple drag-and-drop operations. QuickSight offers a diverse range of viewing options for exploring data from various perspectives. Furthermore, it facilitates easy integration of multiple data sources, simplifying and streamlining the process of presenting, exploring, and analyzing data. This platform not only accelerates data processing but also enhances the intuitiveness and comprehensibility of the analysis process, significantly improving user work efficiency and analytical capabilities.
+Smartbi is a collection of software services and application connectors that can connect to a variety of data sources, including Oracle, SQL Server, MySQL, and Doris, enabling users to integrate and cleanse their data easily. With Smartbi's data modeling capabilities, users can not only create complex relational models but also write data analysis expressions and establish data relationships, laying the foundation for advanced data analysis and visualization. SmartBI offers a diverse range of visualization options, including various types of charts, geographic maps, interactive dashboards, and customizable visualization tools. These powerful tools help users understand and present their data more intuitively and comprehensively, enhancing the effectiveness and efficiency of data analysis.
 
-## Data configuration
+## Precondition
 
-1. Upon completing the registration process, please proceed to sign in to QuickSight and choose the desired dataset.
+you can visit  https://www.smartbi.info/download to download and install Smartbi.
 
-   ![dataset select](/images/bi-quicksight-en-1.png)
+## Data connection and application
 
-2. Select MySQL on the dataset selection page.
+1. Log into Smartbi and click Data Connections.
 
-   ![database select](/images/bi-quicksight-en-2.png)
+   ![main page](/images/bi-smartbi-en-1.png)
 
-3. On the data connection page, fill in the corresponding IP, port, database name, username, and password for Doris. After filling in the information, click "Verify the Connection". If the test is successful, create a data source.
+2. After clicking the data connections, you can find a list of databases to be connected with and select the Doris database.
 
-   ![connection information](/images/bi-quicksight-en-3.png)
+   ![selectdb](/images/bi-smartbi-en-2.png)
 
-4. Select the table for which you want to create the dashboard.
+3. After selecting the database, fill in the connection information of the Doris database
 
-   ![jdbc connector download](/images/bi-quicksight-en-4.png)
+   ![data source connection](/images/bi-smartbi-en-3.png)
 
-5. QuickSight offers two methods for importing tables. You can choose the appropriate import method based on your needs.
+4. If the information is correct and the network is connected, a message is displayed indicating that the Test passed.
 
-   ![table select](/images/bi-quicksight-en-5.png)
+   ![test passed](/images/bi-smartbi-en-4.png)
 
-6. After importing the table, you can create the desired dashboard.
+5. After the connection is successful, you can customize and set the required report information in the data analysis module Self-service dashboard.
 
-   ![table import](/images/bi-quicksight-en-6.png)
+   ![data analysis](/images/bi-smartbi-en-5.png)
