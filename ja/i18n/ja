@@ -1,5 +1,5 @@
 ---
-{ "title": "Job Scheduler", "language": "en" }
+{ "title": "Transaction", "language": "en" }
 ---
 
 <!-- 
@@ -21,202 +21,484 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Background
+A transaction is an operation that contains one or more SQL statements. The execution of these statements must either be completely successful or completely fail. It is an indivisible work unit.
 
-In the context of increasingly refined data management needs, scheduled tasks play a crucial role. They are typically applied in the following scenarios:
+## Introduction
 
-- **Regular Data Updates:** Periodic data imports and ETL operations reduce manual intervention, improving efficiency and accuracy in data processing.
-- **Catalog Integration:** Regular synchronization of external data sources ensures efficient and accurate integration of multi-source data into the target system, meeting complex business analysis requirements.
-- **Data Cleanup:** Periodic cleaning of expired/invalid data frees up storage space and prevents performance issues caused by excessive outdated data.
+Queries and DDL single statements are implicit transactions and are not supported within multi-statement transactions. Each individual write is an implicit transaction by default, and multiple writes can form an explicit transaction. Currently, Doris does not support nested transactions.
 
-In earlier versions of Apache Doris, meeting the above requirements often depended on external scheduling systems, such as business code-based scheduling or third-party scheduling tools and distributed scheduling platforms. However, these external systems might not meet Doris's flexible scheduling strategies and resource management needs. Additionally, failures in external scheduling systems can increase business risks and require extra maintenance time and effort.
+## Explicit and Implicit Transactions
 
-## Job Scheduler
+### Explicit Transactions
 
-To address these issues, Apache Doris introduced the Job Scheduler feature in version 2.1, enabling autonomous task scheduling with precision down to the second.
-
-This feature ensures data import completeness and consistency while allowing users to flexibly and conveniently adjust scheduling strategies. Reducing reliance on external systems also decreases system failure risks and maintenance costs, providing a more unified and reliable user experience.
-
-## Features of Doris Job Scheduler
-
-Doris Job Scheduler is a task management system that runs based on preset schedules, triggering predefined operations at specific times or intervals for automated task execution. Key features include:
-
-- **Efficient Scheduling:** Tasks and events can be scheduled within specified intervals, ensuring efficient data processing. The time wheel algorithm ensures precise second-level triggers.
-- **Flexible Scheduling:** Multiple scheduling options are available, such as scheduling by minutes, hours, days, or weeks. It supports one-time scheduling and recurring (cyclic) event scheduling, with customizable start and end times for cyclic schedules.
-- **Event Pool and High-Performance Processing Queue:** Implemented using Disruptor to achieve a high-performance producer-consumer model, minimizing task execution overload.
-- **Traceable Scheduling Records:** Stores the latest task execution records (configurable), which can be viewed with simple commands to ensure traceability.
-- **High Availability:** Leveraging Doris’s high-availability mechanisms, Job Scheduler can easily achieve self-recovery and high availability.
-
-**Related Documentation:** [CREATE-JOB](../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-JOB.md)
-
-## Syntax Overview
-
-A valid Job statement must include the following components:
-
-- **CREATE JOB:** Requires a job name, uniquely identifying the event in the database.
-- **ON SCHEDULE Clause:** Specifies the job type, trigger time, and frequency.
-  - **AT timestamp:** For one-time events. Executes the job once at the specified date and time. **AT current_timestamp** specifies the current date and time. The job runs immediately upon creation and can be used for asynchronous task creation.
-  - **EVERY interval:** For periodic jobs, specifying the execution frequency. Keywords include **WEEK**, **DAY**, **HOUR**, and **MINUTE**.
-    - **Interval:** Defines the execution frequency, e.g., **1 DAY** for daily, **1 HOUR** for hourly, **1 MINUTE** for every minute, **1 WEEK** for weekly.
-    - **STARTS Clause (optional):** Specifies the start time for the repeating interval. **CURRENT_TIMESTAMP** sets the current date and time. The job runs immediately upon creation.
-    - **ENDS Clause (optional):** Specifies the end time for the job event.
-- **DO Clause:** Specifies the operation to execute when the job triggers, currently supporting **INSERT** statements.
+Explicit transactions require users to actively start, commit, or roll back transactions. Currently, DDL and query statements are not supported.
 
 ```sql
-CREATE
-JOB
-  job_name
-  ON SCHEDULE schedule
-  [COMMENT 'string']
-  DO execute_sql;
-
-schedule: {
-    AT timestamp
-    | EVERY interval
-    [STARTS timestamp ]
-    [ENDS timestamp ]
-}
-interval:
-    quantity { WEEK |DAY | HOUR | MINUTE}
+BEGIN;
+[INSERT, UPDATE, DELETE statement]
+COMMIT; / ROLLBACK;
 ```
 
-## Usage Example
+### Implicit Transactions
+
+Implicit transactions refer to SQL statements that are executed without explicitly adding statements to start and commit transactions before and after the statements.
+
+In Doris, except for [Group Commit](../data-operate/import/group-commit-manual), each import statement opens a transaction when it starts executing. The transaction is automatically committed after the statement is executed, or automatically rolled back if the statement fails. Each query or DDL statement is also an implicit transaction.
+
+### Isolation Level
+
+The only isolation level currently supported by Doris is READ COMMITTED. Under the READ COMMITTED isolation level, a statement sees only data that was committed before the statement began execution. It does not see uncommitted data.
+
+When a single statement is executed, it captures a snapshot of the tables involved at the start of the statement, meaning that a single statement can only see commits from other transactions made before it began execution. Other transactions' commits are not visible during the execution of a single statement.
+
+When a statement is executed inside a multi-statement transaction:
+
+- It sees only data that was committed before the statement began execution. If another transaction commits between the execution of the first and the second statements, two successive statements in the same transaction may see different data.
+- Currently, it cannot see changes made by previous statements within the same transaction.
+
+### No Duplicates, No Loss
+
+Doris supports mechanisms to ensure no duplicates and no loss during data writes. The Label mechanism ensures no duplicates within a single transaction, while two-phase commit coordinates to prevent duplicates across multiple transactions.
+
+#### Label Mechanism
+
+Transactions or writes in Doris can be assigned a Label. This Label is typically a user-defined string with some business logic attributes. If not set, a UUID string will be generated internally. The main purpose of a Label is to uniquely identify a transaction or import task and ensure that a transaction or import with the same Label will only execute successfully once. The Label mechanism ensures that data imports are neither lost nor duplicated. If the upstream data source guarantees at-least-once semantics, combined with Doris's Label mechanism, exactly-once semantics can be achieved. Labels are unique within a database.
+
+Doris will clean up Labels based on time and number. By default, if the number of Labels exceeds 2000, cleanup will be triggered. Labels older than three days will also be cleaned up by default. Once a Label is cleaned up, a Label with the same name can execute successfully again, meaning it no longer has deduplication semantics.
+
+Labels are usually set in the format of `business_logic+timestamp`, such as `my_business1_20220330_125000`. This Label typically represents a batch of data generated by the business `my_business1` at `2022-03-30 12:50:00`. By setting Labels this way, the business can query the import task status using the Label to clearly determine whether the batch of data at that time has been successfully imported. If not, the import can be retried using the same Label.
+
+#### StreamLoad 2PC
+
+[StreamLoad 2PC](#stream-load) is mainly used to support exactly-once semantics (EOS) when writing to Doris with Flink.
+
+## Transaction Operations
+
+### Start a Transaction
 
 ```sql
-CREATE JOB my_job ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
+BEGIN;
+
+BEGIN WITH LABEL {user_label}; 
 ```
 
-This creates a job named "my_job" that executes every minute, importing data from db2.tbl2 into db1.tbl1.
+If this statement is executed while the current session is in the middle of a transaction, Doris will ignore the statement, which can also be understood as transactions cannot be nested.
 
-Creating a One-Time Job:
+### Commit a Transaction
 
 ```sql
-CREATE JOB my_job ON SCHEDULE AT '2025-01-01 00:00:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
+COMMIT;
 ```
 
-This creates a job named "my_job" that executes once at 2025-01-01 00:00:00, importing data from db2.tbl2 into db1.tbl1.
+Used to commit all modifications made in the current transaction.
 
-Creating a Periodic Job Without End Time:
+### Rollback a Transaction
 
 ```sql
-
-CREATE JOB my_job ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2 WHERE create_time >= days_add(now(), -1);
+ROLLBACK;
 ```
 
-This creates a job named "my_job" that starts on 2025-01-01 00:00:00 and executes every day, importing data from db2.tbl2 into db1.tbl1.
+Used to roll back all modifications made in the current transaction.
 
-Creating a Periodic Job With End Time:
+Transactions are session-level, so if a session is terminated or closed, the transaction will automatically be rolled back.
 
-```sql
-CREATE JOB my_job ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2026-01-01 00:10:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2 WHERE create_time >= days_add(now(), -1);
-```
+## Transaction with multiple sql statements
 
-This creates a job named "my_job" that starts on 2025-01-01 00:00:00, executes every day, and ends on 2026-01-01 00:10:00, importing data from db2.tbl2 into db1.tbl1.
+Currently, Doris supports two ways of transaction loading.
 
-Using Job for Asynchronous Execution:
+### Multiple `INSERT INTO VALUES` for one table
 
-```sql
-CREATE JOB my_job ON SCHEDULE AT current_timestamp DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
-```
-
-Since jobs in Doris are created as synchronous tasks but executed asynchronously, this example sets the job as a one-time task with the start time as the current time, suitable for asynchronous tasks like insert into select.
-
-## Automated Data Synchronization with Job Scheduler and Catalog
-
-For instance, in an e-commerce scenario, users often need to extract business data from MySQL and synchronize it to Doris for data analysis, supporting precise marketing activities. The Job Scheduler, combined with Multi Catalog capabilities, can efficiently accomplish periodic data synchronization across data sources.
+Suppose the table schema is:
 
 ```sql
-CREATE TABLE IF NOT EXISTS user.activity (
-    `user_id` INT NOT NULL,
-    `date` DATE NOT NULL,
-    `city` VARCHAR(20),
-    `age` SMALLINT,
-    `sex` TINYINT,
-    `last_visit_date` DATETIME DEFAULT '1970-01-01 00:00:00',
-    `cost` BIGINT DEFAULT '0',
-    `max_dwell_time` INT DEFAULT '0',
-    `min_dwell_time` INT DEFAULT '99999'
-);
-INSERT INTO user.activity VALUES
-    (10000, '2017-10-01', 'Beijing', 20, 0, '2017-10-01 06:00:00', 20, 10, 10),
-    (10000, '2017-10-01', 'Beijing', 20, 0, '2017-10-01 07:00:00', 15, 2, 2),
-    (10001, '2017-10-01', 'Beijing', 30, 1, '2017-10-01 17:05:00', 2, 22, 22),
-    (10002, '2017-10-02', 'Shanghai', 20, 1, '2017-10-02 12:59:00', 200, 5, 5),
-    (10003, '2017-10-02', 'Guangzhou', 32, 0, '2017-10-02 11:20:00', 30, 11, 11),
-    (10004, '2017-10-01', 'Shenzhen', 35, 0, '2017-10-01 10:00:00', 100, 3, 3),
-    (10004, '2017-10-03', 'Shenzhen', 35, 0, '2017-10-03 10:20:00', 11, 6, 6);
-```
-
-| user\_id | date       | city      | age | sex | last\_visit\_date | cost | max\_dwell\_time | min\_dwell\_time |
-| ------------------------------ | ---------- | --------- | --- | --- | ------------------------------------------------------------- | ---- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 10000                          | 2017-10-01 | Beijing   | 20  | 0   | 2017-10-01 06:00                              | 20   | 10                                                           | 10                                                           |
-| 10000                          | 2017-10-01 | Beijing   | 20  | 0   | 2017-10-01 07:00                              | 15   | 2                                                            | 2                                                            |
-| 10001                          | 2017-10-01 | Beijing   | 30  | 1   | 2017-10-01 17:05:45           | 2    | 22                                                           | 22                                                           |
-| 10002                          | 2017-10-02 | Shanghai  | 20  | 1   | 2017-10-02 12:59:12           | 200  | 5                                                            | 5                                                            |
-| 10003                          | 2017-10-02 | Guangzhou | 32  | 0   | 2017-10-02 11:20:00           | 30   | 11                                                           | 11                                                           |
-| 10004                          | 2017-10-01 | Shenzhen  | 35  | 0   | 2017-10-01 10:00:15           | 100  | 3                                                            | 3                                                            |
-| 10004                          | 2017-10-03 | Shenzhen  | 35  | 0   | 2017-10-03 10:20:22           | 11   | 6                                                            | 6                                                            |
-
-Example Workflow
-
-1. Creating a Doris Table:
-
-```sql
-CREATE TABLE IF NOT EXISTS user_activity (
-  `user_id` LARGEINT NOT NULL COMMENT "User ID",
-  `date` DATE NOT NULL COMMENT "Data import date",
-  `city` VARCHAR(20) COMMENT "User city",
-  `age` SMALLINT COMMENT "User age",
-  `sex` TINYINT COMMENT "User gender",
-  `last_visit_date` DATETIME REPLACE DEFAULT "1970-01-01 00:00:00" COMMENT "Last visit date",
-  `cost` BIGINT SUM DEFAULT "0" COMMENT "Total spending",
-  `max_dwell_time` INT MAX DEFAULT "0" COMMENT "Max dwell time",
-  `min_dwell_time` INT MIN DEFAULT "99999" COMMENT "Min dwell time"
-) AGGREGATE KEY(`user_id`, `date`, `city`, `age`, `sex`)
-DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+CREATE TABLE `dt` (
+    `id` INT(11) NOT NULL,
+    `name` VARCHAR(50) NULL,
+    `score` INT(11) NULL
+) ENGINE=OLAP
+UNIQUE KEY(`id`)
+DISTRIBUTED BY HASH(`id`) BUCKETS 1
 PROPERTIES (
-  "replication_allocation" = "tag.location.default: 1"
+    "replication_num" = "1"
 );
 ```
 
-2. Creating a Catalog for the MySQL Database:
+Do transaction load:
 
 ```sql
-CREATE CATALOG activity PROPERTIES (
-  "type"="jdbc",
-  "user"="root",
-  "password"="123456",
-  "jdbc_url" = "jdbc:mysql://127.0.0.1:3306/user?useSSL=false",
-  "driver_url" = "mysql-connector-java-5.1.49.jar",
-  "driver_class" = "com.mysql.jdbc.Driver"
+mysql> BEGIN;
+Query OK, 0 rows affected (0.01 sec)
+{'label':'txn_insert_b55db21aad7451b-b5b6c339704920c5', 'status':'PREPARE', 'txnId':''}
+
+mysql> INSERT INTO dt (id, name, score) VALUES (1, "Emily", 25), (2, "Benjamin", 35), (3, "Olivia", 28), (4, "Alexander", 60), (5, "Ava", 17);
+Query OK, 5 rows affected (0.08 sec)
+{'label':'txn_insert_b55db21aad7451b-b5b6c339704920c5', 'status':'PREPARE', 'txnId':'10013'}
+
+mysql> INSERT INTO dt VALUES (6, "William", 69), (7, "Sophia", 32), (8, "James", 64), (9, "Emma", 37), (10, "Liam", 64);
+Query OK, 5 rows affected (0.00 sec)
+{'label':'txn_insert_b55db21aad7451b-b5b6c339704920c5', 'status':'PREPARE', 'txnId':'10013'}
+
+mysql> COMMIT;
+Query OK, 0 rows affected (1.02 sec)
+{'label':'txn_insert_b55db21aad7451b-b5b6c339704920c5', 'status':'VISIBLE', 'txnId':'10013'}
+```
+
+This method not only achieves atomicity, but also in Doris, it enhances the writing performance of `INSERT INTO VALUES`.
+
+If user enables `Group Commit` and transaction insert at the same time, the transaction insert will work.
+
+### Multiple `INSERT INTO SELECT`, `UPDATE`, `DELETE` for multiple tables
+
+Suppose there are 3 tables: `dt1`, `dt2`, `dt3`, with the same schema as above, and the data in the tables are:
+
+```sql
+mysql> SELECT * FROM dt1;
++------+-----------+-------+
+| id   | name      | score |
++------+-----------+-------+
+|    1 | Emily     |    25 |
+|    2 | Benjamin  |    35 |
+|    3 | Olivia    |    28 |
+|    4 | Alexander |    60 |
+|    5 | Ava       |    17 |
++------+-----------+-------+
+5 rows in set (0.04 sec)
+
+mysql> SELECT * FROM dt2;
++------+---------+-------+
+| id   | name    | score |
++------+---------+-------+
+|    6 | William |    69 |
+|    7 | Sophia  |    32 |
+|    8 | James   |    64 |
+|    9 | Emma    |    37 |
+|   10 | Liam    |    64 |
++------+---------+-------+
+5 rows in set (0.03 sec)
+
+mysql> SELECT * FROM dt3;
+Empty set (0.03 sec)
+```
+
+Do transaction load, write the data from `dt1` and `dt2` to `dt3`, and update the scores in `dt1` and delete the data in `dt2`:
+
+```sql
+mysql> BEGIN;
+Query OK, 0 rows affected (0.00 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'PREPARE', 'txnId':''}
+
+# 导入任务的状态是 PREPARE
+mysql> INSERT INTO dt3 SELECT * FROM dt1;
+Query OK, 5 rows affected (0.07 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'PREPARE', 'txnId':'11024'}
+
+mysql> INSERT INTO dt3 SELECT * FROM dt2;
+Query OK, 5 rows affected (0.08 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'PREPARE', 'txnId':'11025'}
+
+mysql> UPDATE dt1 SET score = score + 10 WHERE id >= 4;
+Query OK, 2 rows affected (0.07 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'PREPARE', 'txnId':'11026'}
+
+mysql> DELETE FROM dt2 WHERE id >= 9;
+Query OK, 0 rows affected (0.01 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'PREPARE', 'txnId':'11027'}
+
+mysql> COMMIT;
+Query OK, 0 rows affected (0.03 sec)
+{'label':'txn_insert_442a6311f6c541ae-b57d7f00fa5db028', 'status':'VISIBLE', 'txnId':'11024'}
+```
+
+Select data:
+
+```sql
+# the score column of id >= 4 records is updated 
+mysql> SELECT * FROM dt1;
++------+-----------+-------+
+| id   | name      | score |
++------+-----------+-------+
+|    1 | Emily     |    25 |
+|    2 | Benjamin  |    35 |
+|    3 | Olivia    |    28 |
+|    4 | Alexander |    70 |
+|    5 | Ava       |    27 |
++------+-----------+-------+
+5 rows in set (0.01 sec)
+
+# the records of id >= 9 are deleted
+mysql> SELECT * FROM dt2;
++------+---------+-------+
+| id   | name    | score |
++------+---------+-------+
+|    6 | William |    69 |
+|    7 | Sophia  |    32 |
+|    8 | James   |    64 |
++------+---------+-------+
+3 rows in set (0.02 sec)
+
+# the data of dt1 and dt2 is written to dt3
+mysql> SELECT * FROM dt3;
++------+-----------+-------+
+| id   | name      | score |
++------+-----------+-------+
+|    1 | Emily     |    25 |
+|    2 | Benjamin  |    35 |
+|    3 | Olivia    |    28 |
+|    4 | Alexander |    60 |
+|    5 | Ava       |    17 |
+|    6 | William   |    69 |
+|    7 | Sophia    |    32 |
+|    8 | James     |    64 |
+|    9 | Emma      |    37 |
+|   10 | Liam      |    64 |
++------+-----------+-------+
+10 rows in set (0.01 sec)
+```
+
+#### Isolation Level
+
+Doris provides the `READ COMMITTED` isolation level. Please note the following:
+
+- In a transaction, each statement reads the data that was committed at the time the statement began executing:
+
+    ```sql
+     timestamp | ------------ Session 1 ------------  |  ------------ Session 2 ------------
+       t1      | BEGIN;                               | 
+       t2      | # read n rows from dt1 table         |
+               | INSERT INTO dt3 SELECT * FROM dt1;   |
+       t3      |                                      | # write 2 rows to dt1 table
+               |                                      | INSERT INTO dt1 VALUES(...), (...);
+       t4      | # read n + 2 rows FROM dt1 table     |
+               | INSERT INTO dt3 SELECT * FROM dt1;   |
+       t5      | COMMIT;                              |
+    ```
+
+- In a transaction, each statement cannot read the modifications made by other statements within the same transactio:
+
+  Suppose `dt1` has 5 rows, `dt2` has 5 rows, `dt3` has 0 rows. And execute the following SQL:
+
+    ```sql
+    BEGIN;
+    # write 5 rows to dt2, 
+    INSERT INTO dt2 SELECT * FROM dt1;
+    # write 5 rows to dt3, and cannot read the new data written to dt2 in the previous step
+    INSERT INTO dt3 SELECT * FROM dt2;
+    COMMIT;
+    ```
+
+  One example:
+
+    ```sql
+    # create table and insert data
+    CREATE TABLE `dt1` (
+        `id` INT(11) NOT NULL,
+        `name` VARCHAR(50) NULL,
+        `score` INT(11) NULL
+    ) ENGINE=OLAP
+    DUPLICATE KEY(`id`)
+    DISTRIBUTED BY HASH(`id`) BUCKETS 1
+    PROPERTIES (
+        "replication_num" = "1"
+    );
+    CREATE TABLE dt2 LIKE dt1;
+    CREATE TABLE dt3 LIKE dt1;
+    INSERT INTO dt1 VALUES (1, "Emily", 25), (2, "Benjamin", 35), (3, "Olivia", 28), (4, "Alexander", 60), (5, "Ava", 17);
+    INSERT INTO dt2 VALUES (6, "William", 69), (7, "Sophia", 32), (8, "James", 64), (9, "Emma", 37), (10, "Liam", 64);
+    
+    # Do transaction write
+    BEGIN;
+    INSERT INTO dt2 SELECT * FROM dt1;
+    INSERT INTO dt3 SELECT * FROM dt2;
+    COMMIT;
+    
+    # Select data
+    mysql> SELECT * FROM dt2;
+    +------+-----------+-------+
+    | id   | name      | score |
+    +------+-----------+-------+
+    |    6 | William   |    69 |
+    |    7 | Sophia    |    32 |
+    |    8 | James     |    64 |
+    |    9 | Emma      |    37 |
+    |   10 | Liam      |    64 |
+    |    1 | Emily     |    25 |
+    |    2 | Benjamin  |    35 |
+    |    3 | Olivia    |    28 |
+    |    4 | Alexander |    60 |
+    |    5 | Ava       |    17 |
+    +------+-----------+-------+
+    10 rows in set (0.01 sec)
+    
+    mysql> SELECT * FROM dt3;
+    +------+---------+-------+
+    | id   | name    | score |
+    +------+---------+-------+
+    |    6 | William |    69 |
+    |    7 | Sophia  |    32 |
+    |    8 | James   |    64 |
+    |    9 | Emma    |    37 |
+    |   10 | Liam    |    64 |
+    +------+---------+-------+
+    5 rows in set (0.01 sec)
+    ```
+
+#### Failed Statements Within a Transaction
+
+When a statement within a transaction fails, that operation is rolled back. However, other statements within the transaction that have executed successfully are still able to either commit or rollback. Once the transaction is successfully committed, the modifications made by the successfully executed statements within the transaction are applied.
+
+One example:
+
+```sql
+mysql> BEGIN;
+Query OK, 0 rows affected (0.00 sec)
+{'label':'txn_insert_c5940d31bf364f57-a48b628886415442', 'status':'PREPARE', 'txnId':''}
+
+mysql> INSERT INTO dt3 SELECT * FROM dt1;
+Query OK, 5 rows affected (0.07 sec)
+{'label':'txn_insert_c5940d31bf364f57-a48b628886415442', 'status':'PREPARE', 'txnId':'11058'}
+
+# The failed insert is rolled back
+mysql> INSERT INTO dt3 SELECT * FROM dt2;
+ERROR 5025 (HY000): Insert has filtered data in strict mode, tracking_url=http://172.21.16.12:9082/api/_load_error_log?file=__shard_3/error_log_insert_stmt_3d1fed266ce443f2-b54d2609c2ea6b11_3d1fed266ce443f2_b54d2609c2ea6b11
+
+mysql> INSERT INTO dt3 SELECT * FROM dt2 WHERE id = 7;
+Query OK, 0 rows affected (0.07 sec)
+
+mysql> COMMIT;
+Query OK, 0 rows affected (0.02 sec)
+{'label':'txn_insert_c5940d31bf364f57-a48b628886415442', 'status':'VISIBLE', 'txnId':'11058'}
+```
+
+Select data:
+
+```sql
+# The data in dt1 is written to dt3, the data with id = 7 in dt2 is written successfully, and the other data is written failed
+mysql> SELECT * FROM dt3;
++------+----------+-------+
+| id   | name     | score |
++------+----------+-------+
+|    1 | Emily    |    25 |
+|    2 | Benjamin |    35 |
+|    3 | Olivia   |    28 |
+|    4 | Alexande |    60 |
+|    5 | Ava      |    17 |
+|    7 | Sophia   |    32 |
++------+----------+-------+
+6 rows in set (0.01 sec)
+```
+
+#### QA
+
+- Writing to multiple tables must belong to the same Database; otherwise, you will encounter the error `Transaction insert must be in the same database`
+
+- Mixing the two transaction load of `INSERT INTO SELECT`, `UPDATE`, `DELETE` and `INSERT INTO VALUES` is not allowed; otherwise, you will encounter the error `Transaction insert can not insert into values and insert into select at the same time`.
+
+- [Delete Command](delete/delete-manual.md) supports delete by specifying a filter predicate or using clause, to guarantee the isolation, currently only support that, the delete operations must before the insert operations for one table in one transaction, otherwise, you will encounter the error `Can not delete because there is a insert operation for the same table`.
+
+- If the time-consuming from `BEGIN` statement exceeds the timeout configured in Doris, the transaction will be rolled back. Currently, the timeout uses the maximum value of session variables `insert_timeout` and `query_timeout`.
+
+- When using JDBC to connect to Doris for transaction operations, please add `useLocalSessionState=true` in the JDBC URL; otherwise, you may encounter the error `This is in a transaction, only insert, update, delete, commit, rollback is acceptable`.
+
+- In cloud mode, transaction load does not support `merge on write` unique tables, otherwise, you will encounter the error `Transaction load is not supported for merge on write unique keys table in cloud mode`.
+
+## Stream Load 2PC
+
+**1. Enable two-phase commit by setting `two_phase_commit:true` in the HTTP Header.**
+
+```shell
+curl --location-trusted -u user:passwd -H "two_phase_commit:true" -T test.txt http://fe_host:http_port/api/{db}/{table}/_stream_load
+{
+    "TxnId": 18036,
+    "Label": "55c8ffc9-1c40-4d51-b75e-f2265b3602ef",
+    "TwoPhaseCommit": "true",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 100,
+    "NumberLoadedRows": 100,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 1031,
+    "LoadTimeMs": 77,
+    "BeginTxnTimeMs": 1,
+    "StreamLoadPutTimeMs": 1,
+    "ReadDataTimeMs": 0,
+    "WriteDataTimeMs": 58,
+    "CommitAndPublishTimeMs": 0
+}
+```
+
+**2. Trigger the commit operation for a transaction (can be sent to FE or BE).**
+
+- Specify the transaction using the Transaction ID:
+
+  ```shell
+  curl -X PUT --location-trusted -u user:passwd -H "txn_id:18036" -H "txn_operation:commit" http://fe_host:http_port/api/{db}/{table}/_stream_load_2pc
+  {
+      "status": "Success",
+      "msg": "transaction [18036] commit successfully."
+  }
+  ```
+
+- Specify the transaction using the label:
+
+  ```shell
+  curl -X PUT --location-trusted -u user:passwd -H "label:55c8ffc9-1c40-4d51-b75e-f2265b3602ef" -H "txn_operation:commit"  http://fe_host:http_port/api/{db}/{table}/_stream_load_2pc
+  {
+      "status": "Success",
+      "msg": "label [55c8ffc9-1c40-4d51-b75e-f2265b3602ef] commit successfully."
+  }
+  ```
+
+**3. Trigger the abort operation for a transaction (can be sent to FE or BE).**
+
+- Specify the transaction using the Transaction ID:
+
+  ```shell
+  curl -X PUT --location-trusted -u user:passwd -H "txn_id:18037" -H "txn_operation:abort"  http://fe_host:http_port/api/{db}/{table}/_stream_load_2pc
+  {
+      "status": "Success",
+      "msg": "transaction [18037] abort successfully."
+  }
+  ```
+
+- Specify the transaction using the label:
+
+  ```shell
+  curl -X PUT --location-trusted -u user:passwd -H "label:55c8ffc9-1c40-4d51-b75e-f2265b3602ef" -H "txn_operation:abort"  http://fe_host:http_port/api/{db}/{table}/_stream_load_2pc
+  {
+      "status": "Success",
+      "msg": "label [55c8ffc9-1c40-4d51-b75e-f2265b3602ef] abort successfully."
+  }
+  ```
+
+## Broker Load into muti tables with a transaction
+
+All Broker Load tasks are atomic and ensure atomicity even when loading multiple tables within the same task. The Label mechanism can be used to ensure data load without loss or duplication.
+
+The following example demonstrates loading data from HDFS by using wildcard patterns to match two sets of files and load them into two different tables.
+
+```sql
+LOAD LABEL example_db.label2
+(
+    DATA INFILE("hdfs://hdfs_host:hdfs_port/input/file-10*")
+    INTO TABLE `my_table1`
+    PARTITION (p1)
+    COLUMNS TERMINATED BY ","
+    (k1, tmp_k2, tmp_k3)
+    SET (
+        k2 = tmp_k2 + 1,
+        k3 = tmp_k3 + 1
+    )
+    DATA INFILE("hdfs://hdfs_host:hdfs_port/input/file-20*")
+    INTO TABLE `my_table2`
+    COLUMNS TERMINATED BY ","
+    (k1, k2, k3)
+)
+WITH BROKER hdfs
+(
+    "username"="hdfs_user",
+    "password"="hdfs_password"
 );
 ```
 
-3. Importing Data from MySQL to Doris:
-
-- One-Time Scheduling:
-
-```sql
-
-CREATE JOB one_time_load_job ON SCHEDULE AT '2024-08-10 03:00:00' DO INSERT INTO user_activity SELECT * FROM activity.user_activity;
-```
-
-- Periodic Scheduling:
-
-```sql
-CREATE JOB schedule_load ON SCHEDULE EVERY 1 DAY DO INSERT INTO user_activity SELECT * FROM activity.user_activity WHERE last_visit_date >= days_add(now(), -1);
-```
-
-## Design and Implementation
-
-Efficient scheduling often entails substantial resource consumption, especially with high-precision scheduling. Traditional implementations using Java's built-in scheduling capabilities or other libraries may have significant issues with precision and memory usage. To ensure performance while minimizing resource usage, the TimingWheel algorithm is combined with Disruptor to achieve second-level task scheduling.
-Technical Details
-
-Using Netty’s HashedWheelTimer to implement the time wheel algorithm, the Job Manager periodically (default every ten minutes) schedules future events into the time wheel. Disruptor constructs a single-producer, multi-consumer model to ensure efficient task triggering without excessive resource usage. The time wheel only triggers tasks and does not execute them directly. For immediate tasks, they are submitted to the respective execution thread pool.
-
-For single-execution events, the event definition is deleted after scheduling. For periodic events, the time wheel’s system events periodically pull the next cycle's execution tasks. This avoids clustering tasks in one bucket, reducing meaningless traversal and improving processing efficiency. For transactional tasks, the Job Scheduler ensures task execution results align with expectations through strong association and callback mechanisms, maintaining data integrity and consistency.
-Conclusion
-
-## Future Plans
-
-Doris Job Scheduler is a powerful and flexible task scheduling tool essential for data processing. Beyond common scenarios like data lake analysis and internal ETL, it plays a crucial role in implementing asynchronous materialized views. Asynchronous materialized views store precomputed result sets, and their update frequency is closely tied to source table changes. Frequent updates to source table data necess
+The wildcard pattern is used to match and load two sets of files, `file-10*` and `file-20*`, into `my_table1` and `my_table2` respectively. In the case of `my_table1`, the load is specified to the `p1` partition, and the values of thesecond and third columns in the source file are incremented by 1 before being loaded.
