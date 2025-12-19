@@ -1,5 +1,5 @@
 ---
-{ "title": "SYNC", "language": "en" }
+{ "title": "USE", "language": "en" }
 ---
 
 <!--
@@ -21,35 +21,52 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SYNC
+## Description
 
-### Name
+The USE command allows us to switch to a specific database or compute group in your SQL environment.
 
-SYNC
+## Syntax
 
-### Description
-
-Used to synchronize metadata for fe non-master nodes. doris only master node can write fe metadata, other fe nodes write metadata operations will be forwarded to master. After master finishes metadata writing operation, there will be a short delay for non-master nodes to replay metadata, you can use this statement to synchronize metadata.
-
-grammar:
-
-```sql
-SYNC;
+```SQL
+USE { [catalog_name.]database_name[@compute_group_name] | @compute_group_name }
 ```
 
-### Example
+## Example
 
-1. Synchronized metadata:
+1. If the demo database exists in current catalog, try accessing it:
 
     ```sql
-    SYNC;
+    mysql> use demo;
+    Database changed
     ```
 
-### Keywords
+2. If the demo database exists in catalog hms_catalog, try switching the catalog and accessing it:
+
+    ```sql
+    mysql> use hms_catalog.demo;
+    Database changed
+    ```
+
+3. If the demo database exists in current catalog and you want to use the compute group named 'cg1', try accessing it:
+
+    ```sql
+    mysql> use demo@cg1;
+    Database changed
+    ```
+
+4. If you want to use only the compute group named 'cg1', try accessing it:
+
+    ```sql
+    mysql> use @cg1;
+    Database changed
+    ```
+
+## Relate Commands
+
+## Keywords
 
     ```
-    SYNC
+    USE, DATABASE, USER, COMPUTE GROUP
     ```
 
-### Best Practice
 
