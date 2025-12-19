@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Tiered Storage of SSD and HDD",
-  "language": "en"
-}
+{ "title": "Audit Log Plugin", "language": "en" }
 ---
 
 <!-- 
@@ -24,95 +21,156 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Doris supports tiered storage between different disk types (SSD and HDD), combining dynamic partitioning features to dynamically migrate data from SSD to HDD based on the characteristics of hot and cold data. This approach reduces storage costs while maintaining high performance for hot data reads and writes.
+This plugin can regularly import the audit logs of FE into a specified system table, making it convenient for users to view and analyze audit logs through SQL.
 
-## Dynamic Partitioning and Tiered Storage
+## Using the Audit Log Plugin
 
-By configuring dynamic partitioning parameters of a table, users can set which partitions are stored on SSD and automatically migrate to HDD after cooling.
+Starting from Doris 2.1, the audit log plugin is integrated directly into the Doris kernel as a built-in plugin. Users do not need to install the plugin separately.
 
-- **Hot Partitions**: Recently active partitions, prioritized to be stored on SSD to ensure high performance.
-- **Cold Partitions**: Partitions that are accessed less frequently, which will gradually migrate to HDD to reduce storage costs.
+After the cluster starts, a system table named `audit_log` will be created under the `__internal_schema` database to store audit logs.
 
-For more information on dynamic partitioning, please refer to: [Data Partitioning - Dynamic Partitioning](../../table-design/data-partitioning/dynamic-partitioning).
+:::note
+For versions prior to Doris 2.1, please refer to the 2.0 version documentation.
+:::
 
-## Parameter Description
+:::warning
+After upgrading to version 2.1, the original audit log plugin will be unavailable. Refer to the **Audit Log Migration** section to see how to migrate audit log table data.
+:::
 
-### `dynamic_partition.hot_partition_num`
+### Enabling the Plugin
 
-- **Function**:
-  - Specifies how many of the most recent partitions are hot partitions, which are stored on SSD, while the remaining partitions are stored on HDD.
+The audit log plugin can be enabled or disabled at any time using the global variable `enable_audit_plugin` (default is disabled), for example:
 
-- **Note**:
-  - `"dynamic_partition.storage_medium" = "HDD"` must be set simultaneously; otherwise, this parameter will not take effect.
-  - If there are no SSD devices in the storage path, this configuration will cause partition creation to fail.
+`set global enable_audit_plugin = true;`
 
-**Example Description**:
+Once enabled, Doris will write the enabled audit logs to the `audit_log` table.
 
-Assuming the current date is **2021-05-20**, with daily partitioning, the dynamic partitioning configuration is as follows:
+The audit log plugin can be disabled at any time:
 
-```sql
-    "dynamic_partition.time_unit" = "DAY",
-    "dynamic_partition.hot_partition_num" = 2
-    "dynamic_partition.start" = -3
-    "dynamic_partition.end" = 3
-```
+`set global enable_audit_plugin = false;`
 
-The system will automatically create the following partitions and configure their storage medium and cooling time:
+After disabling, Doris will stop writing to the `audit_log` table. The existing audit logs will not be affected.
 
-  ```Plain
-  p20210517：["2021-05-17", "2021-05-18") storage_medium=HDD storage_cooldown_time=9999-12-31 23:59:59
-  p20210518：["2021-05-18", "2021-05-19") storage_medium=HDD storage_cooldown_time=9999-12-31 23:59:59
-  p20210519：["2021-05-19", "2021-05-20") storage_medium=SSD storage_cooldown_time=2021-05-21 00:00:00
-  p20210520：["2021-05-20", "2021-05-21") storage_medium=SSD storage_cooldown_time=2021-05-22 00:00:00
-  p20210521：["2021-05-21", "2021-05-22") storage_medium=SSD storage_cooldown_time=2021-05-23 00:00:00
-  p20210522：["2021-05-22", "2021-05-23") storage_medium=SSD storage_cooldown_time=2021-05-24 00:00:00
-  p20210523：["2021-05-23", "2021-05-24") storage_medium=SSD storage_cooldown_time=2021-05-25 00:00:00
-  ```
+### Audit log table
 
-### `dynamic_partition.storage_medium`
+With the upgrade of Doris version, the fields of the audit log table will also increase. For details, please refer to [audit_log](./system-tables/internal_schema/audit_log.md)
 
-- **Function**:
-  - Specifies the final storage medium for dynamic partitions. The default is HDD, but SSD can be selected.
+Starting from version 2.1.8 and 3.0.3, the `audit_log` system table will automatically add new fields of `audit_log` table as the Doris version is upgraded.
 
-- **Note**:
-  - When set to SSD, the `hot_partition_num` attribute will no longer take effect, and all partitions will default to SSD storage medium with a cooling time of 9999-12-31 23:59:59.
+In previous versions, users need to manually add fields to the `audit_log` system table through the `ALTER TABLE` command.
 
-## Example
+### Related Configurations
 
-### 1. Create a table with dynamic_partition
+The audit log table is a dynamic partitioned table, partitioned by day, and retains data for the last 30 days by default.
 
-```sql
-    CREATE TABLE tiered_table (k DATE)
-    PARTITION BY RANGE(k)()
-    DISTRIBUTED BY HASH (k) BUCKETS 5
-    PROPERTIES
-    (
-        "dynamic_partition.storage_medium" = "hdd",
-        "dynamic_partition.enable" = "true",
-        "dynamic_partition.time_unit" = "DAY",
-        "dynamic_partition.hot_partition_num" = "2",
-        "dynamic_partition.end" = "3",
-        "dynamic_partition.prefix" = "p",
-        "dynamic_partition.buckets" = "5",
-        "dynamic_partition.create_history_partition"= "true",
-        "dynamic_partition.start" = "-3"
-    );
-```
+The following global variables can control some writing behaviors of the audit log table:
 
-### 2. Check storage medium of partitions
+- `audit_plugin_max_batch_interval_sec`: The maximum write interval for the audit log table. Default is 60 seconds.
+- `audit_plugin_max_batch_bytes`: The maximum amount of data written per batch to the audit log table. Default is 50MB.
+- `audit_plugin_max_sql_length`: The maximum length of statements recorded in the audit log table. Default is 4096.
+- `audit_plugin_load_timeout`: Default timeout for the audit log import job. Default is 600 seconds.
 
-```sql
-    SHOW PARTITIONS FROM tiered_table;
-```
+These can be set using `set global xxx=yyy`.
 
-You should have 7 partitions, 5 of which use SSD as the storage medium, while the other 2 use HDD.
+FE Configuration:
 
-```Plain
-  p20210517：["2021-05-17", "2021-05-18") storage_medium=HDD storage_cooldown_time=9999-12-31 23:59:59
-  p20210518：["2021-05-18", "2021-05-19") storage_medium=HDD storage_cooldown_time=9999-12-31 23:59:59
-  p20210519：["2021-05-19", "2021-05-20") storage_medium=SSD storage_cooldown_time=2021-05-21 00:00:00
-  p20210520：["2021-05-20", "2021-05-21") storage_medium=SSD storage_cooldown_time=2021-05-22 00:00:00
-  p20210521：["2021-05-21", "2021-05-22") storage_medium=SSD storage_cooldown_time=2021-05-23 00:00:00
-  p20210522：["2021-05-22", "2021-05-23") storage_medium=SSD storage_cooldown_time=2021-05-24 00:00:00
-  p20210523：["2021-05-23", "2021-05-24") storage_medium=SSD storage_cooldown_time=2021-05-25 00:00:00
-```
+- `skip_audit_user_list` (supported since 3.0.1)
+
+  If you do not want the operations of certain users to be recorded in the audit log, you can modify this configuration.
+
+    ```
+    skip_audit_user_list=root
+    -- or
+    skip_audit_user_list=user1,user2
+    ```
+
+## Audit Log Migration
+
+After upgrading to version 2.1, the original audit log plugin will be unavailable. This section explains how to migrate data from the original audit log table to the new audit log table.
+
+1. Confirm the field information of the old and new audit log tables.
+
+   The default audit log table should be `doris_audit_db__`.`doris_audit_log_tbl__`.
+
+   The new audit log table is `__internal_schema`.`audit_log`.
+
+   You can check if the field information of the two tables matches by using the `DESC table_name` command. Typically, the fields of the old table should be a subset of the new table.
+
+2. Migrate Audit Log Table Data
+
+   You can use the following statement to migrate data from the original table to the new table:
+
+    ```sql
+    INSERT INTO __internal_schema.audit_log (
+        query_id         ,
+        time             ,
+        client_ip        ,
+        user             ,
+        db               ,
+        state            ,
+        error_code       ,
+        error_message    ,
+        query_time       ,
+        scan_bytes       ,
+        scan_rows        ,
+        return_rows      ,
+        stmt_id          ,
+        is_query         ,
+        frontend_ip      ,
+        cpu_time_ms      ,
+        sql_hash         ,
+        sql_digest       ,
+        peak_memory_bytes,
+        stmt
+        )
+        SELECT
+        query_id         ,
+        time             ,
+        client_ip        ,
+        user             ,
+        db               ,
+        state            ,
+        error_code       ,
+        error_message    ,
+        query_time       ,
+        scan_bytes       ,
+        scan_rows        ,
+        return_rows      ,
+        stmt_id          ,
+        is_query         ,
+        frontend_ip      ,
+        cpu_time_ms      ,
+        sql_hash         ,
+        sql_digest       ,
+        peak_memory_bytes,
+        stmt
+        FROM doris_audit_db__.doris_audit_log_tbl__;
+    ```
+
+3. Remove Original Plugin
+
+   After migration, you can remove the original plugin by using the `UNINSTALL PLUGIN AuditLoader;` command.
+
+## FAQ
+
+1. No data in the audit log table, or no new data is being ingested after running for a period of time
+
+   You can troubleshoot by following these steps:
+
+   - Check if partitions are created correctly
+
+     The audit log table is a dynamic partition table partitioned by day. By default, it creates partitions for the next 3 days and retains historical partitions for 30 days. Data can only be written to the audit log if partitions are created correctly.
+
+     You can check the scheduling status of dynamic partitions by using `show dynamic partition tables from __internal_schema` and troubleshoot based on error reasons. Possible error reasons may include:
+
+     - Number of nodes is less than the required replication number: The audit log table defaults to 3 replicas, so at least 3 BE nodes are required. You can modify the replication number using the `alter table` statement, for example:
+
+       `alter table __internal_schema.audit_log set ("dynamic_partition.replication_num" = "2")`
+
+     - No suitable storage medium: You can check the `storage_medium` property by using `show create table __internal_schema.audit_log`. If there is no corresponding storage medium on the BE, partition creation may fail.
+
+     - No suitable resource group: The audit log table defaults to the default resource group. You can check if the resource group has enough node resources by using the `show backends` command.
+
+   - Search for `AuditLoad` in the `fe.log` on the Master FE to see if there are any related error logs
+
+     The audit log is imported into the table through internal stream load operations. If there are issues with the import process, error logs will be printed in the `fe.log`.
