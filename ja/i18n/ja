@@ -1,5 +1,5 @@
 ---
-{ "title": "MONTHS_ADD", "language": "en" }
+{ "title": "MONTHS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## months_add
+## months_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME MONTHS_ADD(DATETIME date, INT months)`
+`INT months_diff(DATETIME enddate, DATETIME startdate)`
 
-Add the specified month from the date
-
-The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
+The difference between the start time and the end time is months
 
 ### example
 
 ```
-mysql> select months_add("2020-01-31 02:02:02", 1);
-+--------------------------------------+
-| months_add('2020-01-31 02:02:02', 1) |
-+--------------------------------------+
-| 2020-02-29 02:02:02                  |
-+--------------------------------------+
+mysql> select months_diff('2020-12-25','2020-10-25');
++-----------------------------------------------------------+
+| months_diff('2020-12-25 00:00:00', '2020-10-25 00:00:00') |
++-----------------------------------------------------------+
+|                                                         2 |
++-----------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    MONTHS_ADD
+    months_diff
     ```
