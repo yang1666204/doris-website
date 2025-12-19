@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-WARNING", "language": "en" }
+{ "title": "SHOW-WHITE-LIST", "language": "en" }
 ---
 
 <!--
@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-WARNING
+## SHOW-WHITE-LIST
 
 ### Description
 
@@ -30,7 +30,7 @@ under the License.
 ### Keywords
 
     ```
-    SHOW, WARNING
+    SHOW, WHITE, LIST
     ```
 
 ### Best Practice
