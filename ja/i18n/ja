@@ -1,6 +1,10 @@
 ---
-{ "title": "SHOW-TABLETS-BELONG", "language": "en" }
----
+
+{
+"title": "SHOW-TABLETS",
+"language": "en"
+}
+-
 
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -21,51 +25,62 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-TABLETS-BELONG
+## SHOW-TABLETS
 
 ### Name
 
-SHOW TABLETS BELONG
+SHOW TABLETS
 
 ### Description
 
-Used to show tablets and information of their belonging table
+This statement is used to list tablets of the specified table (only for administrators)
 
-grammar：
+grammar:
 
 ```sql
-SHOW TABLETS BELONG tablet-ids;
+SHOW TABLETS FROM [database.]table [PARTITIONS(p1,p2)]
+[WHERE where_condition]
+[ORDER BY col_name]
+[LIMIT [offset,] row_count]
 ```
 
-illustrate：
+1. **Syntax Description:**
 
-1. tablet-ids: one or more tablet-ids, with comma separated
-2. Columns of result keep same with result of `SHOW-DATA` for the same table
+where_condition could be one of:
+
+```
+Version = version
+state = "NORMAL|ROLLUP|CLONE|DECOMMISSION"
+BackendId = backend_id
+IndexName = rollup_name
+```
+
+or compound them with operator `AND`.
 
 ### Example
 
-1. show information of four tablet-ids (actually, three tablet-ids. Result will be deduplicated)
+1. list all tablets of the specified table
 
     ```sql
-    SHOW TABLETS BELONG 27028,78880,78382,27028;
+    SHOW TABLETS FROM example_db.table_name;
     ```
 
-    ```
-    
+2. list all tablets of the specified partitions
+
+    ```sql
+    SHOW TABLETS FROM example_db.table_name PARTITIONS(p1, p2);
     ```
 
-+---------------------+-----------+-----------+--------------+-----------+--------------+----------------+
-\| DbName              | TableName | TableSize | PartitionNum | BucketNum | ReplicaCount | TabletIds      |
-+---------------------+-----------+-----------+--------------+-----------+--------------+----------------+
-\| default_cluster:db1 | kec       | 613.000 B | 379          | 604       | 604          | [78880, 78382] |
-\| default_cluster:db1 | test      | 1.874 KB  | 1            | 1         | 1            | [27028]        |
-+---------------------+-----------+-----------+--------------+-----------+--------------+----------------+
-\`\`\`
+3. list all DECOMMISSION tablets on the specified backend
+
+    ```sql
+    SHOW TABLETS FROM example_db.table_name WHERE state="DECOMMISSION" AND BackendId=11003;
+    ```
 
 ### Keywords
 
     ```
-    SHOW, TABLETS, BELONG
+    SHOW, TABLETS
     ```
 
 ### Best Practice
