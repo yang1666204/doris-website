@@ -1,5 +1,5 @@
 ---
-{ "title": "PERCENTILE_APPROX", "language": "en" }
+{ "title": "PERCENTILE_ARRAY", "language": "en" }
 ---
 
 <!-- 
@@ -21,38 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## PERCENTILE_APPROX
+## PERCENTILE_ARRAY
 
 ### Description
 
 #### Syntax
 
-`PERCENTILE_APPROX(expr, DOUBLE p[, DOUBLE compression])`
+`ARRAY_DOUBLE PERCENTILE_ARRAY(expr, ARRAY_DOUBLE p)`
 
-Return the approximation of the point p, where the value of P is between 0 and 1.
-
-Compression param is optional and can be setted to a value in the range of [2048, 10000]. The bigger compression you set, the more precise result and more time cost you will get. If it is not setted or not setted in the correct range, PERCENTILE_APPROX function will run with a default compression param of 10000.
-
-This function uses fixed size memory, so less memory can be used for columns with high cardinality, and can be used to calculate statistics such as tp99.
+Calculate exact percentiles, suitable for small data volumes. Sorts the specified column in descending order first, then takes the exact pth percentile.
+The return value is the result of sequentially taking the specified percentages in the array p.
+Parameter Description:
+expr: Required. Columns whose values are of type integer (up to bigint).
+p: The exact percentile is required, an array of constants, taking the value [0.0, 1.0].
 
 ### example
 
 ```
-MySQL > select `table`, percentile_approx(cost_time,0.99) from log_statis group by `table`;
-+---------------------+---------------------------+
-| table    | percentile_approx(`cost_time`, 0.99) |
-+----------+--------------------------------------+
-| test     |                                54.22 |
-+----------+--------------------------------------+
+mysql> select percentile_array(k1,[0.3,0.5,0.9]) from baseall;
++----------------------------------------------+
+| percentile_array(`k1`, ARRAY(0.3, 0.5, 0.9)) |
++----------------------------------------------+
+| [5.2, 8, 13.6]                               |
++----------------------------------------------+
+1 row in set (0.02 sec)
 
-MySQL > select `table`, percentile_approx(cost_time,0.99, 4096) from log_statis group by `table`;
-+---------------------+---------------------------+
-| table    | percentile_approx(`cost_time`, 0.99, 4096.0) |
-+----------+--------------------------------------+
-| test     |                                54.21 |
-+----------+--------------------------------------+
 ```
 
 ### keywords
 
-PERCENTILE_APPROX,PERCENTILE,APPROX
+PERCENTILE_ARRAY
