@@ -1,5 +1,5 @@
 ---
-{ "title": "MINUTES_SUB", "language": "en" }
+{ "title": "MONTH", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## minutes_sub
+## month
 
-### description
+### Description
 
 #### Syntax
 
-`DATETIME MINUTES_SUB(DATETIME date, INT minutes)`
+`INT MONTH (DATETIME date)`
 
-Subtracts a specified number of minutes from a datetime or date
+Returns month information in the time type, ranging from 1,12
 
-The parameter date can be DATETIME or DATE, and the return type is DATETIME.
+The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select minutes_sub("2020-02-02 02:02:02", 1);
-+---------------------------------------+
-| minutes_sub('2020-02-02 02:02:02', 1) |
-+---------------------------------------+
-| 2020-02-02 02:01:02                   |
-+---------------------------------------+
+mysql> select month('1987-01-01');
++-----------------------------+
+| month('1987-01-01 00:00:00') |
++-----------------------------+
+|                           1 |
++-----------------------------+
 ```
 
 ### keywords
 
     ```
-    MINUTES_SUB
+    MONTH
     ```
