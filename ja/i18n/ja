@@ -1,13 +1,11 @@
 ---
 {
-  "title": "CREATE-STORAGE-VAULT",
-  "language": "en",
-  "toc_min_heading_level": 2,
-  "toc_max_heading_level": 4
+  "title": "CREATE-TABLE-AND-GENERATED-COLUMN",
+  "language": "en"
 }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -15,9 +13,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,154 +22,248 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CREATE-STORAGE-VAULT
+A generated column is a special database table column whose value is calculated from the values of other columns rather than directly inserted or updated by the user. This feature supports pre-computing the results of expressions and storing them in the database, which is suitable for scenarios that require frequent queries or complex calculations.
 
-### Description
+Generated columns can automatically calculate results based on predefined expressions when data is imported or updated, and store these results persistently. In this way, during subsequent queries, you can directly access these calculated results without performing complex calculations during queries, thereby significantly reducing the computational burden during queries and improving query performance.
 
-This command is used to create a storage vault. The subject of this document describes the syntax for creating Doris self-maintained storage vault.
+Here is an example using a generated column:
 
 ```sql
-CREATE STORAGE VAULT [IF NOT EXISTS] vault
-[properties]
+CREATE TABLE products (
+product_id INT,
+price DECIMAL(10,2),
+quantity INT,
+total_value DECIMAL(10,2) GENERATED ALWAYS AS (price * quantity)
+) UNIQUE KEY(product_id) 
+DISTRIBUTED BY HASH(product_id) PROPERTIES ("replication_num" = "1");
+
+INSERT INTO products VALUES(1, 10.00, 10, default);
+INSERT INTO products(product_id, price, quantity) VALUES(1, 20.00, 10);
 ```
 
-#### properties
+Query data from the table:
 
-| param  | is required | desc                                                                                   |
-| :----- | :---------- | :------------------------------------------------------------------------------------- |
-| `type` | required    | Only two types of vaults are allowed: `S3` and `HDFS`. |
+```sql
+mysql> SELECT * FROM products;
++------------+-------+----------+-------------+
+| product_id | price | quantity | total_value |
++------------+-------+----------+-------------+
+|          1 | 10.00 |       10 |      100.00 |
+|          1 | 20.00 |       10 |      200.00 |
++------------+-------+----------+-------------+
+```
 
-##### S3 Vault
+In this example, the total_value column is a generated column whose value is calculated by multiplying the values ​​of the price and quantity columns.
+The values of generated columns are calculated and stored in the table when importing or updating.
 
-| param            | is required | desc                                                                                                                                                                                                                                                               |
-| :--------------- | :---------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `s3.endpoint`    | required    | The endpoint used for object storage. <br/>**Notice**, please don't provide the endpoint with any `http://` or `https://`. And for Azure Blob Storage, the endpoint should be like `${ak}.blob.core.windows.net/`. |
-| `s3.region`      | required    | The region of your bucket.(Not required when you'r using GCP or AZURE).                                                                                                                                         |
-| `s3.root.path`   | required    | The path where the data would be stored.                                                                                                                                                                                                           |
-| `s3.bucket`      | required    | The bucket of your object storage account. (StorageAccount if you're using Azure).                                                                                                                              |
-| `s3.access_key`  | required    | The access key of your object storage account. (AccountName if you're using Azure).                                                                                                                             |
-| `s3.secret_key`  | required    | The secret key of your object storage account. (AccountKey if you're using Azure).                                                                                                                              |
-| `provider`       | required    | The cloud vendor which provides the object storage service. The supported values include `COS`, `OSS`, `S3`, `OBS`, `BOS`, `AZURE`, `GCP`                                                                                                          |
-| `use_path_style` | optional    | Indicate using `path-style URL`(private environment recommended) or `virtual-hosted-style URL`(public cloud recommended), default `true` (`path-style`)                                                   |
+## Grammar
 
-##### HDFS Vault
+```sql
+col_name data_type [GENERATED ALWAYS] AS (expr)
+[NOT NULL | NULL] [COMMENT 'string']
+```
 
-| param                            | is required | desc                                                                                                                                                                                         |
-| :------------------------------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fs.defaultFS`                   | required    | Hadoop configuration property that specifies the default file system to use.                                                                                                 |
-| `path_prefix`                    | optional    | The path prefix to where the data would be stored. It would be the root_path of your Hadoop user if you don't provide any prefix.       |
-| `hadoop.username`                | optional    | Hadoop configuration property that specifies the user accessing the file system. It would be the user starting Hadoop process if you don't provide any user. |
-| `hadoop.security.authentication` | optional    | The authentication way used for hadoop. If you'd like to use kerberos you can provide with `kerboros`.                                                       |
-| `hadoop.kerberos.principal`      | optional    | The path to your kerberos principal.                                                                                                                                         |
-| `hadoop.kerberos.keytab`         | optional    | The path to your kerberos keytab.                                                                                                                                            |
+## Restrictions on generated columns
 
-### Example
+1. The functions used can only be built-in scalar functions and operators. UDF, aggregate functions, etc. are not allowed.
+2. Variables, subqueries, and Lambda expressions are not allowed.
+3. AUTO_INCREMENT columns cannot be used as base columns in generated column definitions.
+4. Generated column definitions can reference other generated columns, but only columns that appear earlier in the table definition. Generated column definitions can reference any base (non-generated) column in the table, regardless of whether its definition occurs earlier or later.
+5. In the aggregate model, when the generated column is a VALUE column, only REPLACE and REPLACE_IF_NOT_NULL aggregate types are allowed.
 
-1. create a HDFS storage vault.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault
-        PROPERTIES (
-        "type"="hdfs",
-        "fs.defaultFS"="hdfs://127.0.0.1:8020"
-        );
-    ```
+## Import data
 
-2. create a S3 storage vault using azure.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="ak.blob.core.windows.net/",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "AZURE"
-        );
-    ```
+When importing data, if the NOT NULL restriction of the generated column is violated, for example, when importing data, the column referenced by the generated column is not specified, and this column has no default value, the import will fail.
 
-3. create a S3 storage vault using OSS.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="oss.aliyuncs.com",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.region" = "cn-hangzhou",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "OSS",
-        "use_path_style" = "false"
-        );
-    ```
+### INSERT
 
-4. create a S3 storage vault using COS.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="cos.ap-guangzhou.myqcloud.com",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.region" = "ap-guangzhou",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "COS",
-        "use_path_style" = "false"
-        );
-    ```
+When specifying columns, the specified columns cannot contain generated columns, otherwise an error will be reported.
 
-5. create a S3 storage vault using OBS.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="obs.cn-north-4.myhuaweicloud.com",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.region" = "cn-north-4",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "OBS",
-        "use_path_style" = "false"
-        );
-    ```
+```sql
+INSERT INTO products(product_id, price, quantity) VALUES(1, 20.00, 10);
+```
 
-6. create a S3 storage vault using AWS.
-    ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="s3.us-east-1.amazonaws.com",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.region" = "us-east-1",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "S3",
-        "use_path_style" = "false"
-        );
-    ```
+When no columns are specified, the DEFAULT keyword must be used as a placeholder for the generated columns.。
 
-7. create a S3 storage vault using MinIO.
-   ```sql
-    CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-        PROPERTIES (
-        "type"="S3",
-        "s3.endpoint"="127.0.0.1:9000",
-        "s3.access_key" = "ak",
-        "s3.secret_key" = "sk",
-        "s3.region" = "us-east-1",
-        "s3.root.path" = "ssb_sf1_p2_s3",
-        "s3.bucket" = "doris-build-1308700295",
-        "provider" = "S3",
-        "use_path_style" = "true"
-        );
-   ```
+```sql
+INSERT INTO products VALUES(1, 10.00, 10, default);
+```
 
-### Keywords
+### Load
 
-    ```
-    CREATE, STORAGE VAULT
-    ```
+When using the load method to import data, you need to explicitly specify the import column. You should not specify a generated column as an import column. When you specify an import generated column and there is corresponding data in the data file, the generated column will not use the value in the data file, and the value of the generated column is still the result of the expression calculation.
+
+#### Stream Load
+
+Create table:
+
+```sql
+mysql> CREATE TABLE gen_col_stream_load(a INT,b INT,c DOUBLE GENERATED ALWAYS AS (abs(a+b)) not null)
+DISTRIBUTED BY HASH(a)
+PROPERTIES("replication_num" = "1");
+```
+
+Prepare data and perform stream loading:
+
+```shell
+cat gen_col_data.csv 
+1,2
+3,5
+2,9
+
+curl --location-trusted -u root: \
+-H "Expect:100-continue" \
+-H "column_separator:," \
+-H "columns:a,b" \
+-T gen_col_data.csv \
+-XPUT http://127.0.0.1:8030/api/testdb/gen_col_stream_load/_stream_load
+{
+    "TxnId": 223227,
+    "Label": "d4a615c9-6e73-4d95-a8a4-e4c30d3b2262",
+    "Comment": "",
+    "TwoPhaseCommit": "false",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 3,
+    "NumberLoadedRows": 3,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 12,
+    "LoadTimeMs": 152,
+    "BeginTxnTimeMs": 5,
+    "StreamLoadPutTimeMs": 39,
+    "ReadDataTimeMs": 0,
+    "WriteDataTimeMs": 66,
+    "CommitAndPublishTimeMs": 37
+}
+```
+
+View the data import results:
+
+```sql
+mysql> SELECT * FROM gen_col_stream_load;
++------+------+------+
+| a    | b    | c    |
++------+------+------+
+|    1 |    2 |    3 |
+|    2 |    9 |   11 |
+|    3 |    5 |    8 |
++------+------+------+
+3 rows in set (0.07 sec)
+```
+
+#### HTTP Stream Load
+
+Create table:
+
+```sql
+mysql> CREATE TABLE gencol_refer_gencol_http_load(a INT,c DOUBLE GENERATED ALWAYS AS (abs(a+b)) NOT NULL,b INT, d INT GENERATED ALWAYS AS(c+1))
+DISTRIBUTED BY HASH(a)
+PROPERTIES("replication_num" = "1");
+```
+
+Prepare data and perform HTTP stream loading:
+
+```shell
+curl  --location-trusted -u root: -T gen_col_data.csv  -H "Expect: 100-Continue" \
+-H "sql:insert into testdb.gencol_refer_gencol_http_load(a, b) select * from http_stream(\"format\" = \"CSV\", \"column_separator\" = \",\" )" \
+http://127.0.0.1:8030/api/_http_stream
+{
+    "TxnId": 223244,
+    "Label": "label_824464cba2a1eabc_bee78e427ea55e81",
+    "Comment": "",
+    "TwoPhaseCommit": "false",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 3,
+    "NumberLoadedRows": 3,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 12,
+    "LoadTimeMs": 142,
+    "BeginTxnTimeMs": 0,
+    "StreamLoadPutTimeMs": 45,
+    "ReadDataTimeMs": 46,
+    "WriteDataTimeMs": 59,
+    "CommitAndPublishTimeMs": 36
+}
+```
+
+View the data import results:
+
+```sql
+mysql> SELECT * FROM gencol_refer_gencol_http_load;                                                                                                                          +------+------+------+------+
+| a    | c    | b    | d    |
++------+------+------+------+
+|    2 |   11 |    9 |   12 |
+|    1 |    3 |    2 |    4 |
+|    3 |    8 |    5 |    9 |
++------+------+------+------+
+3 rows in set (0.04 sec)
+```
+
+#### MySQL Load
+
+The process of creating a table, loading data and querying is as follows:
+
+```sql
+mysql> CREATE TABLE gen_col_mysql_load(a INT,b INT,c DOUBLE GENERATED ALWAYS AS (abs(a+b)) NOT NULL)
+DISTRIBUTED BY HASH(a)
+PROPERTIES("replication_num" = "1");
+
+mysql> LOAD DATA LOCAL
+INFILE '/path_to_data/gen_col_data.csv'
+INTO TABLE gen_col_mysql_load
+COLUMNS TERMINATED BY ','
+(a,b);
+Query OK, 3 rows affected (0.14 sec)
+Records: 3  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> SELECT * FROM gen_col_mysql_load;
++------+------+------+
+| a    | b    | c    |
++------+------+------+
+|    2 |    9 |   11 |
+|    3 |    5 |    8 |
+|    1 |    2 |    3 |
++------+------+------+
+3 rows in set (0.06 sec)
+```
+
+#### Other Load
+
+BROKER LOAD, ROUTINE LOAD and other methods can import data into a table with generated columns, which will not be listed here.
+
+## Generated columns and partial update
+
+When updating some columns, you must specify all the common columns referenced by the generated columns in columns, otherwise an error will be reported.
+
+The following is an example to create a table, insert a row of data, and set the session variable:
+
+```sql
+CREATE TABLE test_partial_column_unique_gen_col (a INT, b INT, c INT AS (a+b), d INT AS (c+1), e INT)
+UNIQUE KEY(a) DISTRIBUTED BY HASH(a) PROPERTIES(
+ "enable_unique_key_merge_on_write" = "true",
+ "replication_num"="1"
+);
+SET enable_unique_key_partial_update=true;
+SET enable_insert_strict=false;
+SET enable_fallback_to_original_planner=false;
+INSERT INTO test_partial_column_unique_gen_col(a,b,e) VALUES(1,2,7);
+```
+
+If all referenced normal columns are not specified, an error will be reported:
+
+```sql
+mysql> INSERT INTO test_partial_column_unique_gen_col(a) VALUES(3);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Partial update should include all ordinary columns referenced by generated columns, missing: b
+```
+
+The same is true for LOAD. All referenced normal columns need to be specified in -H "columns: a, b". The following is an example of using stream load:
+
+```shell
+curl --location-trusted -u root: -H "Expect:100-continue" -H "column_separator:," \
+-H "columns: a, b" -H "partial_columns:true" \
+-T /Users/moailing/Documents/tmp/gen_col_data.csv \
+http://127.0.0.1:8030/api/testdb/partial_column_unique_gen_col/_stream_load
+```
