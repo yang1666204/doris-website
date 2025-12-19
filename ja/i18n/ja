@@ -1,5 +1,5 @@
 ---
-{ "title": "NULLIF", "language": "en" }
+{ "title": "NVL", "language": "en" }
 ---
 
 <!-- 
@@ -21,41 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## nullif
+## nvl
+
+nvl
 
 ### description
 
 #### Syntax
 
-`nullif(expr1, expr2)`
+`nvl(expr1, expr2)`
 
-If the two parameters are equal, null is returned. Otherwise, the value of the first parameter is returned. It has the same effect as the following `case when`
-
-```
-CASE
-     WHEN expr1 = expr2 THEN NULL
-     ELSE expr1
-END
-```
+If the value of expr1 is not null, expr1 is returned, otherwise expr2 is returned
 
 ### example
 
 ```
-mysql> select nullif(1,1);
+mysql> select nvl(1,0);
 +--------------+
-| nullif(1, 1) |
-+--------------+
-|         NULL |
-+--------------+
-
-mysql> select nullif(1,0);
-+--------------+
-| nullif(1, 0) |
+| nvl(1, 0) |
 +--------------+
 |            1 |
 +--------------+
+
+mysql> select nvl(null,10);
++------------------+
+| nvl(NULL, 10) |
++------------------+
+|               10 |
++------------------+
 ```
 
 ### keywords
 
-NULLIF
+NVL
