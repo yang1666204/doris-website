@@ -1,5 +1,5 @@
 ---
-{ "title": "schemata", "language": "en" }
+{ "title": "session_variables", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-View information related to the database.
+View session variable information.
 
 ## Database
 
@@ -31,11 +31,9 @@ View information related to the database.
 
 ## Table Information
 
-| Column Name                                                                               | Type                            | Description                                           |
-| ----------------------------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------- |
-| CATALOG_NAME                                                         | varchar(512) | The name of the Catalog                               |
-| SCHEMA_NAME                                                          | varchar(32)  | The name of the Database                              |
-| DEFAULT_CHARACTER_SET_NAME | varchar(32)  | For compatibility with MySQL only, no actual function |
-| DEFAULT_COLLATION_NAME                          | varchar(32)  | For compatibility with MySQL only, no actual function |
-| SQL_PATH                                                             | varchar(512) | For compatibility with MySQL only, no actual function |
-| DEFAULT_ENCRYPTION                                                   | varchar(3)   | For compatibility with MySQL only, no actual function |
+| Column Name                         | Type                             | Description                                              |
+| ----------------------------------- | -------------------------------- | -------------------------------------------------------- |
+| VARIABLE_NAME  | varchar(64)   | The name of the variable                                 |
+| VARIABLE_VALUE | varchar(1024) | The current value                                        |
+| DEFAULT_VALUE  | varchar(1024) | The default value                                        |
+| CHANGED                             | varchar(4)    | Whether the current value differs from the default value |
