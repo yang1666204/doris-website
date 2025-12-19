@@ -1,5 +1,5 @@
 ---
-{ "title": "ST_CONTAINS", "language": "en" }
+{ "title": "ST_DISTANCE_SPHERE", "language": "en" }
 ---
 
 <!-- 
@@ -21,34 +21,30 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ST_Contains
+## ST_Distance_Sphere
 
-### Description
+### description
 
 #### Syntax
 
-`BOOL ST_Contains(GEOMETRY shape1, GEOMETRY shape2)`
+`DOUBLE ST_Distance_Sphere(DOUBLE x_lng, DOUBLE x_lat, DOUBLE y_lng, DOUBLE y_lat)`
 
-Judging whether geometric shape 1 can contain geometric shape 2 completely
+Calculate the spherical distance between two points of the earth in meters. The incoming parameters are the longitude of point X, the latitude of point X, the longitude of point Y and the latitude of point Y.
+
+x_lng and y_lng are Longitude values, must be in the range [-180, 180].
+x_lat and y_lat are Latitude values, must be in the range [-90, 90].
 
 ### example
 
 ```
-mysql> SELECT ST_Contains(ST_Polygon("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))"), ST_Point(5, 5));
-+----------------------------------------------------------------------------------------+
-| st_contains(st_polygon('POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))'), st_point(5.0, 5.0)) |
-+----------------------------------------------------------------------------------------+
-|                                                                                      1 |
-+----------------------------------------------------------------------------------------+
-
-mysql> SELECT ST_Contains(ST_Polygon("POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))"), ST_Point(50, 50));
-+------------------------------------------------------------------------------------------+
-| st_contains(st_polygon('POLYGON ((0 0, 10 0, 10 10, 0 10, 0 0))'), st_point(50.0, 50.0)) |
-+------------------------------------------------------------------------------------------+
-|                                                                                        0 |
-+------------------------------------------------------------------------------------------+
+mysql> select st_distance_sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219);
++----------------------------------------------------------------------------+
+| st_distance_sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219) |
++----------------------------------------------------------------------------+
+|                                                         7336.9135549995917 |
++----------------------------------------------------------------------------+
 ```
 
 ### keywords
 
-ST_CONTAINS,ST,CONTAINS
+ST_DISTANCE_SPHERE,ST,DISTANCE,SPHERE
