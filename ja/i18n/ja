@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CHARSET", "language": "en" }
+{ "title": "SHOW-COLLATION", "language": "en" }
 ---
 
 <!--
@@ -21,37 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CHARSET
+## Description
 
-### Description
+In Doris, the `SHOW COLLATION` command is used to display the character set collations available in the database. A collation is a set of rules that determine how data is sorted and compared. These rules affect the storage and retrieval of character data. Doris currently mainly supports the proofreading method utf8mb4_0900_bin.
 
-The "SHOW CHARACTER" command is used to display the available character sets in the current database management system,
-along with some associated properties for each character set. These properties may include the name of the character set,
-the default collation, and the maximum byte length, among others. By running the "SHOW CHARACTER" command, you can view the list of supported character sets in the system along with their detailed information.
+## Syntax
 
-The "SHOW CHARACTER" command returns the following fields:
+```
+SHOW COLLATION
+```
 
-Charset: Character set
-Description: Description
-Default Collation: Default collation name
-Maxlen: Maximum byte length.
+## Result Fields
+
+The `SHOW COLLATION` command returns the following fields:
+
+- Collation: The collation name
+- Charset: The character set
+- Id: The collation's ID
+- Default: Whether this is the default collation for the character set
+- Compiled: Whether the collation is compiled
+- Sortlen: Sort length
 
 ### Example
 
 ```sql
-mysql> show charset;
-
-| Charset   | Description     | Default collation | Maxlen |
-|-----------|-----------------|-------------------|--------|
-| utf8mb4   | UTF-8 Unicode   | utf8mb4_0900_bin  | 4      |
-
+show collation;
 ```
 
-### Keywords
+```
++------------------+---------+------+---------+----------+---------+
+| Collation        | Charset | Id   | Default | Compiled | Sortlen |
++------------------+---------+------+---------+----------+---------+
+| utf8mb4_0900_bin | utf8mb4 |   33 | Yes     | Yes      |       1 |
++------------------+---------+------+---------+----------+---------+
+```
 
-    ```
-    SHOW, CHARSET
-    ```
+### Notice
 
-### Best Practice
-
+In Doris, although it is compatible with MySQL's commands for setting the collation, the setting actually does not take effect. When executed, Doris will always use utf8mb4_0900_bin as the comparison rule.
