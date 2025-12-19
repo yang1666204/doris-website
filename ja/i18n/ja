@@ -1,5 +1,5 @@
 ---
-{ "title": "TOP_LEVEL_DOMAIN", "language": "en" }
+{ "title": "TRIM", "language": "en" }
 ---
 
 <!-- 
@@ -21,39 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## trim
 
-## Syntax
+### description
 
-`VARCHAR  top_level_domain(VARCHAR url)`
+#### Syntax
 
-Extract the top-level domain from a URL and return it. If the URL is invalid, return an empty string.
+`VARCHAR trim(VARCHAR str[, VARCHAR rhs])`
 
-## Example
+When the 'rhs' parameter is not present, remove the continuous spaces that appear from the starting and ending of the 'str' parameter. Otherwise, remove 'rhs'.
 
-```sql
-mysql [(none)]>select top_level_domain("www.baidu.com");
-+-----------------------------------+
-| top_level_domain('www.baidu.com') |
-+-----------------------------------+
-| com                               |
-+-----------------------------------+
+### example
 
-mysql [(none)]>select top_level_domain("www.google.com.cn");
-+---------------------------------------+
-| top_level_domain('www.google.com.cn') |
-+---------------------------------------+
-| cn                                    |
-+---------------------------------------+
+```
+mysql> SELECT trim('   ab d   ') str;
++------+
+| str  |
++------+
+| ab d |
++------+
 
-mysql [(none)]>select top_level_domain("wwwwwwww");
-+------------------------------+
-| top_level_domain('wwwwwwww') |
-+------------------------------+
-|                              |
-+------------------------------+
+mysql> SELECT trim('ababccaab','ab') str;
++------+
+| str  |
++------+
+| cca  |
++------+
 ```
 
 ### keywords
 
-top_level_domain
+    ```
+    TRIM
+    ```
