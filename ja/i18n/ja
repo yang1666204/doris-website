@@ -1,5 +1,5 @@
 ---
-{ "title": "ALTER-SYSTEM-DROP-BACKEND", "language": "en" }
+{ "title": "ALTER-SYSTEM-DROP-BROKER", "language": "en" }
 ---
 
 <!--
@@ -21,52 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-SYSTEM-DROP-BACKEND
+## ALTER-SYSTEM-DROP-BROKER
 
 ### Name
 
-ALTER SYSTEM DROP BACKEND
+ALTER SYSTEM DROP BROKER
 
 ### Description
 
-This statement is used to delete the BACKEND node (administrator only!)
+This statement is to delete the BROKER node, (administrator only)
 
 grammar:
 
-- Find backend through host and port
-
 ```sql
-ALTER SYSTEM DROP BACKEND "host:heartbeat_port"[,"host:heartbeat_port"...]
+-- Delete all brokers
+ALTER SYSTEM DROP ALL BROKER broker_name
+-- Delete a Broker node
+ALTER SYSTEM DROP BROKER broker_name "host:port"[,"host:port"...];
 ```
-
-- Find backend through backend_id
-
-```sql
-ALTER SYSTEM DROP BACKEND "id1","id2"...;
-```
-
-illustrate:
-
-1. host can be a hostname or an ip address
-2. heartbeat_port is the heartbeat port of the node
-3. Adding and deleting nodes is a synchronous operation. These two operations do not consider the existing data on the node, and the node is directly deleted from the metadata, please use it with caution.
 
 ### Example
 
-1. Delete two nodes
+1. Delete all brokers
 
     ```sql
-    ALTER SYSTEM DROP BACKEND "host1:port", "host2:port";
+    ALTER SYSTEM DROP ALL BROKER broker_name
     ```
 
+2. Delete a Broker node
+
     ```sql
-    ALTER SYSTEM DROP BACKEND "ids1", "ids2";
+    ALTER SYSTEM DROP BROKER broker_name "host:port"[,"host:port"...];
     ```
 
 ### Keywords
 
     ```
-    ALTER, SYSTEM, DROP, BACKEND, ALTER SYSTEM
+    ALTER, SYSTEM, DROP, FOLLOWER, ALTER SYSTEM
     ```
 
 ### Best Practice
