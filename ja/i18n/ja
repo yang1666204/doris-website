@@ -1,5 +1,5 @@
 ---
-{ "title": "DEGREES", "language": "en" }
+{ "title": "E", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## degrees
+## e
 
 ### description
 
 #### Syntax
 
-`DOUBLE degrees(DOUBLE x)`
-Returns the degree of `x`, converted from radians to degrees.
+`DOUBLE e()`
+Returns the constant `e` value.
 
 ### example
 
 ```
-mysql> select degrees(0);
-+--------------+
-| degrees(0.0) |
-+--------------+
-|            0 |
-+--------------+
-mysql> select degrees(2);
+mysql> select e();
 +--------------------+
-| degrees(2.0)       |
+| e()                |
 +--------------------+
-| 114.59155902616465 |
+| 2.7182818284590451 |
 +--------------------+
-mysql> select degrees(Pi());
-+---------------+
-| degrees(pi()) |
-+---------------+
-|           180 |
-+---------------+
 ```
 
 ### keywords
 
  ```
- DEGREES
+ E
  ```
