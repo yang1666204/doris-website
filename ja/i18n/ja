@@ -1,5 +1,5 @@
 ---
-{ "title": "DAYOFWEEK", "language": "en" }
+{ "title": "DAYOFYEAR", "language": "en" }
 ---
 
 <!-- 
@@ -21,38 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## dayofweek
+## dayofyear
 
 ### Description
 
 #### Syntax
 
-`INT DAYOFWEEK (DATETIME date)`
+`INT DAYOFYEAR (DATETIME date)`
 
-The DAYOFWEEK function returns the index value of the working day of the date, that is, 1 on Sunday, 2 on Monday, and 7 on Saturday.
+The date of acquisition is the date of the corresponding year.
 
 The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select dayofweek('2019-06-25');
+mysql> select dayofyear('2007-02-03 00:00:00');
 +----------------------------------+
-| dayofweek('2019-06-25 00:00:00') |
+| dayofyear('2007-02-03 00:00:00') |
 +----------------------------------+
-|                                3 |
+|                               34 |
 +----------------------------------+
-
-mysql> select dayofweek(cast(20190625 as date)); 
-+-----------------------------------+
-| dayofweek(CAST(20190625 AS DATE)) |
-+-----------------------------------+
-|                                 3 |
-+-----------------------------------+
 ```
 
 ### keywords
 
     ```
-    DAYOFWEEK
+    DAYOFYEAR
     ```
