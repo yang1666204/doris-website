@@ -1,5 +1,5 @@
 ---
-{ "title": "Routine Load", "language": "en" }
+{ "title": "Stream Load", "language": "en" }
 ---
 
 <!--
@@ -21,1823 +21,1040 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Doris can continuously consume data from Kafka Topic through the Routine Load method. After submitting a Routine Load job, Doris will continuously run the load job, generating real-time loading tasks to constantly consume messages from the specified Topic in the Kafka cluster.
+Stream Load supports importing local files or data streams into Doris through the HTTP protocol.
 
-Routine Load is a streaming load job that supports Exactly-Once semantics, ensuring that data is neither lost nor duplicated.
+Stream Load is a synchronous import method that returns the import result after the import is executed, allowing you to determine the success of the import through the request response. Generally, user can use Stream Load to import files under 10GB. If the file is too large, it is recommended to split the file and then use Stream Load for importing. Stream Load can ensure the atomicity of a batch of import tasks, meaning that either all of them succeed or all of them fail.
 
-## Usage Scenarios
+:::tip
 
-### Supported Data Sources
+In comparison to single-threaded load using `curl`, Doris Streamloader is a client tool designed for loading data into Apache Doris. it reduces the ingestion latency of large datasets by its concurrent loading capabilities. It comes with the following features:
 
-Routine Load supports consuming data from Kafka clusters.
+- **Parallel loading**: multi-threaded load for the Stream Load method. You can set the parallelism level using the `workers` parameter.
+- **Multi-file load:** simultaneously load of multiple files and directories with one shot. It supports recursive file fetching and allows you to specify file names with wildcard characters.
+- **Path traversal support:** support path traversal when the source files are in directories
+- **Resilience and continuity:** in case of partial load failures, it can resume data loading from the point of failure.
+- **Automatic retry mechanism:** in case of loading failures, it can automatically retry a default number of times. If the loading remains unsuccessful, it will print the command for manual retry.
 
-### Supported Data File Formats
+See [Doris Streamloader](../../../ecosystem/doris-streamloader) for detailed instructions and best practices.
+:::
 
-Routine Load supports consuming data in CSV and JSON formats.
+## User guide
 
-When loading CSV format, it is necessary to clearly distinguish between null values and empty strings:
+Stream Load supports importing CSV, JSON, Parquet, and ORC format data from local or remote sources via HTTP.
 
-- Null values need to be represented with `\n`. For example, `a,\n,b` indicates that the middle column is a null value.
+- Null values: Use `\N` to represent null. For example, `a,\N,b` indicates the middle column is null.
+- Empty string: An empty string is represented when there are no characters between two delimiters. For example, in `a,,b`, there are no characters between the two commas, indicating that the middle column value is an empty string.
 
-- Empty strings can be represented by leaving the data field empty. For example, `a,,b` indicates that the middle column is an empty string.
+### Basic principles
 
-### Usage Limitations
+When using Stream Load, it is necessary to initiate an import job through the HTTP protocol to the FE (Frontend) node. The FE will redirect the request to a BE (Backend) node in a round-robin manner to achieve load balancing. It is also possible to send HTTP requests directly to a specific BE node. In Stream Load, Doris selects one node to serve as the Coordinator node. The Coordinator node is responsible for receiving data and distributing it to other nodes.
 
-When using Routine Load to consume data from Kafka, there are the following limitations:
+The following figure shows the main flow of Stream load, omitting some import details.
 
-- The supported message formats are CSV and JSON text formats. Each message in CSV should be on a separate line, and the line should not end with a newline character.
+![Basic principles](/images/stream-load.png)
 
-- By default, it supports Kafka versions 0.10.0.0 and above. If you need to use a Kafka version below 0.10.0.0 (such as 0.9.0, 0.8.2, 0.8.1, 0.8.0), you need to modify the BE configuration by setting the value of `kafka_broker_version_fallback` to the compatible older version, or directly set the value of `property.broker.version.fallback` when creating the Routine Load. However, using an older version may mean that some new features of Routine Load, such as setting the offset of Kafka partitions based on time, may not be available.
+1. The client submits a Stream Load import job request to the FE (Frontend).
+2. The FE selects a BE (Backend) as the Coordinator node in a round-robin manner, which is responsible for scheduling the import job, and then returns an HTTP redirect to the client.
+3. The client connects to the Coordinator BE node and submits the import request.
+4. The Coordinator BE distributes the data to the appropriate BE nodes and returns the import result to the client once the import is complete.
+5. Alternatively, the client can directly specify a BE node as the Coordinator and distribute the import job directly.
 
-## Basic Principles
+## Quick start
 
-Routine Load continuously consumes data from Kafka Topics and writes it into Doris.
+Stream Load import data through the HTTP protocol. The following example uses the curl tool to demonstrate submitting an import job through Stream Load.
 
-When a Routine Load job is created in Doris, it generates a resident import job that consists of several import tasks:
+For detailed syntax, please refer to [STREAM LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/STREAM-LOAD).
 
-- Load Job: A Routine Load Job is a resident import job that continuously consumes data from the data source.
+### Prerequisite check
 
-- Load Task: An import job is broken down into several import tasks for actual consumption, with each task being an independent transaction.
+Stream Load requires `INSERT` privileges on the target table. If there are no `INSERT` privileges, it can be granted to the user through the [GRANT](../../../sql-manual/sql-statements/Account-Management-Statements/GRANT) command.
 
-The specific import process of Routine Load is shown in the following diagram:
+### Create load job
 
-![Routine Load](/images/routine-load.png)
+#### Loading CSV
 
-1. The Client submits a request to create a Routine Load job to the FE, and the FE generates a resident import job (Routine Load Job) through the Routine Load Manager.
+1. Creating loading data
 
-2. The FE splits the Routine Load Job into several Routine Load Tasks through the Job Scheduler, which are then scheduled by the Task Scheduler and distributed to BE nodes.
-
-3. On the BE, after a Routine Load Task is completed, it submits the transaction to the FE and updates the Job's metadata.
-
-4. After a Routine Load Task is submitted, it continues to generate new Tasks or retries timed-out Tasks.
-
-5. The newly generated Routine Load Tasks continue to be scheduled by the Task Scheduler in a continuous cycle.
-
-## Quick Start
-
-### Create Job
-
-In Doris, you can create persistent Routine Load  tasks using the `CREATE ROUTINE LOAD` command. For detailed syntax, please refer to [CREATE ROUTINE LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/CREATE-ROUTINE-LOAD). Routine Load supports consuming data in CSV and JSON formats.
-
-**Loading CSV Data**
-
-1. Loading data sample
-
-   In Kafka, there is the following sample data:
-
-    ```SQL
-    kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-routine-load-csv --from-beginnin
-    1,Emily,25
-    2,Benjamin,35
-    3,Olivia,28
-    4,Alexander,60
-    5,Ava,17
-    6,William,69
-    7,Sophia,32
-    8,James,64
-    9,Emma,37
-    10,Liam,64
-    ```
-
-2. Creating table
-
-   In Doris, create the table for loading with the following syntax:
-
-    ```sql
-    CREATE TABLE testdb.test_routineload_tbl(
-        user_id            BIGINT       NOT NULL COMMENT "User ID",
-        name               VARCHAR(20)           COMMENT "User Name",
-        age                INT                   COMMENT "User Age"
-    )
-    DUPLICATE KEY(user_id)
-    DISTRIBUTED BY HASH(user_id) BUCKETS 10;
-    ```
-
-3. Creating the Routine Load job
-
-   In Doris, use the `CREATE ROUTINE LOAD` command to create the load job:
-
-    ```sql
-    CREATE ROUTINE LOAD testdb.example_routine_load_csv ON test_routineload_tbl
-    COLUMNS TERMINATED BY ",",
-    COLUMNS(user_id, name, age)
-    FROM KAFKA(
-        "kafka_broker_list" = "192.168.88.62:9092",
-        "kafka_topic" = "test-routine-load-csv",
-        "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-    );
-    ```
-
-**Loading** **JSON** **Data**
-
-1. Loading sample data
-
-   In Kafka, there is the following sample data:
-
-    ```sql
-    kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-routine-load-json --from-beginning
-    ```
-
-2. Creating table
-
-   In Doris, create the table for loading with the following syntax:
-
-    ```sql
-    CREATE TABLE testdb.test_routineload_tbl(
-        user_id            BIGINT       NOT NULL COMMENT "User ID",
-        name               VARCHAR(20)           COMMENT "User Name",
-        age                INT                   COMMENT "User Age"
-    )
-    DUPLICATE KEY(user_id)
-    DISTRIBUTED BY HASH(user_id) BUCKETS 10;
-    ```
-
-3. Creating the Routine Load job
-
-   In Doris, use the `CREATE ROUTINE LOAD` command to create the job:
-
-    ```sql
-    CREATE ROUTINE LOAD testdb.example_routine_load_json ON test_routineload_tbl
-    COLUMNS(user_id, name, age)
-    PROPERTIES(
-        "format"="json",
-        "jsonpaths"="[\"$.user_id\",\"$.name\",\"$.age\"]"
-    )
-    FROM KAFKA(
-        "kafka_broker_list" = "192.168.88.62:9092"
-    );
-    ```
-
-### Viewing Status
-
-In Doris, you can check the status of Routine Load jobs and tasks using the following methods:
-
-- Load Jobs: Used to view information about load tasks, such as the target table, number of subtasks, load delay status, load configuration, and load results.
-
-- Load Tasks: Used to view the status of individual load tasks, including task ID, transaction status, task status, execution start time, and BE (Backend) node assignment.
-
-**01 Viewing Running Jobs**
-
-You can use the `SHOW ROUTINE LOAD` command to check the status of jobs. The `SHOW ROUTINE LOAD` command provides information about the current job, including the target table, load delay status, load configuration, and error messages.
-
-For example, to view the status of the `testdb.example_routine_load_csv` job, you can run the following command:
+   Create a CSV file named `streamload_example.csv`. The specific content is as follows
 
 ```sql
-mysql> SHOW ROUTINE LOAD FOR testdb.example_routine_load\G
-*************************** 1. row ***************************
-                  Id: 12025
-                Name: example_routine_load
-          CreateTime: 2024-01-15 08:12:42
-           PauseTime: NULL
-             EndTime: NULL
-              DbName: default_cluster:testdb
-           TableName: test_routineload_tbl
-        IsMultiTable: false
-               State: RUNNING
-      DataSourceType: KAFKA
-      CurrentTaskNum: 1
-       JobProperties: {"max_batch_rows":"200000","timezone":"America/New_York","send_batch_parallelism":"1","load_to_single_tablet":"false","column_separator":"','","line_delimiter":"\n","current_concurrent_number":"1","delete":"*","partial_columns":"false","merge_type":"APPEND","exec_mem_limit":"2147483648","strict_mode":"false","jsonpaths":"","max_batch_interval":"10","max_batch_size":"104857600","fuzzy_parse":"false","partitions":"*","columnToColumnExpr":"user_id,name,age","whereExpr":"*","desired_concurrent_number":"5","precedingFilter":"*","format":"csv","max_error_number":"0","max_filter_ratio":"1.0","json_root":"","strip_outer_array":"false","num_as_string":"false"}
-DataSourceProperties: {"topic":"test-topic","currentKafkaPartitions":"0","brokerList":"192.168.88.62:9092"}
-    CustomProperties: {"kafka_default_offsets":"OFFSET_BEGINNING","group.id":"example_routine_load_73daf600-884e-46c0-a02b-4e49fdf3b4dc"}
-           Statistic: {"receivedBytes":28,"runningTxns":[],"errorRows":0,"committedTaskNum":3,"loadedRows":3,"loadRowsRate":0,"abortedTaskNum":0,"errorRowsAfterResumed":0,"totalRows":3,"unselectedRows":0,"receivedBytesRate":0,"taskExecuteTimeMs":30069}
-            Progress: {"0":"2"}
-                 Lag: {"0":0}
-ReasonOfStateChanged:
-        ErrorLogUrls:
-            OtherMsg:
-                User: root
-             Comment:
-1 row in set (0.00 sec)
+1,Emily,25
+2,Benjamin,35
+3,Olivia,28
+4,Alexander,60
+5,Ava,17
+6,William,69
+7,Sophia,32
+8,James,64
+9,Emma,37
+10,Liam,64
 ```
 
-**02 Viewing Running Tasks**
+2. Creating a table for loading
 
-You can use the `SHOW ROUTINE LOAD TASK` command to check the status of load tasks. The `SHOW ROUTINE LOAD TASK` command provides information about the individual tasks under a specific load job, including task ID, transaction status, task status, execution start time, and BE ID.
-
-For example, to view the task status of the `example_routine_load_csv` job, you can run the following command:
+   Create the table that will be imported into, using the specific syntax as follows:
 
 ```sql
-mysql> SHOW ROUTINE LOAD TASK WHERE jobname = 'example_routine_load_csv';
-+-----------------------------------+-------+-----------+-------+---------------------+---------------------+---------+-------+----------------------+
-| TaskId                            | TxnId | TxnStatus | JobId | CreateTime          | ExecuteStartTime    | Timeout | BeId  | DataSourceProperties |
-+-----------------------------------+-------+-----------+-------+---------------------+---------------------+---------+-------+----------------------+
-| 8cf47e6a68ed4da3-8f45b431db50e466 | 195   | PREPARE   | 12177 | 2024-01-15 12:20:41 | 2024-01-15 12:21:01 | 20      | 10429 | {"4":1231,"9":2603}  |
-| f2d4525c54074aa2-b6478cf8daaeb393 | 196   | PREPARE   | 12177 | 2024-01-15 12:20:41 | 2024-01-15 12:21:01 | 20      | 12109 | {"1":1225,"6":1216}  |
-| cb870f1553864250-975279875a25fab6 | -1    | NULL      | 12177 | 2024-01-15 12:20:52 | NULL                | 20      | -1    | {"2":7234,"7":4865}  |
-| 68771fd8a1824637-90a9dac2a7a0075e | -1    | NULL      | 12177 | 2024-01-15 12:20:52 | NULL                | 20      | -1    | {"3":1769,"8":2982}  |
-| 77112dfea5e54b0a-a10eab3d5b19e565 | 197   | PREPARE   | 12177 | 2024-01-15 12:21:02 | 2024-01-15 12:21:02 | 20      | 12098 | {"0":3000,"5":2622}  |
-+-----------------------------------+-------+-----------+-------+---------------------+---------------------+---------+-------+----------------------+
-```
-
-### Pausing Jobs
-
-You can pause an load job using the [PAUSE ROUTINE LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/PAUSE-ROUTINE-LOAD) command. When a job is paused, it enters the PAUSED state, but the load job is not terminated and can be resumed using the RESUME ROUTINE LOAD command.
-
-To pause the `testdb.example_routine_load_csv` load job, you can use the following command:
-
-```sql
-PAUSE ROUTINE LOAD FOR testdb.example_routine_load_csv;
-```
-
-### Resuming Jobs
-
-You can resume a paused load job using the [RESUME ROUTINE LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/RESUME-ROUTINE-LOAD) command.
-
-To resume the `testdb.example_routine_load_csv` job, you can use the following command:
-
-```sql
-RESUME ROUTINE LOAD FOR testdb.example_routine_load_csv;
-```
-
-### Modifying Jobs
-
-You can modify a created loading job using the [ALTER ROUTINE LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/ALTER-ROUTINE-LOAD) command. Before modifying the job, you need to pause it using the` PAUSE ROUTINE LOAD` command, and after making the modifications, you can resume it using the `RESUME ROUTINE LOAD` command.
-
-To modify the `desired_concurrent_number` parameter for the job and update the Kafka topic information, you can use the following command:
-
-```sql
-ALTER ROUTINE LOAD FOR testdb.example_routine_load_csv
-PROPERTIES(
-    "desired_concurrent_number" = "3"
+CREATE TABLE testdb.test_streamload(
+    user_id            BIGINT       NOT NULL COMMENT "User ID",
+    name               VARCHAR(20)           COMMENT "User name",
+    age                INT                   COMMENT "User age"
 )
-FROM KAFKA(
-    "kafka_broker_list" = "192.168.88.60:9092",
-    "kafka_topic" = "test-topic"
-);
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-### Canceling Jobs
+3. Enabling the load job
 
-You can stop and delete a Routine Load job using the [STOP ROUTINE LOAD](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/STOP-ROUTINE-LOAD) command. Once deleted, the load job cannot be recovered and cannot be viewed using the `SHOW ROUTINE LOAD` command.
+   The Stream Load job can be submitted using the `curl` command.
 
-To stop and delete the `testdb.example_routine_load_csv` load job, you can use the following command:
-
-```sql
-STOP ROUTINE LOAD FOR testdb.example_routine_load_csv;
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
 ```
 
-## Reference Manual
-
-### Load Commands
-
-The syntax for creating a Routine Load persistent load job is as follows:
+​	Stream Load is a synchronous method, where the result is directly returned to the user.
 
 ```sql
-CREATE ROUTINE LOAD [<db_name>.]<job_name> [ON <tbl_name>]
-[merge_type]
-[load_properties]
-[job_properties]
-FROM KAFKA [data_source_properties]
-[COMMENT "<comment>"]
+{
+    "TxnId": 3,
+    "Label": "123",
+    "Comment": "",
+    "TwoPhaseCommit": "false",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 10,
+    "NumberLoadedRows": 10,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 118,
+    "LoadTimeMs": 173,
+    "BeginTxnTimeMs": 1,
+    "StreamLoadPutTimeMs": 70,
+    "ReadDataTimeMs": 2,
+    "WriteDataTimeMs": 48,
+    "CommitAndPublishTimeMs": 52
+}
 ```
 
-The modules for creating a loading job are explained as follows:
-
-| Module                                                           | Description                                                                                                                                                                                                                                                                                                                                                                                               |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| db_name                                     | Specifies the name of the database for creating the loading task.                                                                                                                                                                                                                                                                                                                         |
-| job_name                                    | Specifies the name of the created loading job. The job name must be unique within the same database.                                                                                                                                                                                                                                                                      |
-| tbl_name                                    | Specifies the name of the table to be loaded. This parameter is optional. If not specified, the dynamic table mode will be used, where Kafka data should contain the table name information.                                                                                                                                                              |
-| merge_type                                  | Specifies the data merge type. The default value is APPEND. Possible merge_type options are: <ul><li>APPEND: Append load mode</li><li>MERGE: Merge load mode</li><li>DELETE: load data as delete records</li></ul>                                                                   |
-| load_properties                             | Describes the load properties, including:<ul><li>colum_spearator clause</li><li>columns_mapping clause</li><li>preceding_filter clause</li><li>where_predicates clause</li><li>partitions clause</li><li>delete_on clause</li><li>order_by clause</li></ul> |
-| job_properties                              | Specifies the general load parameters for Routine Load.                                                                                                                                                                                                                                                                                                                                   |
-| data_source_properties | Describes the properties of Kafka data source.                                                                                                                                                                                                                                                                                                                                            |
-| comment                                                          | Describes any additional comments for the loading job.                                                                                                                                                                                                                                                                                                                                    |
-
-### Load Parameter Description
-
-**01 FE Configuration Parameters**
-
-**max_routine_load_task_concurrent_num**
-
-- Default Value: 256
-
-- Dynamic Configuration: Yes
-
-- FE Master Exclusive: Yes
-
-- Parameter Description: Limits the maximum number of concurrent subtasks for Routine Load jobs. It is recommended to keep it at the default value. Setting it too high may result in excessive concurrent tasks and resource consumption.
-
-**max_routine_load_task_num_per_be**
-
-- Default Value: 1024
-
-- Dynamic Configuration: Yes
-
-- FE Master Exclusive: Yes
-
-- Parameter Description: Limits the maximum number of concurrent Routine Load tasks per backend (BE). `max_routine_load_task_num_per_be` should be smaller than the `routine_load_thread_pool_size` parameter.
-
-**max_routine_load_job_num**
-
-- Default Value: 100
-
-- Dynamic Configuration: Yes
-
-- FE Master Exclusive: Yes
-
-- Parameter Description: Limits the maximum number of Routine Load jobs, including those in NEED_SCHEDULED, RUNNING, and PAUSE states.
-
-**max_tolerable_backend_down_num**
-
-- Default Value: 0
-
-- Dynamic Configuration: Yes
-
-- FE Master Exclusive: Yes
-
-- Parameter Description: If any BE goes down, Routine Load cannot automatically recover. Under certain conditions, Doris can reschedule PAUSED tasks and transition them to the RUNNING state. Setting this parameter to 0 means that re-scheduling is only allowed when all BE nodes are in the alive state.
-
-**period_of_auto_resume_min**
-
-- Default Value: 5 (minutes)
-
-- Dynamic Configuration: Yes
-
-- FE Master Exclusive: Yes
-
-- Parameter Description: The period for automatically resuming Routine Load.
-
-**02 BE Configuration Parameters**
-
-**max_consumer_num_per_group**
-
-- Default Value: 3
-
-- Dynamic Configuration: Yes
-
-- Description: Specifies the maximum number of consumers generated per subtask. For Kafka data sources, a consumer can consume one or multiple Kafka partitions. For example, if a task needs to consume 6 Kafka partitions, it will generate 3 consumers, with each consumer consuming 2 partitions. If there are only 2 partitions, it will generate 2 consumers, with each consumer consuming 1 partition.
-
-### Load Configuration Parameters
-
-When creating a Routine Load job, you can specify the load configuration parameters for different modules using the `CREATE ROUTINE LOAD` command.
-
-**tbl_name Clause**
-
-Specifies the name of the table to be loaded. This parameter is optional.
-
-If not specified, the dynamic table mode is used, which requires the data in Kafka to contain the table name information. Currently, only extracting the table name from the Value field of Kafka is supported. The format should be as follows, using JSON as an example: `table_name|{"col1": "val1", "col2": "val2"}`, where `tbl_name` is the table name and `|` is used as the separator between the table name and the table data. The same format applies to CSV data, such as `table_name|val1,val2,val3`. Note that the `table_name` here must be consistent with the table name in Doris, otherwise the load will fail. Note that dynamic tables do not support the column_mapping configuration described later.
-
-**merge_type Clause**
-
-The merge_type module specifies the type of data merging. There are three options for merge_type:
-
-- APPEND: Append load mode.
-
-- MERGE: Merge load mode. Only applicable to Unique Key models. It needs to be used together with the [DELETE ON] module to mark the Delete Flag column.
-
-- DELETE: All loaded data is data that needs to be deleted.
-
-**load_properties Clause**
-
-The load_properties module describes the properties of the loaded data using the following syntax:
+4. View data
 
 ```sql
-[COLUMNS TERMINATED BY <column_separator>,]
-[COLUMNS (<column1_name>[, <column2_name>, <column_mapping>, ...]),]
-[WHERE <where_expr>,]
-[PARTITION(<partition1_name>, [<partition2_name>, <partition3_name>, ...]),]
-[DELETE ON <delete_expr>,]
-[ORDER BY <order_by_column1>[, <order_by_column2>, <order_by_column3>, ...]]
+mysql> select count(*) from testdb.test_streamload;
++----------+
+| count(*) |
++----------+
+|       10 |
++----------+
 ```
 
-The specific parameters for each module are as follows:
+#### Loading JSON
 
-| Submodule             | Parameter            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| --------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| COLUMNS TERMINATED BY | `<column_separator>` | Specifies the column delimiter, defaulting to `\t`. For example, to specify a comma as the delimiter, use `COLUMNS TERMINATED BY ","`. When handling empty values, note the following:<ul><li>Null values should be represented as `\n`. For example, `a,\n,b` represents a null value in the middle column.</li><li>Empty strings (`''`) are treated as empty values. For example, `a,,b` represents an empty string in the middle column.</li></ul> |
-| COLUMNS               | `<column_name>`      | Specifies the corresponding column names. For example, to specify the load columns as `(k1, k2, k3)`, use `COLUMNS(k1, k2, k3)`. The COLUMNS clause can be omitted in the following cases:<ul><li>When the columns in the CSV match the table columns one by one.</li><li>When the key columns in JSON have the same names as the table columns.</li></ul>                                                                                                                                                  |
-|                       | `<column_mapping>`   | During the load process, column mapping can be used to filter and transform columns. For example, if the target column needs to perform a derived calculation based on a column in the data source (e.g., the target column k4 is calculated as k3 + 1 based on the k3 column), you can use `COLUMNS(k1, k2, k3, k4 = k3 + 1)`. For more details, refer to the [Data Conversion](../../../data-operate/import/load-data-convert) documentation.                                          |
-| WHERE                 | `<where_expr>`       | Specifies the condition to filter the loaded data source. For example, to load only data where age > 30, use `WHERE age > 30`.                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| PARTITION             | `<partition_name>`   | Specifies which partitions in the target table to load. If not specified, it will automatically load into the corresponding partitions. For example, to load partitions p1 and p2 of the target table, use `PARTITION(p1, p2)`.                                                                                                                                                                                                                                                                                                             |
-| DELETE ON             | `<delete_expr>`      | In the MERGE load mode, using delete_expr to mark which columns need to be deleted. For example, to delete columns where age > 30 during the MERGE process, use `DELETE ON age > 30`.                                                                                                                                                                                                                                                                                                                                                  |
-| ORDER BY              | `<order_by_column>`  | Only effective for Unique Key models. Specifies the Sequence Column in the loaded data to ensure the order of the data. For example, when loading into a Unique Key table and specifying create_time as the Sequence Column, use `ORDER BY create_time`. For more information on Sequence Columns in Unique Key models, refer to the [Data Update/Sequence Columns](../../../data-operate/update/update-of-unique-model)                                                                                               |
+1. Creating loading data
 
-**job_properties Clause**
-
-The job_properties clause is used to specify the properties of a Routine Load job when creating it. The syntax is as follows:
+Create a JSON file named `streamload_example.json` . The specific content is as follows
 
 ```sql
-PROPERTIES ("<key1>" = "<value1>"[, "<key2>" = "<value2>" ...])
+[
+{"userid":1,"username":"Emily","userage":25},
+{"userid":2,"username":"Benjamin","userage":35},
+{"userid":3,"username":"Olivia","userage":28},
+{"userid":4,"username":"Alexander","userage":60},
+{"userid":5,"username":"Ava","userage":17},
+{"userid":6,"username":"William","userage":69},
+{"userid":7,"username":"Sophia","userage":32},
+{"userid":8,"username":"James","userage":64},
+{"userid":9,"username":"Emma","userage":37},
+{"userid":10,"username":"Liam","userage":64}
+]
 ```
 
-Here are the available parameters for the job_properties clause:
+2. Creating a table for loading
 
-| Parameter                                                                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| desired_concurrent_number                  | <ul><li>Default value: 256</li><li>Description: Specifies the desired concurrency for a single load subtask (load task). It modifies the expected number of load subtasks for a Routine Load job. The actual concurrency during the load process may not be equal to the desired concurrency. The actual concurrency is determined based on factors such as the number of nodes in the cluster, the load on the cluster, and the characteristics of the data source. The actual number of loading subtasks can be calculated using the following formula:</li><li>`min(topic_partition_num, desired_concurrent_number, max_routine_load_task_concurrent_num)`</li> <li>where:</li><li>topic_partition_num: The number of partitions in the Kafka topic</li><li>desired_concurrent_number: The parameter value set</li><li>max_routine_load_task_concurrent_num: The parameter for setting the maximum task parallelism for Routine Load in the FE</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| max_batch_interval                         | The maximum running time for each subtask, in seconds. Must be greater than 0, with a default value of 60s. max_batch_interval/max_batch_rows/max_batch_size together form the execution threshold for subtasks. If any of these parameters reaches the threshold, the load subtask ends and a new one is generated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| max_batch_rows                             | The maximum number of rows read by each subtask. Must be greater than or equal to 200,000. The default value is 20,000,000. max_batch_interval/max_batch_rows/max_batch_size together form the execution threshold for subtasks. If any of these parameters reaches the threshold, the load subtask ends and a new one is generated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| max_batch_size                             | The maximum number of bytes read by each subtask. The unit is bytes, and the range is from 100MB to 10GB. The default value is 1G. max_batch_interval/max_batch_rows/max_batch_size together form the execution threshold for subtasks. If any of these parameters reaches the threshold, the load subtask ends and a new one is generated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| max_error_number                           | The maximum number of error rows allowed within a sampling window. Must be greater than or equal to 0. The default value is 0, which means no error rows are allowed. The sampling window is `max_batch_rows * 10`. If the number of error rows within the sampling window exceeds `max_error_number`, the regular job will be paused and manual intervention is required to check for data quality issues using the [SHOW ROUTINE LOAD](../../../sql-manual/sql-statements/Show-Statements/SHOW-ROUTINE-LOAD) command and `ErrorLogUrls`. Rows filtered out by the WHERE condition are not counted as error rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| strict_mode                                                     | Whether to enable strict mode. The default value is disabled. Strict mode applies strict filtering to type conversions during the load process. If enabled, non-null original data that results in a NULL after type conversion will be filtered out. The filtering rules in strict mode are as follows:<ul><li>Derived columns (generated by functions) are not affected by strict mode.</li><li>If a column's type needs to be converted, any data with an incorrect data type will be filtered out. You can check the filtered columns due to data type errors in the `ErrorLogUrls` of [SHOW ROUTINE LOAD](../../../sql-manual/sql-statements/Show-Statements/SHOW-ROUTINE-LOAD).</li><li>For columns with range restrictions, if the original data can be successfully converted but falls outside the declared range, strict mode does not affect it. For example, if the type is decimal(1,0) and the original data is 10, it can be converted but is not within the range declared for the column. Strict mode does not affect this type of data. For more details, see [Strict Mode](../../../data-operate/import/handling-messy-data#strict-mode).</li></ul> |
-| timezone                                                                             | Specifies the time zone used by the load job. The default is to use the session's timezone parameter. This parameter affects the results of all timezone-related functions involved in the load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| format                                                                               | Specifies the data format for the load. The default is CSV, and JSON format is supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| jsonpaths                                                                            | When the data format is JSON, jsonpaths can be used to specify the JSON paths to extract data from nested structures. It is a JSON array of strings, where each string represents a JSON path.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| json_root                                                       | When importing JSON format data, you can specify the root node of the JSON data through json_root. Doris will extract and parse elements from the root node. Default is empty. For example, specify the JSON root node with: `"json_root" = "$.RECORDS"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| strip_outer_array                          | When importing JSON format data, if strip_outer_array is true, it indicates that the JSON data is presented as an array, and each element in the data will be treated as a row. Default value is false. Typically, JSON data in Kafka might be represented as an array with square brackets `[]` in the outermost layer. In this case, you can specify `"strip_outer_array" = "true"` to consume Topic data in array mode. For example, the following data will be parsed into two rows: `[{"user_id":1,"name":"Emily","age":25},{"user_id":2,"name":"Benjamin","age":35}]`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| send_batch_parallelism                     | Used to set the parallelism of sending batch data. If the parallelism value exceeds the `max_send_batch_parallelism_per_job` in BE configuration, the coordinating BE will use the value of `max_send_batch_parallelism_per_job`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| load_to_single_tablet | Supports importing data to only one tablet in the corresponding partition per task. Default value is false. This parameter can only be set when importing data to OLAP tables with random bucketing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| partial_columns                                                 | Specifies whether to enable partial column update feature. Default value is false. This parameter can only be set when the table model is Unique and uses Merge on Write. Multi-table streaming does not support this parameter. For details, refer to [Partial Column Update](../../../data-operate/update/update-of-unique-model)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| max_filter_ratio                           | The maximum allowed filter ratio within the sampling window. Must be between 0 and 1 inclusive. Default value is 1.0, indicating any error rows can be tolerated. The sampling window is `max_batch_rows * 10`. If the ratio of error rows to total rows within the sampling window exceeds `max_filter_ratio`, the routine job will be suspended and require manual intervention to check data quality issues. Rows filtered by WHERE conditions are not counted as error rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| enclose                                                                              | Specifies the enclosing character. When CSV data fields contain line or column separators, a single-byte character can be specified as an enclosing character for protection to prevent accidental truncation. For example, if the column separator is "," and the enclosing character is "'", the data "a,'b,c'" will have "b,c" parsed as one field.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| escape                                                                               | Specifies the escape character. Used to escape characters in fields that are identical to the enclosing character. For example, if the data is "a,'b,'c'", the enclosing character is "'", and you want "b,'c" to be parsed as one field, you need to specify a single-byte escape character, such as "\", and modify the data to "a,'b,\'c'".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-
-These parameters can be used to customize the behavior of a Routine Load job according to your specific requirements.
-
-**04 data_source_properties Clause**
-
-When creating a Routine Load job, you can specify the data_source_properties clause to specify properties of the Kafka data source. The syntax is as follows:
+   Create the table that will be imported into, using the specific syntax as follows:
 
 ```sql
-FROM KAFKA ("<key1>" = "<value1>"[, "<key2>" = "<value2>" ...])
+CREATE TABLE testdb.test_streamload(
+    user_id            BIGINT       NOT NULL COMMENT "User ID",
+    name               VARCHAR(20)           COMMENT "User name",
+    age                INT                   COMMENT "User age"
+)
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-The available options for the data_source_properties clause are as follows:
+3. Enabling the load job
 
-| Parameter                                                   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| kafka_broker_list | Specifies the connection information for Kafka brokers. The format is `<kafka_broker_ip>:<kafka_port>`. Multiple brokers are separated by commas. For example, to specify a Broker List with the default port 9092, you can use the following command: `"kafka_broker_list" = "<broker1_ip>:9092,<broker2_ip>:9092"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| kafka_topic                            | Specifies the Kafka topic to subscribe to. A load job can only consume one Kafka topic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| kafka_partitions                       | Specifies the Kafka partitions to subscribe to. If not specified, all partitions are consumed by default.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| kafka_offsets                          | Specifies the starting consumption offset for Kafka partitions. If a timestamp is specified, consumption starts from the nearest offset equal to or greater than that timestamp. The offset can be a specific offset greater than or equal to 0, or it can use the following formats:<ul><li>OFFSET_BEGINNING: Starts consuming from the position where there is data.</li><li>OFFSET_END: Starts consuming from the end.</li><li>Timestamp format, e.g., "2021-05-22 11:00:00"</li><li>If not specified, consumption starts from `OFFSET_END` for all partitions under the topic.</li><li>Multiple starting consumption offsets can be specified, separated by commas, such as `"kafka_offsets" = "101,0,OFFSET_BEGINNING,OFFSET_END"` or `"kafka_offsets" = "2021-05-22 11:00:00,2021-05-22 11:00:00"`</li><li>Note that timestamp format cannot be mixed with OFFSET format.</li></ul> |
-| property                                                    | Specifies custom Kafka parameters. This is equivalent to the "--property" parameter in the Kafka shell. When the value of a parameter is a file, the keyword "FILE:" needs to be added before the value. For creating a file, you can refer to the [CREATE FILE](../../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-FILE) command documentation. For more supported custom parameters, you can refer to the client-side configuration options in the official [CONFIGURATION](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) documentation of librdkafka. For example: `"property.client.id" = "12345"`, `"property.group.id" = "group_id_0"`, `"property.ssl.ca.location" = "FILE:ca.pem"`                                                                                                                                                                                                                                                                                      |
+   The Stream Load job can be submitted using the `curl` command.
 
-By configuring the Kafka property parameter in the `data_source_properties`, you can set up security access options. Currently, Doris supports various Kafka security protocols such as plaintext (default), SSL, PLAIN, and Kerberos.
-
-### Load Status
-
-You can check the status of a load job using the `SHOW ROUTINE LOAD` command. The syntax for the command is as follows:
-
-```sql
-SHOW [ALL] ROUTINE LOAD [FOR jobName];
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "label:124" \
+    -H "Expect:100-continue" \
+    -H "format:json" -H "strip_outer_array:true" \
+    -H "jsonpaths:[\"$.userid\", \"$.username\", \"$.userage\"]" \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.json \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
 ```
 
-For example, executing `SHOW ROUTINE LOAD` will return a result set similar to the following:
+:::info Note
+
+If the JSON file is not a JSON array but each line is a JSON object, add the headers `-H "strip_outer_array:false"` and `-H "read_json_by_line:true"`.
+:::
+
+​	Stream Load is a synchronous method, where the result is directly returned to the user.
 
 ```sql
-mysql> SHOW ROUTINE LOAD FOR testdb.example_routine_load\G
-*************************** 1. row ***************************
-                  Id: 12025
-                Name: example_routine_load
-          CreateTime: 2024-01-15 08:12:42
-           PauseTime: NULL
-             EndTime: NULL
-              DbName: default_cluster:testdb
-           TableName: test_routineload_tbl
-        IsMultiTable: false
-               State: RUNNING
-      DataSourceType: KAFKA
-      CurrentTaskNum: 1
-       JobProperties: {"max_batch_rows":"200000","timezone":"America/New_York","send_batch_parallelism":"1","load_to_single_tablet":"false","column_separator":"','","line_delimiter":"\n","current_concurrent_number":"1","delete":"*","partial_columns":"false","merge_type":"APPEND","exec_mem_limit":"2147483648","strict_mode":"false","jsonpaths":"","max_batch_interval":"10","max_batch_size":"104857600","fuzzy_parse":"false","partitions":"*","columnToColumnExpr":"user_id,name,age","whereExpr":"*","desired_concurrent_number":"5","precedingFilter":"*","format":"csv","max_error_number":"0","max_filter_ratio":"1.0","json_root":"","strip_outer_array":"false","num_as_string":"false"}
-DataSourceProperties: {"topic":"test-topic","currentKafkaPartitions":"0","brokerList":"192.168.88.62:9092"}
-    CustomProperties: {"kafka_default_offsets":"OFFSET_BEGINNING","group.id":"example_routine_load_73daf600-884e-46c0-a02b-4e49fdf3b4dc"}
-           Statistic: {"receivedBytes":28,"runningTxns":[],"errorRows":0,"committedTaskNum":3,"loadedRows":3,"loadRowsRate":0,"abortedTaskNum":0,"errorRowsAfterResumed":0,"totalRows":3,"unselectedRows":0,"receivedBytesRate":0,"taskExecuteTimeMs":30069}
-            Progress: {"0":"2"}
-                 Lag: {"0":0}
-ReasonOfStateChanged:
-        ErrorLogUrls:
-            OtherMsg:
-                User: root
-             Comment:
+{
+    "TxnId": 7,
+    "Label": "125",
+    "Comment": "",
+    "TwoPhaseCommit": "false",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 10,
+    "NumberLoadedRows": 10,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 471,
+    "LoadTimeMs": 52,
+    "BeginTxnTimeMs": 0,
+    "StreamLoadPutTimeMs": 11,
+    "ReadDataTimeMs": 0,
+    "WriteDataTimeMs": 23,
+    "CommitAndPublishTimeMs": 16
+}
+```
+
+### View load job
+
+By default, Stream Load synchronously returns results to the client, so the system does not record Stream Load historical jobs. If recording is required, add the configuration `enable_stream_load_record=true` in `be.conf`. Refer to the [BE configuration options](../../../admin-manual/config/be-config) for specific details.
+
+After configuring, you can use the `show stream load` command to view completed Stream Load jobs.
+
+```sql
+mysql> show stream load from testdb;
++-------+--------+-----------------+---------------+---------+---------+------+-----------+------------+--------------+----------------+-----------+-------------------------+-------------------------+------+---------+
+| Label | Db     | Table           | ClientIp      | Status  | Message | Url  | TotalRows | LoadedRows | FilteredRows | UnselectedRows | LoadBytes | StartTime               | FinishTime              | User | Comment |
++-------+--------+-----------------+---------------+---------+---------+------+-----------+------------+--------------+----------------+-----------+-------------------------+-------------------------+------+---------+
+| 12356 | testdb | test_streamload | 192.168.88.31 | Success | OK      | N/A  | 10        | 10         | 0            | 0              | 118       | 2023-11-29 08:53:00.594 | 2023-11-29 08:53:00.650 | root |         |
++-------+--------+-----------------+---------------+---------+---------+------+-----------+------------+--------------+----------------+-----------+-------------------------+-------------------------+------+---------+
 1 row in set (0.00 sec)
 ```
 
-The columns in the result set provide the following information:
+### Cancel load job
 
-| Column Name          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Id                   | The ID of the load job, automatically generated by Doris.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Name                 | The name of the load job.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| CreateTime           | The time when the job was created.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| PauseTime            | The time when the job was last paused.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| EndTime              | The time when the job ended.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| DbName               | The name of the associated database.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| TableName            | The name of the associated table. For multi-table scenarios, it is displayed as "multi-table".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| IsMultiTbl           | Indicates whether it is a multi-table load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| State                | The running state of the job, which can have five values: <ul><li> NEED_SCHEDULE: The job is waiting to be scheduled. After the CREATE ROUTINE LOAD or RESUME ROUTINE LOAD command, the job enters the NEED_SCHEDULE state.</li><li>RUNNING: The job is currently running.</li><li>PAUSED: The job has been paused and can be resumed using the RESUME ROUTINE LOAD command.</li><li>STOPPED: The job has finished and cannot be restarted.</li><li>CANCELLED: The job has been canceled.</li></ul> |
-| DataSourceType       | The type of data source, which is KAFKA, in this example.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| CurrentTaskNum       | The current number of subtasks.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| JobProperties        | Details of the job configuration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| DataSourceProperties | Details of the data source configuration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| CustomProperties     | Custom configuration properties.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Statistic            | Statistics of the job's running status.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Progress             | The job's progress. For Kafka data sources, it shows the offset consumed for each partition. For example, `{"0":"2"}` indicates that partition 0 has consumed 2 offsets.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Lag                  | The lag of the job. For Kafka data sources, it shows the consumption lag for each partition. For example, `{"0":10}` indicates a consumption lag of 10 for partition 0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ReasonOfStateChanged | The reason for the state change of jobs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ErrorLogUrls         | The URL(s) to view the filtered low-quality data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| OtherMsg             | Other error messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+Users cannot manually cancel a Stream Load operation. A Stream Load job will be automatically canceled by the system if it encounters a timeout (set to 0) or an import error.
+
+## Reference manual
+
+### Command
+
+The syntax for Stream Load is as follows:
+
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+  -H "Expect:100-continue" [-H ""...] \
+  -T <file_path> \
+  -XPUT http://fe_host:http_port/api/{db}/{table}/_stream_load
+```
+
+Stream Load operations support both HTTP chunked and non-chunked import methods. For non-chunked imports, it is necessary to have a Content-Length header to indicate the length of the uploaded content, which ensures data integrity.
+
+### Load configuration parameters
+
+#### FE configuration
+
+1. `stream_load_default_timeout_second`
+
+   - Default Value: 259200 (s)
+
+   - Dynamic Configuration: Yes
+
+   - FE Master-only Configuration: Yes
+
+Parameter Description: The default timeout for Stream Load. The load job will be canceled by the system if it is not completed within the set timeout (in seconds). If the source file cannot be imported within the specified time, the user can set an individual timeout in the Stream Load request. Alternatively, adjust the `stream_load_default_timeout_second` parameter on the FE to set the global default timeout.
+
+#### BE configuration
+
+1. `streaming_load_max_mb`
+
+   - Default value: 10240 (MB)
+   - Dynamic configuration: Yes
+   - Parameter description: The maximum import size for Stream load. If the user's original file exceeds this value, the `streaming_load_max_mb` parameter on the BE needs to be adjusted.
+
+2. Header parameters
+
+   Load parameters can be passed through the HTTP Header section. See below for specific parameter descriptions.
+
+| Parameters                                                                             | Parameters description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| label                                                                                  | Used to specify a label for this Doris import. Data with the same label cannot be imported multiple times. If no label is specified, Doris will automatically generate one. Users can avoid duplicate imports of the same data by specifying a label. Doris retains import job labels for three days by default, but this duration can be adjusted using `label_keep_max_second`. For example, to specify the label for this import as 123, use the command `-H "label:123"`. The use of labels prevents users from importing the same data repeatedly. It is strongly recommended that users use the same label for the same batch of data. This ensures that duplicate requests for the same batch of data are only accepted once, guaranteeing At-Most-Once semantics. When the status of an import job corresponding to a label is CANCELLED, that label can be used again. |
+| column_separator                                                  | Used to specify the column separator in the import file, which defaults to `\t`. If the separator is an invisible character, it needs to be prefixed with `\x` and represented in hexadecimal format. Multiple characters can be combined as a column separator. For example, to specify the separator as `\x01` for a Hive file, use the command `-H "column_separator:\x01"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| line_delimiter                                                    | Used to specify the line delimiter in the import file, which defaults to `\n`. Multiple characters can be combined as a line delimiter. For example, to specify the line delimiter as `\n`, use the command `-H "line_delimiter:\n"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| columns                                                                                | Used to specify the correspondence between columns in the import file and columns in the table. If the columns in the source file exactly match the content of the table, this field does not need to be specified. If the schema of the source file does not match the table, this field is required for data transformation. There are two formats: direct column correspondence to fields in the import file, and derived columns represented by expressions. Refer to [Data Transformation](../../../data-operate/import/load-data-convert) for detailed examples.                                                                                                                                                                                                                                                                                                                                                                          |
+| where                                                                                  | Used to filter out unnecessary data. If users need to exclude certain data, they can achieve this by setting this option. For example, to import only data where the k1 column is equal to 20180601, specify `-H "where: k1 = 20180601"` during the import.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| max_filter_ratio                             | Used to specify the maximum tolerable ratio of filterable (irregular or otherwise problematic) data, which defaults to zero tolerance. The value range is 0 to 1. If the error rate of the imported data exceeds this value, the import will fail. Irregular data does not include rows filtered out by the where condition. For example, to maximize the import of all correct data (100% tolerance), specify the command `-H "max_filter_ratio:1"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| partitions                                                                             | Used to specify the partitions involved in this import. If users can determine the corresponding partitions for the data, it is recommended to specify this option. Data that does not meet these partition criteria will be filtered out. For example, to specify importing into partitions p1 and p2, use the command `-H "partitions: p1, p2"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| timeout                                                                                | Used to specify the timeout for the import in seconds. The default is 600 seconds, and the configurable range is from 1 second to 259200 seconds. For example, to specify an import timeout of 1200 seconds, use the command `-H "timeout:1200"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| strict_mode                                                       | Used to specify whether to enable strict mode for this import, which is disabled by default. For example, to enable strict mode, use the command `-H "strict_mode:true"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| timezone                                                                               | Used to specify the timezone to be used for this import, which defaults to GMT+8. This parameter affects the results of all timezone-related functions involved in the import. For example, to specify the import timezone as Africa/Abidjan, use the command `-H "timezone:Africa/Abidjan"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| exec_mem_limit                               | The memory limit for the import, which defaults to 2GB. The unit is bytes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| format                                                                                 | Used to specify the format of the imported data, which defaults to CSV. Currently supported formats include: CSV, JSON, arrow, csv_with_names (supports filtering the first row of the csv file), csv_with_names_and_types (supports filtering the first two rows of the csv file), Parquet, and ORC. For example, to specify the imported data format as JSON, use the command `-H "format:json"`.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| jsonpaths                                                                              | There are two ways to import JSON data format: Simple Mode and Matching Mode.  If no jsonpaths are specified, it is the simple mode that requires the JSON data to be of the object type.Matching mode used when the JSON data is relatively complex and requires matching the corresponding values through the jsonpaths parameter.In simple mode, the keys in JSON are required to correspond one-to-one with the column names in the table. For example, in the JSON data `{"k1":1, "k2":2, "k3":"hello"}`, k1, k2, and k3 correspond to the columns in the table respectively.                                                                                                                                                                                                                                                                                                                                                              |
+| strip_outer_array                            | When `strip_outer_array` is set to true, it indicates that the JSON data starts with an array object and flattens the objects within the array. The default value is false. When the outermost layer of the JSON data is represented by `[]`, which denotes an array, `strip_outer_array` should be set to true. For example, with the following data, setting `strip_outer_array` to true will result in two rows of data being generated when imported into Doris: `[{"k1": 1, "v1": 2}, {"k1": 3, "v1": 4}]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| json_root                                                         | `json_root` is a valid jsonpath string that specifies the root node of a JSON document, with a default value of "".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| merge_type                                                        | The merge type of data. Three types are supported:<br/>- APPEND (default): Indicates that all data in this batch will be appended to existing data<br/>- DELETE: Indicates deletion of all rows with Keys matching this batch of data<br/>- MERGE: Must be used in conjunction with DELETE conditions. Data meeting DELETE conditions will be processed according to DELETE semantics, while the rest will be processed according to APPEND semantics<br/>For example, to specify merge mode as MERGE: `-H "merge_type: MERGE" -H "delete: flag=1"`                                                                                                                                                                                                                                                                                                                                                          |
+| delete                                                                                 | It is only meaningful under MERGE, representing the deletion conditions for data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| function_column.sequence_col | It is suitable only for the UNIQUE KEYS model. Within the same Key column, it ensures that the Value column is replaced according to the specified source_sequence column. The source_sequence can either be a column from the data source or an existing column in the table structure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| fuzzy_parse                                                       | It is a boolean type. If set to true, the JSON will be parsed with the first row as the schema. Enabling this option can improve the efficiency of JSON imports, but it requires that the order of the keys in all JSON objects be consistent with the first line. The default is false and it is only used for JSON format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| num_as_string                                | It is a boolean type. When set to true, indicates that numeric types will be converted to strings during JSON parsing to ensure no loss of precision during the import process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| read_json_by_line       | It is a boolean type. When set to true, indicates support for reading one JSON object per line, defaulting to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| send_batch_parallelism                       | An integer used to set the parallelism for sending batch-processed data. If the parallelism value exceeds the `max_send_batch_parallelism_per_job` configured in BE, the coordinating BE will use the `max_send_batch_parallelism_per_job value`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| hidden_columns                                                    | Used to specify hidden columns in the imported data, which takes effect when the Header does not include Columns. Multiple hidden columns are separated by commas. The system will use the user-specified data for import. In the following example, the last column of data in the imported data is `__DORIS_SEQUENCE_COL__`. `hidden_columns: __DORIS_DELETE_SIGN__,__DORIS_SEQUENCE_COL__`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| load_to_single_tablet   | It is a boolean type. When set to true, indicates support for importing data only to a single Tablet corresponding to the partition, defaulting to false. This parameter is only allowed when importing to an OLAP table with random bucketing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| compress_type                                                     | Currently, only compression of CSV files is supported. Compression formats include gz, lzo, bz2, lz4, lzop, and deflate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| trim_double_quotes                           | It is a boolean type. When set to true, indicates trimming of the outermost double quotes for each field in the CSV file, defaulting to false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| skip_lines                                                        | It is an integer type. Used to specify the number of lines to skip at the beginning of the CSV file, defaulting to 0. When the `format` is set to `csv_with_names` or `csv_with_names_and_types`, this parameter will become invalid.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| comment                                                                                | It is a String type, with an empty string as the default value. Used to add additional information to the task.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| enclose                                                                                | Specify the enclosure character. When a CSV data field contains a row delimiter or column delimiter, to prevent unexpected truncation, you can specify a single-byte character as the enclosure for protection. For example, if the column delimiter is "," and the enclosure is "'", the data "a,'b,c'" will have "b,c" parsed as a single field. Note: When the enclosure is set to a double quote ("), make sure to set `trim_double_quotes` to true.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| escape                                                                                 | Specify the escape character. It is used to escape characters that are the same as the enclosure character within a field. For example, if the data is "a,'b,'c'", and the enclosure is "'", and you want "b,'c" to be parsed as a single field, you need to specify a single-byte escape character, such as "", and modify the data to "a,'b','c'".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| memtable_on_sink_node   | Whether to enable MemTable on DataSink node when loading data, default is false.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| unique_key_update_mode  | The update modes on Unique tables, currently are only effective for Merge-On-Write Unique tables. Supporting three types: `UPSERT`, `UPDATE_FIXED_COLUMNS`, and `UPDATE_FLEXIBLE_COLUMNS`. `UPSERT`: Indicates that data is loaded with upsert semantics; `UPDATE_FIXED_COLUMNS`: Indicates that data is loaded through partial updates; `UPDATE_FLEXIBLE_COLUMNS`: Indicates that data is loaded through flexible partial updates.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+### Load return value
+
+Stream Load is a synchronous import method, and the load result is directly provided to the user through the creation of an load return value, as shown below:
+
+```sql
+{
+    "TxnId": 1003,
+    "Label": "b6f3bc78-0d2c-45d9-9e4c-faa0a0149bee",
+    "Status": "Success",
+    "ExistingJobStatus": "FINISHED", // optional
+    "Message": "OK",
+    "NumberTotalRows": 1000000,
+    "NumberLoadedRows": 1000000,
+    "NumberFilteredRows": 1,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 40888898,
+    "LoadTimeMs": 2144,
+    "BeginTxnTimeMs": 1,
+    "StreamLoadPutTimeMs": 2,
+    "ReadDataTimeMs": 325,
+    "WriteDataTimeMs": 1933,
+    "CommitAndPublishTimeMs": 106,
+    "ErrorURL": "http://192.168.1.1:8042/api/_load_error_log?file=__shard_0/error_log_insert_stmt_db18266d4d9b4ee5-abb00ddd64bdf005_db18266d4d9b4ee5_abb00ddd64bdf005"
+}
+```
+
+The return result parameters are explained in the following table:
+
+| Parameters             | Parameters description                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| TxnId                  | Import transaction ID                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Label                  | Label of load job，specified via `-H "label:<label_id>"`.                                                                                                                                                                                                                                                                                                                                                 |
+| Status                 | Final load Status. **Success**:  The load job was successful.**Publish Timeout**: The load job has been completed, but there may be a delay in data visibility. **Label Already Exists**: The label is duplicated, requiring a new label. **Fail**: The load job failed. |
+| ExistingJobStatus      | The status of the load job corresponding to the already existing label. This field is only displayed when the Status is **Label Already Exists**. Users can use this status to know the status of the import job corresponding to the existing label. **RUNNING** means the job is still executing, and **FINISHED** means the job was successful.       |
+| Message                | Error information related to the load job.                                                                                                                                                                                                                                                                                                                                                               |
+| NumberTotalRows        | The total number of rows processed during the load job.                                                                                                                                                                                                                                                                                                                                                  |
+| NumberLoadedRows       | The number of rows that were successfully loaded.                                                                                                                                                                                                                                                                                                                                                        |
+| NumberFilteredRows     | The number of rows that did not meet the data quality standards.                                                                                                                                                                                                                                                                                                                                         |
+| NumberUnselectedRows   | The number of rows that were filtered out based on the WHERE condition.                                                                                                                                                                                                                                                                                                                                  |
+| LoadBytes              | The amount of data in bytes.                                                                                                                                                                                                                                                                                                                                                                             |
+| LoadTimeMs             | The time taken for the load job to complete, measured in milliseconds.                                                                                                                                                                                                                                                                                                                                   |
+| BeginTxnTimeMs         | The time taken to request the initiation of a transaction from the Frontend node (FE), measured in milliseconds.                                                                                                                                                                                                                                                                      |
+| StreamLoadPutTimeMs    | The time taken to request the execution plan for the load job data from the FE, measured in milliseconds.                                                                                                                                                                                                                                                                                                |
+| ReadDataTimeMs         | The time spent reading the data during the load job, measured in milliseconds.                                                                                                                                                                                                                                                                                                                           |
+| WriteDataTimeMs        | The time taken to perform the data writing operations during the load job, measured in milliseconds.                                                                                                                                                                                                                                                                                                     |
+| CommitAndPublishTimeMs | The time taken to request the commit and publish the transaction from the FE, measured in milliseconds.                                                                                                                                                                                                                                                                                                  |
+| ErrorURL               | If there are data quality issues, users can access this URL to view the specific rows with errors.                                                                                                                                                                                                                                                                                                       |
+
+Users can access the ErrorURL to review data that failed to import due to issues with data quality. By executing the command `curl "<ErrorURL>"`, users can directly retrieve information about the erroneous data.
+
+## Application of Table Value Function in Stream Load - http_stream Mode
+
+Leveraging the recently introduced functionality of Table Value Function (TVF) in Doris, Stream Load now allows the expression of import parameters through SQL statements. Specifically, a TVF named `http_stream` has been dedicated for Stream Load operations.
+
+:::tip
+
+When performing Stream Load using the TVF `http_stream`, the Rest API URL differs from the standard URL used for regular Stream Load imports.
+
+- Standard Stream Load URL:
+  `http://fe_host:http_port/api/{db}/{table}/_stream_load`
+- URL for Stream Load using TVF `http_stream`:
+  `http://fe_host:http_port/api/_http_stream`
+
+:::
+
+Using curl for Stream Load in http_stream Mode:
+
+```shell
+curl --location-trusted -u user:passwd [-H "sql: ${load_sql}"...] -T data.file -XPUT http://fe_host:http_port/api/_http_stream
+```
+
+Adding a SQL parameter in the header to replace the previous parameters such as `column_separator`, `line_delimiter`, `where`, `columns`, etc., makes it very convenient to use.
+
+Example of load SQL:
+
+```shell
+insert into db.table (col, ...) select stream_col, ... from http_stream("property1"="value1");
+```
+
+http_stream parameter:
+
+- "column_separator" = ","
+
+- "format" = "CSV"
+
+- ...
+
+For example:
+
+```Plain
+curl  --location-trusted -u root: -T test.csv  -H "sql:insert into demo.example_tbl_1(user_id, age, cost) select c1, c4, c7 * 2 from http_stream(\"format\" = \"CSV\", \"column_separator\" = \",\" ) where age >= 30"  http://127.0.0.1:28030/api/_http_stream
+```
 
 ## Load example
 
-### Setting the Maximum Error Tolerance
+### Setting load timeout and maximum size
 
-1. Load sample data:
+The timeout for a load job is measured in seconds. If the load job is not completed within the specified timeout period, it will be cancelled by the system and marked as `CANCELLED`. You can adjust the timeout for a Stream Load job by specifying the `timeout` parameter or adding the `stream_load_default_timeout_second` parameter in the fe.conf file.
 
-    ```sql
-    1,Benjamin,18
-    2,Emily,20
-    3,Alexander,dirty_data
-    ```
+Before initiating the load, you need to calculate the timeout based on the file size. For example, for a 100GB file with an estimated load performance of 50MB/s:
 
-2. Create table:
+```
+Load time ≈ 100GB / 50MB/s ≈ 2048s
+```
 
-    ```sql
-    CREATE TABLE demo.routine_test01 (
-        id       INT             NOT NULL   COMMENT "User ID",
-        name     VARCHAR(30)     NOT NULL   COMMENT "Name",
-        age      INT                        COMMENT "Age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
+You can use the following command to specify a timeout of 3000 seconds for creating a Stream Load job:
 
-3. Load command:
+```Shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "timeout:3000"
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
 
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job01 ON routine_test01
-            COLUMNS TERMINATED BY ","
-            PROPERTIES
-            (
-                "max_filter_ratio"="0.5",
-                "max_error_number" = "100",
-                "strict_mode" = "true"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad01",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
+### Setting maximum error tolerance rate
 
-4. Load result:
+Load job can tolerate a certain amount of data with formatting errors. The tolerance rate is configured using the `max_filter_ratio` parameter. By default, it is set to 0, meaning that if there is even a single erroneous data row, the entire load job will fail. If users wish to ignore some problematic data rows, they can set this parameter to a value between 0 and 1. Doris will automatically skip rows with incorrect data formats. For more information on calculating the tolerance rate, please refer to the [Data Transformation](../../../data-operate/import/load-data-convert) documentation.
 
-    ```sql
-    mysql> select * from routine_test01;
-    +------+------------+------+
-    | id   | name       | age  |
-    +------+------------+------+
-    |    1 | Benjamin   |   18 |
-    |    2 | Emily      |   20 |
-    +------+------------+------+
-    2 rows in set (0.01 sec)
-    ```
+You can use the following command to specify a `max_filter_ratio` tolerance of 0.4 for creating a Stream Load job:
 
-### Consuming Data from a Specified Offset
-
-1. Load sample data:
-
-    ```sql
-    1,Benjamin,18
-    2,Emily,20
-    3,Alexander,22
-    4,Sophia,24
-    5,William,26
-    6,Charlotte,28
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test02 (
-        id       INT             NOT NULL   COMMENT "User ID",
-        name     VARCHAR(30)     NOT NULL   COMMENT "Name",
-        age      INT                        COMMENT "Age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job02 ON routine_test02
-            COLUMNS TERMINATED BY ","
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad02",
-                "kafka_partitions" = "0",
-                "kafka_offsets" = "3"
-            );
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test02;
-    +------+--------------+------+
-    | id   | name         | age  |
-    +------+--------------+------+
-    |    4 | Sophia       |   24 |
-    |    5 | William      |   26 |
-    |    6 | Charlotte    |   28 |
-    +------+--------------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-### Specifying the Consumer Group's group.id and client.id
-
-1. Load sample data:
-
-    ```sql
-    1,Benjamin,18
-    2,Emily,20
-    3,Alexander,22
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test03 (
-        id       INT             NOT NULL   COMMENT "User ID",
-        name     VARCHAR(30)     NOT NULL   COMMENT "Name",
-        age      INT                        COMMENT "Age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job03 ON routine_test03
-            COLUMNS TERMINATED BY ","
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad01",
-                "property.group.id" = "kafka_job03",
-                "property.client.id" = "kafka_client_03",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test03;
-    +------+------------+------+
-    | id   | name       | age  |
-    +------+------------+------+
-    |    1 | Benjamin   |   18 |
-    |    2 | Emily      |   20 |
-    |    3 | Alexander  |   22 |
-    +------+------------+------+
-    3 rows in set (0.01 sec)
-    ```
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "max_filter_ratio:0.4" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
 
 ### Setting load filtering conditions
 
-1. Load sample data:
+During the load job, you can use the WHERE parameter to apply conditional filtering to the imported data. The filtered data will not be included in the calculation of the filter ratio and will not affect the setting of `max_filter_ratio`. After the load job is complete, you can view the number of filtered rows by checking `num_rows_unselected`.
 
-    ```sql
-    1,Benjamin,18
-    2,Emily,20
-    3,Alexander,22
-    4,Sophia,24
-    5,William,26
-    6,Charlotte,28
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test04 (
-        id       INT             NOT NULL   COMMENT "User ID",
-        name     VARCHAR(30)     NOT NULL   COMMENT "Name",
-        age      INT                        COMMENT "Age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job04 ON routine_test04
-            COLUMNS TERMINATED BY ",",
-            WHERE id >= 3
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad04",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test04;
-    +------+--------------+------+
-    | id   | name         | age  |
-    +------+--------------+------+
-    |    4 | Sophia       |   24 |
-    |    5 | William      |   26 |
-    |    6 | Charlotte    |   28 |
-    +------+--------------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-### Loading specified partition data
-
-1. Load sample data:
-
-    ```sql
-    1,Benjamin,18,2024-02-04 10:00:00
-    2,Emily,20,2024-02-05 11:00:00
-    3,Alexander,22,2024-02-06 12:00:00
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test05 (
-        id      INT            NOT NULL  COMMENT "ID",
-        name    VARCHAR(30)    NOT NULL  COMMENT "Name",
-        age     INT                      COMMENT "Age",
-        date    DATETIME                 COMMENT "Date"
-    )
-    DUPLICATE KEY(`id`)
-    PARTITION BY RANGE(`id`)
-    (PARTITION partition_a VALUES [("0"), ("1")),
-    PARTITION partition_b VALUES [("1"), ("2")),
-    PARTITION partition_c VALUES [("2"), ("3")))
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job05 ON routine_test05
-            COLUMNS TERMINATED BY ",",
-            PARTITION(partition_b)
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad05",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test05;
-    +------+----------+------+---------------------+
-    | id   | name     | age  | date                |
-    +------+----------+------+---------------------+
-    |    1 | Benjamin |   18 | 2024-02-04 10:00:00 |
-    +------+----------+------+---------------------+
-    1 rows in set (0.01 sec)
-    ```
-
-### Setting Time Zone for load
-
-1. Load sample data:
-
-    ```sql
-    1,Benjamin,18,2024-02-04 10:00:00
-    2,Emily,20,2024-02-05 11:00:00
-    3,Alexander,22,2024-02-06 12:00:00
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test06 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-        date    DATETIME                 COMMENT "date"
-    )
-    DUPLICATE KEY(id)
-    DISTRIBUTED BY HASH(id) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job06 ON routine_test06
-            COLUMNS TERMINATED BY ","
-            PROPERTIES
-            (
-                "timezone" = "Asia/Shanghai"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad06",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test06;
-    +------+-------------+------+---------------------+
-    | id   | name        | age  | date                |
-    +------+-------------+------+---------------------+
-    |    1 | Benjamin    |   18 | 2024-02-04 10:00:00 |
-    |    2 | Emily       |   20 | 2024-02-05 11:00:00 |
-    |    3 | Alexander   |   22 | 2024-02-06 12:00:00 |
-    +------+-------------+------+---------------------+
-    3 rows in set (0.00 sec)
-    ```
-
-### Setting merge_type
-
-**Specify merge_type for delete operation**
-
-1. Load sample data:
-
-    ```sql
-    3,Alexander,22
-    5,William,26
-    ```
-
-   Table data before load:
-
-    ```sql
-    mysql> SELECT * FROM routine_test07;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    |    4 | Sophia         |   24 |
-    |    5 | William        |   26 |
-    |    6 | Charlotte      |   28 |
-    +------+----------------+------+
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test07 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    UNIQUE KEY(id)
-    DISTRIBUTED BY HASH(id) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job07 ON routine_test07
-            WITH DELETE
-            COLUMNS TERMINATED BY ","
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad07",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> SELECT * FROM routine_test07;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    4 | Sophia         |   24 |
-    |    6 | Charlotte      |   28 |
-    +------+----------------+------+
-    ```
-
-**Specify merge_type for merge operation**
-
-1. Load sample data:
-
-    ```sql
-    1,xiaoxiaoli,28
-    2,xiaoxiaowang,30
-    3,xiaoxiaoliu,32
-    4,dadali,34
-    5,dadawang,36
-    6,dadaliu,38
-    ```
-
-   Table data before load:
-
-    ```sql
-    mysql> SELECT * FROM routine_test08;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    |    4 | Sophia         |   24 |
-    |    5 | William        |   26 |
-    |    6 | Charlotte      |   28 |
-    +------+----------------+------+
-    6 rows in set (0.01 sec)
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test08 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    UNIQUE KEY(id)
-    DISTRIBUTED BY HASH(id) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job08 ON routine_test08
-            WITH MERGE
-            COLUMNS TERMINATED BY ",",
-            DELETE ON id = 2
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad08",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );   
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> SELECT * FROM routine_test08;
-    +------+-------------+------+
-    | id   | name        | age  |
-    +------+-------------+------+
-    |    1 | xiaoxiaoli  |   28 |
-    |    3 | xiaoxiaoliu |   32 |
-    |    4 | dadali      |   34 |
-    |    5 | dadawang    |   36 |
-    |    6 | dadaliu     |   38 |
-    +------+-------------+------+
-    5 rows in set (0.00 sec)
-    ```
-
-**Specifying the sequence column to be merged**
-
-1. Load sample data:
-
-    ```sql
-    1,xiaoxiaoli,28
-    2,xiaoxiaowang,30
-    3,xiaoxiaoliu,32
-    4,dadali,34
-    5,dadawang,36
-    6,dadaliu,38
-    ```
-
-   Data in the table before loading:
-
-    ```sql
-    mysql> SELECT * FROM routine_test09;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    |    4 | Sophia         |   24 |
-    |    5 | William        |   26 |
-    |    6 | Charlotte      |   28 |
-    +------+----------------+------+
-    6 rows in set (0.01 sec)
-    ```
-
-2. Create table
-
-    ```sql
-    CREATE TABLE demo.routine_test08 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-    )
-    UNIQUE KEY(id)
-    DISTRIBUTED BY HASH(id) BUCKETS 1
-    PROPERTIES (
-        "function_column.sequence_col" = "age"
-    );
-    ```
-
-3. Load Command
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job09 ON routine_test09
-            WITH MERGE 
-            COLUMNS TERMINATED BY ",",
-            COLUMNS(id, name, age),
-            DELETE ON id = 2,
-            ORDER BY age
-            PROPERTIES
-            (
-                "desired_concurrent_number"="1",
-                "strict_mode" = "false"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad09",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );   
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> SELECT * FROM routine_test09;
-    +------+-------------+------+
-    | id   | name        | age  |
-    +------+-------------+------+
-    |    1 | xiaoxiaoli  |   28 |
-    |    3 | xiaoxiaoliu |   32 |
-    |    4 | dadali      |   34 |
-    |    5 | dadawang    |   36 |
-    |    6 | dadaliu     |   38 |
-    +------+-------------+------+
-    5 rows in set (0.00 sec)
-    ```
-
-### Load with column mapping and derived column calculation
-
-1. Load sample data:
-
-    ```sql
-    1,Benjamin,18
-    2,Emily,20
-    3,Alexander,22
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test10 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-        num     INT                      COMMENT "number"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job10 ON routine_test10
-            COLUMNS TERMINATED BY ",",
-            COLUMNS(id, name, age, num=age*10)
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad10",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> SELECT * FROM routine_test10;
-    +------+----------------+------+------+
-    | id   | name           | age  | num  |
-    +------+----------------+------+------+
-    |    1 | Benjamin       |   18 |  180 |
-    |    2 | Emily          |   20 |  200 |
-    |    3 | Alexander      |   22 |  220 |
-    +------+----------------+------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-### Load with enclosed data
-
-1. Load sample data:
-
-    ```sql
-    1,"Benjamin",18
-    2,"Emily",20
-    3,"Alexander",22
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test11 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-        num     INT                      COMMENT "number"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job11 ON routine_test11
-            COLUMNS TERMINATED BY ","
-            PROPERTIES
-            (
-                "desired_concurrent_number"="1",
-                "enclose" = "\""
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad12",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> SELECT * FROM routine_test11;
-    +------+----------------+------+------+
-    | id   | name           | age  | num  |
-    +------+----------------+------+------+
-    |    1 | Benjamin       |   18 |  180 |
-    |    2 | Emily          |   20 |  200 |
-    |    3 | Alexander      |   22 |  220 |
-    +------+----------------+------+------+
-    3 rows in set (0.02 sec)
-    ```
-
-### JSON Format Load
-
-**Load JSON format data in simple mode**
-
-1. Load sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18 }
-    { "id" : 2, "name" : "Emily", "age":20 }
-    { "id" : 3, "name" : "Alexander", "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test12 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job12 ON routine_test12
-            PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad12",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test12;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    +------+----------------+------+
-    3 rows in set (0.02 sec)
-    ```
-
-**Load complex JSON format data in match mode**
-
-1. Load sample data
-
-    ```sql
-    { "name" : "Benjamin", "id" : 1, "num":180 , "age":18 }
-    { "name" : "Emily", "id" : 2, "num":200 , "age":20 }
-    { "name" : "Alexander", "id" : 3, "num":220 , "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test13 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-        num     INT                      COMMENT "num"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job13 ON routine_test13
-            COLUMNS(name, id, num, age)
-            PROPERTIES
-            (
-                "format" = "json",
-                "jsonpaths" = "[\"$.name\",\"$.id\",\"$.num\",\"$.age\"]"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad13",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test13;
-    +------+----------------+------+------+
-    | id   | name           | age  | num  |
-    +------+----------------+------+------+
-    |    1 | Benjamin       |   18 |  180 |
-    |    2 | Emily          |   20 |  200 |
-    |    3 | Alexander      |   22 |  220 |
-    +------+----------------+------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-**Loading data with specified JSON root node**
-
-1. Load sample data
-
-    ```sql
-    {"id": 1231, "source" :{ "id" : 1, "name" : "Benjamin", "age":18 }}
-    {"id": 1232, "source" :{ "id" : 2, "name" : "Emily", "age":20 }}
-    {"id": 1233, "source" :{ "id" : 3, "name" : "Alexander", "age":22 }}
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test14 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job14 ON routine_test14
-            PROPERTIES
-            (
-                "format" = "json",
-                "json_root" = "$.source"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad14",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result
-
-    ```sql
-    mysql> select * from routine_test14;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    +------+----------------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-**Loading data with column mapping and derived column calculation**
-
-1. Load sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18 }
-    { "id" : 2, "name" : "Emily", "age":20 }
-    { "id" : 3, "name" : "Alexander", "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test15 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age",
-        num     INT                      COMMENT "num"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job15 ON routine_test15
-            COLUMNS(id, name, age, num=age*10)
-            PROPERTIES
-            (
-                "format" = "json",
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad15",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test15;
-    +------+----------------+------+------+
-    | id   | name           | age  | num  |
-    +------+----------------+------+------+
-    |    1 | Benjamin       |   18 |  180 |
-    |    2 | Emily          |   20 |  200 |
-    |    3 | Alexander      |   22 |  220 |
-    +------+----------------+------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-### Loading Complex Data Types
-
-**Load Array Data Type**
-
-1. Load sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18, "array":[1,2,3,4,5]}
-    { "id" : 2, "name" : "Emily", "age":20, "array":[6,7,8,9,10]}
-    { "id" : 3, "name" : "Alexander", "age":22, "array":[11,12,13,14,15]}
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test16
-    (
-        id      INT             NOT NULL  COMMENT "id",
-        name    VARCHAR(30)     NOT NULL  COMMENT "name",
-        age     INT                       COMMENT "age",
-        array   ARRAY<int(11)>  NULL      COMMENT "test array column"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job16 ON routine_test16
-            PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad16",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test16;
-    +------+----------------+------+----------------------+
-    | id   | name           | age  | array                |
-    +------+----------------+------+----------------------+
-    |    1 | Benjamin       |   18 | [1, 2, 3, 4, 5]      |
-    |    2 | Emily          |   20 | [6, 7, 8, 9, 10]     |
-    |    3 | Alexander      |   22 | [11, 12, 13, 14, 15] |
-    +------+----------------+------+----------------------+
-    3 rows in set (0.00 sec)
-    ```
-
-**Loading Map Data Type**
-
-1. Load sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18, "map":{"a": 100, "b": 200}}
-    { "id" : 2, "name" : "Emily", "age":20, "map":{"c": 300, "d": 400}}
-    { "id" : 3, "name" : "Alexander", "age":22, "map":{"e": 500, "f": 600}}
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test17 (
-        id      INT                 NOT NULL  COMMENT "id",
-        name    VARCHAR(30)         NOT NULL  COMMENT "name",
-        age     INT                           COMMENT "age",
-        map     Map<STRING, INT>    NULL      COMMENT "test column"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job17 ON routine_test17
-        PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad17",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test17;
-    +------+----------------+------+--------------------+
-    | id   | name           | age  | map                |
-    +------+----------------+------+--------------------+
-    |    1 | Benjamin       |   18 | {"a":100, "b":200} |
-    |    2 | Emily          |   20 | {"c":300, "d":400} |
-    |    3 | Alexander      |   22 | {"e":500, "f":600} |
-    +------+----------------+------+--------------------+
-    3 rows in set (0.01 sec)
-    ```
-
-**Loading Bitmap Data Type**
-
-1. Load sample data
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18, "bitmap_id":243}
-    { "id" : 2, "name" : "Emily", "age":20, "bitmap_id":28574}
-    { "id" : 3, "name" : "Alexander", "age":22, "bitmap_id":8573}
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test18 (
-        id        INT            NOT NULL      COMMENT "id",
-        name      VARCHAR(30)    NOT NULL      COMMENT "name",
-        age       INT                          COMMENT "age",
-        bitmap_id INT                          COMMENT "test",
-        device_id BITMAP         BITMAP_UNION  COMMENT "test column"
-    )
-    AGGREGATE KEY (`id`,`name`,`age`,`bitmap_id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job18 ON routine_test18
-            COLUMNS(id, name, age, bitmap_id, device_id=to_bitmap(bitmap_id))
-            PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad18",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select id, BITMAP_UNION_COUNT(pv) over(order by id) uv from(
-        ->    select id, BITMAP_UNION(device_id) as pv
-        ->    from routine_test18 
-        -> group by id 
-        -> ) final;
-    +------+------+
-    | id   | uv   |
-    +------+------+
-    |    1 |    1 |
-    |    2 |    2 |
-    |    3 |    3 |
-    +------+------+
-    3 rows in set (0.00 sec)
-    ```
-
-**Loading HLL Data Type**
-
-1. Loading sample data:
-
-    ```sql
-    2022-05-05,10001,Test01,Beijing,windows
-    2022-05-05,10002,Test01,Beijing,linux
-    2022-05-05,10003,Test01,Beijing,macos
-    2022-05-05,10004,Test01,Hebei,windows
-    2022-05-06,10001,Test01,Shanghai,windows
-    2022-05-06,10002,Test01,Shanghai,linux
-    2022-05-06,10003,Test01,Jiangsu,macos
-    2022-05-06,10004,Test01,Shaanxi,windows
-    ```
-
-2. Create table:
-
-    ```sql
-    create table demo.routine_test19 (
-        dt        DATE,
-        id        INT,
-        name      VARCHAR(10),
-        province  VARCHAR(10),
-        os        VARCHAR(10),
-        pv        hll hll_union
-    )
-    Aggregate KEY (dt,id,name,province,os)
-    distributed by hash(id) buckets 10;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job19 ON routine_test19
-            COLUMNS TERMINATED BY ",",
-            COLUMNS(dt, id, name, province, os, pv=hll_hash(id))
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "10.16.10.6:9092",
-                "kafka_topic" = "routineLoad19",
-                "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test19;
-    +------------+-------+----------+----------+---------+------+
-    | dt         | id    | name     | province | os      | pv   |
-    +------------+-------+----------+----------+---------+------+
-    | 2022-05-05 | 10001 | Test01   | Beijing     | windows | NULL |
-    | 2022-05-06 | 10001 | Test01   | Shanghai    | windows | NULL |
-    | 2022-05-05 | 10002 | Test01   | Beijing     | linux   | NULL |
-    | 2022-05-06 | 10002 | Test01   | Shanghai    | linux   | NULL |
-    | 2022-05-05 | 10004 | Test01   | Heibei      | windows | NULL |
-    | 2022-05-06 | 10004 | Test01   | Shanxi      | windows | NULL |
-    | 2022-05-05 | 10003 | Test01   | Beijing     | macos   | NULL |
-    | 2022-05-06 | 10003 | Test01   | Jiangsu     | macos   | NULL |
-    +------------+-------+----------+----------+---------+------+
-    8 rows in set (0.01 sec)
-    
-    mysql> SELECT HLL_UNION_AGG(pv) FROM routine_test19;
-    +-------------------+
-    | hll_union_agg(pv) |
-    +-------------------+
-    |                 4 |
-    +-------------------+
-    1 row in set (0.01 sec)
-    ```
-
-### Kafka Security Authentication
-
-**Loading Kafka data with SSL authentication**
-
-1. Loading sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18 }
-    { "id" : 2, "name" : "Emily", "age":20 }
-    { "id" : 3, "name" : "Alexander", "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test20 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job20 ON routine_test20
-            PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "192.168.100.129:9092",
-                "kafka_topic" = "routineLoad21",
-                "property.security.protocol" = "ssl",
-                "property.ssl.ca.location" = "FILE:ca.pem",
-                "property.ssl.certificate.location" = "FILE:client.pem",
-                "property.ssl.key.location" = "FILE:client.key",
-                "property.ssl.key.password" = "ssl_passwd"
-            );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test20;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    +------+----------------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-**Loading Kafka data with Kerberos authentication**
-
-1. Loading sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18 }
-    { "id" : 2, "name" : "Emily", "age":20 }
-    { "id" : 3, "name" : "Alexander", "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test21 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job21 ON routine_test21
-    PROPERTIES
-    (
-        "format" = "json"
-    )
-    FROM KAFKA
-    (
-        "kafka_broker_list" = "192.168.100.129:9092",
-        "kafka_topic" = "routineLoad21",
-        "property.security.protocol" = "SASL_PLAINTEXT",
-        "property.sasl.kerberos.service.name" = "kafka",
-        "property.sasl.kerberos.keytab"="/path/to/kafka_client.keytab",
-        "property.sasl.kerberos.principal" = "clients/stream.dt.local@EXAMPLE.COM"
-    );  
-    ```
-
-4. Load result:
-
-    ```sql
-    mysql> select * from routine_test21;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    +------+----------------+------+
-    3 rows in set (0.01 sec)
-    ```
-
-**Loading Kafka data with PLAIN authentication in Kafka cluster**
-
-1. Loading sample data:
-
-    ```sql
-    { "id" : 1, "name" : "Benjamin", "age":18 }
-    { "id" : 2, "name" : "Emily", "age":20 }
-    { "id" : 3, "name" : "Alexander", "age":22 }
-    ```
-
-2. Create table:
-
-    ```sql
-    CREATE TABLE demo.routine_test22 (
-        id      INT            NOT NULL  COMMENT "id",
-        name    VARCHAR(30)    NOT NULL  COMMENT "name",
-        age     INT                      COMMENT "age"
-    )
-    DUPLICATE KEY(`id`)
-    DISTRIBUTED BY HASH(`id`) BUCKETS 1;
-    ```
-
-3. Load command:
-
-    ```sql
-    CREATE ROUTINE LOAD demo.kafka_job22 ON routine_test22
-            PROPERTIES
-            (
-                "format" = "json"
-            )
-            FROM KAFKA
-            (
-                "kafka_broker_list" = "192.168.100.129:9092",
-                "kafka_topic" = "routineLoad22",
-                "property.security.protocol"="SASL_PLAINTEXT",
-                "property.sasl.mechanism"="PLAIN",
-                "property.sasl.username"="admin",
-                "property.sasl.password"="admin"
-            );  
-    ```
-
-4. Load result
-
-    ```sql
-    mysql> select * from routine_test22;
-    +------+----------------+------+
-    | id   | name           | age  |
-    +------+----------------+------+
-    |    1 | Benjamin       |   18 |
-    |    2 | Emily          |   20 |
-    |    3 | Alexander      |   22 |
-    +------+----------------+------+
-    3 rows in set (0.02 sec)
-    ```
-
-### Single-task Loading to Multiple Tables
-
-Create a Kafka routine dynamic table load task named "test1" for the "example_db". Specify the column delimiter, group.id, and client.id. Automatically consume all partitions and start subscribing from the available data position (OFFSET_BEGINNING).
-
-Assuming we need to load data from Kafka into tables "tbl1" and "tbl2" in the "example_db", we create a Routine Load task named "test1". This task will load data from Kafka's topic `my_topic` into both "tbl1" and "tbl2" simultaneously. This way, we can load data from Kafka into two tables using a single routine load task.
+You can use the following command to specify WHERE filtering conditions for creating a Stream Load job:
 
 ```sql
-CREATE ROUTINE LOAD example_db.test1
-FROM KAFKA
-(
-    "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-    "kafka_topic" = "my_topic",
-    "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-);
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "where:age>=35" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
 ```
 
-Currently, only extracting the table name from the Value field of Kafka is supported. The format should be as follows, using JSON as an example: `table_name|{"col1": "val1", "col2": "val2"}`, where `tbl_name` is the table name and `|` is used as the separator between the table name and the table data. The same format applies to CSV data, such as `table_name|val1,val2,val3`. Note that the `table_name` here must be consistent with the table name in Doris, otherwise the load will fail. Note that dynamic tables do not support the column_mapping configuration described later.
+### Loading data into specific partitions
 
-### Strict Mode Load
+Loading data from local files into partitions p1 and p2 of the table, allowing a 20% error rate.
 
-Create a Kafka routine load task named "test1" for the "example_db" and "example_tbl". The load task is set to strict mode.
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "label:123" \
+    -H "Expect:100-continue" \
+    -H "max_filter_ratio:0.2" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -H "partitions: p1, p2" \ 
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading data into specific timezone
+
+Since Doris currently does not have a built-in time zone time type, all `DATETIME` related types only represent absolute time points, do not contain time zone information, and will not change due to changes in the Doris system time zone. Therefore, for the import of data with time zones, our unified processing method is to convert it into data in a specific target time zone. In the Doris system, it is the time zone represented by the session variable `time_zone`.
+
+In the import, our target time zone is specified through the parameter `timezone`. This variable will replace the session variable `time_zone` when time zone conversion occurs and time zone sensitive functions are calculated. Therefore, if there are no special circumstances, the `timezone` should be set in the import transaction to be consistent with the `time_zone` of the current Doris cluster. This means that all time data with a time zone will be converted to this time zone.
+
+For example, the Doris system time zone is "+08:00", and the time column in the imported data contains two pieces of data, namely "2012-01-01 01:00:00+00:00" and "2015-12-12 12 :12:12-08:00", then after we specify the time zone of the imported transaction through `-H "timezone: +08:00"` when importing, both pieces of data will be converted to the time zone to obtain the result." 2012-01-01 09:00:00" and "2015-12-13 04:12:12".
+
+For more information on time zone interpretation, please refer to the document [Time Zone](../../../admin-manual/cluster-management/time-zone).
+
+### Streamingly import
+
+Stream Load is based on the HTTP protocol for importing, which supports using programming languages such as Java, Go, or Python for streaming import. This is why it is named Stream Load.
+
+The following example demonstrates this usage through a bash command pipeline. The imported data is generated streamingly by the program rather than from a local file.
+
+```shell
+seq 1 10 | awk '{OFS="\t"}{print $1, $1 * 10}' | curl --location-trusted -u root -T - http://host:port/api/testDb/testTbl/_stream_load
+```
+
+### Setting CSV first row filtering
+
+File data:
+
+```Plain
+ id,name,age
+ 1,doris,20
+ 2,flink,10
+```
+
+Filtering  the first row during load by specifying ` format=csv_with_names`
+
+```Plain
+curl --location-trusted -u root -T test.csv  -H "label:1" -H "format:csv_with_names" -H "column_separator:," http://host:port/api/testDb/testTbl/_stream_load
+```
+
+### Specifying merge_type for DELETE operations
+
+In stream load, there are three import types: APPEND, DELETE, and MERGE. These can be adjusted by specifying the parameter `merge_type`. If you want to specify that all data with the same key as the imported data should be deleted, you can use the following command:
+
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "merge_type: DELETE" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+Before loading:
 
 ```sql
-CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-COLUMNS(k1, k2, k3, v1, v2, v3 = k1 * 100),
-PRECEDING FILTER k1 = 1,
-WHERE k1 < 100 and k2 like "%doris%"
-PROPERTIES
-(
-    "strict_mode" = "true"
++--------+----------+----------+------+
+| siteid | citycode | username | pv   |
++--------+----------+----------+------+
+|      3 |        2 | tom      |    2 |
+|      4 |        3 | bush     |    3 |
+|      5 |        3 | helen    |    3 |
++--------+----------+----------+------+
+```
+
+The imported data is:
+
+```sql
+3,2,tom,0
+```
+
+After importing, the original table data will be deleted, resulting in the following result:
+
+```sql
++--------+----------+----------+------+
+| siteid | citycode | username | pv   |
++--------+----------+----------+------+
+|      4 |        3 | bush     |    3 |
+|      5 |        3 | helen    |    3 |
++--------+----------+----------+------+
+```
+
+### Specifying merge_type for MERGE operation
+
+By specifying `merge_type` as MERGE, the imported data can be merged into the table. The MERGE semantics need to be used in combination with the DELETE condition, which means that data satisfying the DELETE condition is processed according to the DELETE semantics, and the rest is added to the table according to the APPEND semantics. The following operation represents deleting the row with `siteid` of 1, and adding the rest of the data to the table:
+
+```shell
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "merge_type: MERGE" \
+    -H "delete: siteid=1" \
+    -H "column_separator:," \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+Before loading:
+
+```sql
++--------+----------+----------+------+
+| siteid | citycode | username | pv   |
++--------+----------+----------+------+
+|      4 |        3 | bush     |    3 |
+|      5 |        3 | helen    |    3 |
+|      1 |        1 | jim      |    2 |
++--------+----------+----------+------+
+```
+
+The imported data is:
+
+```sql
+2,1,grace,2
+3,2,tom,2
+1,1,jim,2
+```
+
+After loading, the row with `siteid = 1` will be deleted according to the condition, and the rows with `siteid` of 2 and 3 will be added to the table:
+
+```sql
++--------+----------+----------+------+
+| siteid | citycode | username | pv   |
++--------+----------+----------+------+
+|      4 |        3 | bush     |    3 |
+|      2 |        1 | grace    |    2 |
+|      3 |        2 | tom      |    2 |
+|      5 |        3 | helen    |    3 |
++--------+----------+----------+------+
+```
+
+### Specifying sequence column for merge
+
+When a table with a Unique Key has a Sequence column, the value of the Sequence column serves as the basis for the replacement order in the REPLACE aggregation function under the same Key column. A larger value can replace a smaller one. When marking deletions based on `DORIS_DELETE_SIGN` for such a table, it is necessary to ensure that the Key is the same and that the Sequence column value is greater than or equal to the current value. By specifying the `function_column.sequence_col` parameter, deletion operations can be performed in combination with `merge_type: DELETE`.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "merge_type: DELETE" \
+    -H "function_column.sequence_col: age" \
+    -H "column_separator:," \
+    -H "columns: name, gender, age" 
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+Given the following table schema:
+
+```sql
+mysql> SET show_hidden_columns=true;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> DESC table1;
++------------------------+--------------+------+-------+---------+---------+
+| Field                  | Type         | Null | Key   | Default | Extra   |
++------------------------+--------------+------+-------+---------+---------+
+| name                   | VARCHAR(100) | No   | true  | NULL    |         |
+| gender                 | VARCHAR(10)  | Yes  | false | NULL    | REPLACE |
+| age                    | INT          | Yes  | false | NULL    | REPLACE |
+| __DORIS_DELETE_SIGN__  | TINYINT      | No   | false | 0       | REPLACE |
+| __DORIS_SEQUENCE_COL__ | INT          | Yes  | false | NULL    | REPLACE |
++------------------------+--------------+------+-------+---------+---------+
+4 rows in set (0.00 sec)
+```
+
+The original table data is:
+
+```sql
++-------+--------+------+
+| name  | gender | age  |
++-------+--------+------+
+| li    | male   |   10 |
+| wang  | male   |   14 |
+| zhang | male   |   12 |
++-------+--------+------+
+```
+
+1. Sequence parameter takes Eeffect, loading sequence column value is larger than or equal to the existing data in the table.
+
+   loading data as:
+
+```sql
+li,male,10
+```
+
+Since `function_column.sequence_col` is specified as `age`, and the `age` value is larger than or equal to the existing column in the table, the original table data is deleted. The table data becomes:
+
+```sql
++-------+--------+------+
+| name  | gender | age  |
++-------+--------+------+
+| wang  | male   |   14 |
+| zhang | male   |   12 |
++-------+--------+------+
+```
+
+2. Sequence parameter do not take effect, loading sequence column value is less than or equal to the existing data in the table:
+
+   loading data as:
+
+```sql
+li,male,9
+```
+
+Since `function_column.sequence_col` is specified as `age`, but the `age` value is less than the existing column in the table, the delete operation does not take effect. The table data remains unchanged, and the row with the primary key of `li` is still visible:
+
+```sql
++-------+--------+------+
+| name  | gender | age  |
++-------+--------+------+
+| li    | male   |   10 |
+| wang  | male   |   14 |
+| zhang | male   |   12 |
++-------+--------+------+
+```
+
+It is not deleted because that, at the underlying dependency level, it first checks for rows with the same key. It displays the row data with the larger sequence column value. Then, it checks the `DORIS_DELETE_SIGN` value for that row. If it is 1, it is not displayed externally. If it is 0, it is still read and displayed.
+
+### Loading data with enclosing characters
+
+When the data in a CSV file contains delimiters or separators, single-byte characters can be specified as enclosing characters to protect the data from being truncated.
+
+For example, in the following data where a comma is used as the separator but also exists within a field:
+
+```sql
+zhangsan,30,'Shanghai, HuangPu District, Dagu Road'
+```
+
+By specifying an enclosing character such as a single quotation mark ', the entire `Shanghai, HuangPu District, Dagu Road` can be treated as a single field.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "column_separator:," \
+    -H "enclose:'" \
+    -H "columns:username,age,address" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+If the enclosing character also appears within a field, such as wanting to treat `Shanghai City, Huangpu District, \'Dagu Road` as a single field, it is necessary to first perform string escaping within the column:
+
+```
+Zhang San,30,'Shanghai, Huangpu District, \'Dagu Road'
+```
+
+An escape character, which is a single-byte character, can be specified using the escape parameter. In the example, the backslash `\` is used as the escape character.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "column_separator:," \
+    -H "enclose:'" \
+    -H "escape:\\" \
+    -H "columns:username,age,address" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading fields containing default CURRENT_TIMESTAMP type
+
+Here's an example of loading data into a table that contains a field with the DEFAULT CURRENT_TIMESTAMP type:
+
+Table schema:
+
+```sql
+`id` bigint(30) NOT NULL,
+`order_code` varchar(30) DEFAULT NULL COMMENT '',
+`create_time` datetimev2(3) DEFAULT CURRENT_TIMESTAMP
+```
+
+JSON data type:
+
+```Plain
+{"id":1,"order_Code":"avc"}
+```
+
+Command:
+
+```shell
+curl --location-trusted -u root -T test.json -H "label:1" -H "format:json" -H 'columns: id, order_code, create_time=CURRENT_TIMESTAMP()' http://host:port/api/testDb/testTbl/_stream_load
+```
+
+### Simple mode for loading JSON format data
+
+When the JSON fields correspond one-to-one with the column names in the table, you can import JSON data format into the table by specifying the parameters "strip_outer_array:true" and "format:json".
+
+For example, if the table is defined as follows:
+
+```sql
+CREATE TABLE testdb.test_streamload(
+    user_id            BIGINT       NOT NULL COMMENT "User ID",
+    name               VARCHAR(20)           COMMENT "User name",
+    age                INT                   COMMENT "User age"
 )
-FROM KAFKA
-(
-    "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-    "kafka_topic" = "my_topic"
-);
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-## More Details
+And the data field names correspond one-to-one with the column names in the table:
 
-Refer to the SQL manual on [Routine Load](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/CREATE-ROUTINE-LOAD). You can also enter `HELP ROUTINE LOAD` in the client command line for more help.
+```sql
+[
+{"user_id":1,"name":"Emily","age":25},
+{"user_id":2,"name":"Benjamin","age":35},
+{"user_id":3,"name":"Olivia","age":28},
+{"user_id":4,"name":"Alexander","age":60},
+{"user_id":5,"name":"Ava","age":17},
+{"user_id":6,"name":"William","age":69},
+{"user_id":7,"name":"Sophia","age":32},
+{"user_id":8,"name":"James","age":64},
+{"user_id":9,"name":"Emma","age":37},
+{"user_id":10,"name":"Liam","age":64}
+]
+```
+
+You can use the following command to load JSON data into the table:
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "format:json" \
+    -H "strip_outer_array:true" \
+    -T streamload_example.json \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Matching mode for loading complex JSON format data
+
+When the JSON data is more complex and cannot correspond one-to-one with the column names in the table, or there are extra columns, you can use the jsonpaths parameter to complete the column name mapping and perform data matching import. For example, with the following data:
+
+```sql
+[
+{"userid":1,"hudi":"lala","username":"Emily","userage":25,"userhp":101},
+{"userid":2,"hudi":"kpkp","username":"Benjamin","userage":35,"userhp":102},
+{"userid":3,"hudi":"ji","username":"Olivia","userage":28,"userhp":103},
+{"userid":4,"hudi":"popo","username":"Alexander","userage":60,"userhp":103},
+{"userid":5,"hudi":"uio","username":"Ava","userage":17,"userhp":104},
+{"userid":6,"hudi":"lkj","username":"William","userage":69,"userhp":105},
+{"userid":7,"hudi":"komf","username":"Sophia","userage":32,"userhp":106},
+{"userid":8,"hudi":"mki","username":"James","userage":64,"userhp":107},
+{"userid":9,"hudi":"hjk","username":"Emma","userage":37,"userhp":108},
+{"userid":10,"hudi":"hua","username":"Liam","userage":64,"userhp":109}
+]
+```
+
+You can specify the jsonpaths parameter to match the specified columns:
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "format:json" \
+    -H "strip_outer_array:true" \
+    -H "jsonpaths:[\"$.userid\", \"$.username\", \"$.userage\"]" \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.json \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Specifying JSON root node for data load
+
+If the JSON data contains nested JSON fields, you need to specify the root node of the imported JSON. The default value is "".
+
+For example, with the following data, if you want to import the data in the comment column into the table:
+
+```sql
+[
+    {"user":1,"comment":{"userid":101,"username":"Emily","userage":25}},
+    {"user":2,"comment":{"userid":102,"username":"Benjamin","userage":35}},
+    {"user":3,"comment":{"userid":103,"username":"Olivia","userage":28}},
+    {"user":4,"comment":{"userid":104,"username":"Alexander","userage":60}},
+    {"user":5,"comment":{"userid":105,"username":"Ava","userage":17}},
+    {"user":6,"comment":{"userid":106,"username":"William","userage":69}},
+    {"user":7,"comment":{"userid":107,"username":"Sophia","userage":32}},
+    {"user":8,"comment":{"userid":108,"username":"James","userage":64}},
+    {"user":9,"comment":{"userid":109,"username":"Emma","userage":37}},
+    {"user":10,"comment":{"userid":110,"username":"Liam","userage":64}}
+    ]
+```
+
+First, you need to specify the root node as comment using the json_root parameter, and then complete the column name mapping according to the jsonpaths parameter.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "format:json" \
+    -H "strip_outer_array:true" \
+    -H "json_root: $.comment" \
+    -H "jsonpaths:[\"$.userid\", \"$.username\", \"$.userage\"]" \
+    -H "columns:user_id,name,age" \
+    -T streamload_example.json \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading array data type
+
+For example, if the following data contains an array type:
+
+```sql
+1|Emily|[1,2,3,4]
+2|Benjamin|[22,45,90,12]
+3|Olivia|[23,16,19,16]
+4|Alexander|[123,234,456]
+5|Ava|[12,15,789]
+6|William|[57,68,97]
+7|Sophia|[46,47,49]
+8|James|[110,127,128]
+9|Emma|[19,18,123,446]
+10|Liam|[89,87,96,12]
+```
+
+Load data into the following table structure:
+
+```sql
+CREATE TABLE testdb.test_streamload(
+    typ_id     BIGINT          NOT NULL COMMENT "ID",
+    name       VARCHAR(20)     NULL     COMMENT "Name",
+    arr        ARRAY<int(10)>  NULL     COMMENT "Array"
+)
+DUPLICATE KEY(typ_id)
+DISTRIBUTED BY HASH(typ_id) BUCKETS 10;
+```
+
+You can directly load the ARRAY type from a text file into the table using a Stream Load job.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "column_separator:|" \
+    -H "columns:typ_id,name,arr" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading map data type
+
+When the imported data contains a map type, as in the following example:
+
+```sql
+[
+{"user_id":1,"namemap":{"Emily":101,"age":25}},
+{"user_id":2,"namemap":{"Benjamin":102,"age":35}},
+{"user_id":3,"namemap":{"Olivia":103,"age":28}},
+{"user_id":4,"namemap":{"Alexander":104,"age":60}},
+{"user_id":5,"namemap":{"Ava":105,"age":17}},
+{"user_id":6,"namemap":{"William":106,"age":69}},
+{"user_id":7,"namemap":{"Sophia":107,"age":32}},
+{"user_id":8,"namemap":{"James":108,"age":64}},
+{"user_id":9,"namemap":{"Emma":109,"age":37}},
+{"user_id":10,"namemap":{"Liam":110,"age":64}}
+]
+```
+
+Load data into the following table structure:
+
+```sql
+CREATE TABLE testdb.test_streamload(
+    user_id            BIGINT       NOT NULL COMMENT "ID",
+    namemap            Map<STRING, INT>  NULL     COMMENT "Name"
+)
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
+```
+
+You can directly load the map type from a text file into the table using a Stream Load task.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "format: json" \
+    -H "strip_outer_array:true" \
+    -T streamload_example.json \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading bitmap data type
+
+During the import process, when encountering Bitmap type data, you can use to_bitmap to convert the data into Bitmap, or use the bitmap_empty function to fill the Bitmap.
+
+For example, with the following data:
+
+```sql
+1|koga|17723
+2|nijg|146285
+3|lojn|347890
+4|lofn|489871
+5|jfin|545679
+6|kon|676724
+7|nhga|767689
+8|nfubg|879878
+9|huang|969798
+10|buag|97997
+```
+
+Load data into the following table containing the Bitmap type:
+
+```sql
+CREATE TABLE testdb.test_streamload(
+    typ_id     BIGINT                NULL   COMMENT "ID",
+    hou        VARCHAR(10)           NULL   COMMENT "one",
+    arr        BITMAP  BITMAP_UNION  NOT NULL   COMMENT "two"
+)
+AGGREGATE KEY(typ_id,hou)
+DISTRIBUTED BY HASH(typ_id,hou) BUCKETS 10;
+```
+
+And use to_bitmap to convert the data into the Bitmap type.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "Expect:100-continue" \
+    -H "columns:typ_id,hou,arr,arr=to_bitmap(arr)" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Loading HyperLogLog data type
+
+You can use the hll_hash function to convert data into the hll type, as in the following example:
+
+```sql
+1001|koga
+1002|nijg
+1003|lojn
+1004|lofn
+1005|jfin
+1006|kon
+1007|nhga
+1008|nfubg
+1009|huang
+1010|buag
+```
+
+Load data into the following table:
+
+```sql
+CREATE TABLE testdb.test_streamload(
+    typ_id           BIGINT          NULL   COMMENT "ID",
+    typ_name         VARCHAR(10)     NULL   COMMENT "NAME",
+    pv               hll hll_union   NOT NULL   COMMENT "hll"
+)
+AGGREGATE KEY(typ_id,typ_name)
+DISTRIBUTED BY HASH(typ_id) BUCKETS 10;
+```
+
+And use the hll_hash command for import.
+
+```sql
+curl --location-trusted -u <doris_user>:<doris_password> \
+    -H "column_separator:|" \
+    -H "columns:typ_id,typ_name,pv=hll_hash(typ_id)" \
+    -T streamload_example.csv \
+    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_streamload/_stream_load
+```
+
+### Column mapping, derived columns, and filtering
+
+Doris supports a very rich set of column transformations and filtering operations in load statements. Supports most built-in functions. For how to use this feature correctly, please refer to the [Data Transformation](../../../data-operate/import/load-data-convert) documentation.
+
+### Enable strict mode import
+
+The strict_mode attribute is used to set whether the import task runs in strict mode. This attribute affects the results of column mapping, transformation, and filtering, and it also controls the behavior of partial column updates. For specific instructions on strict mode, please refer to the [Handling Messy Data](../../../data-operate/import/handling-messy-data) documentation.
+
+### Perform partial column updates/flexible partial update during import
+
+For how to express partial column updates during import, please refer to the Data Manipulation/Data Update documentation.
+
+## More help
+
+For more detailed syntax and best practices on using Stream Load, please refer to the [Stream Load](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/STREAM-LOAD) Command Manual. You can also enter HELP STREAM LOAD in the MySql client command line to get more help information.
