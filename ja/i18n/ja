@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-DELETE", "language": "en" }
+{ "title": "SHOW-DYNAMIC-PARTITION", "language": "en" }
 ---
 
 <!--
@@ -21,34 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-DELETE
+## SHOW-DYNAMIC-PARTITION
 
 ### Name
 
-SHOW DELETE
+SHOW DYNAMIC
 
 ### Description
 
-This statement is used to display the historical delete tasks that have been successfully executed
+This statement is used to display the status of all dynamic partition tables under the current db
 
 grammar:
 
 ```sql
-SHOW DELETE [FROM db_name]
+SHOW DYNAMIC PARTITION TABLES [FROM db_name];
 ```
 
 ### Example
 
-1. Display all historical delete tasks of database database
+1. Display all dynamic partition table status of database database
 
-      ```sql
-      SHOW DELETE FROM database;
-      ```
+     ```sql
+     SHOW DYNAMIC PARTITION TABLES FROM database;
+     ```
 
 ### Keywords
 
     ```
-    SHOW, DELETE
+    SHOW, DYNAMIC, PARTITION
     ```
 
 ### Best Practice
