@@ -1,5 +1,5 @@
 ---
-{ "title": "Node Action", "language": "en" }
+{ "title": "Profile Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,621 +21,167 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# Profile Action
+
 ## Request
 
-`GET /rest/v2/manager/node/frontends`
+`GET /api/profile`
+`GET /api/profile/text`
 
-`GET /rest/v2/manager/node/backends`
+## Description
 
-`GET /rest/v2/manager/node/brokers`
-
-`GET /rest/v2/manager/node/configuration_name`
-
-`GET /rest/v2/manager/node/node_list`
-
-`POST /rest/v2/manager/node/configuration_info`
-
-`POST /rest/v2/manager/node/set_config/fe`
-
-`POST /rest/v2/manager/node/set_config/be`
-
-`POST /rest/v2/manager/node/{action}/be`
-
-`POST /rest/v2/manager/node/{action}/fe`
-
-## Get information about fe, be, broker nodes
-
-`GET /rest/v2/manager/node/frontends`
-
-`GET /rest/v2/manager/node/backends`
-
-`GET /rest/v2/manager/node/brokers`
-
-### Description
-
-Used to get cluster to get fe, be, broker node information.
-
-### Response
+Used to obtain the query profile of the specified query id.
+If query_id is not exists, return 404 NOT FOUND ERROR
+If query_id exists, return query profile like this
 
 ```
-frontends:
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "column_names": [
-            "Name",
-            "IP",
-            "HostName",
-            "EditLogPort",
-            "HttpPort",
-            "QueryPort",
-            "RpcPort",
-            "ArrowFlightSqlPort",
-            "Role",
-            "IsMaster",
-            "ClusterId",
-            "Join",
-            "Alive",
-            "ReplayedJournalId",
-            "LastHeartbeat",
-            "IsHelper",
-            "ErrMsg",
-            "Version"
-        ],
-        "rows": [
-            [
-                ...
-            ]
-        ]
-    },
-    "count": 0
-}
+Query:
+  Summary:
+     - Query ID: a0a9259df9844029-845331577440a3bd
+     - Start Time: 2020-06-15 14:10:05
+     - End Time: 2020-06-15 14:10:05
+     - Total: 8ms
+     - Query Type: Query
+     - Query State: EOF
+     - Doris Version: trunk
+     - User: root
+     - Default Db: default_cluster:test
+     - Sql Statement: select * from table1
+  Execution Profile a0a9259df9844029-845331577440a3bd:(Active: 7.315ms, % non-child: 100.00%)
+    Fragment 0:
+      Instance a0a9259df9844029-845331577440a3be (host=TNetworkAddress(hostname:172.26.108.176, port:9560)):(Active: 1.523ms, % non-child: 0.24%)
+         - MemoryLimit: 2.00 GB
+         - PeakUsedReservation: 0.00
+         - PeakMemoryUsage: 72.00 KB
+         - RowsProduced: 5
+         - AverageThreadTokens: 0.00
+         - PeakReservation: 0.00
+        BlockMgr:
+           - BlocksCreated: 0
+           - BlockWritesOutstanding: 0
+           - BytesWritten: 0.00
+           - TotalEncryptionTime: 0ns
+           - BufferedPins: 0
+           - TotalReadBlockTime: 0ns
+           - TotalBufferWaitTime: 0ns
+           - BlocksRecycled: 0
+           - TotalIntegrityCheckTime: 0ns
+           - MaxBlockSize: 8.00 MB
+        DataBufferSender (dst_fragment_instance_id=a0a9259df9844029-845331577440a3be):
+           - AppendBatchTime: 9.23us
+             - ResultSendTime: 956ns
+             - TupleConvertTime: 5.735us
+           - NumSentRows: 5
+        OLAP_SCAN_NODE (id=0):(Active: 1.506ms, % non-child: 20.59%)
+           - TotalRawReadTime: 0ns
+           - CompressedBytesRead: 6.47 KB
+           - PeakMemoryUsage: 0.00
+           - RowsPushedCondFiltered: 0
+           - ScanRangesComplete: 0
+           - ScanTime: 25.195us
+           - BitmapIndexFilterTimer: 0ns
+           - BitmapIndexFilterCount: 0
+           - NumScanners: 65
+           - RowsStatsFiltered: 0
+           - VectorPredEvalTime: 0ns
+           - BlockSeekTime: 1.299ms
+           - RawRowsRead: 1.91K (1910)
+           - ScannerThreadsVoluntaryContextSwitches: 0
+           - RowsDelFiltered: 0
+           - IndexLoadTime: 911.104us
+           - NumDiskAccess: 1
+           - ScannerThreadsTotalWallClockTime: 0ns
+             - MaterializeTupleTime: 0ns
+             - ScannerThreadsUserTime: 0ns
+             - ScannerThreadsSysTime: 0ns
+           - TotalPagesNum: 0
+           - RowsReturnedRate: 3.319K /sec
+           - BlockLoadTime: 539.289us
+           - CachedPagesNum: 0
+           - BlocksLoad: 384
+           - UncompressedBytesRead: 0.00
+           - RowsBloomFilterFiltered: 0
+           - TabletCount : 1
+           - RowsReturned: 5
+           - ScannerThreadsInvoluntaryContextSwitches: 0
+           - DecompressorTimer: 0ns
+           - RowsVectorPredFiltered: 0
+           - ReaderInitTime: 6.498ms
+           - RowsRead: 5
+           - PerReadThreadRawHdfsThroughput: 0.0 /sec
+           - BlockFetchTime: 4.318ms
+           - ShowHintsTime: 0ns
+           - TotalReadThroughput: 0.0 /sec
+           - IOTimer: 1.154ms
+           - BytesRead: 48.49 KB
+           - BlockConvertTime: 97.539us
+           - BlockSeekCount: 0
 ```
 
-```
-backends:
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "column_names": [
-            "BackendId",
-            "Cluster",
-            "IP",
-            "HostName",
-            "HeartbeatPort",
-            "BePort",
-            "HttpPort",
-            "BrpcPort",
-            "LastStartTime",
-            "LastHeartbeat",
-            "Alive",
-            "SystemDecommissioned",
-            "ClusterDecommissioned",
-            "TabletNum",
-            "DataUsedCapacity",
-            "AvailCapacity",
-            "TotalCapacity",
-            "UsedPct",
-            "MaxDiskUsedPct",
-            "ErrMsg",
-            "Version",
-            "Status"
-        ],
-        "rows": [
-            [
-                ...
-            ]
-        ]
-    },
-    "count": 0
-}
-```
+If it is a text interface, simply return the plain text content of the profile.
 
-```
-brokers:
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "column_names": [
-            "Name",
-            "IP",
-            "HostName",
-            "Port",
-            "Alive",
-            "LastStartTime",
-            "LastUpdateTime",
-            "ErrMsg"
-        ],
-        "rows": [
-            [
-                ...
-            ]
-        ]
-    },
-    "count": 0
-}
-```
+## Path parameters
 
-## Get node configuration information
+None
 
-`GET /rest/v2/manager/node/configuration_name`
+## Query parameters
 
-`GET /rest/v2/manager/node/node_list`
+- query_id
 
-`POST /rest/v2/manager/node/configuration_info`
+  Specify query id
 
-### Description
+## Request body
 
-configuration_name Used to get the name of the node configuration item.  
-node_list Get the list of nodes.  
-configuration_info to get the node configuration details.
+None
 
-### Query parameters
-
-`GET /rest/v2/manager/node/configuration_name`  
-none
-
-`GET /rest/v2/manager/node/node_list`  
-none
-
-`POST /rest/v2/manager/node/configuration_info`
-
-- type
-  The value is fe or be, which specifies to get the configuration information of fe or the configuration information of be.
-
-### Request body
-
-`GET /rest/v2/manager/node/configuration_name`  
-none
-
-`GET /rest/v2/manager/node/node_list`  
-none
-
-`POST /rest/v2/manager/node/configuration_info`
+## Response
 
 ```
 {
-	"conf_name": [
-		""
-	],
-	"node": [
-		""
-	]
-}
-
-If no body is included, the parameters in the body use the default values.  
-conf_name specifies which configuration items to return, the default is all configuration items.
-node is used to specify which node's configuration information is returned, the default is all fe nodes or be nodes configuration information.
-```
-
-### Response
-
-`GET /rest/v2/manager/node/configuration_name`
-
-```json
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "backend":[
-            ""
-        ],
-        "frontend":[
-            ""
-        ]
-    },
-    "count": 0
-}
-```
-
-`GET /rest/v2/manager/node/node_list`
-
-```json
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "backend": [
-            ""
-        ],
-        "frontend": [
-            ""
-        ]
-    },
-    "count": 0
-}
-```
-
-`POST /rest/v2/manager/node/configuration_info?type=fe`
-
-```json
-{  
-    "msg": "success",  
-    "code": 0,  
-    "data": {  
-        "column_names": [  
-            "Configuration Item",  
-            "Node",  
-            "Node Type",  
-            "Configuration Value Type",  
-            "MasterOnly",  
-            "Configuration Value",  
-            "Modifiable"  
-        ],  
-        "rows": [  
-            [  
-                ""  
-            ]  
-        ]  
-    },  
-    "count": 0  
-}
-```
-
-`POST /rest/v2/manager/node/configuration_info?type=be`
-
-```
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "column_names": [
-            "Configuration Item",
-            "Node",
-            "Node Type",
-            "Configuration Value Type",
-            "Configuration Value",
-            "Modifiable"
-        ],
-        "rows": [
-            [
-                ""
-            ]
-        ]
-    },
-    "count": 0
-}
-```
-
-### Examples
-
-1. Get the fe agent_task_resend_wait_time_ms configuration information:
-
-   POST /rest/v2/manager/node/configuration_info?type=fe  
-   body:
-
-    ```json
-    {
-        "conf_name":[
-            "agent_task_resend_wait_time_ms"
-        ]
-    }
-    ```
-
-   Response:
-
-    ```json
-    {  
-    "msg": "success",  
-    "code": 0,  
-    "data": {  
-        "column_names": [  
-            "Configuration Item",  
-            "Node",  
-            "Node Type",  
-            "Configuration Value Type",  
-            "MasterOnly",  
-            "Configuration Value",  
-            "Modifiable"  
-        ],  
-        "rows": [  
-            [  
-                "agent_task_resend_wait_time_ms",  
-                "127.0.0.1:8030",  
-                "FE",  
-                "long",  
-                "true",  
-                "50000",  
-                "true"  
-            ]  
-        ]  
-    },  
-    "count": 0  
-    }
-    ```
-
-## Modify configuration values
-
-`POST /rest/v2/manager/node/set_config/fe`
-
-`POST /rest/v2/manager/node/set_config/be`
-
-### Description
-
-Used to modify fe or be node configuration values
-
-### Request body
-
-```json
-{
-	"config_name":{
-		"node":[
-			""
-		],
-		"value":"",
-		"persist":
-	}
-}
-
-config_name is the corresponding configuration item.  
-node is a keyword indicating the list of nodes to be modified;  
-value is the value of the configuration.  
-persist is true for permanent modification and false for temporary modification. persist means permanent modification, false means temporary modification. permanent modification takes effect after reboot, temporary modification fails after reboot.
-```
-
-### Response
-
-`GET /rest/v2/manager/node/configuration_name`
-
-```json
-{
-	"msg": "",
+	"msg": "success",
 	"code": 0,
 	"data": {
-		"failed":[
-			{
-				"config_name":"name",
-				"value"="",
-				"node":"",
-				"err_info":""
-			}
-		]
+		"profile": "query profile ..."
 	},
 	"count": 0
 }
-
-failed Indicates a configuration message that failed to be modified.
 ```
 
-### Examples
+## Examples
 
-1. Modify the agent_task_resend_wait_time_ms and alter_table_timeout_second configuration values in the fe 127.0.0.1:8030 node:
-
-   POST /rest/v2/manager/node/set_config/fe
-   body:
-
-    ```json
-    {
-        "agent_task_resend_wait_time_ms":{
-            "node":[
-    	    	"127.0.0.1:8030"
-    	    ],
-    	    "value":"10000",
-    	    "persist":"true"
-        },
-        "alter_table_timeout_second":{
-            "node":[
-    	    	"127.0.0.1:8030"
-    	    ],
-    	    "value":"true",
-    	    "persist":"true"
-        }
-    }
-    ```
-
-   Response:
+1. Get the query profile of the specified query id
 
     ```
-    {
-        "msg": "success",
-        "code": 0,
-        "data": {
-            "failed": [
-                {
-                    "config_name": "alter_table_timeout_second",
-                    "node": "10.81.85.89:8837",
-                    "err_info": "Unsupported configuration value type.",
-                    "value": "true"
-                }
-            ]
-        },
-        "count": 0
-    }
+    GET /api/profile?query_id=f732084bc8e74f39-8313581c9c3c0b58
     
-    gent_task_resend_wait_time_ms configuration value modified successfully, alter_table_timeout_second modification failed.
-    ```
-
-## Operate be node
-
-`POST /rest/v2/manager/node/{action}/be`
-
-### Description
-
-Used to add/drop/offline be node
-
-action：ADD/DROP/DECOMMISSION
-
-### Request body
-
-```json
-{
-    "hostPorts": ["127.0.0.1:9050"],
-    "properties": {
-        "tag.location": "test"
-    }
-}
-
-hostPorts A set of be node addresses to be operated, ip:heartbeat_port
-properties The configuration passed in when adding a node is only used to configure the tag. If not, the default tag is used
-```
-
-### Response
-
-```json
-{
-    "msg": "Error",
-    "code": 1,
-    "data": "errCode = 2, detailMessage = Same backend already exists[127.0.0.1:9050]",
-    "count": 0
-}
-
-msg Success/Error
-code 0/1
-data ""/Error message
-```
-
-### Examples
-
-1. add be node
-
-   post /rest/v2/manager/node/ADD/be
-   Request body
-
-    ```json
+    Response:
     {
-        "hostPorts": ["127.0.0.1:9050"]
+    	"msg": "success",
+    	"code": 0,
+    	"data": {
+    		"profile": "query profile ..."
+    	},
+    	"count": 0
     }
     ```
-
-   Response
-
-    ```json
-    {
-        "msg": "success",
-        "code": 0,
-        "data": null,
-        "count": 0
-    }
+2. Get the query profile text of the specified query id
+    ```
+    GET /api/profile/text?query_id=f732084bc8e74f39-8313581c9c3c0b58
+    
+    Response:
+        Summary:
+        - Profile ID: 48bdf6d75dbb46c9-998b9c0368f4561f
+        - Task Type: QUERY
+        - Start Time: 2023-12-20 11:09:41
+        - End Time: 2023-12-20 11:09:45
+        - Total: 3s680ms
+        - Task State: EOF
+        - User: root
+        - Default Db: tpcds
+        - Sql Statement: with customer_total_return as
+      select sr_customer_sk as ctr_customer_sk
+      ,sr_store_sk as ctr_store_sk
+      ,sum(SR_FEE) as ctr_total_return
+      ...
     ```
 
-2. drop be node
-
-   post /rest/v2/manager/node/DROP/be
-   Request body
-
-    ```json
-    {
-        "hostPorts": ["127.0.0.1:9050"]
-    }
-    ```
-
-   Response
-
-    ```json
-    {
-        "msg": "success",
-        "code": 0,
-        "data": null,
-        "count": 0
-    }
-    ```
-
-3. offline be node
-
-   post /rest/v2/manager/node/DECOMMISSION/be
-   Request body
-
-    ```json
-    {
-        "hostPorts": ["127.0.0.1:9050"]
-    }
-    ```
-
-   Response
-
-    ```json
-    {
-        "msg": "success",
-        "code": 0,
-        "data": null,
-        "count": 0
-    }
-    ```
-
-## Operate fe node
-
-`POST /rest/v2/manager/node/{action}/fe`
-
-### Description
-
-Used to add/drop fe node
-
-action：ADD/DROP
-
-### Request body
-
-```json
-{
-    "role": "FOLLOWER",
-    "hostPort": "127.0.0.1:9030"
-}
-
-role FOLLOWER/OBSERVER
-hostPort The address of the fe node to be operated, ip:edit_log_port
-```
-
-### Response
-
-```json
-{
-    "msg": "Error",
-    "code": 1,
-    "data": "errCode = 2, detailMessage = frontend already exists name: 127.0.0.1:9030_1670495889415, role: FOLLOWER, 127.0.0.1:9030",
-    "count": 0
-}
-
-msg Success/Error
-code 0/1
-data ""/Error message
-```
-
-### Examples
-
-1. add FOLLOWER node
-
-   post /rest/v2/manager/node/ADD/fe
-   Request body
-
-    ```json
-    {
-        "role": "FOLLOWER",
-        "hostPort": "127.0.0.1:9030"
-    }
-    ```
-
-   Response
-
-    ```json
-    {
-        "msg": "success",
-        "code": 0,
-        "data": null,
-        "count": 0
-    }
-    ```
-
-2. drop FOLLOWER node
-
-   post /rest/v2/manager/node/DROP/fe
-   Request body
-
-    ```json
-    {
-        "role": "FOLLOWER",
-        "hostPort": "127.0.0.1:9030"
-    }
-    ```
-
-   Response
-
-    ```json
-    {
-        "msg": "success",
-        "code": 0,
-        "data": null,
-        "count": 0
-    }
-    ```
