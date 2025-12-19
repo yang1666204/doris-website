@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-ENGINES", "language": "en" }
+{ "title": "SHOW-EVENTS", "language": "en" }
 ---
 
 <!--
@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-ENGINES
+## SHOW-EVENTS
 
 ### Description
 
@@ -30,7 +30,7 @@ under the License.
 ### Keywords
 
     ```
-    SHOW, ENGINES
+    SHOW, EVENTS
     ```
 
 ### Best Practice
