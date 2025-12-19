@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_REMOVE", "language": "en" }
+{ "title": "BITMAP_SUBSET_IN_RANGE", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_remove
+## bitmap_subset_in_range
 
-### description
+### Description
 
 #### Syntax
 
-`BITMAP BITMAP_REMOVE(BITMAP bitmap, BIGINT input)`
+`BITMAP BITMAP_SUBSET_IN_RANGE(BITMAP src, BIGINT range_start, BIGINT range_end)`
 
-Remove the specified value from bitmap.
+Return subset in specified range (not include the range_end).
 
 ### example
 
 ```
-mysql [(none)]>select bitmap_to_string(bitmap_remove(bitmap_from_string('1, 2, 3'), 3)) res; 
-+------+
-| res  |
-+------+
-| 1,2  |
-+------+
+mysql> select bitmap_to_string(bitmap_subset_in_range(bitmap_from_string('1,2,3,4,5'), 0, 9)) value;
++-----------+
+| value     |
++-----------+
+| 1,2,3,4,5 |
++-----------+
 
-mysql [(none)]>select bitmap_to_string(bitmap_remove(bitmap_from_string('1, 2, 3'), null)) res;
-+------+
-| res  |
-+------+
-| NULL |
-+------+
+mysql> select bitmap_to_string(bitmap_subset_in_range(bitmap_from_string('1,2,3,4,5'), 2, 3)) value;
++-------+
+| value |
++-------+
+| 2     |
++-------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_REMOVE,BITMAP
+    BITMAP_SUBSET_IN_RANGE,BITMAP_SUBSET,BITMAP
     ```
