@@ -1,5 +1,5 @@
 ---
-{ "title": "ACOS", "language": "en" }
+{ "title": "ASIN", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## acos
+## asin
 
 ### description
 
 #### Syntax
 
-`DOUBLE acos(DOUBLE x)`
-Returns the arc cosine of `x`, or `NULL` if `x` is not in the range `-1` to `1`.
+`DOUBLE asin(DOUBLE x)`
+Returns the arc sine of `x`, or `nan` if `x` is not in the range `-1` to `1`.
 
 ### example
 
 ```
-mysql> select acos(1);
+mysql> select asin(0.5);
++---------------------+
+| asin(0.5)           |
++---------------------+
+| 0.52359877559829893 |
++---------------------+
+mysql> select asin(2);
 +-----------+
-| acos(1.0) |
+| asin(2.0) |
 +-----------+
-|         0 |
+|       nan |
 +-----------+
-mysql> select acos(0);
-+--------------------+
-| acos(0.0)          |
-+--------------------+
-| 1.5707963267948966 |
-+--------------------+
-mysql> select acos(-2);
-+------------+
-| acos(-2.0) |
-+------------+
-|        nan |
-+------------+
 ```
 
 ### keywords
 
  ```
- ACOS
+ ASIN
  ```
