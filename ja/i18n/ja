@@ -1,5 +1,5 @@
 ---
-{ "title": "BITOR", "language": "en" }
+{ "title": "BIT_SHIFT_LEFT", "language": "en" }
 ---
 
 <!-- 
@@ -21,38 +21,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitor
+## bit_shift_left
 
 ### description
 
-#### Syntax
+#### syntax
 
-`BITOR(Integer-type lhs, Integer-type rhs)`
+`BIT_SHIFT_LEFT(BIGINT x, TINYINT c)`
 
-Returns the result of the OR operation of two integers.
-
-Integer range: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
+Do logical left shift to `BIGINT` type x by c bits, and return result as a `BIGINT`.
+Return zero if `c` is less than 0.
 
 ### example
 
-```
-mysql> select bitor(3,5) ans;
-+------+
-| ans  |
-+------+
-|    7 |
-+------+
+Normal case
 
-mysql> select bitor(4,7) ans;
-+------+
-| ans  |
-+------+
-|    7 |
-+------+
+```sql
+select 8 as x, number as c, bit_shift_left(8, number) as bit_shift_left from numbers("number"="5")
+--------------
+
++------+------+----------------+
+| x    | c    | bit_shift_left |
++------+------+----------------+
+|    8 |    0 |              8 |
+|    8 |    1 |             16 |
+|    8 |    2 |             32 |
+|    8 |    3 |             64 |
+|    8 |    4 |            128 |
++------+------+----------------+
+5 rows in set (0.04 sec)
+```
+
+Left shift result of `9223372036854775807` which is `BIGINT_MAX` by 1 bit will get -2.
+
+```sql
+WITH tbl AS (
+  SELECT 9223372036854775807 AS BIGINT_MAX
+)
+SELECT BIGINT_MAX, bit_shift_left(BIGINT_MAX, 1)
+FROM tbl
+--------------
+
++---------------------+-------------------------------+
+| BIGINT_MAX          | bit_shift_left(BIGINT_MAX, 1) |
++---------------------+-------------------------------+
+| 9223372036854775807 |                            -2 |
++---------------------+-------------------------------+
+1 row in set (0.05 sec)
 ```
 
 ### keywords
 
     ```
-    BITOR
+    BITSHIFT, BITSHIFTLEFT
     ```
