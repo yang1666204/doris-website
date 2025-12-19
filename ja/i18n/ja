@@ -1,8 +1,8 @@
 ---
-{ "title": "STARTS_WITH", "language": "en" }
+{ "title": "STRLEFT", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,37 +21,48 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## starts_with
+## strleft
 
 ### Description
 
 #### Syntax
 
-`BOOLEAN STARTS_WITH(VARCHAR str, VARCHAR prefix)`
+`VARCHAR STRLEFT (VARCHAR str, INT len)`
 
-It returns true if the string starts with the specified prefix, otherwise it returns false.
-If any parameter is NULL, it returns NULL.
+It returns the left part of a string of specified length, length is char length not the byte size. Another alias for this function is `left`.
+If the function parameters contain a NULL value, the function will always return NULL. If the integer parameter is less than or equal to 0, it will return an empty value.
 
 ### example
 
 ```
-MySQL [(none)]> select starts_with("hello world","hello");
-+-------------------------------------+
-| starts_with('hello world', 'hello') |
-+-------------------------------------+
-|                                   1 |
-+-------------------------------------+
-
-MySQL [(none)]> select starts_with("hello world","world");
-+-------------------------------------+
-| starts_with('hello world', 'world') |
-+-------------------------------------+
-|                                   0 |
-+-------------------------------------+
+mysql> select strleft("Hello doris",5);
++------------------------+
+| strleft('Hello doris', 5) |
++------------------------+
+| Hello                  |
++------------------------+
+mysql> select strleft("Hello doris",-5);
++----------------------------+
+| strleft('Hello doris', -5) |
++----------------------------+
+|                            |
++----------------------------+
+mysql> select strleft("Hello doris",NULL);
++------------------------------+
+| strleft('Hello doris', NULL) |
++------------------------------+
+| NULL                         |
++------------------------------+
+mysql> select strleft(NULL,3);
++------------------+
+| strleft(NULL, 3) |
++------------------+
+| NULL             |
++------------------+
 ```
 
 ### keywords
 
     ```
-    STARTS_WITH
+    STRLEFT, LEFT
     ```
