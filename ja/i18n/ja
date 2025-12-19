@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-FRONTENDS", "language": "en" }
+{ "title": "SHOW-FUNCTIONS", "language": "en" }
 ---
 
 <!--
@@ -21,39 +21,110 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-FRONTENDS
+## SHOW-FUNCTIONS
 
 ### Name
 
-SHOW FRONTENDS
+SHOW FUNCTIONS
 
 ### Description
 
-This statement is used to view FE nodes
+View all custom (system-provided) functions under the database. If the user specifies a database, then view the corresponding database, otherwise directly query the database where the current session is located
 
-grammar:
+Requires `SHOW` permission on this database
+
+grammar
 
 ```sql
-SHOW FRONTENDS;
+SHOW [FULL] [BUILTIN] FUNCTIONS [IN|FROM db] [LIKE 'function_pattern']
 ```
 
-illustrate:
+Parameters
 
-1. name indicates the name of the FE node in bdbje.
-2. If Join is true, it means that the node has joined the cluster before. But it does not mean that it is still in the cluster (may have lost contact)
-3. Alive indicates whether the node is alive or not.
-4. ReplayedJournalId indicates the maximum metadata journal id that has been replayed by the node.
-5. LastHeartbeat is the last heartbeat.
-6. IsHelper indicates whether the node is a helper node in bdbje.
-7. ErrMsg is used to display the error message when the heartbeat fails.
-8. CurrentConnected indicates whether the FE node is currently connected
+> `full`: Indicates the detailed information of the display function
+> `builtin`: Indicates the functions provided by the display system
+> `db`: database name to query
+> `function_pattern`: parameter used to filter function names
+
+grammar
+
+```sql
+SHOW GLOBAL [FULL] FUNCTIONS [LIKE 'function_pattern']
+```
+
+Parameters
+
+> `global`: Indicates it means that the show function is a global function
+> `full`: Indicates the detailed information of the display function
+> `function_pattern`: parameter used to filter function names
+
+**Note: the "global" keyword is only available after v2.0**
 
 ### Example
+
+```sql
+mysql> show full functions in testDb\G
+**************************** 1. row ******************** ******
+        Signature: my_add(INT,INT)
+      Return Type: INT
+    Function Type: Scalar
+Intermediate Type: NULL
+       Properties: {"symbol":"_ZN9doris_udf6AddUdfEPNS_15FunctionContextERKNS_6IntValES4_","object_file":"http://host:port/libudfsample.so","md5":"cfe7a362d10f3aaf6c49974ee0f1f878"}
+**************************** 2. row ******************** ******
+        Signature: my_count(BIGINT)
+      Return Type: BIGINT
+    Function Type: Aggregate
+Intermediate Type: NULL
+       Properties: { "object_file": "http: // host: port / libudasample.so", "finalize_fn": "_ZN9doris_udf13CountFinalizeEPNS_15FunctionContextERKNS_9BigIntValE", "init_fn": "_ZN9doris_udf9CountInitEPNS_15FunctionContextEPNS_9BigIntValE", "merge_fn": "_ZN9doris_udf10CountMergeEPNS_15FunctionContextERKNS_9BigIntValEPS2_", "md5": " 37d185f80f95569e2676da3d5b5b9d2f","update_fn":"_ZN9doris_udf11CountUpdateEPNS_15FunctionContextERKNS_6IntValEPNS_9BigIntValE"}
+**************************** 3. row ******************** ******
+        Signature: id_masking(BIGINT)
+      Return Type: VARCHAR
+    Function Type: Alias
+Intermediate Type: NULL
+       Properties: {"parameter":"id","origin_function":"concat(left(`id`, 3), `****`, right(`id`, 4))"}
+
+3 rows in set (0.00 sec)
+mysql> show builtin functions in testDb like 'year%';
++---------------+
+| Function Name |
++---------------+
+| year          |
+| years_add     |
+| years_diff    |
+| years_sub     |
++---------------+
+2 rows in set (0.00 sec)
+
+mysql> show global full functions\G;
+*************************** 1. row ***************************
+        Signature: decimal(ALL, INT, INT)
+      Return Type: VARCHAR
+    Function Type: Alias
+Intermediate Type: NULL
+       Properties: {"parameter":"col, precision, scale","origin_function":"CAST(`col` AS decimal(`precision`, `scale`))"}
+*************************** 2. row ***************************
+        Signature: id_masking(BIGINT)
+      Return Type: VARCHAR
+    Function Type: Alias
+Intermediate Type: NULL
+       Properties: {"parameter":"id","origin_function":"concat(left(`id`, 3), `****`, right(`id`, 4))"}
+2 rows in set (0.00 sec)
+    
+mysql> show global functions ;
++---------------+
+| Function Name |
++---------------+
+| decimal       |
+| id_masking    |
++---------------+
+2 rows in set (0.00 sec)    
+    
+```
 
 ### Keywords
 
     ```
-    SHOW, FRONTENDS
+    SHOW, FUNCTIONS
     ```
 
 ### Best Practice
