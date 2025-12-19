@@ -1,5 +1,5 @@
 ---
-{ "title": "MASK_FIRST_N", "language": "en" }
+{ "title": "MASK_LAST_N", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## mask_first_n
+## mask_last_n
 
 ### description
 
 #### syntax
 
-`VARCHAR mask_first_n(VARCHAR str[, INT n])`
+`VARCHAR mask_last_n(VARCHAR str[, INT n])`
 
-Returns a masked version of str with the first n values masked. Upper case letters are converted to "X", lower case letters are converted to "x" and numbers are converted to "n". For example, mask_first_n("1234-5678-8765-4321", 4) results in nnnn-5678-8765-4321.
+Returns a masked version of str with the last n values masked. Upper case letters are converted to "X", lower case letters are converted to "x" and numbers are converted to "n". For example, mask_last_n("1234-5678-8765-4321", 4) results in 1234-5678-8765-nnnn.
 
 ### example
 
@@ -43,18 +43,18 @@ Returns a masked version of str with the first n values masked. Upper case lette
 | 456AbCdEf |
 +-----------+
 
-mysql> select mask_first_n(name, 5) from test;
-+-------------------------+
-| mask_first_n(`name`, 5) |
-+-------------------------+
-| xxxnn3EFG               |
-| NULL                    |
-| nnnXxCdEf               |
-+-------------------------+
+mysql> select mask_last_n(name, 5) from test;
++------------------------+
+| mask_last_n(`name`, 5) |
++------------------------+
+| abc1nnXXX              |
+| NULL                   |
+| 456AxXxXx              |
++------------------------+
 ```
 
 ### keywords
 
     ```
-    mask_first_n
+    mask_last_n
     ```
