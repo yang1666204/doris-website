@@ -1,5 +1,5 @@
 ---
-{ "title": "OVERLAY", "language": "en" }
+{ "title": "PARSE_URL", "language": "en" }
 ---
 
 <!-- 
@@ -21,53 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## overlay
+## parse_url
 
-### Description
+### description
 
 #### Syntax
 
-`VARCHAR Overlay (VARCHAR str, INT pos, INT len, VARCHAR newstr)`
+`VARCHAR  parse_url(VARCHAR url, VARCHAR  name)`
 
-Returns the string str and replaces it with the string newstr, a substring of len characters starting at position pos. If pos is not within the length of the string, the original string is returned. If len is not within the length of the rest of the string, the rest of the string is replaced starting at position pos. If any argument is NULL, NULL is returned.
+From the URL, the field corresponding to name is resolved. The name options are as follows: 'PROTOCOL', 'HOST', 'PATH', 'REF', 'AUTHORITY', 'FILE', 'USERINFO', 'PORT', 'QUERY', and the result is returned.
 
 ### example
 
 ```
-mysql> select overlay('Quadratic', 3, 4, 'What');
-+------------------------------------+
-| overlay('Quadratic', 3, 4, 'What') |
-+------------------------------------+
-| QuWhattic                          |
-+------------------------------------+
-mysql> select overlay('Quadratic', -1, 4, 'What');
-+-------------------------------------+
-| overlay('Quadratic', -1, 4, 'What') |
-+-------------------------------------+
-| Quadratic                           |
-+-------------------------------------+
-mysql> select overlay('Quadratic', 3, 100, 'What');
-+--------------------------------------+
-| overlay('Quadratic', 3, 100, 'What') |
-+--------------------------------------+
-| QuWhat                               |
-+--------------------------------------+
-mysql> select overlay('Quadratic', 3, -1, 'What');
-+-------------------------------------+
-| overlay('Quadratic', 3, -1, 'What') |
-+-------------------------------------+
-| QuWhat                              |
-+-------------------------------------+
-mysql> select overlay('Quadratic', 0, 100, 'What');
-+--------------------------------------+
-| overlay('Quadratic', 0, 100, 'What') |
-+--------------------------------------+
-| Quadratic                            |
-+--------------------------------------+
+mysql> SELECT parse_url ('https://doris.apache.org/', 'HOST');
++------------------------------------------------+
+| parse_url('https://doris.apache.org/', 'HOST') |
++------------------------------------------------+
+| doris.apache.org                               |
++------------------------------------------------+
 ```
+
+If you want to get parameter in QUERY, you can use [extract_url_parameter](./extract_url_parameter.md).
 
 ### keywords
 
     ```
-    OVERLAY
+    PARSE URL
     ```
