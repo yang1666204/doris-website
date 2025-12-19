@@ -1,5 +1,5 @@
 ---
-{ "title": "GROUP_ARRAY_INTERSECT", "language": "en" }
+{ "title": "GROUP_BIT_AND", "language": "en" }
 ---
 
 <!-- 
@@ -21,37 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## group_array_intersect
+## group_bit_and
 
 ### description
 
 #### Syntax
 
-`expr GROUP_ARRAY_INTERSECT(expr)`
+`expr GROUP_BIT_AND(expr)`
 
-calculate the intersect element from all arrays given, return a new array
+Perform an and calculation on expr, and return a new expr.
+All ints are supported
 
 ### example
 
 ```
-mysql> select c_array_string from group_array_intersect_test where id in (18, 20);
-+--------------------------------+
-| c_array_string                 |
-+--------------------------------+
-| ["a", "b", "c", "d", "e", "f"] |
-| ["a", null]                    |
-+--------------------------------+
-2 rows in set (0.02 sec)
+mysql> select * from group_bit;
++-------+
+| value |
++-------+
+|     3 |
+|     1 |
+|     2 |
+|     4 |
++-------+
+4 rows in set (0.02 sec)
 
-mysql> select group_array_intersect(c_array_string) from group_array_intersect_test where id in (18, 20);
-+---------------------------------------+
-| group_array_intersect(c_array_string) |
-+---------------------------------------+
-| ["a"]                                 |
-+---------------------------------------+
-1 row in set (0.03 sec)
+mysql> select group_bit_and(value) from group_bit;
++------------------------+
+| group_bit_and(`value`) |
++------------------------+
+|                      0 |
++------------------------+
 ```
 
 ### keywords
 
-GROUP_ARRAY_INTERSECT, ARRAY
+    ```
+    GROUP_BIT_AND,BIT
+    ```
