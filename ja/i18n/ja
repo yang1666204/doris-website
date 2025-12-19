@@ -1,5 +1,5 @@
 ---
-{ "title": "SECONDS_DIFF", "language": "en" }
+{ "title": "SECONDS_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## seconds_diff
+## seconds_sub
 
 ### description
 
 #### Syntax
 
-`INT seconds_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIME SECONDS_SUB(DATETIME date, INT seconds)`
 
-The difference between the start time and the end time is seconds
+Subtracts a specified number of seconds from a datetime or date
+
+The parameter date can be DATETIME or DATE, and the return type is DATETIME.
 
 ### example
 
 ```
-mysql> select seconds_diff('2020-12-25 22:00:00','2020-12-25 21:00:00');
-+------------------------------------------------------------+
-| seconds_diff('2020-12-25 22:00:00', '2020-12-25 21:00:00') |
-+------------------------------------------------------------+
-|                                                       3600 |
-+------------------------------------------------------------+
+mysql> select seconds_sub("2020-01-01 00:00:00", 1);
++---------------------------------------+
+| seconds_sub('2020-01-01 00:00:00', 1) |
++---------------------------------------+
+| 2019-12-31 23:59:59                   |
++---------------------------------------+
 ```
 
 ### keywords
 
     ```
-    seconds_diff
+    SECONDS_SUB
     ```
