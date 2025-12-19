@@ -1,8 +1,5 @@
 ---
-{
-  "title": "FIRST_SIGNIFICANT_SUBDOMAIN",
-  "language": "en"
-}
+{ "title": "FROM_BASE64", "language": "en" }
 ---
 
 <!-- 
@@ -24,39 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## from_base64
 
-## Syntax
+### description
 
-`VARCHAR  first_significant_subdomain(VARCHAR url)`
+#### Syntax
 
-Extract the "first valid subdomain" from a URL and return it. If the URL is invalid, return an empty string.
+`VARCHAR from_base64(VARCHAR str)`
 
-## Example
+Returns the result of Base64 decoding the input string, NULL is returned when the input string is incorrect (with non-Base64 encoded characters).
 
-```sql
-mysql [(none)]>select first_significant_subdomain("www.baidu.com");
-+----------------------------------------------+
-| first_significant_subdomain('www.baidu.com') |
-+----------------------------------------------+
-| baidu                                        |
-+----------------------------------------------+
+### example
 
-mysql [(none)]>select first_significant_subdomain("www.google.com.cn");
-+--------------------------------------------------+
-| first_significant_subdomain('www.google.com.cn') |
-+--------------------------------------------------+
-| google                                           |
-+--------------------------------------------------
+```
+mysql> select from_base64('MQ==');
++---------------------+
+| from_base64('MQ==') |
++---------------------+
+| 1                   |
++---------------------+
 
-mysql [(none)]>select first_significant_subdomain("wwwwwwww");
-+-----------------------------------------+
-| first_significant_subdomain('wwwwwwww') |
-+-----------------------------------------+
-|                                         |
-+-----------------------------------------+
+mysql> select from_base64('MjM0');
++---------------------+
+| from_base64('MjM0') |
++---------------------+
+| 234                 |
++---------------------+
 ```
 
-### Keywords
+### keywords
 
-FIRST_SIGNIFICANT_SUBDOMAIN
+    ```
+    from_base64
+    ```
