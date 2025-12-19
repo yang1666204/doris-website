@@ -1,5 +1,5 @@
 ---
-{ "title": "ADMIN-SET-REPLICA-STATUS", "language": "en" }
+{ "title": "ADMIN-SET-REPLICA-VERSION", "language": "en" }
 ---
 
 <!--
@@ -21,63 +21,64 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ADMIN-SET-REPLICA-STATUS
+## ADMIN-SET-REPLICA-VERSION
 
 ### Name
 
-ADMIN SET REPLICA STATUS
+ADMIN SET REPLICA VERSION
 
 ### Description
 
-This statement is used to set the state of the specified replica.
+This statement is used to set the version, maximum success version, and maximum failure version of the specified replica.
 
-This command is currently only used to manually set the status of certain replicas to BAD, DROP or OK, allowing the system to automatically repair these replicas
+This command is currently only used to manually repair the replica version when the program is abnormal, so that the replica can recover from the abnormal state.
 
 grammar:
 
 ```sql
-ADMIN SET REPLICA STATUS
+ADMIN SET REPLICA VERSION
         PROPERTIES ("key" = "value", ...);
 ```
 
 The following properties are currently supported:
 
-1. "tablet_id": Required. Specify a Tablet Id.
-2. "backend_id": Required. Specify Backend Id.
-3. "status": Required. Specifies the state. Currently only "bad", "drop" or "ok" are supported
+1. `tablet_id`: Required. Specify a Tablet Id.
+2. `backend_id`: Required. Specify Backend Id.
+3. `version`: Optional. Set the replica version.
+4. `last_success_version`: Optional. Set the replica max success version.
+5. `last_failed_version`: Optional. Set the replica max failed version.
 
-If the specified replica does not exist, or the status is already bad, it will be ignored.
+If the specified replica does not exist, it will be ignored.
 
 > Note:
 >
-> A replica set to Bad, it will not be able to read or write. In addition, sometimes the setting may not working, when be report tablet ok, fe will auto change its status to ok. This operation may delete the replica immediately, so please operate with caution.
+> Modifying these values ​​may cause subsequent data reading and writing failures, resulting in data inconsistency. Please operate with caution!
 >
-> A replica set to Drop, it can still be read and written. A healthy replica will be added to other machines first, and then this replica will be deleted. Compared with setting Bad, setting Drop is safer.
+> Record the original value before modifying it. After the modification is completed, verify the read and write of the table. If the read and write fail, please restore the original value! But recovery may fail!
+>
+> It is strictly prohibited to operate the tablet that is writing data!
 
 ### Example
 
-1. Set the replica status of tablet 10003 on BE 10001 to bad.
+1. Clear the replica failed version of tablet 10003 on BE 10001.
 
        ```sql
-       ADMIN SET REPLICA STATUS PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "status" = "bad");
+       
        ```
 
-2. Set the replica status of tablet 10003 on BE 10001 to drop.
+ADMIN SET REPLICA VERSION PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "last_failed_version" = "-1");```
+```
 
-       ```sql
-       ADMIN SET REPLICA STATUS PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "status" = "drop");
-       ```
+2. Set the replica status of tablet 10003 on BE 10001 to ok.
 
-3. Set the replica status of tablet 10003 on BE 10001 to ok.
-
-   ```sql
-   ADMIN SET REPLICA STATUS PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "status" = "ok");
-   ```
+```sql
+ADMIN SET REPLICA VERSION PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "version" = "1004");
+```
 
 ### Keywords
 
     ```
-    ADMIN, SET, REPLICA, STATUS
+    ADMIN, SET, REPLICA, VERSION
     ```
 
 ### Best Practice
