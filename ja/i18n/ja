@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-DATABASE", "language": "en" }
+{ "title": "DROP-ENCRYPT-KEY", "language": "en" }
 ---
 
 <!--
@@ -21,38 +21,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-DATABASE
+## DROP-ENCRYPT-KEY
 
 ### Name
 
-DOPR DATABASE
+DROP ENCRYPTKEY
 
 ### Description
 
-This statement is used to delete the database (database)
 grammar:
 
 ```sql
-DROP DATABASE [IF EXISTS] db_name [FORCE];
+DROP ENCRYPTKEY key_name
 ```
 
-illustrate:
+Parameter Description:
 
-- During the execution of DROP DATABASE, the deleted database can be recovered through the RECOVER statement. See the [RECOVER](../../Database-Administration-Statements/RECOVER.md) statement for details
-- If you execute DROP DATABASE FORCE, the system will not check the database for unfinished transactions, the database will be deleted directly and cannot be recovered, this operation is generally not recommended
+- `key_name`: The name of the key to delete, can include the name of the database. For example: `db1.my_key`.
+
+Delete a custom key. The name of the key is exactly the same to be deleted.
+
+Executing this command requires the user to have `ADMIN` privileges.
 
 ### Example
 
-1. Delete the database db_test
+1. Delete a key
 
-     ```sql
-     DROP DATABASE db_test;
-     ```
+    ```sql
+    DROP ENCRYPTKEY my_key;
+    ```
 
 ### Keywords
 
      ```
-      DROP, DATABASE
+      DROP, ENCRYPT, KEY
      ```
 
 ### Best Practice
