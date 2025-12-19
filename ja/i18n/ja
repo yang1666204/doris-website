@@ -1,5 +1,5 @@
 ---
-{ "title": "GREATEST", "language": "en" }
+{ "title": "LEAST", "language": "en" }
 ---
 
 <!-- 
@@ -19,49 +19,49 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## greatest
+## least
 
 ### description
 
 #### Syntax
 
-`greatest(col_a, col_b, …, col_n)`
+`least(col_a, col_b, …, col_n)`
 
 `column` supports the following types: `TINYINT` `SMALLINT` `INT` `BIGINT` `LARGEINT` `FLOAT` `DOUBLE` `STRING` `DATETIME` `DECIMAL`
 
-Compares the size of `n columns` and returns the largest among them. If there is `NULL` in `column`, it returns `NULL`.
+Compare the size of `n columns` and return the smallest among them. If there is `NULL` in `column`, return `NULL`.
 
 ### example
 
 ```
-mysql> select greatest(-1, 0, 5, 8);
+mysql> select least(-1, 0, 5, 8);
++--------------------+
+| least(-1, 0, 5, 8) |
++--------------------+
+|                 -1 |
++--------------------+
+mysql> select least(-1, 0, 5, NULL);
 +-----------------------+
-| greatest(-1, 0, 5, 8) |
+| least(-1, 0, 5, NULL) |
 +-----------------------+
-|                     8 |
+| NULL                  |
 +-----------------------+
-mysql> select greatest(-1, 0, 5, NULL);
+mysql> select least(6.3, 4.29, 7.6876);
 +--------------------------+
-| greatest(-1, 0, 5, NULL) |
+| least(6.3, 4.29, 7.6876) |
 +--------------------------+
-| NULL                     |
+|                     4.29 |
 +--------------------------+
-mysql> select greatest(6.3, 4.29, 7.6876);
-+-----------------------------+
-| greatest(6.3, 4.29, 7.6876) |
-+-----------------------------+
-|                      7.6876 |
-+-----------------------------+
-mysql> select greatest("2022-02-26 20:02:11","2020-01-23 20:02:11","2020-06-22 20:02:11");
-+-------------------------------------------------------------------------------+
-| greatest('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11') |
-+-------------------------------------------------------------------------------+
-| 2022-02-26 20:02:11                                                           |
-+-------------------------------------------------------------------------------+
+mysql> select least("2022-02-26 20:02:11","2020-01-23 20:02:11","2020-06-22 20:02:11");
++----------------------------------------------------------------------------+
+| least('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11') |
++----------------------------------------------------------------------------+
+| 2020-01-23 20:02:11                                                        |
++----------------------------------------------------------------------------+
 ```
 
 ### keywords
 
  ```
- GREATEST
+ LEAST
  ```
