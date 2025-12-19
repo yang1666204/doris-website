@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_IPV6_OR_DEFAULT", "language": "en" }
+{ "title": "TO_IPV6_OR_NULL", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## TO_IPV6_OR_DEFAULT
+## TO_IPV6_OR_NULL
 
-TO_IPV6_OR_DEFAULT
+TO_IPV6_OR_NULL
 
 ### Description
 
 #### Syntax
 
-`IPV6 TO_IPV6_OR_DEFAULT(STRING ipv6_str)`
+`IPV6 TO_IPV6_OR_NULL(STRING ipv6_str)`
 
-Same as to_ipv6, but if the IPv6 address has an invalid format, it returns :: (0 as IPv6).
+Same as to_ipv6, but if the IPv6 address has an invalid format, it returns NULL.
 
 #### Notice
 
-`If input is NULL, return :: (0 as IPv6).`
+`If input is NULL, return NULL.`
 
 ### Example
 
 ```sql
-mysql> select to_ipv6_or_default('.');
-+-------------------------+
-| to_ipv6_or_default('.') |
-+-------------------------+
-| ::                      |
-+-------------------------+
+mysql> select to_ipv6_or_null('.');
++----------------------+
+| to_ipv6_or_null('.') |
++----------------------+
+| NULL                 |
++----------------------+
 
-mysql> select to_ipv6_or_default(NULL);
-+--------------------------+
-| to_ipv6_or_default(NULL) |
-+--------------------------+
-| ::                       |
-+--------------------------+
+mysql> select to_ipv6_or_null(NULL);
++-----------------------+
+| to_ipv6_or_null(NULL) |
++-----------------------+
+| NULL                  |
++-----------------------+
 ```
 
 ### Keywords
 
-TO_IPV6_OR_DEFAULT, IP
+TO_IPV6_OR_NULL, IP
