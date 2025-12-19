@@ -1,5 +1,5 @@
 ---
-{ "title": "E", "language": "en" }
+{ "title": "EXP", "language": "en" }
 ---
 
 <!-- 
@@ -19,28 +19,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## e
+## exp
 
 ### description
 
 #### Syntax
 
-`DOUBLE e()`
-Returns the constant `e` value.
+`DOUBLE exp(DOUBLE x)`
+Returns `x` raised to the base `e`.
+
+:::tip
+Another alias for this function is `dexp`.
+:::
 
 ### example
 
 ```
-mysql> select e();
+mysql> select exp(2);
++------------------+
+| exp(2.0)         |
++------------------+
+| 7.38905609893065 |
++------------------+
+mysql> select exp(3.4);
 +--------------------+
-| e()                |
+| exp(3.4)           |
 +--------------------+
-| 2.7182818284590451 |
+| 29.964100047397011 |
 +--------------------+
 ```
 
 ### keywords
 
  ```
- E
+ EXP, DEXP
  ```
