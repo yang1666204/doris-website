@@ -1,5 +1,5 @@
 ---
-{ "title": "JSON_TYPE", "language": "en" }
+{ "title": "JSON_UNQUOTE", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,62 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## json_type
+## json_unquote
 
-### description
-
-It is used to determine the type of the field specified by json_path in JSON data. If the field does not exist, return NULL. If it exists, return one of the following types
-
-- object
-- array
-- null
-- bool
-- int
-- bigint
-- largeint
-- double
-- string
+### Description
 
 #### Syntax
 
-```sql
-STRING json_type(JSON j, VARCHAR json_path)
-```
+`VARCHAR json_unquote(VARCHAR)`
+
+This function unquotes a JSON value and returns the result as a utf8mb4 string. If the argument is NULL, it will return NULL.
+
+Escape sequences within a string as shown in the following table will be recognized. Backslashes will be ignored for all other escape sequences.
+
+| Escape Sequence | Character Represented by Sequence                 |
+| --------------- | ------------------------------------------------- |
+| \"             | A double quote (") character   |
+| \b              | A backspace character                             |
+| \f              | A formfeed character                              |
+| \n              | A newline (linefeed) character |
+| \r              | A carriage return character                       |
+| \t              | A tab character                                   |
+| \\            | A backslash (\) character     |
+| \uxxxx          | UTF-8 bytes for Unicode value XXXX                |
 
 ### example
 
-Refer to [json tutorial](../../sql-reference/Data-Types/JSON.md)
+```
+mysql> SELECT json_unquote('"doris"');
++-------------------------+
+| json_unquote('"doris"') |
++-------------------------+
+| doris                   |
++-------------------------+
+
+mysql> SELECT json_unquote('[1, 2, 3]');
++---------------------------+
+| json_unquote('[1, 2, 3]') |
++---------------------------+
+| [1, 2, 3]                 |
++---------------------------+
+
+
+mysql> SELECT json_unquote(null);
++--------------------+
+| json_unquote(NULL) |
++--------------------+
+| NULL               |
++--------------------+
+
+mysql> SELECT json_unquote('"\\ttest"');
++--------------------------+
+| json_unquote('"\ttest"') |
++--------------------------+
+|       test                    |
++--------------------------+
+```
 
 ### keywords
 
-json_type
-
+json,unquote,json_unquote
