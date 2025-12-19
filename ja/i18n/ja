@@ -1,5 +1,5 @@
 ---
-{ "title": "ABS", "language": "en" }
+{ "title": "ACOS", "language": "en" }
 ---
 
 <!-- 
@@ -19,50 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## abs
+## acos
 
 ### description
 
 #### Syntax
 
-```sql
-SMALLINT abs(TINYINT x)
-INT abs(SMALLINT x)
-BIGINT abs(INT x)
-LARGEINT abs(BIGINT x)
-LARGEINT abs(LARGEINT x)
-DOUBLE abs(DOUBLE x)
-FLOAT abs(FLOAT x)
-DECIMAL abs(DECIMAL x)` 
-```
-
-Returns the absolute value of `x`.
+`DOUBLE acos(DOUBLE x)`
+Returns the arc cosine of `x`, or `NULL` if `x` is not in the range `-1` to `1`.
 
 ### example
 
 ```
-mysql> select abs(-2);
-+---------+
-| abs(-2) |
-+---------+
-|       2 |
-+---------+
-mysql> select abs(3.254655654);
-+------------------+
-| abs(3.254655654) |
-+------------------+
-|      3.254655654 |
-+------------------+
-mysql> select abs(-3254654236547654354654767);
-+---------------------------------+
-| abs(-3254654236547654354654767) |
-+---------------------------------+
-| 3254654236547654354654767       |
-+---------------------------------+
+mysql> select acos(1);
++-----------+
+| acos(1.0) |
++-----------+
+|         0 |
++-----------+
+mysql> select acos(0);
++--------------------+
+| acos(0.0)          |
++--------------------+
+| 1.5707963267948966 |
++--------------------+
+mysql> select acos(-2);
++------------+
+| acos(-2.0) |
++------------+
+|        nan |
++------------+
 ```
 
 ### keywords
 
  ```
- ABS
+ ACOS
  ```
