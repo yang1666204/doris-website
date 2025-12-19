@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Doris Compute-Storage Decoupled Deployment Preparation",
-  "language": "en"
-}
+{ "title": "Compilation and Deployment", "language": "en" }
 ---
 
 <!--
@@ -26,144 +23,282 @@ under the License.
 
 ## 1. Overview
 
-This document describes the deployment preparation work for the Apache Doris compute-storage decoupled mode. The decoupled architecture aims to improve system scalability and performance, suitable for large-scale data processing scenarios.
+This document details the compilation and deployment process of Doris in a decoupled storage-compute model, highlighting the differences from the integrated storage-compute model, especially the compilation, configuration, and management of the newly added Meta Service (MS) module.
 
-## 2. Architecture Components
+## 2. Obtaining Binaries
 
-The Doris compute-storage decoupled architecture consists of three main modules:
+### 2.1 Direct Download
 
-1. **Frontend (FE)**: Handles user requests and manages metadata.
-2. **Backend (BE)**: Stateless compute nodes that execute query tasks.
-3. **Meta Service (MS)**: Manages metadata operations and data recovery.
+Compiled binaries (including all Doris modules) can be obtained from the [Doris Download Page](https://doris.apache.org/download/) (select version 3.0.2 or higher).
 
-## 3) System Requirements
+### 2.2 Compilation Output (Optional)
 
-### 3.1 Hardware Requirements
+Compile using the `build.sh` script provided in the codebase. The new MS module is compiled with the `--cloud` parameter.
 
-- Minimum configuration: 3 servers
-- Recommended configuration: 5 or more servers
+```shell
+sh build.sh --fe --be --cloud 
+```
 
-### 3.2 Software Dependencies
+After compilation, a new `ms` directory will be added in the `output` directory:
 
-- FoundationDB (FDB) version 7.1.38 or higher
-- OpenJDK 17
+```
+output
+├── be
+├── fe
+└── ms
+    ├── bin
+    ├── conf
+    └── lib
+```
 
-## 4. Deployment Planning
+## 3. Meta Service Deployment
 
-### 4.1 Testing Environment Deployment
+### 3.1 Configuration
 
-Deploy all modules on a single machine, not suitable for production environments.
+In the `./conf/doris_cloud.conf` file, you mainly need to modify the following two parameters:
 
-### 4.2 Production Deployment
+1. `brpc_listen_port`: The listening port for the Meta Service, default is 5000.
+2. `fdb_cluster`: Connection information for the FoundationDB cluster, which can be obtained when deploying FoundationDB. (If using the `fdb_ctl.sh` provided by Doris for deployment, this value can be found in the `$FDB_HOME/conf/fdb.cluster` file.)
 
-- Deploy FDB on 3 or more machines
-- Deploy FE and Meta Service on 3 or more machines
-- Deploy BE on 3 or more machines
+Example configuration:
 
-When machine configurations are high, consider mixing FDB, FE, and Meta Service, but do not mix disks.
+```Shell
+brpc_listen_port = 5000
+fdb_cluster = xxx:yyy@127.0.0.1:4500
+```
 
-## 5. Installation Steps
+Note: The value of `fdb_cluster` should match the content of the `/etc/foundationdb/fdb.cluster` file on the FoundationDB deployment machine. (If using the `fdb_ctl.sh` provided by Doris for deployment, this value can be found in the `$FDB_HOME/conf/fdb.cluster` file.)
 
-### 5.1 Install FoundationDB
+**Example: The last line of the file is the value to fill in the doris_cloud.conf for the fdb_cluster field**
 
-This section provides a step-by-step guide to configure, deploy, and start the FoundationDB (FDB) service using the provided scripts `fdb_vars.sh` and `fdb_ctl.sh`. You can download [doris tools](http://apache-doris-releases.oss-accelerate.aliyuncs.com/apache-doris-3.0.2-tools.tar.gz) and get `fdb_vars.sh` and `fdb_ctl.sh` from `fdb` directory.
+```shell
+cat /etc/foundationdb/fdb.cluster
 
-#### 5.1.1 Machine Requirements
+# DO NOT EDIT!
+# This file is auto-generated, it is not to be edited by hand.
+cloud_ssb:A83c8Y1S3ZbqHLL4P4HHNTTw0A83CuHj@127.0.0.1:4500
+```
 
-Typically, at least 3 machines equipped with SSDs are required to form a FoundationDB cluster with dual data replicas and allow for single machine failures.
+### 3.2 Start and Stop
 
-:::tip
-If only for development/testing purposes, a single machine is sufficient.
+_Environment Requirements_
+
+Ensure that the `JAVA_HOME` environment variable is correctly set to point to OpenJDK 17, and navigate to the `ms` directory.
+
+_Start Command_
+
+```Shell
+export JAVA_HOME=${path_to_jdk_17}
+bin/start.sh --daemon
+```
+
+The startup script returns a value of 0 to indicate that the startup was successful; otherwise, the startup fails.
+Upon successful startup, the last line of the standard output text will be "doris_cloud start successfully."
+
+_Stop Command_
+
+```shell
+bin/stop.sh
+```
+
+For production environment, please ensure that the total number of Meta Service is at least three.
+
+## 4. Independent Deployment of Data Recycling Function (Optional)
+
+:::info
+The Meta Service itself has metadata management and recycling functions, which can be deployed independently. If you want to deploy them independently, you can refer to this section.
 :::
 
-#### 5.1.2 `fdb_vars.sh` Configuration
+_Preparation Work_
 
-##### Required Custom Settings
+1. Create a new working directory (e.g., `recycler`).
+2. Copy the contents of the `ms` directory to the new directory:
 
-| Parameter          | Description                                         | Type                                                     | Example                                                                   | Notes                                                                                                                                                               |
-| ------------------ | --------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATA_DIRS`        | Specify the data directory for FoundationDB storage | Comma-separated list of absolute paths                   | `/mnt/foundationdb/data1,/mnt/foundationdb/data2,/mnt/foundationdb/data3` | - Ensure directories are created before running the script<br/>- SSD and separate directories are recommended for production environments                           |
-| `FDB_CLUSTER_IPS`  | Define cluster IPs                                  | String (comma-separated IP addresses) | `172.200.0.2,172.200.0.3,172.200.0.4`                                     | - At least 3 IP addresses for production clusters<br/>- The first IP will be used as the coordinator<br/>- For high availability, place machines in different racks |
-| `FDB_HOME`         | Define the main directory for FoundationDB          | Absolute path                                            | `/fdbhome`                                                                | - Default path is /fdbhome<br/>- Ensure this path is absolute                                                                                                       |
-| `FDB_CLUSTER_ID`   | Define the cluster ID                               | String                                                   | `SAQESzbh`                                                                | - Each cluster ID must be unique<br/>- Can be generated using `mktemp -u XXXXXXXX`                                                                                  |
-| `FDB_CLUSTER_DESC` | Define the description of the FDB cluster           | String                                                   | `dorisfdb`                                                                | - It is recommended to change this to something meaningful for the deployment                                                                                       |
+   ```shell
+   cp -r ms recycler
+   ```
 
-##### Optional Custom Settings
+_Configuration_
 
-| Parameter         | Description                                     | Type    | Example              | Notes                                                                                  |
-| ----------------- | ----------------------------------------------- | ------- | -------------------- | -------------------------------------------------------------------------------------- |
-| `MEMORY_LIMIT_GB` | Define the memory limit for FDB processes in GB | Integer | `MEMORY_LIMIT_GB=16` | Adjust this value based on available memory resources and FDB process requirements     |
-| `CPU_CORES_LIMIT` | Define the CPU core limit for FDB processes     | Integer | `CPU_CORES_LIMIT=8`  | Set this value based on the number of available CPU cores and FDB process requirements |
+Modify the BRPC listening port `brpc_listen_port` and the value of `fdb_cluster` in the configuration file of the new directory.
 
-#### 5.1.3 Deploy FDB Cluster
+_Start Data Recycling Function_
 
-After configuring the environment with `fdb_vars.sh`, you can deploy the FDB cluster on each node using the `fdb_ctl.sh` script.
-
-```bash
-./fdb_ctl.sh deploy
+```Shell
+export JAVA_HOME=${path_to_jdk_17}
+bin/start.sh --recycler --daemon
 ```
 
-This command initiates the deployment process of the FDB cluster.
+_Start Only Metadata Operation Function_
 
-### 5.1.4 Start FDB Service
-
-Once the FDB cluster is deployed, you can start the FDB service using the `fdb_ctl.sh` script.
-
-```bash
-./fdb_ctl.sh start
+```Shell
+export JAVA_HOME=${path_to_jdk_17}
+bin/start.sh --meta-service --daemon
 ```
 
-This command starts the FDB service, making the cluster operational and obtaining the FDB cluster connection string, which can be used for configuring the MetaService.
+## 5. Startup Process for FE and BE
 
-### 5.2 Install OpenJDK 17
+This section details the steps to start FE (Frontend) and BE (Backend) in a decoupled storage-compute architecture.
 
-1. Download [OpenJDK 17](https://download.java.net/java/GA/jdk17.0.1/2a2082e5a09d4267845be086888add4f/12/GPL/openjdk-17.0.1_linux-x64_bin.tar.gz)
-2. Extract and set the environment variable JAVA_HOME.
+### 5.1 Startup Order
 
-### 5.3 Install S3 or HDFS (Optional)
+1. Start the first FE instance with the MASTER role.
+2. Add other FE and BE instances to the cluster.
+3. Add the first Storage Vault.
 
-The Apache Doris (cloud mode) stores data on S3 or HDFS services. If you already have the relevant services, you can use them directly. If not, this document provides a simple deployment tutorial for MinIO:
+### 5.2 Start the MASTER Role FE
 
-1. Choose the appropriate version and operating system on 在 MinIO MinIO's [download page](https://min.io/download?license=agpl&platform=linux) and download the corresponding binary or installation packages for the server and client.
-2. start MinIO Server
+#### 5.2.1 Configure fe.conf
+
+In the `fe.conf` file, the following key parameters need to be configured:
+
+1. `deploy_mode`
+   - Description: Specifies the Doris startup mode.
+   - Format: `cloud` indicates the decoupled storage-compute mode; others indicate the integrated storage-compute mode.
+   - Example: `cloud`
+
+2. `cluster_id`
+   - Description: A unique identifier for the cluster in the decoupled storage-compute architecture. Each cluster must have a distinct cluster_id to avoid conflicts.
+   - Format: Integer (int type).
+   - Example: A random `cluster_id` can be generated using the following shell command.
+      ```shell
+      echo $(($((RANDOM << 15)) | $RANDOM))
+      ```
+     :::caution
+     **Each cluster must have a distinct cluster_id to avoid conflicts**
+     :::
+
+3. `meta_service_endpoint`
+   - Description: The address and port of the Meta Service.
+   - Format: `IP address:port number`.
+   - Example: `127.0.0.1:5000`, multiple meta services can be configured separated by commas.
+
+#### 5.2.2 Start FE
+
+Example start command:
+
+```bash
+bin/start_fe.sh --daemon
+```
+
+The first FE process initializes the cluster and operates in the FOLLOWER role. Use a MySQL client to connect to the FE and use `show frontends` to confirm that the recently started FE is the master.
+
+### 5.3 Add Other FE Nodes
+
+Other nodes should also modify the configuration file and start according to the above steps. Use a MySQL client to connect to the FE with the MASTER role and use the following SQL command to add additional FE nodes:
+
+```sql
+ALTER SYSTEM ADD FOLLOWER "host:port";
+```
+
+Replace `host:port` with the actual address and editlog port of the FE node. More information refer to [ADD FOLLOWER](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-FOLLOWER.md) and [ADD OBSERVER](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-OBSERVER.md).
+
+For production environment, please ensure that the total number of Frontend (FE) nodes in the FOLLOWER role, including the first FE, remains an odd number. In general, three FOLLOWERS are sufficient. Frontend nodes in the OBSERVER role can be any number.
+
+### 5.4 Add BE Nodes
+
+To add Backend nodes to the cluster, perform the following steps for each Backend:
+
+#### 5.4.1 Configure be.conf
+
+In the `be.conf` file, the following key parameters need to be configured:
+
+1. `deploy_mode`
+   - Description: Specifies the Doris startup mode.
+   - Format: `cloud` indicates the decoupled storage-compute mode; others indicate the integrated storage-compute mode.
+   - Example: `cloud`
+
+2. `file_cache_path`
+   - Description: The disk paths and other parameters used for file cache, represented as an array, with one entry for each disk. The `path` specifies the disk path, and `total_size` limits the size of the cache; -1 or 0 will use the entire disk space.
+   - format: [{"path":"/path/to/file_cache","total_size":21474836480},{"path":"/path/to/file_cache2","total_size":21474836480}]
+   - Example: [{"path":"/path/to/file_cache","total_size":21474836480},{"path":"/path/to/file_cache2","total_size":21474836480}]
+   - Default: [{"path":"${DORIS_HOME}/file_cache"}]
+
+#### 5.4.1 Start and Add BE
+
+1. Start the Backend:
+
+   Use the following command to start the Backend:
+
    ```bash
-   export MINIO_REGION_NAME=us-east-1
-   export MINIO_ROOT_USER=minio # In older versions, the configuration is MINIO_ACCESS_KEY=minio
-   export MINIO_ROOT_PASSWORD=minioadmin # In older versions, the configuration is MINIO_SECRET_KEY=minioadmin
-   nohup ./minio server /mnt/data 2>&1 &
-   ```
-3. config MinIO Client
-   ```bash
-   # If you are using a client installed with an installation package, the client name is mcli. If you directly download the client binary package, its name is mc
-   ./mc config host add myminio http://127.0.0.1:9000 minio minioadmin
-   ```
-4. create a bucket
-   ```bash
-   ./mc mb myminio/doris
-   ```
-5. verify if it is working properly
-   ```bash
-   # upload a file
-   ./mc mv test_file myminio/doris
-   # list files
-   ./mc ls myminio/doris
+   bin/start_be.sh --daemon
    ```
 
-## 6) Next Steps
+2. Add the Backend to the cluster:
 
-After completing the above preparations, please refer to the following documents to continue the deployment:
+   Connect to any Frontend using a MySQL client and execute:
 
-1. [Deployment](./compilation-and-deployment.md)
-2. [Managing Compute Group](./managing-compute-cluster.md)
-3. [Managing Storage Vault](./managing-storage-vault.md)
+   ```sql
+   ALTER SYSTEM ADD BACKEND "<ip>:<heartbeat_service_port>" [PROPERTIES properties];
+   ```
 
-## 7) Notes
+   Replace `<ip>` with the IP address of the new Backend and `<heartbeat_service_port>` with its configured heartbeat service port (default is 9050).
 
-- Ensure time synchronization across all nodes
-- Regularly back up FoundationDB data
-- Adjust FoundationDB and Doris configuration parameters based on actual load
+   You can set the computing group for the BE using PROPERTIES.
 
-## 8. References
+   For more detailed usage, please refer to [ADD BACKEND](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-BACKEND.md) and [REMOVE BACKEND](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-DROP-BACKEND.md).
 
-- [FoundationDB Official Documentation](https://apple.github.io/foundationdb/index.html)
-- [Apache Doris Official Website](https://doris.apache.org/)
+3. Verify Backend Status:
+
+   Check the Backend log file (`be.log`) to ensure it has successfully started and joined the cluster.
+
+   You can also use the following SQL command to check the Backend status:
+
+   ```sql
+   SHOW BACKENDS;
+   ```
+
+   This will display all Backends in the cluster and their current status.
+
+## 6) Create Storage Vault
+
+Storage Vault is an important component in the Doris decoupled storage and computing architecture. They represent a shared storage layer for storing data. You can create one or more Storage Vaults using HDFS or S3-compatible object storage. One Storage Vault can be set as the default Storage Vault, and system tables and tables without a specified Storage Vault will be stored in this default Storage Vault. The default Storage Vault cannot be deleted. Here are the methods to create a Storage Vault for your Doris cluster:
+
+### 6.1 Create HDFS Storage Vault
+
+To create a Storage Vault using SQL, connect to your Doris cluster using a MySQL client.
+
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault
+    PROPERTIES (
+    "type"="hdfs",
+    "fs.defaultFS"="hdfs://127.0.0.1:8020"
+    );
+```
+
+### 6.2 Create S3 Storage Vault
+
+To create a Storage Vault using S3-compatible object storage, follow these steps:
+
+1. Connect to your Doris cluster using a MySQL client.
+
+2. Execute the following SQL command to create an S3 Storage Vault:
+
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS s3_vault
+    PROPERTIES (
+    "type"="S3",
+    "s3.endpoint"="s3.us-east-1.amazonaws.com",
+    "s3.access_key" = "ak",
+    "s3.secret_key" = "sk",
+    "s3.region" = "us-east-1",
+    "s3.root.path" = "ssb_sf1_p2_s3",
+    "s3.bucket" = "doris-build-1308700295",
+    "provider" = "S3"
+    );
+```
+
+To create a Storage Vault on other object storage, please refer to [Create Storage Vault](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-STORAGE-VAULT.md).
+
+### 6.3 Set Default Storage Vault
+
+Use the following SQL statement to set a default Storage Vault.
+
+```sql
+SET <storage_vault_name> AS DEFAULT STORAGE VAULT
+```
+
+## 7. Notes
+
+- Only the Meta Service process for metadata operations should be configured as the `meta_service_endpoint` target for FE and BE.
+- The data recycling function process should not be configured as the `meta_service_endpoint` target.
