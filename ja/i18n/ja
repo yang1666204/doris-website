@@ -1,107 +1,81 @@
 ---
-{ "title": "ALTER-DATABASE", "language": "en" }
+{ "title": "ALTER-RESOURCE", "language": "en" }
 ---
 
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
+or more contributor license agreements. See the NOTICE file
 distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
+regarding copyright ownership. The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+with the License. You may obtain a copy of the License at
 
   http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
+KIND, either express or implied. See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-DATABASE
+## ALTER-RESOURCE
 
 ### Name
 
-ALTER DATABASE
+ALTER RESOURCE
 
 ### Description
 
-This statement is used to set properties of the specified database. (administrator only)
-
-1. Set the database data quota, the unit is B/K/KB/M/MB/G/GB/T/TB/P/PB
-
-```sql
-ALTER DATABASE db_name SET DATA QUOTA quota;
-```
-
-2. Rename the database
+This statement is used to modify an existing resource. Only the root or admin user can modify resources.
+Syntax:
 
 ```sql
-ALTER DATABASE db_name RENAME new_db_name;
+ALTER RESOURCE 'resource_name'
+PROPERTIES ("key"="value", ...);
 ```
 
-3. Set the quota for the number of copies of the database
-
-```sql
-ALTER DATABASE db_name SET REPLICA QUOTA quota;
-```
-
-illustrate:
-After renaming the database, use the REVOKE and GRANT commands to modify the appropriate user permissions, if necessary.
-The default data quota for the database is 1024GB, and the default replica quota is 1073741824.
-
-4. Modify the properties of an existing database
-
-```sql
-ALTER DATABASE db_name SET PROPERTIES ("key"="value", ...); 
-```
+Note: The resource type does not support modification.
 
 ### Example
 
-1. Set the specified database data volume quota
+1. Modify the working directory of the Spark resource named spark0:
 
 ```sql
-ALTER DATABASE example_db SET DATA QUOTA 10995116277760;
-The above unit is bytes, which is equivalent to
-ALTER DATABASE example_db SET DATA QUOTA 10T;
-
-ALTER DATABASE example_db SET DATA QUOTA 100G;
-
-ALTER DATABASE example_db SET DATA QUOTA 200M;
+ALTER RESOURCE 'spark0' PROPERTIES ("working_dir" = "hdfs://127.0.0.1:10000/tmp/doris_new");
 ```
 
-2. Rename the database example_db to example_db2
+2. Modify the maximum number of connections to the S3 resource named remote_s3:
 
 ```sql
-ALTER DATABASE example_db RENAME example_db2;
+ALTER RESOURCE 'remote_s3' PROPERTIES ("s3.connection.maximum" = "100");
 ```
 
-3. Set the quota for the number of copies of the specified database
+3. Modify information related to cold and hot separation S3 resources
+
+- Support
+  - `s3.access_key`  s3 ak
+  - `s3.secret_key`  s3 sk
+  - `s3.session_token` s3 token
+  - `s3.connection.maximum` default 50
+  - `s3.connection.timeout` default 1000ms
+  - `s3.connection.request.timeout` default 3000ms
+- Not Support
+  - `s3.region`
+  - `s3.bucket"`
+  - `s3.root.path`
+  - `s3.endpoint`
 
 ```sql
-ALTER DATABASE example_db SET REPLICA QUOTA 102400;
-```
-
-4. Modify the default replica distribution policy for tables in db (this operation only applies to newly created tables and will not modify existing tables in db)
-
-```sql
-ALTER DATABASE example_db SET PROPERTIES("replication_allocation" = "tag.location.default:2");
-```
-
-5. Cancel the default replica distribution policy for tables in db (this operation only applies to newly created tables and will not modify existing tables in db)
-
-```sql
-ALTER DATABASE example_db SET PROPERTIES("replication_allocation" = "");
+  ALTER RESOURCE "showPolicy_1_resource" PROPERTIES("s3.connection.maximum" = "1111");
 ```
 
 ### Keywords
 
 ```text
-ALTER,DATABASE,RENAME
+ALTER, RESOURCE
 ```
 
 ### Best Practice
-
