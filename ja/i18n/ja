@@ -1,5 +1,5 @@
 ---
-{ "title": "CREATE-DATABASE", "language": "en" }
+{ "title": "CREATE-ENCRYPT-KEY", "language": "en" }
 ---
 
 <!--
@@ -21,59 +21,64 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CREATE-DATABASE
+## CREATE-ENCRYPT-KEY
 
 ### Name
 
-CREATE DATABASE
+CREATE ENCRYPTKEY
 
 ### Description
 
-This statement is used to create a new database (database)
+This statement creates a custom key. Executing this command requires the user to have `ADMIN` privileges.
 
 grammar:
 
 ```sql
-CREATE DATABASE [IF NOT EXISTS] db_name
-    [PROPERTIES ("key"="value", ...)];
+CREATE ENCRYPTKEY key_name AS "key_string"
 ```
 
-`PROPERTIES` Additional information about the database, which can be defaulted.
+illustrate:
 
-- If you want to specify the default replica distribution for tables in db, you need to specify `replication_allocation` (the `replication_allocation` attribute of table will have higher priority than db)
+`key_name`: The name of the key to be created, may contain the name of the database. For example: `db1.my_key`.
 
-  ```sql
-  PROPERTIES (
-    "replication_allocation" = "tag.location.default:3"
-  )
-  ```
+`key_string`: The string to create the key with.
+
+If `key_name` contains the database name, then the custom key will be created in the corresponding database, otherwise this function will create the database in the current session. The name of the new key cannot be the same as the existing key in the corresponding database, otherwise the creation will fail.
 
 ### Example
 
-1. Create a new database db_test
+1. Create a custom key
 
    ```sql
-   CREATE DATABASE db_test;
+   CREATE ENCRYPTKEY my_key AS "ABCD123456789";
    ```
 
-2. Create a new database with default replica distribution:
+2. Use a custom key
+
+   To use a custom key, you need to add the keyword `KEY`/`key` before the key, separated from the `key_name` space.
 
    ```sql
-   CREATE DATABASE `iceberg_test`
-   PROPERTIES (
-       "replication_allocation" = "tag.location.group_1:3"
-   );
-   ```
+   mysql> SELECT HEX(AES_ENCRYPT("Doris is Great", KEY my_key));
+   +------------------------------------------------+
+   | hex(aes_encrypt('Doris is Great', key my_key)) |
+   +------------------------------------------------+
+   | D26DB38579D6A343350EDDC6F2AD47C6 |
+   +------------------------------------------------+
+   1 row in set (0.02 sec)
 
-:::caution
-If the create table statement has attributes replication_allocation or replication_num, then the default replica distribution policy of the database will not take effect.
-:::
+   mysql> SELECT AES_DECRYPT(UNHEX('D26DB38579D6A343350EDDC6F2AD47C6'), KEY my_key);
+   +------------------------------------------------- -------------------+
+   | aes_decrypt(unhex('D26DB38579D6A343350EDDC6F2AD47C6'), key my_key) |
+   +------------------------------------------------- -------------------+
+   | Doris is Great |
+   +------------------------------------------------- -------------------+
+   1 row in set (0.01 sec)
+   ```
 
 ### Keywords
 
-```text
-CREATE, DATABASE
-```
+    ```
+    CREATE, ENCRYPTKEY
+    ```
 
 ### Best Practice
-
