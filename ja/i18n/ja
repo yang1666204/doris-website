@@ -1,5 +1,5 @@
 ---
-{ "title": "IPV4_CIDR_TO_RANGE", "language": "en" }
+{ "title": "IPV4_NUM_TO_STRING", "language": "en" }
 ---
 
 <!-- 
@@ -19,43 +19,48 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## IPV4_CIDR_TO_RANGE
+## IPV4_NUM_TO_STRING
 
-IPV4_CIDR_TO_RANGE
+IPV4_NUM_TO_STRING
 
 ### Description
 
 #### Syntax
 
-`STRUCT<IPV4, IPV4> IPV4_CIDR_TO_RANGE(IPV4 ip_v4, INT16 cidr)`
+`VARCHAR IPV4_NUM_TO_STRING(BIGINT ipv4_num)`
 
-Receive an IPv4 and an Int16 value containing CIDR. Returns a struct that contains two IPv4 fields representing the lower range (min) and higher range (max) of the subnet, respectively.
+`VARCHAR INET_NTOA(BIGINT ipv4_num)`
+
+Takes a Int16、Int32、Int64 number. Interprets it as an IPv4 address in big endian. Returns a string containing the corresponding IPv4 address in the format A.B.C.d (dot-separated numbers in decimal form).
+
+#### Notice
+
+Will return `NULL` if the input parameter is negative or larger than `4294967295`(num value of `'255.255.255.255'`). This function has an alias `INET_NOTA`.
 
 ### Example
 
 ```sql
-mysql> SELECT ipv4_cidr_to_range(ipv4_string_to_num('192.168.5.2'), 16);
-+-----------------------------------------------------------+
-| ipv4_cidr_to_range(ipv4_string_to_num('192.168.5.2'), 16) |
-+-----------------------------------------------------------+
-| {"min": "192.168.0.0", "max": "192.168.255.255"}          |
-+-----------------------------------------------------------+
+mysql> select ipv4_num_to_string(3232235521);
++--------------------------------+
+| ipv4_num_to_string(3232235521) |
++--------------------------------+
+| 192.168.0.1                    |
++--------------------------------+
+1 row in set (0.01 sec)
 
-mysql> SELECT ipv4_cidr_to_range(to_ipv4('192.168.5.2'), 16);
-+--------------------------------------------------+
-| ipv4_cidr_to_range(to_ipv4('192.168.5.2'), 16)   |
-+--------------------------------------------------+
-| {"min": "192.168.0.0", "max": "192.168.255.255"} |
-+--------------------------------------------------+
-
-mysql> SELECT ipv4_cidr_to_range(NULL, NULL);
-+--------------------------------+
-| ipv4_cidr_to_range(NULL, NULL) |
-+--------------------------------+
-| NULL                           |
-+--------------------------------+
+mysql> select num,ipv4_num_to_string(num) from ipv4_bi;
++------------+---------------------------+
+| num        | ipv4_num_to_string(`num`) |
++------------+---------------------------+
+|         -1 | NULL                      |
+|          0 | 0.0.0.0                   |
+| 2130706433 | 127.0.0.1                 |
+| 4294967295 | 255.255.255.255           |
+| 4294967296 | NULL                      |
++------------+---------------------------+
+7 rows in set (0.01 sec)
 ```
 
 ### Keywords
 
-IPV4_CIDR_TO_RANGE, IP
+IPV4_NUM_TO_STRING, INET_NTOA, IP
