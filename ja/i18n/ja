@@ -1,8 +1,5 @@
 ---
-{
-  "title": "SHOW-CREATE-MATERIALIZED-VIEW",
-  "language": "en"
-}
+{ "title": "SHOW-CREATE-REPOSITORY", "language": "en" }
 ---
 
 <!--
@@ -24,52 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CREATE-MATERIALIZED-VIEW
+## SHOW-CREATE-REPOSITORY
 
 ### Name
 
-SHOW CREATE MATERIALIZED VIEW
+SHOW CREATE REPOSITORY
 
 ### Description
 
-This statement is used to query statements that create materialized views.
+This statement is used to demonstrate the creation statement of a repository.
 
-grammar：
+grammar:
 
 ```sql
-SHOW CREATE MATERIALIZED VIEW mv_name ON table_name
+SHOW CREATE REPOSITORY for repository_name;
 ```
 
-1. mv_name:
-   Materialized view name. required.
+illustrate:
 
-2. table_name:
-   The table name of materialized view. required.
+- `repository_name`: repository name
 
 ### Example
 
-Create materialized view
+1. Show the creation statement of the specified repository
 
-```sql
-create materialized view id_col1 as select id,col1 from table3;
-```
-
-Return after query
-
-```sql
-mysql> show create materialized view id_col1 on table3;
-+-----------+----------+----------------------------------------------------------------+
-| TableName | ViewName | CreateStmt                                                     |
-+-----------+----------+----------------------------------------------------------------+
-| table3    | id_col1  | create materialized view id_col1 as select id,col1 from table3 |
-+-----------+----------+----------------------------------------------------------------+
-1 row in set (0.00 sec)
-```
+    ```sql
+    SHOW CREATE REPOSITORY for test_repository
+    ```
 
 ### Keywords
 
     ```
-    SHOW, MATERIALIZED, VIEW
+    SHOW, CREATE, REPOSITORY
     ```
 
 ### Best Practice
