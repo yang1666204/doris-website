@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Optimizing Table Index Design",
-  "language": "en"
-}
+{ "title": "Optimizing Table Scanning", "language": "en" }
 ---
 
 <!-- 
@@ -26,74 +23,59 @@ under the License.
 
 ## Overview
 
-Doris currently supports two types of indexes:
+Doris, as a high-performance real-time analytics data warehouse, offers a powerful partition pruning feature that can significantly enhance query performance.
 
-1. Built-in Indexes: These include prefix indexes, ZoneMap indexes, etc.
-2. Secondary Indexes: These include inverted indexes, Bloom filter indexes, N-Gram Bloom filter indexes, and Bitmap indexes, etc.
+Partition pruning is a query optimization technique that intelligently identifies partitions relevant to a query by analyzing its conditions, and scans only the data within these partitions, thereby avoiding unnecessary scans of irrelevant partitions. This approach can greatly reduce I/O operations and computational load, thus accelerating query execution.
 
-In the process of business optimization, fully analyzing business characteristics and make effective use of indexes can greatly enhance the effectiveness of queries and analyses, thereby achieving the purpose of performance tuning.
+## Case
 
-For a detailed introduction to various indexes, please refer to the [Table Index](../../../table-design/index/index-overview.md) section. This chapter will demonstrate index usage techniques in several typical scenarios from the perspective of actual cases and summarize optimization suggestions for reference in business tuning.
+Here is a usage case to demonstrate Doris's partition pruning feature.
 
-## Case 1: Optimizing the Order of Key Columns to Leverage Prefix Indexes for Accelerated Queries
-
-In [optimizing table schema design](optimizing-table-schema.md), we have introduced how to select appropriate fields as key fields and utilize Doris's key column sorting feature to accelerate queries. This case will further expand on this scenario.
-
-Due to Doris's built-in prefix index function, it automatically takes the first 36 bytes of the table's Key as a prefix index when creating the table. When query conditions match the prefix of the prefix index, it can significantly speed up the query. Below is an example of a table definition:
+Suppose we have a sales data table named `sales`, which is partitioned by date, with each day's data stored in a separate partition. The table structure is defined as follows:
 
 ```sql
-CREATE TABLE `t1` (
-  `c1` VARCHAR(10) NULL,
-  `c2` VARCHAR(10) NULL
-) ENGINE=OLAP
-DUPLICATE KEY(`c1`)
-DISTRIBUTED BY HASH(`c2`) BUCKETS 10
-PROPERTIES (
-"replication_allocation" = "tag.location.default: 1"
+CREATE TABLE sales (
+    date DATE,
+    product VARCHAR(50),
+    amount DECIMAL(10, 2)
+)
+PARTITION BY RANGE(date) (
+    PARTITION p1 VALUES LESS THAN ('2023-01-01'),
+    PARTITION p2 VALUES LESS THAN ('2023-02-01'),
+    PARTITION p3 VALUES LESS THAN ('2023-03-01'),
+    PARTITION p4 VALUES LESS THAN ('2023-04-01')
+)
+DISTRIBUTED BY HASH(date) BUCKETS 16
+PROPERTIES
+(
+    "replication_num" = "1"
 );
 ```
 
-The corresponding business SQL pattern is as follows:
+Now, we need to query the total sales amount between January 15, 2023 and February 15, 2023. The query statement is as follows:
 
 ```sql
-select * from t1 where t1.c2 = '1';
-select * from t1 where t1.c2 in ('1', '2', '3');
+SELECT SUM(amount) AS total_amount
+FROM sales
+WHERE date BETWEEN '2023-01-15' AND '2023-02-15';
 ```
 
-In the above schema definition, `c1` comes before `c2`. However, the queries use the `c2` field for filtering. In this case, the acceleration function of the prefix index cannot be utilized. To optimize, we can adjust the definition order of `c1` and `c2`, placing the `c2` column in the first field position to leverage the acceleration function of the prefix index.
+For the above query, Doris's partition pruning optimization process is as follows:
 
-The adjusted schema is as follows:
+1. Doris intelligently analyzes the partition column `date` in the query conditions and identifies the date range of the query as being between '2023-01-15' and '2023-02-15'.
+2. By comparing the query conditions with the partition definitions, Doris precisely locates the range of partitions that need to be scanned. In this example, only partitions `p2` and `p3` need to be scanned, as their date ranges fully cover the query conditions.
+3. Doris automatically skips partitions unrelated to the query conditions, such as `p1` and `p4`, avoiding unnecessary data scans and thereby reducing I/O overhead.
+4. Finally, Doris performs data scanning and aggregation computations only within partitions `p2` and `p3`, quickly obtaining the query results.
+
+By using the `EXPLAIN` command, we can view the query execution plan and confirm that Doris's partition pruning optimization has taken effect. In the execution plan, the `partition` attribute of the `OlapScanNode` node will display the actually scanned partitions as `p2` and `p3`.
 
 ```sql
-CREATE TABLE `t1` (
-  `c2` VARCHAR(10) NULL,
-  `c1` VARCHAR(10) NULL
-) ENGINE=OLAP
-DUPLICATE KEY(`c2`)
-DISTRIBUTED BY HASH(`c1`) BUCKETS 10
-PROPERTIES (
-"replication_allocation" = "tag.location.default: 1"
-);
+|   0:VOlapScanNode(212)                                                     |
+|      TABLE: cir.sales(sales), PREAGGREGATION: ON                           |
+|      PREDICATES: (date[#0] >= '2023-01-15') AND (date[#0] <= '2023-02-15') |
+|      partitions=2/4 (p2,p3)                                                |
 ```
-
-:::tip
-
-When defining the schema column order, reference the high-frequency and high-priority columns in business query filtering to fully leverage Doris's prefix index acceleration function.
-
-:::
-
-## Case 2: Using Inverted Indexes to Accelerate Queries
-
-Doris supports inverted indexes as secondary indexes to accelerate business scenarios such as equal value, range, and full-text search of text types. The creation and management of inverted indexes are independent, allowing for convenient business performance optimization without affecting the original table schema and without the need to re-import table data.
-
-For typical usage scenarios, syntax, and cases, please refer to the [Table Index - Inverted Index](../../../table-design/index/inverted-index) section for a detailed introduction, so this chapter will not repeat the explanation.
-
-:::tip
-
-For full-text searches of text types and equal value or range queries on string, numeric, and datetime type fields, inverted indexes can be utilized to accelerate queries. Especially in certain situations, such as when the original table structure and key definition are not convenient to optimize, or the cost of re-importing table data is high, inverted indexes provide a flexible acceleration solution to optimize business execution performance.
-
-:::
 
 ## Summary
 
-In schema tuning, apart from table-level schema optimization, index optimization also occupies an important position. Doris provides multiple index types, including built-in indexes such as prefix index, as well as secondary indexes such as inverted indexes, which provide strong support for performance acceleration. By reasonably utilizing these indexes, we can significantly improve the speed of business queries and analyses in multiple scenarios, which is of great significance for multi-scenario business queries and analyses.
+In summary, Doris's partition pruning feature can intelligently identify the relevance between query conditions and partitions, automatically prune irrelevant partitions, and scan only necessary data, thereby significantly enhancing query performance. Reasonable utilization of the partition pruning feature can help users build efficient real-time analytics systems and easily handle massive data query demands.
