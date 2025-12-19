@@ -1,8 +1,8 @@
 ---
-{ "title": "DAYS_SUB", "language": "en" }
+{ "title": "EXTRACT", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,31 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## days_sub
+## extract
 
 ### description
 
 #### Syntax
 
-`DATETIME DAYS_SUB(DATETIME date, INT days)`
+`INT extract(unit FROM DATETIME)`
 
-Subtract a specified number of days from a datetime or date
+Extract DATETIME The value of a specified unit. The unit can be year, day, hour, minute, second or microsecond
 
-The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
-
-### example
+### Example
 
 ```
-mysql> select days_sub("2020-02-02 02:02:02", 1);
-+------------------------------------+
-| days_sub('2020-02-02 02:02:02', 1) |
-+------------------------------------+
-| 2020-02-01 02:02:02                |
-+------------------------------------+
+mysql> select extract(year from '2022-09-22 17:01:30') as year,
+    -> extract(month from '2022-09-22 17:01:30') as month,
+    -> extract(day from '2022-09-22 17:01:30') as day,
+    -> extract(hour from '2022-09-22 17:01:30') as hour,
+    -> extract(minute from '2022-09-22 17:01:30') as minute,
+    -> extract(second from '2022-09-22 17:01:30') as second,
+    -> extract(microsecond from cast('2022-09-22 17:01:30.000123' as datetimev2(6))) as microsecond;
++------+-------+------+------+--------+--------+-------------+
+| year | month | day  | hour | minute | second | microsecond |
++------+-------+------+------+--------+--------+-------------+
+| 2022 |     9 |   22 |   17 |      1 |     30 |         123 |
++------+-------+------+------+--------+--------+-------------+
 ```
 
 ### keywords
 
     ```
-    DAYS_SUB
+    extract
     ```
