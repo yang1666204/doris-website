@@ -1,8 +1,8 @@
 ---
-{ "title": "INSERT", "language": "en" }
+{ "title": "SELECT", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,213 +21,391 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## INSERT
+## SELECT
 
 ### Name
 
-INSERT
+SELECT
 
-### Description
+### description
 
-The change statement is to complete the data insertion operation.
+Mainly introduces the use of Select syntax
 
-```sql
-INSERT INTO table_name
-    [ PARTITION (p1, ...) ]
-    [ WITH LABEL label]
-    [ (column [, ...]) ]
-    [ [ hint [, ...] ] ]
-    { VALUES ( { expression | DEFAULT } [, ...] ) [, ...] | query }
-```
-
-Parameters
-
-> tablet_name: The destination table for importing data. Can be of the form `db_name.table_name`
->
-> partitions: Specify the partitions to be imported, which must be partitions that exist in `table_name`. Multiple partition names are separated by commas
->
-> label: specify a label for the Insert task
->
-> column_name: The specified destination column, must be a column that exists in `table_name`
->
-> expression: the corresponding expression that needs to be assigned to a column
->
-> DEFAULT: let the corresponding column use the default value
->
-> query: a common query, the result of the query will be written to the target
->
-> hint: some indicator used to indicate the execution behavior of `INSERT`. You can choose one of this values: `/*+ STREAMING */`, `/*+ SHUFFLE */` or \`/\*+ NOSHUFFLE \*/.
->
-> 1. STREAMING: At present, it has no practical effect and is only reserved for compatibility with previous versions. (In the previous version, adding this hint would return a label, but now it defaults to returning a label)
-> 2. SHUFFLE: When the target table is a partition table, enabling this hint will do repartiiton.
-> 3. NOSHUFFLE: Even if the target table is a partition table, repartiiton will not be performed, but some other operations will be performed to ensure that the data is correctly dropped into each partition.
-
-For a Unique table with merge-on-write enabled, you can also perform partial columns updates using the insert statement. To perform partial column updates with the insert statement, you need to set the session variable enable_unique_key_partial_update to true (the default value for this variable is false, meaning partial columns updates with the insert statement are not allowed by default). When performing partial columns updates, the columns being inserted must contain at least all the Key columns and specify the columns you want to update. If the Key column values for the inserted row already exist in the original table, the data in the row with the same key column values will be updated. If the Key column values for the inserted row do not exist in the original table, a new row will be inserted into the table. In this case, columns not specified in the insert statement must either have default values or be nullable. These missing columns will first attempt to be populated with default values, and if a column has no default value, it will be filled with null. If a column cannot be null, the insert operation will fail.
-
-Please note that the default value of the session variable `enable_insert_strict`, which controls whether the insert statement operates in strict mode, is true. In other words, the insert statement is in strict mode by default, and in this mode, updating non-existing keys in partial column updates is not allowed. Therefore, when using the insert statement for partial columns update and wishing to insert non-existing keys, you need to set `enable_unique_key_partial_update` to true and simultaneously set `enable_insert_strict` to false.
-
-Notice:
-
-When executing the `INSERT` statement, the default behavior is to filter the data that does not conform to the target table format, such as the string is too long. However, for business scenarios that require data not to be filtered, you can set the session variable `enable_insert_strict` to `true` to ensure that `INSERT` will not be executed successfully when data is filtered out.
-
-### Example
-
-The `test` table contains two columns `c1`, `c2`.
-
-1. Import a row of data into the `test` table
+grammar:
 
 ```sql
-INSERT INTO test VALUES (1, 2);
-INSERT INTO test (c1, c2) VALUES (1, 2);
-INSERT INTO test (c1, c2) VALUES (1, DEFAULT);
-INSERT INTO test (c1) VALUES (1);
+SELECT
+    [hint_statement, ...]
+    [ALL | DISTINCT | DISTINCTROW | ALL EXCEPT ( col_name1 [, col_name2, col_name3, ...] )]
+    select_expr [, select_expr ...]
+    [FROM table_references
+      [PARTITION partition_list]
+      [TABLET tabletid_list]
+      [TABLESAMPLE sample_value [ROWS | PERCENT]
+        [REPEATABLE pos_seek]]
+    [WHERE where_condition]
+    [GROUP BY [GROUPING SETS | ROLLUP | CUBE] {col_name | expr | position}]
+    [HAVING where_condition]
+    [ORDER BY {col_name | expr | position}
+      [ASC | DESC], ...]
+    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
+    [INTO OUTFILE 'file_name']
 ```
 
-The first and second statements have the same effect. When no target column is specified, the column order in the table is used as the default target column.
-The third and fourth statements express the same meaning, use the default value of the `c2` column to complete the data import.
+1. **Syntax Description:**
 
-2. Import multiple rows of data into the `test` table at one time
+   1. select_expr, ... Columns retrieved and displayed in the result, when using an alias, as is optional.
+
+   2. select_expr, ... Retrieved target table (one or more tables (including temporary tables generated by subqueries)
+
+   3. where_definition retrieves the condition (expression), if there is a WHERE clause, the condition filters the row data. where_condition is an expression that evaluates to true for each row to be selected. Without the WHERE clause, the statement selects all rows. In WHERE expressions, you can use any MySQL supported functions and operators except aggregate functions
+
+   4. `ALL | DISTINCT ` : to refresh the result set, all is all, distinct/distinctrow will refresh the duplicate columns, the default is all
+
+   5. `ALL EXCEPT`: Filter on the full (all) result set, except specifies the name of one or more columns to be excluded from the full result set. All matching column names will be ignored in the output.
+
+   6. `INTO OUTFILE 'file_name' ` : save the result to a new file (which did not exist before), the difference lies in the save format.
+
+   7. `Group by having`: Group the result set, and brush the result of group by when having appears. `Grouping Sets`, `Rollup`, `Cube` are extensions of group by, please refer to [GROUPING SETS DESIGN](https://doris.apache.org/community/design/grouping_sets_design) for details.
+
+   8. `Order by`: Sort the final result, Order by sorts the result set by comparing the size of one or more columns.
+
+      Order by is a time-consuming and resource-intensive operation, because all data needs to be sent to 1 node before it can be sorted, and the sorting operation requires more memory than the non-sorting operation.
+
+      If you need to return the top N sorted results, you need to use the LIMIT clause; in order to limit memory usage, if the user does not specify the LIMIT clause, the first 65535 sorted results are returned by default.
+
+   9. `Limit n`: limit the number of lines in the output result, `limit m,n` means output n records starting from the mth line.You should use `order by` before you use `limit m,n`, otherwise the data may be inconsistent each time it is executed.
+
+   10. The `Having` clause does not filter the row data in the table, but filters the results produced by the aggregate function.
+
+       Typically `having` is used with aggregate functions (eg :`COUNT(), SUM(), AVG(), MIN(), MAX()`) and `group by` clauses.
+
+   11. SELECT supports explicit partition selection using PARTITION containing a list of partitions or subpartitions (or both) following the name of the table in `table_reference`
+
+   12. `[TABLET tids] TABLESAMPLE n [ROWS | PERCENT] [REPEATABLE seek]`: Limit the number of rows read from the table in the FROM clause, select a number of Tablets pseudo-randomly from the table according to the specified number of rows or percentages, and specify the number of seeds in REPEATABLE to return the selected samples again. In addition, you can also manually specify the TableID, Note that this can only be used for OLAP tables.
+
+   13. `hint_statement`:  hint in front of the selectlist indicates that hints can be used to influence the behavior of the optimizer in order to obtain the desired execution plan. Details refer to [joinHint using document] (https://doris.apache.org/en/docs/query-acceleration/hint/joinHint.md)
+
+**Syntax constraints:**
+
+1. SELECT can also be used to retrieve calculated rows without referencing any table.
+2. All clauses must be ordered strictly according to the above format, and a HAVING clause must be placed after the GROUP BY clause and before the ORDER BY clause.
+3. The alias keyword AS is optional. Aliases can be used for group by, order by and having
+4. Where clause: The WHERE statement is executed to determine which rows should be included in the GROUP BY section, and HAVING is used to determine which rows in the result set should be used.
+5. The HAVING clause can refer to the total function, but the WHERE clause cannot refer to, such as count, sum, max, min, avg, at the same time, the where clause can refer to other functions except the total function. Column aliases cannot be used in the Where clause to define conditions.
+6. Group by followed by with rollup can count the results one or more times.
+
+**Join query:**
+
+Doris supports JOIN syntax
 
 ```sql
-INSERT INTO test VALUES (1, 2), (3, 2 + 2);
-INSERT INTO test (c1, c2) VALUES (1, 2), (3, 2 * 2);
-INSERT INTO test (c1) VALUES (1), (3);
-INSERT INTO test (c1, c2) VALUES (1, DEFAULT), (3, DEFAULT);
+JOIN
+table_references:
+    table_reference [, table_reference] …
+table_reference:
+    table_factor
+  | join_table
+table_factor:
+    tbl_name [[AS] alias]
+        [{USE|IGNORE|FORCE} INDEX (key_list)]
+  | ( table_references )
+  | { OJ table_reference LEFT OUTER JOIN table_reference
+        ON conditional_expr }
+join_table:
+    table_reference [INNER | CROSS] JOIN table_factor [join_condition]
+  | table_reference LEFT [OUTER] JOIN table_reference join_condition
+  | table_reference NATURAL [LEFT [OUTER]] JOIN table_factor
+  | table_reference RIGHT [OUTER] JOIN table_reference join_condition
+  | table_reference NATURAL [RIGHT [OUTER]] JOIN table_factor
+join_condition:
+    ON conditional_expr
 ```
 
-The first and second statements have the same effect, import two pieces of data into the `test` table at one time
-The effect of the third and fourth statements is known, and the default value of the `c2` column is used to import two pieces of data into the `test` table
-
-3. Import a query result into the `test` table
+**UNION Grammar:**
 
 ```sql
-INSERT INTO test SELECT * FROM test2;
-INSERT INTO test (c1, c2) SELECT * from test2;
+SELECT ...
+UNION [ALL| DISTINCT] SELECT ......
+[UNION [ALL| DISTINCT] SELECT ...]
 ```
 
-4. Import a query result into the `test` table, specifying the partition and label
+`UNION` is used to combine the results of multiple `SELECT` statements into a single result set.
+
+The column names in the first `SELECT` statement are used as the column names in the returned results. The selected columns listed in the corresponding position of each `SELECT` statement should have the same data type. (For example, the first column selected by the first statement should be of the same type as the first column selected by other statements.)
+
+The default behavior of `UNION` is to remove duplicate rows from the result. The optional `DISTINCT` keyword has no effect other than the default, since it also specifies duplicate row removal. With the optional `ALL` keyword, no duplicate row removal occurs, and the result includes all matching rows in all `SELECT` statements
+
+**WITH statement**:
+
+To specify common table expressions, use the `WITH` clause with one or more comma-separated clauses. Each subclause provides a subquery that generates the result set and associates the name with the subquery. The following example defines `WITH` clauses in CTEs named `cte1` and `cte2`, and refers to the `WITH` clause below their top-level `SELECT`:
 
 ```sql
-INSERT INTO test PARTITION(p1, p2) WITH LABEL `label1` SELECT * FROM test2;
-INSERT INTO test WITH LABEL `label1` (c1, c2) SELECT * from test2;
+WITH
+  cte1 AS (SELECT a，b FROM table1),
+  cte2 AS (SELECT c，d FROM table2)
+SELECT b，d FROM cte1 JOIN cte2
+WHERE cte1.a = cte2.c;
 ```
 
-### Keywords
+In a statement containing the `WITH` clause, each CTE name can be referenced to access the corresponding CTE result set.
+
+CTE names can be referenced in other CTEs, allowing CTEs to be defined based on other CTEs.
+
+Recursive CTE is currently not supported.
+
+### example
+
+1. Query the names of students whose ages are 18, 20, 25
+
+   ```sql
+   select Name from student where age in (18,20,25);
+   ```
+
+2. ALL EXCEPT Example
+   ```sql
+   -- Query all information except the students' age
+   select * except(age) from student; 
+   ```
+
+3. GROUP BY Example
+
+   ```sql
+   --Query the tb_book table, group by type, and find the average price of each type of book,
+   select type,avg(price) from tb_book group by type;
+   ```
+
+4. DISTINCT Use
+
+   ```
+   --Query the tb_book table to remove duplicate type data
+   select distinct type from tb_book;
+   ```
+
+5. ORDER BY Example
+
+   Sort query results in ascending (default) or descending (DESC) order. Ascending NULL is first, descending NULL is last
+
+   ```sql
+   --Query all records in the tb_book table, sort them in descending order by id, and display three records
+   select * from tb_book order by id desc limit 3;
+   ```
+
+6. LIKE fuzzy query
+
+   Can realize fuzzy query, it has two wildcards: `%` and `_`, `%` can match one or more characters, `_` can match one character
+
+   ```
+   --Find all books whose second character is h
+   select * from tb_book where name like('_h%');
+   ```
+
+7. LIMIT limits the number of result rows
+
+   ```sql
+   --1. Display 3 records in descending order
+   select * from tb_book order by price desc limit 3;
+
+   --2. Display 4 records from id=1
+   select * from tb_book where id limit 1,4;
+   ```
+
+8. CONCAT join multiple columns
+
+   ```sql
+   --Combine name and price into a new string output
+   select id,concat(name,":",price) as info,type from tb_book;
+   ```
+
+9. Using functions and expressions
+
+   ```sql
+   --Calculate the total price of various books in the tb_book table
+   select sum(price) as total,type from tb_book group by type;
+   --20% off price
+   select *,(price * 0.8) as "20%" from tb_book;
+   ```
+
+10. UNION Example
+
+    ```sql
+    SELECT a FROM t1 WHERE a = 10 AND B = 1 ORDER by LIMIT 10
+    UNION
+    SELECT a FROM t2 WHERE a = 11 AND B = 2 ORDER by LIMIT 10;
+    ```
+
+11. WITH clause example
+
+    ```sql
+    WITH cte AS
+    (
+      SELECT 1 AS col1, 2 AS col2
+      UNION ALL
+      SELECT 3, 4
+    )
+    SELECT col1, col2 FROM cte;
+    ```
+
+12. JOIN Exampel
+
+    ```sql
+    SELECT * FROM t1 LEFT JOIN (t2, t3, t4)
+                     ON (t2.a = t1.a AND t3.b = t1.b AND t4.c = t1.c)
+    ```
+
+    Equivalent to
+
+    ```sql
+    SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4)
+                     ON (t2.a = t1.a AND t3.b = t1.b AND t4.c = t1.c)
+    ```
+
+13. INNER JOIN
+
+    ```sql
+    SELECT t1.name, t2.salary
+      FROM employee AS t1 INNER JOIN info AS t2 ON t1.name = t2.name;
+
+    SELECT t1.name, t2.salary
+      FROM employee t1 INNER JOIN info t2 ON t1.name = t2.name;
+    ```
+
+14. LEFT JOIN
+
+    ```sql
+    SELECT left_tbl.*
+      FROM left_tbl LEFT JOIN right_tbl ON left_tbl.id = right_tbl.id
+      WHERE right_tbl.id IS NULL;
+    ```
+
+15. RIGHT JOIN
+
+    ```sql
+    mysql> SELECT * FROM t1 RIGHT JOIN t2 ON (t1.a = t2.a);
+    +------+------+------+------+
+    | a    | b    | a    | c    |
+    +------+------+------+------+
+    |    2 | y    |    2 | z    |
+    | NULL | NULL |    3 | w    |
+    +------+------+------+------+
+    ```
+
+16. TABLESAMPLE
+
+    ```sql
+    --Pseudo-randomly sample 1000 rows in t1. Note that several Tablets are actually selected according to the statistics of the table, and the total number of selected Tablet rows may be greater than 1000, so if you want to explicitly return 1000 rows, you need to add Limit.
+    SELECT * FROM t1 TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2 limit 1000;
+    ```
+
+### keywords
 
     ```
-    INSERT
+    SELECT
     ```
 
 ### Best Practice
 
-1. View the returned results
+1. ome additional knowledge about the SELECT clause
 
-   The INSERT operation is a synchronous operation, and the return of the result indicates the end of the operation. Users need to perform corresponding processing according to the different returned results.
+   - An alias can be specified for select_expr using AS alias_name. Aliases are used as column names in expressions and can be used in GROUP BY, ORDER BY or HAVING clauses. The AS keyword is a good habit to use when specifying aliases for columns.
 
-   1. The execution is successful, the result set is empty
+   - table_references after FROM indicates one or more tables participating in the query. If more than one table is listed, a JOIN operation is performed. And for each specified table, you can define an alias for it
 
-      If the result set of the insert corresponding to the select statement is empty, it will return as follows:
+   - The selected column after SELECT can be referenced in ORDER IN and GROUP BY by column name, column alias or integer (starting from 1) representing the column position
 
-      ```sql
-      mysql> insert into tbl1 select * from empty_tbl;
-      Query OK, 0 rows affected (0.02 sec)
-      ```
+     ```sql
+     SELECT college, region, seed FROM tournament
+       ORDER BY region, seed;
 
-      `Query OK` indicates successful execution. `0 rows affected` means that no data was imported.
+     SELECT college, region AS r, seed AS s FROM tournament
+       ORDER BY r, s;
 
-   2. The execution is successful, the result set is not empty
+     SELECT college, region, seed FROM tournament
+       ORDER BY 2, 3;
+     ```
 
-      In the case where the result set is not empty. The returned results are divided into the following situations:
+   - If ORDER BY appears in a subquery and also applies to the outer query, the outermost ORDER BY takes precedence.
 
-      1. Insert executes successfully and is visible:
+   - If GROUP BY is used, the grouped columns are automatically sorted in ascending order (as if there was an ORDER BY statement followed by the same columns). If you want to avoid the overhead of GROUP BY due to automatic sorting, adding ORDER BY NULL can solve it:
 
-         ```sql
-         mysql> insert into tbl1 select * from tbl2;
-         Query OK, 4 rows affected (0.38 sec)
-         {'label':'insert_8510c568-9eda-4173-9e36-6adc7d35291c', 'status':'visible', 'txnId':'4005'}
+     ```sql
+     SELECT a, COUNT(b) FROM test_table GROUP BY a ORDER BY NULL;
+     ```
 
-         mysql> insert into tbl1 with label my_label1 select * from tbl2;
-         Query OK, 4 rows affected (0.38 sec)
-         {'label':'my_label1', 'status':'visible', 'txnId':'4005'}
+   - When sorting columns in a SELECT using ORDER BY or GROUP BY, the server sorts values using only the initial number of bytes indicated by the max_sort_length system variable.
 
-         mysql> insert into tbl1 select * from tbl2;
-         Query OK, 2 rows affected, 2 warnings (0.31 sec)
-         {'label':'insert_f0747f0e-7a35-46e2-affa-13a235f4020d', 'status':'visible', 'txnId':'4005'}
+   - Having clauses are generally applied last, just before the result set is returned to the MySQL client, and is not optimized. (while LIMIT is applied after HAVING)
 
-         mysql> insert into tbl1 select * from tbl2;
-         Query OK, 2 rows affected, 2 warnings (0.31 sec)
-         {'label':'insert_f0747f0e-7a35-46e2-affa-13a235f4020d', 'status':'committed', 'txnId':'4005'}
-         ```
+     The SQL standard requires: HAVING must refer to a column in the GROUP BY list or used by an aggregate function. However, MySQL extends this by allowing HAVING to refer to columns in the Select clause list, as well as columns from outer subqueries.
 
-         `Query OK` indicates successful execution. `4 rows affected` means that a total of 4 rows of data were imported. `2 warnings` indicates the number of lines to be filtered.
+     A warning is generated if the column referenced by HAVING is ambiguous. In the following statement, col2 is ambiguous:
 
-         Also returns a json string:
+     ```sql
+     SELECT COUNT(col1) AS col2 FROM t GROUP BY col2 HAVING col2 = 2;
+     ```
 
-         ```json
-         {'label':'my_label1', 'status':'visible', 'txnId':'4005'}
-         {'label':'insert_f0747f0e-7a35-46e2-affa-13a235f4020d', 'status':'committed', 'txnId':'4005'}
-         {'label':'my_label1', 'status':'visible', 'txnId':'4005', 'err':'some other error'}
-         ```
+   - Remember not to use HAVING where WHERE should be used. HAVING is paired with GROUP BY.
 
-         `label` is a user-specified label or an automatically generated label. Label is the ID of this Insert Into import job. Each import job has a unique Label within a single database.
+   - The HAVING clause can refer to aggregate functions, while WHERE cannot.
 
-         `status` indicates whether the imported data is visible. Show `visible` if visible, `committed` if not visible.
+     ```sql
+     SELECT user, MAX(salary) FROM users
+       GROUP BY user HAVING MAX(salary) > 10;
+     ```
 
-         `txnId` is the id of the import transaction corresponding to this insert.
+   - The LIMIT clause can be used to constrain the number of rows returned by a SELECT statement. LIMIT can have one or two arguments, both of which must be non-negative integers.
 
-         The `err` field shows some other unexpected errors.
+     ```sql
+     /*Retrieve 6~15 rows in the result set*/
+     SELECT * FROM tbl LIMIT 5,10;
+     /*Then if you want to retrieve all rows after a certain offset is set, you can set a very large constant for the second parameter. The following query fetches all data from row 96 onwards */
+     SELECT * FROM tbl LIMIT 95,18446744073709551615;
+     /*If LIMIT has only one parameter, the parameter specifies the number of rows that should be retrieved, and the offset defaults to 0, that is, starting from the first row*/
+     ```
 
-         When you need to view the filtered rows, the user can pass the following statement
+   - SELECT...INTO allows query results to be written to a file
 
-         ```sql
-         show load where label="xxx";
-         ```
+2. Modifiers of the SELECT keyword
 
-         The URL in the returned result can be used to query the wrong data. For details, see the summary of **Viewing Error Lines** later.
+   - deduplication
 
-         **Invisibility of data is a temporary state, this batch of data will eventually be visible**
+     The ALL and DISTINCT modifiers specify whether to deduplicate rows in the result set (should not be a column).
 
-         You can view the visible status of this batch of data with the following statement:
+     ALL is the default modifier, that is, all rows that meet the requirements are to be retrieved.
 
-         ```sql
-         show transaction where id=4005;
-         ```
+     DISTINCT removes duplicate rows.
 
-         If the `TransactionStatus` column in the returned result is `visible`, the representation data is visible.
+3. The main advantage of subqueries
 
-   3. Execution failed
+   - Subqueries allow structured queries so that each part of a statement can be isolated.
+   - Some operations require complex unions and associations. Subqueries provide other ways to perform these operations
 
-      Execution failure indicates that no data was successfully imported, and the following is returned:
+4. Speed up queries
 
-      ```sql
-      mysql> insert into tbl1 select * from tbl2 where k1 = "a";
-      ERROR 1064 (HY000): all partitions have no load data. url: http://10.74.167.16:8042/api/_load_error_log?file=__shard_2/error_log_insert_stmt_ba8bb9e158e4879-ae8de8507c0bf8a2_ba8bb9e158e4879_ae8de8507c0
-      ```
+   - Use Doris's partition and bucket as data filtering conditions as much as possible to reduce the scope of data scanning
+   - Make full use of Doris's prefix index fields as data filter conditions to speed up query speed
 
-      Where `ERROR 1064 (HY000): all partitions have no load data` shows the reason for the failure. The following url can be used to query the wrong data:
+5. UNION
 
-      ```sql
-      show load warnings on "url";
-      ```
+   - Using only the union keyword has the same effect as using union disitnct. Since the deduplication work is more memory-intensive, the query speed using the union all operation will be faster and the memory consumption will be less. If users want to perform order by and limit operations on the returned result set, they need to put the union operation in the subquery, then select from subquery, and finally put the subquery and order by outside the subquery.
 
-      You can view the specific error line.
+       ```sql
+       select * from (select age from student_01 union all select age from student_02) as t1
+       order by age limit 4;
+         
+       +-------------+
+       | age |
+       +-------------+
+       | 18 |
+       | 19 |
+       | 20 |
+       | 21 |
+       +-------------+
+       4 rows in set (0.01 sec)
+       ```
 
-2. Timeout time
+6. JOIN
 
-   The timeout for INSERT operations is controlled by [session variable](../../../../advanced/variables.md) `insert_timeout`. The default is 4 hours. If it times out, the job will be canceled.
+   - In the inner join condition, in addition to supporting equal-valued joins, it also supports unequal-valued joins. For performance reasons, it is recommended to use equal-valued joins.
+   - Other joins only support equivalent joins
 
-3. Label and atomicity
-
-   The INSERT operation also guarantees the atomicity of imports, see the [Import Transactions and Atomicity](../../../../data-operate/import/import-scenes/load-atomicity.md) documentation.
-
-   When using `CTE(Common Table Expressions)` as the query part in an insert operation, the `WITH LABEL` and `column` parts must be specified.
-
-4. Filter Threshold
-
-   Unlike other import methods, INSERT operations cannot specify a filter threshold (`max_filter_ratio`). The default filter threshold is 1, which means that rows with errors can be ignored.
-
-   For business scenarios that require data not to be filtered, you can set [session variable](../../../../advanced/variables.md) `enable_insert_strict` to `true` to ensure that when there is data When filtered out, `INSERT` will not be executed successfully.
-
-5. Performance issues
-
-   There is no single row insertion using the `VALUES` method. If you must use it this way, combine multiple rows of data into one INSERT statement for bulk commit.
