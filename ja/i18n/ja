@@ -1,5 +1,5 @@
 ---
-{ "title": "processlist", "language": "en" }
+{ "title": "profiling", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-View All Current Connections
+This table is solely for the purpose of maintaining compatibility with MySQL behavior. It is always empty.
 
 ## Database
 
@@ -31,19 +31,23 @@ View All Current Connections
 
 ## Table Information
 
-| Column Name                            | Type                              | Description                                 |
-| -------------------------------------- | --------------------------------- | ------------------------------------------- |
-| CURRENT_CONNECTED | varchar(16)    | Deprecated, always No                       |
-| ID                                     | largeint                          | Connection ID                               |
-| USER                                   | varchar(32)    | Connected user                              |
-| HOST                                   | varchar(261)   | Connection address                          |
-| LOGIN_TIME        | datetime                          | Login time                                  |
-| CATALOG                                | varchar(64)    | Current Catalog                             |
-| DB                                     | varchar(64)    | Current Database                            |
-| COMMAND                                | varchar(16)    | Type of MySQL Command currently sent        |
-| TIME                                   | int                               | Execution time of the last query            |
-| STATE                                  | varchar(64)    | Status of the last query                    |
-| QUERY_ID          | varchar(256)   | ID of the last query                        |
-| INFO                                   | varchar(65533) | Query statement of the last query           |
-| FE                                     | varchar(64)    | Connected Front-End (FE) |
-| CLOUD_CLUSTER     | varchar(64)    | Name of the Cloud Cluster being used        |
+| Column Name                                                 | Type                           | Description |
+| ----------------------------------------------------------- | ------------------------------ | ----------- |
+| QUERY_ID                               | int                            |             |
+| SEQ                                                         | int                            |             |
+| STATE                                                       | varchar(30) |             |
+| DURATION                                                    | double                         |             |
+| CPU_USER                               | double                         |             |
+| CPU_SYSTEM                             | double                         |             |
+| CONTEXT_VOLUNTARY                      | int                            |             |
+| CONTEXT_INVOLUNTARY                    | int                            |             |
+| BLOCK_OPS_IN      | int                            |             |
+| BLOCK_OPS_OUT     | int                            |             |
+| MESSAGES_SENT                          | int                            |             |
+| MESSAGES_RECEIVED                      | int                            |             |
+| PAGE_FAULTS_MAJOR | int                            |             |
+| PAGE_FAULTS_MINOR | int                            |             |
+| SWAPS                                                       | int                            |             |
+| SOURCE_FUNCTION                        | varchar(30) |             |
+| SOURCE_FILE                            | varchar(20) |             |
+| SOURCE_LINE                            | int                            |             |
