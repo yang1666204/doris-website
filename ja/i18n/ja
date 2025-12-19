@@ -1,8 +1,8 @@
 ---
-{ "title": "Upload Action", "language": "en" }
+{ "title": "Overview", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,136 +21,24 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Upload Action
+As a supplement to Apache Doris operation and maintenance management, OPEN API is mainly used by database administrators to perform some management operations.
 
-Upload Action currently mainly serves the front-end page of FE, and is used for users to load small test files.
+:::note
+The OPEN API is currently unstable and is only recommended for developers to test and use. We may change the interface behavior in subsequent versions.
+In a production environment, it is recommended to use SQL commands to complete operations.
+:::
 
-## Upload load file
+## Security certification
 
-Used to upload a file to the FE node, which can be used to load the file later. Currently only supports uploading files up to 100MB.
+The security authentication of FE BE API can be enabled through the following configuration:
 
-### Request
+| Configuration                  | Configuration File | Default Value | Description                                                                                                                                                                                                                                                           |
+| ------------------------------ | ------------------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enable_all_http_auth`         | `be.conf`          | `false`       | Enable authentication for BE HTTP port (default 8040). After enabling, access to BE's HTTP API requires ADMIN user login.                                                                                          |
+| `enable_brpc_builtin_services` | `be.conf`          | true          | Whether to open brpc built-in service to the outside world (default is 8060). If disabled, HTTP port 8060 will be inaccessible. (Supported since version 2.1.7) |
+| `enable_all_http_auth`         | `fe.conf`          | `false`       | Enable authentication for the FE HTTP port (default 8030). After enabling, access to the FE HTTP API requires corresponding user permissions.                                                                      |
 
-```
-POST /api/<namespace>/<db>/<tbl>/upload
-```
-
-### Path parameters
-
-- `<namespace>`
-
-  Namespace, currently only supports `default_cluster`
-
-- `<db>`
-
-  Specify database
-
-- `<tbl>`
-
-  Specify table
-
-### Query parameters
-
-- `column_separator`
-
-  Optional, specify the column separator of the file. Default is `\t`
-
-- `preview`
-
-  Optional, if set to `true`, up to 10 rows of data rows split according to `column_separator` will be displayed in the returned result.
-
-### Request body
-
-The content of the file to be uploaded, the Content-type is `multipart/form-data`
-
-### Response
-
-```
-{
-	"msg": "success",
-	"code": 0,
-	"data": {
-        "id": 1,
-        "uuid": "b87824a4-f6fd-42c9-b9f1-c6d68c5964c2",
-        "originFileName": "data.txt",
-        "fileSize": 102400,
-        "absPath": "/path/to/file/data.txt"
-        "maxColNum" : 5
-	},
-	"count": 1
-}
-```
-
-## Load the uploaded file
-
-### Request
-
-```
-PUT /api/<namespace>/<db>/<tbl>/upload
-```
-
-### Path parameters
-
-- `<namespace>`
-
-  Namespace, currently only supports `default_cluster`
-
-- `<db>`
-
-  Specify database
-
-- `<tbl>`
-
-  Specify table
-
-### Query parameters
-
-- `file_id`
-
-  Specify the load file id, which is returned by the API that uploads the file.
-
-- `file_uuid`
-
-  Specify the file uuid, which is returned by the API that uploads the file.
-
-### Header
-
-The options in the header are the same as those in the header in the Stream Load request.
-
-### Request body
-
-None
-
-### Response
-
-```
-{
-	"msg": "success",
-	"code": 0,
-	"data": {
-		"TxnId": 7009,
-		"Label": "9dbdfb0a-120b-47a2-b078-4531498727cb",
-		"Status": "Success",
-		"Message": "OK",
-		"NumberTotalRows": 3,
-		"NumberLoadedRows": 3,
-		"NumberFilteredRows": 0,
-		"NumberUnselectedRows": 0,
-		"LoadBytes": 12,
-		"LoadTimeMs": 71,
-		"BeginTxnTimeMs": 0,
-		"StreamLoadPutTimeMs": 1,
-		"ReadDataTimeMs": 0,
-		"WriteDataTimeMs": 13,
-		"CommitAndPublishTimeMs": 53
-	},
-	"count": 1
-}
-```
-
-### Example
-
-```
-PUT /api/default_cluster/db1/tbl1/upload?file_id=1&file_uuid=b87824a4-f6fd-42c9-b9f1-c6d68c5964c2
-```
+:::info NOTE
+The permission requirements for the HTTP API of FE and BE vary from version to version. Please refer to the corresponding API documentation for details.
+:::
 
