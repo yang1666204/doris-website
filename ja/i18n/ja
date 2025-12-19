@@ -1,5 +1,5 @@
 ---
-{ "title": "LARGEINT", "language": "en" }
+{ "title": "SMALLINT", "language": "en" }
 ---
 
 <!-- 
@@ -21,13 +21,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## LARGEINT
+## SMALLINT
 
 ### Description
 
-LARGEINT
-16-byte signed integer, range [-2^127 + 1 ~ 2^127 - 1]
+SMALLINT
+2-byte signed integer, range [-32768, 32767]
 
 ### keywords
 
-BIGINT
+SMALLINT
