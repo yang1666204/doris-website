@@ -1,5 +1,5 @@
 ---
-{ "title": "AUTO_PARTITION_NAME", "language": "en" }
+{ "title": "BIT_LENGTH", "language": "en" }
 ---
 
 <!-- 
@@ -21,95 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+## bit_length
+
 ### Description
 
 #### Syntax
 
-`VARCHAR AUTO_PARTITION_NAME('RANGE', 'VARCHAR unit', DATETIME datetime)`
+`INT bit_length (VARCHAR str)`
 
-`VARCHAR AUTO_PARTITION_NAME('LIST', VARCHAR,...)`
+Return length of argument in bits.
 
-Generate datetime partition names by unit following RANGE's partition name rules
+### example
 
-Convert strings to partition names following LIST's partition name rules
+```
+mysql> select bit_length("abc");
++-------------------+
+| bit_length('abc') |
++-------------------+
+|                24 |
++-------------------+
 
-The datetime parameter is a legal date expression.
-
-The unit parameter is the time interval you want, the available values are: [`second`, `minute`, `hour`, `day`, `month`, `year`].
-If unit does not match one of these options, a syntax error will be returned.
-
-### Example
-
-```sql
-mysql> select auto_partition_name('range', 'years', '123');
-ERROR 1105 (HY000): errCode = 2, detailMessage = range auto_partition_name must accept year|month|day|hour|minute|second for 2nd argument
-
-mysql> select auto_partition_name('range', 'year', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'year', '2022-12-12 19:20:30')   |
-+---------------------------------------------------------------+
-| p20220101000000                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('range', 'month', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'month', '2022-12-12 19:20:30')  |
-+---------------------------------------------------------------+
-| p20221201000000                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('range', 'day', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'day', '2022-12-12 19:20:30')    |
-+---------------------------------------------------------------+
-| p20221212000000                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('range', 'hour', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'hour', '2022-12-12 19:20:30')   |
-+---------------------------------------------------------------+
-| p20221212190000                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('range', 'minute', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'minute', '2022-12-12 19:20:30') |
-+---------------------------------------------------------------+
-| p20221212192000                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('range', 'second', '2022-12-12 19:20:30');
-+---------------------------------------------------------------+
-| auto_partition_name('range', 'second', '2022-12-12 19:20:30') |
-+---------------------------------------------------------------+
-| p20221212192030                                               |
-+---------------------------------------------------------------+
-
-mysql> select auto_partition_name('list', 'helloworld');
-+-------------------------------------------+
-| auto_partition_name('list', 'helloworld') |
-+-------------------------------------------+
-| phelloworld10                             |
-+-------------------------------------------+
-
-mysql> select auto_partition_name('list', 'hello', 'world');
-+-----------------------------------------------+
-| auto_partition_name('list', 'hello', 'world') |
-+-----------------------------------------------+
-| phello5world5                                 |
-+-----------------------------------------------+
-
-mysql> select auto_partition_name('list', "你好");
-+------------------------------------+
-| auto_partition_name('list', "你好") |
-+------------------------------------+
-| p4f60597d2                         |
-+------------------------------------+
+mysql> select bit_length("中国");
++----------------------+
+| bit_length('中国')    |
++----------------------+
+|                   48 |
++----------------------+
 ```
 
-### Keywords
+### keywords
 
     ```
-    AUTO_PARTITION_NAME,AUTO,PARTITION,NAME
+    BIT_LENGTH
     ```
