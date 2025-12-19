@@ -1,5 +1,5 @@
 ---
-{ "title": "TRIM", "language": "en" }
+{ "title": "TRIM_IN", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## trim
+## Description
 
-### description
+## Syntax
 
-#### Syntax
+`VARCHAR trim_in(VARCHAR str[, VARCHAR rhs])`
 
-`VARCHAR trim(VARCHAR str[, VARCHAR rhs])`
+When there is no rhs parameter, remove the spaces that appear consecutively at the right and left beginning of the parameter str; when there is an rhs parameter, search and remove any characters in the rhs character set at both ends of the string (regardless of order)
 
-When the 'rhs' parameter is not present, remove the continuous spaces that appear from the starting and ending of the 'str' parameter. Otherwise, remove 'rhs'.
+## Examples
 
-### example
-
-```
-mysql> SELECT trim('   ab d   ') str;
+```sql
+mysql> SELECT trim_in('   ab d   ') str;
 +------+
 | str  |
 +------+
 | ab d |
 +------+
 
-mysql> SELECT trim('ababccaab','ab') str;
+mysql> SELECT trim_in('ababccaab','ab') str;
 +------+
 | str  |
 +------+
-| cca  |
+| cc   |
 +------+
 ```
 
-### keywords
+## Keywords
 
-    ```
-    TRIM
-    ```
+TRIM_IN
