@@ -1,5 +1,5 @@
 ---
-{ "title": "SET-VARIABLE", "language": "en" }
+{ "title": "SHOW-CONFIG", "language": "en" }
 ---
 
 <!--
@@ -21,50 +21,81 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SET-VARIABLE
+## SHOW-CONFIG
 
 ### Name
 
-SET VARIABLE
+SHOW CONFIG
 
 ### Description
 
-This statement is mainly used to modify Doris system variables. These system variables can be modified at the global and session level, and some can also be modified dynamically. You can also view these system variables with `SHOW VARIABLE`.
+This statement is used to display the configuration of the current cluster.
 
 grammar:
 
 ```sql
-SET variable_assignment [, variable_assignment] ...
+SHOW (FRONTEND|BACKEND)  CONFIG [LIKE "pattern"];
 ```
 
-illustrate:
+The columns in the results of showing FE configuration have the following meanings:
 
-1. variable_assignment:
-   user_var_name = expr
-   \| [GLOBAL | SESSION] system_var_name = expr
+1. Key: Configuration item name
+2. Value: Configuration item value
+3. Type: Configuration item type
+4. IsMutable: Whether it can be set by ADMIN SET CONFIG command
+5. MasterOnly: Is it only applicable to Master FE
+6. Comment: Configuration item description
 
-> Note:
->
-> 1. Only ADMIN users can set variables to take effect globally
-> 2. The globally effective variable affects the current session and new sessions thereafter, but does not affect other sessions that currently exist.
+The columns in the results of showing BE configuration have the following meanings:
+
+1. BackendId: ID of a backend
+2. Host: Host of a backend
+3. Key: Configuration item name
+4. Value: Configuration item value
+5. Type: Configuration item type
+6. IsMutable: Whether it can be modified
 
 ### Example
 
-1. Set the time zone to Dongba District
+1. View the configuration of the current FE node
+
+   ```sql
+   SHOW FRONTEND CONFIG;
+   ```
+
+2. Use the like predicate to search the configuration of the current Fe node
 
    ```
-   SET time_zone = "Asia/Shanghai";
+   mysql> SHOW FRONTEND CONFIG LIKE '%check_java_version%';
+   +--------------------+-------+---------+---------- -+------------+---------+
+   | Key | Value | Type | IsMutable | MasterOnly | Comment |
+   +--------------------+-------+---------+---------- -+------------+---------+
+   | check_java_version | true | boolean | false | false | |
+   +--------------------+-------+---------+---------- -+------------+---------+
+   1 row in set (0.01 sec)
    ```
 
-2. Set the global execution memory size
+3. View the configuration for a specific BE using the backend ID `10001`
 
-   ```
-   SET GLOBAL exec_mem_limit = 137438953472
-   ```
+    ```sql
+    SHOW BACKEND CONFIG FROM 10001;
+    ```
+
+4. View the configuration useing both a pattern and a backend ID
+    ```
+    mysql> SHOW BACKEND CONFIG LIKE "be_port" FROM 10001;
+    +-----------+---------------+---------+-------+---------+-----------+
+    | BackendId | Host          | Key     | Value | Type    | IsMutable |
+    +-----------+---------------+---------+-------+---------+-----------+
+    | 10001     | xx.xx.xxx.xxx | be_port | 9060  | int32_t | false     |
+    +-----------+---------------+---------+-------+---------+-----------+
+    ```
 
 ### Keywords
 
     ```
-    SET, VARIABLE
+    SHOW, CONFIG
     ```
+
+### Best Practice
 
