@@ -1,5 +1,5 @@
 ---
-{ "title": "HOURS_ADD", "language": "en" }
+{ "title": "HOURS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## hours_add
+## hours_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME HOURS_ADD(DATETIME date, INT hours)`
+`INT hours_diff(DATETIME enddate, DATETIME startdate)`
 
-Add specified hours from date time or date
-
-The parameter date can be DATETIME or DATE, and the return type is DATETIME.
+The difference between the start time and the end time is a few hours
 
 ### example
 
 ```
-mysql> select hours_add("2020-02-02 02:02:02", 1);
-+-------------------------------------+
-| hours_add('2020-02-02 02:02:02', 1) |
-+-------------------------------------+
-| 2020-02-02 03:02:02                 |
-+-------------------------------------+
+mysql> select hours_diff('2020-12-25 22:00:00','2020-12-25 21:00:00');
++----------------------------------------------------------+
+| hours_diff('2020-12-25 22:00:00', '2020-12-25 21:00:00') |
++----------------------------------------------------------+
+|                                                        1 |
++----------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    HOURS_ADD
+    hours_diff
     ```
