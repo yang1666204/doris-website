@@ -1,5 +1,5 @@
 ---
-{ "title": "NON_NULLABLE", "language": "en" }
+{ "title": "NULLABLE", "language": "en" }
 ---
 
 <!-- 
@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## non_nullable
+## nullable
 
 ### description
 
@@ -31,31 +31,27 @@ For developer debugging only, do not call this function manually in the producti
 
 #### Syntax
 
-`T non_nullable(T expr)`
+`T nullable(T expr)`
 
-Raise an error if `expr` is of not nullable, or is of nullable and contains a `NULL` value. Otherwise, returns the non-nullable data column of the input column.
+Converts `expr` to nullable, or to itself if `expr` is already nullable.
 
 ### example
 
 ```sql
-mysql> select k1, non_nullable(k1) from test_nullable_functions order by k1;
-+------+------------------+
-| k1   | non_nullable(k1) |
-+------+------------------+
-|    1 |                1 |
-|    2 |                2 |
-|    3 |                3 |
-|    4 |                4 |
-+------+------------------+
-
-mysql> select k1, non_nullable(k1) from test_nullable_functions order by k1;
-ERROR 1105 (HY000): errCode = 2, detailMessage = [CANCELLED]There's NULL value in column Nullable(Int32) which is illegal for non_nullable
-mysql> select non_nullable(1);
-ERROR 1105 (HY000): errCode = 2, detailMessage = [CANCELLED]Try to use originally non-nullable column Int8 in nullable's non-nullable convertion.
+mysql> select k1, nullable(k1), nullable(1) from test_nullable_functions order by k1;
++------+--------------+-------------+
+| k1   | nullable(k1) | nullable(1) |
++------+--------------+-------------+
+| NULL |         NULL |           1 |
+|    1 |            1 |           1 |
+|    2 |            2 |           1 |
+|    3 |            3 |           1 |
+|    4 |            4 |           1 |
++------+--------------+-------------+
 ```
 
 ### keywords
 
     ```
-    non_nullable
+    nullable
     ```
