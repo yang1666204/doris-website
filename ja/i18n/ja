@@ -1,5 +1,5 @@
 ---
-{ "title": "Query Detail Action", "language": "en" }
+{ "title": "Query Profile Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,93 +21,85 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Query Detail Action
+# Query Profile Action
 
 ## Request
 
-`GET /api/query_detail`
+```
+GET /rest/v1/query_profile/<query_id>
+```
 
 ## Description
 
-Used to obtain information about all queries after a specified time point
+The Query Profile Action is used to obtain the Query profile.
 
 ## Path parameters
 
-None
+- `<query_id>`
+
+  Optional parameters. When not specified, the latest query list is returned. When specified, return the profile of the specified query.
 
 ## Query parameters
 
-- `event_time`
-
-  At the specified time point (Unix timestamp, in milliseconds), obtain query information after that time point.
+None
 
 ## Request body
 
-无
+None
 
 ## Response
 
-```
-{
-	"msg": "success",
-	"code": 0,
-	"data": {
-		"query_details": [{
-			"eventTime": 1596462699216,
-			"queryId": "f732084bc8e74f39-8313581c9c3c0b58",
-			"startTime": 1596462698969,
-			"endTime": 1596462699216,
-			"latency": 247,
-			"state": "FINISHED",
-			"database": "db1",
-			"sql": "select * from tbl1"
-		}, {
-			"eventTime": 1596463013929,
-			"queryId": "ed2d0d80855d47a5-8b518a0f1472f60c",
-			"startTime": 1596463013913,
-			"endTime": 1596463013929,
-			"latency": 16,
-			"state": "FINISHED",
-			"database": "db1",
-			"sql": "select k1 from tbl1"
-		}]
-	},
-	"count": 0
-}
-```
-
-## Examples
-
-1. Get query details after the specified time point.
+- Not specify `<query_id>`
 
     ```
-    GET /api/query_detail?event_time=1596462079958
-    
-    Response:
+    GET /rest/v1/query_profile/
     {
     	"msg": "success",
     	"code": 0,
     	"data": {
-    		"query_details": [{
-    			"eventTime": 1596462699216,
-    			"queryId": "f732084bc8e74f39-8313581c9c3c0b58",
-    			"startTime": 1596462698969,
-    			"endTime": 1596462699216,
-    			"latency": 247,
-    			"state": "FINISHED",
-    			"database": "db1",
-    			"sql": "select * from tbl1"
+    		"href_column": ["Query ID"],
+    		"column_names": ["Query ID", "User", "Default Db", "Sql Statement", "Query Type", "Start Time", "End Time", "Total", "Query State"],
+    		"rows": [{
+    			"User": "root",
+    			"__hrefPath": ["/query_profile/d73a8a0b004f4b2f-b4829306441913da"],
+    			"Query Type": "Query",
+    			"Total": "5ms",
+    			"Default Db": "default_cluster:db1",
+    			"Sql Statement": "select * from tbl1",
+    			"Query ID": "d73a8a0b004f4b2f-b4829306441913da",
+    			"Start Time": "2020-09-03 10:07:54",
+    			"Query State": "EOF",
+    			"End Time": "2020-09-03 10:07:54"
     		}, {
-    			"eventTime": 1596463013929,
-    			"queryId": "ed2d0d80855d47a5-8b518a0f1472f60c",
-    			"startTime": 1596463013913,
-    			"endTime": 1596463013929,
-    			"latency": 16,
-    			"state": "FINISHED",
-    			"database": "db1",
-    			"sql": "select k1 from tbl1"
+    			"User": "root",
+    			"__hrefPath": ["/query_profile/fd706dd066824c21-9d1a63af9f5cb50c"],
+    			"Query Type": "Query",
+    			"Total": "6ms",
+    			"Default Db": "default_cluster:db1",
+    			"Sql Statement": "select * from tbl1",
+    			"Query ID": "fd706dd066824c21-9d1a63af9f5cb50c",
+    			"Start Time": "2020-09-03 10:07:54",
+    			"Query State": "EOF",
+    			"End Time": "2020-09-03 10:07:54"
     		}]
     	},
+    	"count": 3
+    }
+    ```
+
+  The returned result is the same as `System Action`, which is a table description.
+
+- Specify `<query_id>`
+
+    ```
+    GET /rest/v1/query_profile/<query_id>
+    
+    {
+    	"msg": "success",
+    	"code": 0,
+    	"data": "Query:</br>&nbsp;&nbsp;&nbsp;&nbsp;Summary:</br>...",
     	"count": 0
     }
     ```
+
+  `data` is the text content of the profile.
