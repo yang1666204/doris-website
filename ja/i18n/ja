@@ -1,5 +1,5 @@
 ---
-{ "title": "WARM UP COMPUTE GROUP", "language": "en" }
+{ "title": "IN", "language": "en" }
 ---
 
 <!--
@@ -21,60 +21,59 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## IN
 
-The WARM UP COMPUTE GROUP statement is used to warm up data in a compute group to improve query performance. The warming operation can either retrieve resources from another compute group or specify particular tables and partitions for warming. The warming operation returns a job ID that can be used to track the status of the warming job.
+IN
 
-## Syntax
+### description
 
-```sql
-WARM UP COMPUTE GROUP <destination_compute_group_name> WITH COMPUTE GROUP <source_compute_group_name>;
+#### Syntax
 
-WARM UP COMPUTE GROUP <destination_compute_group_name> WITH <warm_up_list>;
+`expr IN (value, ...)`
 
-warm_up_list ::= warm_up_item [AND warm_up_item...];
+`expr IN (subquery)`
 
-warm_up_item ::= TABLE <table_name> [PARTITION <partition_name>];
+If expr is equal to any value in the IN list, return true; otherwise, return false.
 
-```
+Subquery can only return one column, and the column types returned by subquery must be compatible with expr types.
 
-## Parameters
+If subquery returns a bitmap data type column, expr must be an integer.
 
-- destination_compute_group_name: The name of the destination compute group that is to be warmed up.
-
-- source_compute_group_name(Optional) The name of the source cluster from which resources will be warmed up.
-
-- warm_up_list: (Optional) A list of specific items to warm up, which can include tables and partitions.
-
-- table_name: The name of the table is used to warmup.
-
-- partition_name: The name of the partition is used to warmup.
-
-## Return Values
-
-- JobId: the id of warm-up job.
-
-## Example
-
-1. Warm up a compute group named destination_group_name with a compute group named source_group_name.
-
-```sql
-   WARM UP COMPUTE GROUP destination_group_name WITH COMPUTE GROUP source_group_name;
+### example
 
 ```
-
-2. Warm up a compute group named destination_group with table sales_data and customer_info and partition q1_2024 of table orders .
-
-```
-    WARM UP COMPUTE GROUP destination_group WITH 
-        TABLE sales_data 
-        AND TABLE customer_info 
-        AND TABLE orders PARTITION q1_2024;
-
+mysql> select id from cost where id in (1, 2);
++------+
+| id   |
++------+
+|    2 |
+|    1 |
++------+
 ```
 
-## Keywords
+```
+mysql> select id from tbl1 where id in (select id from tbl2);
++------+
+| id   |
++------+
+|    1 |
+|    4 |
+|    5 |
++------+
+```
+
+```
+mysql> select id from tbl1 where id in (select bitmap_col from tbl3);
++------+
+| id   |
++------+
+|    1 |
+|    3 |
++------+
+```
+
+### keywords
 
     ```
-    WARM UP, COMPUTE GROUP, CACHE
+    IN
     ```
