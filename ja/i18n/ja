@@ -1,5 +1,5 @@
 ---
-{ "title": "Make Snapshot", "language": "en" }
+{ "title": "View Tablet Distribution", "language": "en" }
 ---
 
 <!-- 
@@ -21,23 +21,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Make Snapshot
+# View Tablet Distribution
 
 ## Request
 
-`GET /api/snapshot?tablet_id={int}&schema_hash={int}"`
+`GET /api/tablets_distribution?group_by={enum}&partition_id={int}`
 
 ## Description
 
-Make snapshot of a tablet
+Get the distribution of tablets under each partition between different disks on BE node
 
 ## Query parameters
 
-- `tablet_id`
-  ID of the tablet
+- `group_by`
+  only supports `partition`
 
-- `schema_hash`
-  Schema hash
+- `partition_id`
+  ID of the specified partition，Optional with default all partition。
 
 ## Request body
 
@@ -47,7 +47,38 @@ None
 
     ````
     ```
-    /path/to/snapshot
+    {
+        msg: "OK",
+        code: 0,
+        data: {
+            host: "***",
+            tablets_distribution: [
+                {
+                    partition_id:***,
+                    disks:[
+                        {
+                            disk_path:"***",
+                            tablets_num:***,
+                            tablets:[
+                                {
+                                    tablet_id:***,
+                                    schema_hash:***,
+                                    tablet_size:***
+                                },
+    
+                                ...
+    
+                            ]
+                        },
+    
+                        ...
+    
+                    ]
+                }
+            ]
+        },
+        count: ***
+    }
     ```
     ````
 
@@ -55,7 +86,7 @@ None
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/snapshot?tablet_id=123456&schema_hash=1111111"
+    curl "http://127.0.0.1:8040/api/tablets_distribution?group_by=partition&partition_id=123"
     
     ```
     ````
