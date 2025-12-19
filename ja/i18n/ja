@@ -1,5 +1,5 @@
 ---
-{ "title": "JOBS", "language": "en" }
+{ "title": "LOCAL", "language": "en" }
 ---
 
 <!--
@@ -21,135 +21,164 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## `jobs`
+## local
 
 ### Name
 
-jobs
+local
 
-### description
+### Description
 
-Table function, generating a temporary task table, which can view job information in a certain task type.
+Local table-valued-function(tvf), allows users to read and access local file contents on be node, just like accessing relational table. Currently supports `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc` file format.
 
-This function is used in the from clause.
-
-This function is supported since 2.1.0.
+It needs `ADMIN` privilege to use.
 
 #### syntax
 
-`jobs("type"="")`
+```sql
+local(
+  "file_path" = "path/to/file.txt", 
+  "backend_id" = "be_id",
+  "format" = "csv",
+  "keyn" = "valuen" 
+  ...
+  );
+```
 
 **parameter description**
 
-| parameter | description | type   | required |
-| :-------- | :---------- | :----- | :------- |
-| type      | job type    | string | yes      |
+- Related parameters for accessing local file on be node:
 
-the **type** supported types
+  - `file_path`:
 
-- insert: insert into type job
-- mv: materialized view job
+    (required) The path of the file to be read, which is a relative path to the `user_files_secure_path` directory, where `user_files_secure_path` parameter [can be configured on be](../../../admin-manual/config/be-config.md).
 
-##### insert job
+    Can not contains `..` in path. Support using glob syntax to match multi files, such as `log/*.log`
 
-jobs("type"="insert")Table structure:
+- Related to execution method:
 
-```
-mysql> desc  function jobs("type"="insert");
-+-------------------+------+------+-------+---------+-------+
-| Field             | Type | Null | Key   | Default | Extra |
-+-------------------+------+------+-------+---------+-------+
-| Id                | TEXT | No   | false | NULL    | NONE  |
-| Name              | TEXT | No   | false | NULL    | NONE  |
-| Definer           | TEXT | No   | false | NULL    | NONE  |
-| ExecuteType       | TEXT | No   | false | NULL    | NONE  |
-| RecurringStrategy | TEXT | No   | false | NULL    | NONE  |
-| Status            | TEXT | No   | false | NULL    | NONE  |
-| ExecuteSql        | TEXT | No   | false | NULL    | NONE  |
-| CreateTime        | TEXT | No   | false | NULL    | NONE  |
-| SucceedTaskCount  | TEXT | No   | false | NULL    | NONE  |
-| FailedTaskCount   | TEXT | No   | false | NULL    | NONE  |
-| CanceledTaskCount | TEXT | No   | false | NULL    | NONE  |
-| Comment           | TEXT | No   | false | NULL    | NONE  |
-+-------------------+------+------+-------+---------+-------+
-12 rows in set (0.01 sec)
-```
+  In versions prior to 2.1.1, Doris only supported specifying a BE node to read local data files on that node.
 
-- Id: job ID.
-- Name: job name.
-- Definer: job definer.
-- ExecuteType: Execution type
-- RecurringStrategy: recurring strategy
-- Status: Job status
-- ExecuteSql: Execution SQL
-- CreateTime: Job creation time
-- SucceedTaskCount: Number of successful tasks
-- FailedTaskCount: Number of failed tasks
-- CanceledTaskCount: Number of canceled tasks
-- Comment: job comment
+  - `backend_id`:
 
-##### matterialized view job
+    The be id where the file is located. `backend_id` can be obtained through the `show backends` command.
 
-jobs("type"="mv")Table structure:
+  Starting from version 2.1.2, Doris adds a new parameter `shared_storage`.
 
-```sql
-mysql> desc function jobs("type"="mv");
-+-------------------+------+------+-------+---------+-------+
-| Field             | Type | Null | Key   | Default | Extra |
-+-------------------+------+------+-------+---------+-------+
-| Id                | TEXT | No   | false | NULL    | NONE  |
-| Name              | TEXT | No   | false | NULL    | NONE  |
-| MvId              | TEXT | No   | false | NULL    | NONE  |
-| MvName            | TEXT | No   | false | NULL    | NONE  |
-| MvDatabaseId      | TEXT | No   | false | NULL    | NONE  |
-| MvDatabaseName    | TEXT | No   | false | NULL    | NONE  |
-| ExecuteType       | TEXT | No   | false | NULL    | NONE  |
-| RecurringStrategy | TEXT | No   | false | NULL    | NONE  |
-| Status            | TEXT | No   | false | NULL    | NONE  |
-| CreateTime        | TEXT | No   | false | NULL    | NONE  |
-+-------------------+------+------+-------+---------+-------+
-10 rows in set (0.00 sec)
-```
+  - `shared_storage`
 
-- Id: job ID.
-- Name: job name.
-- MvId: Materialized View ID
-- MvName: Materialized View Name
-- MvDatabaseId: DB ID of the materialized view
-- MvDatabaseName: Name of the database to which the materialized view belongs
-- ExecuteType: Execution type
-- RecurringStrategy: Loop strategy
-- Status: Job status
-- CreateTime: Task creation time
+    Default is false. If true, the specified file exists on shared storage (such as NAS). Shared storage must be compatible with the POXIS file interface and mounted on all BE nodes at the same time.
 
-### example
+    When `shared_storage` is true, you do not need to set `backend_id`, Doris may use all BE nodes for data access. If `backend_id` is set, still only executes on the specified BE node.
 
-1. View jobs in all materialized views
+- File format parameters:
+
+  - `format`: (required) Currently support `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc`
+  - `column_separator`: (optional) default `\t`.
+  - `line_delimiter`: (optional) default `\n`.
+  - `compress_type`: (optional) Currently support `UNKNOWN/PLAIN/GZ/LZO/BZ2/LZ4FRAME/DEFLATE/SNAPPYBLOCK`. Default value is `UNKNOWN`, it will automatically infer the type based on the suffix of `uri`.
+
+- The following parameters are used for loading in json format. For specific usage methods, please refer to: [Json Load](../../../data-operate/import/import-way/load-json-format.md)
+
+  - `read_json_by_line`: (optional) default `"true"`
+  - `strip_outer_array`: (optional) default `"false"`
+  - `json_root`: (optional) default `""`
+  - `json_paths`: (optional) default `""`
+  - `num_as_string`: (optional) default `false`
+  - `fuzzy_parse`: (optional) default `false`
+
+- The following parameters are used for loading in csv format
+
+  - `trim_double_quotes`: Boolean type (optional), the default value is `false`. True means that the outermost double quotes of each field in the csv file are trimmed.
+  - `skip_lines`: Integer type (optional), the default value is 0. It will skip some lines in the head of csv file. It will be disabled when the format is `csv_with_names` or `csv_with_names_and_types`.
+
+- other parameter:
+
+  - `path_partition_keys`: (optional) Specifies the column names carried in the file path. For example, if the file path is /path/to/city=beijing/date="2023-07-09", you should fill in `path_partition_keys="city,date"`. It will automatically read the corresponding column names and values from the path during load process.
+
+### Examples
+
+Analyze the log file on specified BE:
 
 ```sql
-mysql> select * from jobs("type"="mv");
+mysql> select * from local(
+        "file_path" = "log/be.out",
+        "backend_id" = "10006",
+        "format" = "csv")
+       where c1 like "%start_time%" limit 10;
++--------------------------------------------------------+
+| c1                                                     |
++--------------------------------------------------------+
+| start time: 2023年 08月 07日 星期一 23:20:32 CST       |
+| start time: 2023年 08月 07日 星期一 23:32:10 CST       |
+| start time: 2023年 08月 08日 星期二 00:20:50 CST       |
+| start time: 2023年 08月 08日 星期二 00:29:15 CST       |
++--------------------------------------------------------+
 ```
 
-2. View job with name `inner_mtmv_75043`
+Read and access csv format files located at path `${DORIS_HOME}/student.csv`:
 
 ```sql
-mysql> select * from jobs("type"="mv") where Name="inner_mtmv_75043";
+mysql> select * from local(
+      "file_path" = "student.csv", 
+      "backend_id" = "10003", 
+      "format" = "csv");
++------+---------+--------+
+| c1   | c2      | c3     |
++------+---------+--------+
+| 1    | alice   | 18     |
+| 2    | bob     | 20     |
+| 3    | jack    | 24     |
+| 4    | jackson | 19     |
+| 5    | liming  | d18    |
++------+---------+--------+
 ```
 
-3. View all insert jobs
+Query files on NAS:
 
 ```sql
-mysql> select * from jobs("type"="insert");
+mysql> select * from local(
+        "file_path" = "/mnt/doris/prefix_*.txt",
+        "format" = "csv",
+        "column_separator" =",",
+        "shared_storage" = "true");
++------+------+------+
+| c1   | c2   | c3   |
++------+------+------+
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
++------+------+------+
 ```
 
-4. View job with name `one_insert_job`
+Can be used with `desc function` :
 
 ```sql
-mysql> select * from jobs("type"="insert") where Name='one_insert_job';
+mysql> desc function local(
+      "file_path" = "student.csv", 
+      "backend_id" = "10003", 
+      "format" = "csv");
++-------+------+------+-------+---------+-------+
+| Field | Type | Null | Key   | Default | Extra |
++-------+------+------+-------+---------+-------+
+| c1    | TEXT | Yes  | false | NULL    | NONE  |
+| c2    | TEXT | Yes  | false | NULL    | NONE  |
+| c3    | TEXT | Yes  | false | NULL    | NONE  |
++-------+------+------+-------+---------+-------+
 ```
 
-### keywords
+### Keywords
 
-    ```
-    jobs, job, insert, mv, materialized view, schedule
-    ```
+local, table-valued-function, tvf
+
+### Best Practice
+
+- For more detailed usage of local tvf, please refer to [S3](./s3.md) tvf, The only difference between them is the way of accessing the storage system.
+
+- Access data on NAS through local tvf
+
+  NAS shared storage allows to be mounted to multiple nodes at the same time. Each node can access files in the shared storage just like local files. Therefore, the NAS can be thought of as a local file system, accessed through local tvf.
+
+  When setting `"shared_storage" = "true"`, Doris will think that the specified file can be accessed from any BE node. When a set of files is specified using wildcards, Doris will distribute requests to access files to multiple BE nodes, so that multiple nodes can be used to perform distributed file scanning and improve query performance.
