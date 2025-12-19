@@ -1,5 +1,5 @@
 ---
-{ "title": "Reload Tablet", "language": "en" }
+{ "title": "Restore Tablet", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Reload Tablet
+# Restore Tablet
 
 ## Request
 
-`GET /api/reload_tablet?tablet_id={int}&schema_hash={int}&path={string}"`
+`POST /api/restore_tablet?tablet_id={int}&schema_hash={int}"`
 
 ## Description
 
-Reload tablet
+To restore the tablet data from trash dir on BE
 
 ## Query parameters
 
@@ -39,9 +39,6 @@ Reload tablet
 - `schema_hash`
   Schema hash
 
-- `path`
-  Path of file
-
 ## Request body
 
 None
@@ -50,7 +47,10 @@ None
 
     ````
     ```
-    load header succeed
+    {
+        msg: "OK",
+        code: 0
+    }
     ```
     ````
 
@@ -58,7 +58,7 @@ None
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/reload_tablet?tablet_id=123456&schema_hash=1111111&path=/abc"
+    curl -X POST "http://127.0.0.1:8040/api/restore_tablet?tablet_id=123456&schema_hash=1111111"
     
     ```
     ````
