@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_MIN", "language": "en" }
+{ "title": "BITMAP_NOT", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_min
+## bitmap_not
 
 ### description
 
 #### Syntax
 
-`BIGINT BITMAP_MIN(BITMAP input)`
+`BITMAP BITMAP_NOT(BITMAP lhs, BITMAP rhs)`
 
-Calculate and return the min values of a bitmap.
+Calculate the set after lhs minus rhs, return the new bitmap.
 
 ### example
 
 ```
-mysql> select bitmap_min(bitmap_from_string('')) value;
-+-------+
-| value |
-+-------+
-|  NULL |
-+-------+
+mysql> select bitmap_to_string(bitmap_not(bitmap_from_string('2,3'),bitmap_from_string('1,2,3,4')));
++----------------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_not(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'))) |
++----------------------------------------------------------------------------------------+
+|                                                                                        |
++----------------------------------------------------------------------------------------+
 
-mysql> select bitmap_min(bitmap_from_string('1,9999999999')) value;
-+-------+
-| value |
-+-------+
-|     1 |
-+-------+
+mysql> select bitmap_to_string(bitmap_not(bitmap_from_string('2,3,5'),bitmap_from_string('1,2,3,4')));
++------------------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_not(bitmap_from_string('2,3,5'), bitmap_from_string('1,2,3,4'))) |
++------------------------------------------------------------------------------------------+
+| 5                                                                                        |
++------------------------------------------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_MIN,BITMAP
+    BITMAP_NOT,BITMAP
     ```
