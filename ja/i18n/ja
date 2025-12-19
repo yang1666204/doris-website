@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_IPV6_OR_NULL", "language": "en" }
+{ "title": "TO_IPV6", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## TO_IPV6_OR_NULL
+## TO_IPV6
 
-TO_IPV6_OR_NULL
+TO_IPV6
 
 ### Description
 
 #### Syntax
 
-`IPV6 TO_IPV6_OR_NULL(STRING ipv6_str)`
+`IPV6 TO_IPV6(STRING ipv6_str)`
 
-Same as to_ipv6, but if the IPv6 address has an invalid format, it returns NULL.
+Convert a string form of IPv6 address to IPv6 type.
+If the IPv6 address has an invalid format, throw an exception.
+Similar to ipv6_string_to_num function, which converts IPv6 address to binary format.
 
 #### Notice
 
-`If input is NULL, return NULL.`
+`Input cannot be NULL. If it is NULL, an exception will be thrown.`
 
 ### Example
 
 ```sql
-mysql> select to_ipv6_or_null('.');
-+----------------------+
-| to_ipv6_or_null('.') |
-+----------------------+
-| NULL                 |
-+----------------------+
-
-mysql> select to_ipv6_or_null(NULL);
-+-----------------------+
-| to_ipv6_or_null(NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
+mysql> select to_ipv6('::');
++---------------+
+| to_ipv6('::') |
++---------------+
+| ::            |
++---------------+
 ```
 
 ### Keywords
 
-TO_IPV6_OR_NULL, IP
+TO_IPV6, IP
