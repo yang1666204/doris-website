@@ -1,8 +1,8 @@
 ---
-{ "title": "SPLIT_PART", "language": "en" }
+{ "title": "STARTS_WITH", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,82 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## split_part
+## starts_with
 
 ### Description
 
 #### Syntax
 
-`VARCHAR split_part(VARCHAR content, VARCHAR delimiter, INT field)`
+`BOOLEAN STARTS_WITH(VARCHAR str, VARCHAR prefix)`
 
-Returns the specified partition by splitting the string according to the delimiter. If field is positive, splitting and counting from the beginning of content, otherwise from the ending.
-
-`delimiter` and `field` parameter should be constant.
+It returns true if the string starts with the specified prefix, otherwise it returns false.
+If any parameter is NULL, it returns NULL.
 
 ### example
 
 ```
-mysql> select split_part("hello world", " ", 1);
-+----------------------------------+
-| split_part('hello world', ' ', 1) |
-+----------------------------------+
-| hello                            |
-+----------------------------------+
+MySQL [(none)]> select starts_with("hello world","hello");
++-------------------------------------+
+| starts_with('hello world', 'hello') |
++-------------------------------------+
+|                                   1 |
++-------------------------------------+
 
-
-mysql> select split_part("hello world", " ", 2);
-+----------------------------------+
-| split_part('hello world', ' ', 2) |
-+----------------------------------+
-| world                             |
-+----------------------------------+
-
-mysql> select split_part("2019年7月8号", "月", 1);
-+-----------------------------------------+
-| split_part('2019年7月8号', '月', 1)     |
-+-----------------------------------------+
-| 2019年7                                 |
-+-----------------------------------------+
-
-mysql> select split_part("abca", "a", 1);
-+----------------------------+
-| split_part('abca', 'a', 1) |
-+----------------------------+
-|                            |
-+----------------------------+
-
-mysql> select split_part("prefix_string", "_", -1);
-+--------------------------------------+
-| split_part('prefix_string', '_', -1) |
-+--------------------------------------+
-| string                               |
-+--------------------------------------+
-
-
-mysql> select split_part("prefix_string", "_", -2);
-+--------------------------------------+
-| split_part('prefix_string', '_', -2) |
-+--------------------------------------+
-| prefix                               |
-+--------------------------------------+
-
-mysql> select split_part("abc##123###234", "##", -1);
-+----------------------------------------+
-| split_part('abc##123###234', '##', -1) |
-+----------------------------------------+
-| 234                                    |
-+----------------------------------------+
-
-mysql> select split_part("abc##123###234", "##", -2);
-+----------------------------------------+
-| split_part('abc##123###234', '##', -2) |
-+----------------------------------------+
-| 123#                                   |
-+----------------------------------------+
+MySQL [(none)]> select starts_with("hello world","world");
++-------------------------------------+
+| starts_with('hello world', 'world') |
++-------------------------------------+
+|                                   0 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    SPLIT_PART,SPLIT,PART
+    STARTS_WITH
     ```
