@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAYS_OVERLAP", "language": "en" }
+{ "title": "COUNTEQUAL", "language": "en" }
 ---
 
 <!-- 
@@ -21,39 +21,54 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## arrays_overlap
+## countequal
 
-arrays_overlap
+countequal
 
 ### description
 
 #### Syntax
 
-`BOOLEAN arrays_overlap(ARRAY<T> left, ARRAY<T> right)`
+`BIGINT countequal(ARRAY<T> arr, T value)`
 
-Check if there is any common element for left and right array. Return below values:
+Returns a number of the `value` in the given array.
 
 ```
-1    - if any common element inside left and right array;
-0    - if no common element inside left and right array;
-NULL - when left or right array is NULL; OR any element inside left and right array is NULL;
+num      - how many the value number in array;
+0        - if value does not present in the array;
+NULL     - when array is NULL.
 ```
 
 ### example
 
 ```
-mysql> select c_left,c_right,arrays_overlap(c_left,c_right) from array_test;
-+--------------+-----------+-------------------------------------+
-| c_left       | c_right   | arrays_overlap(`c_left`, `c_right`) |
-+--------------+-----------+-------------------------------------+
-| [1, 2, 3]    | [3, 4, 5] |                                   1 |
-| [1, 2, 3]    | [5, 6]    |                                   0 |
-| [1, 2, NULL] | [1]       |                                NULL |
-| NULL         | [1, 2]    |                                NULL |
-| [1, 2, 3]    | [1, 2]    |                                   1 |
-+--------------+-----------+-------------------------------------+
+mysql> select *, countEqual(c_array,5) from array_test;
++------+-----------------+--------------------------+
+| id   | c_array         | countequal(`c_array`, 5) |
++------+-----------------+--------------------------+
+|    1 | [1, 2, 3, 4, 5] |                        1 |
+|    2 | [6, 7, 8]       |                        0 |
+|    3 | []              |                        0 |
+|    4 | NULL            |                     NULL |
++------+-----------------+--------------------------+
+
+mysql> select *,countEqual(c_array, 1),countEqual(c_array, 5),countEqual(c_array, NULL) from array_test;
++------+-----------------------+--------------------------+--------------------------+-----------------------------+
+| id   | c_array               | countequal(`c_array`, 1) | countequal(`c_array`, 5) | countequal(`c_array`, NULL) |
++------+-----------------------+--------------------------+--------------------------+-----------------------------+
+|    1 | [1, 2, 3, 4, 5]       |                        1 |                        1 |                           0 |
+|    2 | [6, 7, 8]             |                        0 |                        0 |                           0 |
+|    3 | []                    |                        0 |                        0 |                           0 |
+|    4 | NULL                  |                     NULL |                     NULL |                        NULL |
+|    5 | [66, 77]              |                        0 |                        0 |                           0 |
+|    5 | [66, 77]              |                        0 |                        0 |                           0 |
+|    6 | NULL                  |                     NULL |                     NULL |                        NULL |
+|    7 | [NULL, NULL, NULL]    |                        0 |                        0 |                           3 |
+|    8 | [1, 2, 3, 4, 5, 5, 5] |                        1 |                        3 |                           0 |
++------+-----------------------+--------------------------+--------------------------+-----------------------------+
 ```
 
 ### keywords
 
-ARRAY,ARRAYS,OVERLAP,ARRAYS_OVERLAP
+ARRAY,COUNTEQUAL,
+
