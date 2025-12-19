@@ -1,5 +1,5 @@
 ---
-{ "title": "BITAND", "language": "en" }
+{ "title": "BIT_COUNT", "language": "en" }
 ---
 
 <!-- 
@@ -21,38 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitand
+## bit_count
 
 ### description
 
 #### Syntax
 
-`BITAND(Integer-type lhs, Integer-type rhs)`
+`BIT_COUNT(Integer-type x)`
 
-Returns the result of the AND operation of two integers.
+Returns the exist count of one in 2's complement represent of integer x.
 
-Integer range: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
+Integer-type could be: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
 
 ### example
 
 ```
-mysql> select bitand(3,5) ans;
-+------+
-| ans  |
-+------+
-|    1 |
-+------+
+select "0b11111111", bit_count(-1)
+--------------
 
-mysql> select bitand(4,7) ans;
-+------+
-| ans  |
-+------+
-|    4 |
-+------+
++--------------+---------------+
+| '0b11111111' | bit_count(-1) |
++--------------+---------------+
+| 0b11111111   |             8 |
++--------------+---------------+
 ```
 
 ### keywords
 
     ```
-    BITAND
+    BITCOUNT, BIT_COUNT
     ```
