@@ -1,5 +1,5 @@
 ---
-{ "title": "IS_IPV4_MAPPED", "language": "en" }
+{ "title": "IS_IPV4_STRING", "language": "en" }
 ---
 
 <!-- 
@@ -19,44 +19,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## IS_IPV4_MAPPED
+## IS_IPV4_STRING
 
-IS_IPV4_MAPPED
+IS_IPV4_STRING
 
 ### Description
 
 #### Syntax
 
-`VARCHAR IS_IPV4_MAPPED(INET6_ATON(VARCHAR ipv4_addr))`
+`BOOLEAN IS_IPV4_STRING(STRING ipv4_str)`
 
-This function takes an IPv6 address represented in numeric form as a binary string, as returned by INET6_ATON().
-It returns 1 if the argument is a valid IPv4-mapped IPv6 address, 0 otherwise, unless expr is NULL, in which case the function returns NULL.
-IPv4-mapped addresses have the form ::ffff:ipv4_address.
+Receive an IPv4 address in the form of a string as a parameter. If it is a correctly formatted and valid IPv4 address, return true; On the contrary, return false.
 
 #### Notice
 
-`When the source input doesn't have a prefix of '::ffff:', but if it's still a valid ipv4 address, this result will also be 1 for the reason that the INET6_ATON() automatically adds the prefix for it.`
+`If the input parameter is NULL, return NULL, indicating invalid input`
 
 ### Example
 
 ```sql
-mysql> SELECT IS_IPV4_MAPPED(INET6_ATON('::ffff:10.0.5.9')) AS is_result;
-+-----------+
-| is_result |
-+-----------+
-|         1 |
-+-----------+
-1 row in set (0.02 sec)
+mysql> select is_ipv4_string(NULL);
++----------------------+
+| is_ipv4_string(NULL) |
++----------------------+
+|                 NULL |
++----------------------+
 
-mysql> SELECT IS_IPV4_MAPPED(INET6_ATON('::10.0.5.9')) AS is_result;
-+-----------+
-| is_result |
-+-----------+
-|         0 |
-+-----------+
-1 row in set (0.03 sec)
+mysql> CREATE TABLE `test_is_ipv4_string` (
+      `id` int,
+      `ip_v4` string
+    ) ENGINE=OLAP
+    DISTRIBUTED BY HASH(`id`) BUCKETS 4
+    PROPERTIES (
+    "replication_allocation" = "tag.location.default: 1"
+    );
+    
+mysql> insert into test_is_ipv4_string values(0, NULL), (1, '0.0.0.'), (2, ''), (3, '.'), (4, '255.255.255.255');
+
+mysql> select id, is_ipv4_string(ip_v4) from test_is_ipv4_string order by id;
++------+-----------------------+
+| id   | is_ipv4_string(ip_v4) |
++------+-----------------------+
+|    0 |                  NULL |
+|    1 |                     0 |
+|    2 |                     0 |
+|    3 |                     0 |
+|    4 |                     1 |
++------+-----------------------+
 ```
 
 ### Keywords
 
-IS_IPV4_MAPPED, IP
+IS_IPV4_STRING, IP
