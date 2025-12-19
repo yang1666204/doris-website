@@ -1,5 +1,5 @@
 ---
-{ "title": "HA Action", "language": "en" }
+{ "title": "Hardware Info Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,17 +21,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# HA Action
+# Hardware Info Action
 
 ## Request
 
 ```
-GET /rest/v1/ha
+GET /rest/v1/hardware_info/fe/
 ```
 
 ## Description
 
-HA Action is used to obtain the high availability group information of the FE cluster.
+Hardware Info Action is used to obtain the hardware information of the current FE.
 
 ## Path parameters
 
@@ -52,40 +52,25 @@ None
 	"msg": "success",
 	"code": 0,
 	"data": {
-		"Observernodes": [],
-		"CurrentJournalId": [{
-			"Value": 433648,
-			"Name": "FrontendRole"
-		}],
-		"Electablenodes": [{
-			"Value": "host1",
-			"Name": "host1"
-		}],
-		"allowedFrontends": [{
-			"Value": "name: 192.168.1.1_9213_1597652404352, role: FOLLOWER, 192.168.1.1:9213",
-			"Name": "192.168.1.1_9213_1597652404352"
-		}],
-		"removedFrontends": [],
-		"CanRead": [{
-			"Value": true,
-			"Name": "Status"
-		}],
-		"databaseNames": [{
-			"Value": "433436 ",
-			"Name": "DatabaseNames"
-		}],
-		"FrontendRole": [{
-			"Value": "MASTER",
-			"Name": "FrontendRole"
-		}],
-		"CheckpointInfo": [{
-			"Value": 433435,
-			"Name": "Version"
-		}, {
-			"Value": "2020-09-03T02:07:37.000+0000",
-			"Name": "lastCheckPointTime"
-		}]
+		"VersionInfo": {
+			"Git": "git://host/core@5bc28f4c36c20c7b424792df662fc988436e679e",
+			"Version": "trunk",
+			"BuildInfo": "cmy@192.168.1",
+			"BuildTime": "Tuesday, 05 September 2019 11:07:42 CST"
+		},
+		"HardwareInfo": {
+			"NetworkParameter": "...",
+			"Processor": "...",
+			"OS": "...",
+			"Memory": "...",
+			"FileSystem": "...",
+			"NetworkInterface": "...",
+			"Processes": "...",
+			"Disk": "..."
+		}
 	},
 	"count": 0
 }
 ```
+
+- The contents of each value in the `HardwareInfo` field are all hardware information text displayed in html format.
