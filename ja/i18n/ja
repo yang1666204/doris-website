@@ -1,8 +1,8 @@
 ---
-{ "title": "Detail Model", "language": "en" }
+{ "title": "Table Model Overview", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,76 +21,56 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In Doris, the **Detail Model** is the default table model, and it can be used to store every individual raw data record. The `Duplicate Key` specified during table creation determines the columns by which the data is sorted and stored, which can be used to optimize common queries. It is generally recommended to choose no more than three columns as the sort key. For more specific selection guidelines, refer to [Sort Key](../index/prefix-index). The Detail Model has the following characteristics:
+When creating a table in Doris, it is necessary to specify the table model to define how data is stored and managed. Doris provides three table models: the **Detail Model**, **Aggregation Model**, and **Primary Key Model**, which cater to different application scenarios. Each model has corresponding mechanisms for data deduplication, aggregation, and updates. Choosing the appropriate table model helps achieve business objectives while ensuring flexibility and efficiency in data processing.
 
-- **Preserving Raw Data**: The Detail Model retains all original data, making it suitable for storing and querying raw data. For use cases that require detailed data analysis later on, it is recommended to use the Detail Model to avoid the risk of data loss.
+## Table Model Classification
 
-- **No Deduplication or Aggregation**: Unlike the Aggregate and Primary Key models, the Detail Model does not perform deduplication or aggregation. Every data insertion, even if two records are identical, will be fully retained.
+Doris supports three types of table models:
 
-- **Flexible Data Querying**: The Detail Model retains the complete original data, which allows detailed extraction from the full data set. This enables aggregation operations across any dimension on the full dataset, allowing for metadata auditing and fine-grained analysis.
+- **Detail Model (Duplicate Key Model)**: Allows the specified Key columns to be duplicated, and Doris's storage layer retains all written data. This model is suitable for situations where all original data records must be preserved.
 
-## Use Cases
+- **Primary Key Model (Unique Key Model)**: Ensures that each row has a unique Key value, and guarantees that there are no duplicate rows for a given Key column. The Doris storage layer retains only the latest written data for each key, making this model suitable for scenarios that involve data updates.
 
-In the Detail Model, data is generally only appended, and old data is not updated. The Detail Model is typically used in scenarios where full raw data is required:
+- **Aggregate Model (Aggregate Key Model)**: Allows data to be aggregated based on the Key columns. The Doris storage layer retains aggregated data, reducing storage space and improving query performance. This model is typically used in situations where summary or aggregated information (such as totals or averages) is required.
 
-- **Log Storage**: Used for storing various types of application logs, such as access logs, error logs, etc. Each piece of data needs to be detailed for future auditing and analysis.
+Once the table is created, the table model attributes are confirmed and cannot be modified. It is crucial to choose the appropriate model based on business requirements:
 
-- **User Behavior Data**: When analyzing user behavior, such as click data or user access paths, it is necessary to retain detailed user actions. This helps in building user profiles and conducting detailed analysis of behavior patterns.
+- The **Aggregate** model can significantly reduce the amount of data that needs to be scanned and the computational load during aggregation queries, making it ideal for reporting scenarios with fixed patterns. However, this model is not very friendly for `count(*)` queries. Additionally, since aggregation is fixed on the Value columns, other types of aggregation queries require careful consideration of semantic correctness.
 
-- **Transaction Data**: For storing transaction or order data, once a transaction is completed, there is typically no need for data changes...
+- The **Unique** model is suitable for scenarios where a unique primary key constraint is required...
 
-## Table Creation Instructions
+## Sort Key
 
-When creating a table, the **DUPLICATE KEY** keyword can be used to specify the Detail Model. The Detail table must specify the Key columns, which are used to sort the data during storage. In the following example, the Detail table stores log information and sorts the data based on the `log_time`, `log_type`, and `error_code` columns:
+In Doris, data is stored in a columnar format, and a table can be divided into Key columns and Value columns. The Key columns are used for grouping and sorting, while the Value columns are used for aggregation. Key columns can consist of one or more fields, and when creating a table, data is sorted and stored according to the columns of Aggregate Key, Unique Key, and Duplicate Key models.
 
-![columnar_storage](/images/table-desigin/columnar-storage.png)
+Different table models require the specification of Key columns during table creation, each with a different significance: for the Duplicate Key model, the Key columns represent sorting, without any uniqueness constraints. In the Aggregate Key and Unique Key models, aggregation is performed based on the Key columns, which not only have sorting capabilities but also enforce uniqueness constraints.
 
-```sql
-CREATE TABLE IF NOT EXISTS example_tbl_duplicate
-(
-    log_time        DATETIME       NOT NULL,
-    log_type        INT            NOT NULL,
-    error_code      INT,
-    error_msg       VARCHAR(1024),
-    op_id           BIGINT,
-    op_time         DATETIME
-)
-DUPLICATE KEY(log_time, log_type, error_code)
-DISTRIBUTED BY HASH(log_type) BUCKETS 10;
-```
+Proper use of the Sort Key can provide the following benefits:
 
-## Data Insertion and Storage
+- **Accelerated Query Performance**: Sort keys help reduce the amount of data that needs to be scanned. For range queries or filtering queries, the sort key can directly locate the data. For queries that require sorting, the sort key can also accelerate the sorting process.
 
-In a Detail table, data is not deduplicated or aggregated; inserting data directly stores it. The Key columns in the Detail Model are used for sorting.
+- **Data Compression Optimization**: Storing data in an ordered fashion based on the sort key improves compression efficiency, as similar data will be grouped together, significantly increasing the compression ratio and reducing storage space.
 
-![columnar_storage](/images/table-desigin/duplicate-table-insert.png)
+- **Reduced Deduplication Costs**: When using the `UNIQUE KEY` model, the sort key allows Doris to perform deduplication more efficiently, ensuring data uniqueness.
 
-In the example above, there are initially 4 rows of data in the table. After inserting 2 rows, the data is appended (APPEND) to the table, resulting in a total of 6 rows stored in the Detail table.
+When selecting a sort key, the following recommendations can be followed:
 
-```sql
--- 4 rows raw data
-INSERT INTO example_tbl_duplicate VALUES
-('2024-11-01 00:00:00', 2, 2, 'timeout', 12, '2024-11-01 01:00:00'),
-('2024-11-02 00:00:00', 1, 2, 'success', 13, '2024-11-02 01:00:00'),
-('2024-11-03 00:00:00', 2, 2, 'unknown', 13, '2024-11-03 01:00:00'),
-('2024-11-04 00:00:00', 2, 2, 'unknown', 12, '2024-11-04 01:00:00');
+- The Key columns must come before all Value columns.
 
--- insert into 2 rows
-INSERT INTO example_tbl_duplicate VALUES
-('2024-11-01 00:00:00', 2, 2, 'timeout', 12, '2024-11-01 01:00:00'),
-('2024-11-01 00:00:00', 2, 2, 'unknown', 13, '2024-11-01 01:00:00');
+- Preferably choose integer types. This is because integer types are much more efficient in computation and lookup than strings.
 
--- check the rows of table
-SELECT * FROM example_tbl_duplicate;
-+---------------------+----------+------------+-----------+-------+---------------------+
-| log_time            | log_type | error_code | error_msg | op_id | op_time             |
-+---------------------+----------+------------+-----------+-------+---------------------+
-| 2024-11-02 00:00:00 |        1 |          2 | success   |    13 | 2024-11-02 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | timeout   |    12 | 2024-11-01 01:00:00 |
-| 2024-11-03 00:00:00 |        2 |          2 | unknown   |    13 | 2024-11-03 01:00:00 |
-| 2024-11-04 00:00:00 |        2 |          2 | unknown   |    12 | 2024-11-04 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | unknown   |    13 | 2024-11-01 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | timeout   |    12 | 2024-11-01 01:00:00 |
-+---------------------+----------+------------+-----------+-------+---------------------+
-```
+- For selecting different lengths of integer types, follow the principle of choosing what is sufficient.
 
+- For the length of `VARCHAR` and `STRING` types, follow the principle of choosing enough...
+
+## Table Model Comparison
+
+|                                 | Detail Model                                 | Primary Key Model | Aggregate Model     |
+| ------------------------------- | -------------------------------------------- | ----------------- | ------------------- |
+| Key Column Uniqueness           | Not Supported, Key columns can be duplicated | Supported         | Supported           |
+| Synchronous Materialized View   | Supported                                    | Supported         | Supported           |
+| Asynchronous Materialized View  | Supported                                    | Supported         | Supported           |
+| UPDATE Statement                | Not Supported                                | Supported         | Not Supported       |
+| DELETE Statement                | Partially Supported                          | Supported         | Not Supported       |
+| Full Row Update on Import       | Not Supported                                | Supported         | Not Supported       |
+| Partial Column Update on Import | Not Supported                                | Supported         | Partially Supported |
