@@ -1,5 +1,5 @@
 ---
-{ "title": "Loading Overview", "language": "en" }
+{ "title": "Job Scheduler", "language": "en" }
 ---
 
 <!-- 
@@ -21,50 +21,202 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Doris offers various methods for importing and integrating data, allowing you to import data from diverse sources into the database. These methods can be categorized into four types:
+## Background
 
-- **Real-Time Writing**: Data is written into Doris tables in real-time via HTTP or JDBC, suitable for scenarios requiring immediate analysis and querying.
+In the context of increasingly refined data management needs, scheduled tasks play a crucial role. They are typically applied in the following scenarios:
 
-  - For small amounts of data (once every 5 minutes), you can use [JDBC INSERT](./import-way/insert-into-manual.md).
+- **Regular Data Updates:** Periodic data imports and ETL operations reduce manual intervention, improving efficiency and accuracy in data processing.
+- **Catalog Integration:** Regular synchronization of external data sources ensures efficient and accurate integration of multi-source data into the target system, meeting complex business analysis requirements.
+- **Data Cleanup:** Periodic cleaning of expired/invalid data frees up storage space and prevents performance issues caused by excessive outdated data.
 
-  - For higher concurrency or frequency (more than 20 concurrent writes or multiple writes per minute), you can enable enable [Group Commit](./group-commit-manual.md) and use JDBC INSERT or Stream Load.
+In earlier versions of Apache Doris, meeting the above requirements often depended on external scheduling systems, such as business code-based scheduling or third-party scheduling tools and distributed scheduling platforms. However, these external systems might not meet Doris's flexible scheduling strategies and resource management needs. Additionally, failures in external scheduling systems can increase business risks and require extra maintenance time and effort.
 
-  - For high throughput, you can use [Stream Load](./import-way/stream-load-manual) via HTTP.
+## Job Scheduler
 
-- **Streaming Synchronization**: Real-time data streams (e.g., Flink, Kafka, transactional databases) are imported into Doris tables, ideal for real-time analysis and querying.
+To address these issues, Apache Doris introduced the Job Scheduler feature in version 2.1, enabling autonomous task scheduling with precision down to the second.
 
-  - You can use [Flink Doris Connector](../../ecosystem/flink-doris-connector.md) to write Flink’s real-time data streams into Doris.
+This feature ensures data import completeness and consistency while allowing users to flexibly and conveniently adjust scheduling strategies. Reducing reliance on external systems also decreases system failure risks and maintenance costs, providing a more unified and reliable user experience.
 
-  - You can use [Routine Load](./import-way/routine-load-manual.md) or [Doris Kafka Connector](../../ecosystem/doris-kafka-connector.md) for Kafka’s real-time data streams. Routine Load pulls data from Kafka to Doris and supports CSV and JSON formats, while Kafka Connector writes data to Doris, supporting Avro, JSON, CSV, and Protobuf formats.
+## Features of Doris Job Scheduler
 
-  - You can use [Flink CDC](../../ecosystem/flink-doris-connector.md) or [Datax](../../ecosystem/datax.md) to write transactional database CDC data streams into Doris.
+Doris Job Scheduler is a task management system that runs based on preset schedules, triggering predefined operations at specific times or intervals for automated task execution. Key features include:
 
-- **Batch Import**: Data is batch-loaded from external storage systems (e.g., S3, HDFS, local files, NAS) into Doris tables, suitable for non-real-time data import needs.
+- **Efficient Scheduling:** Tasks and events can be scheduled within specified intervals, ensuring efficient data processing. The time wheel algorithm ensures precise second-level triggers.
+- **Flexible Scheduling:** Multiple scheduling options are available, such as scheduling by minutes, hours, days, or weeks. It supports one-time scheduling and recurring (cyclic) event scheduling, with customizable start and end times for cyclic schedules.
+- **Event Pool and High-Performance Processing Queue:** Implemented using Disruptor to achieve a high-performance producer-consumer model, minimizing task execution overload.
+- **Traceable Scheduling Records:** Stores the latest task execution records (configurable), which can be viewed with simple commands to ensure traceability.
+- **High Availability:** Leveraging Doris’s high-availability mechanisms, Job Scheduler can easily achieve self-recovery and high availability.
 
-  - You can use [Broker Load](./import-way/broker-load-manual.md) to write files from S3 and HDFS into Doris.
+**Related Documentation:** [CREATE-JOB](../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-JOB.md)
 
-  - You can use [INSERT INTO SELECT](./import-way/insert-into-manual.md) to synchronously load files from S3, HDFS, and NAS into Doris, and you can perform the operation asynchronously using a [JOB](../scheduler/job-scheduler.md).
+## Syntax Overview
 
-  - You can use [Stream Load](./import-way/stream-load-manual) or [Doris Streamloader](../../ecosystem/doris-streamloader.md) to write local files into Doris.
+A valid Job statement must include the following components:
 
-- **External Data Source Integration**: Query and partially import data from external sources (e.g., Hive, JDBC, Iceberg) into Doris tables.
+- **CREATE JOB:** Requires a job name, uniquely identifying the event in the database.
+- **ON SCHEDULE Clause:** Specifies the job type, trigger time, and frequency.
+  - **AT timestamp:** For one-time events. Executes the job once at the specified date and time. **AT current_timestamp** specifies the current date and time. The job runs immediately upon creation and can be used for asynchronous task creation.
+  - **EVERY interval:** For periodic jobs, specifying the execution frequency. Keywords include **WEEK**, **DAY**, **HOUR**, and **MINUTE**.
+    - **Interval:** Defines the execution frequency, e.g., **1 DAY** for daily, **1 HOUR** for hourly, **1 MINUTE** for every minute, **1 WEEK** for weekly.
+    - **STARTS Clause (optional):** Specifies the start time for the repeating interval. **CURRENT_TIMESTAMP** sets the current date and time. The job runs immediately upon creation.
+    - **ENDS Clause (optional):** Specifies the end time for the job event.
+- **DO Clause:** Specifies the operation to execute when the job triggers, currently supporting **INSERT** statements.
 
-  - You can create a [Catalog](../../lakehouse/lakehouse-overview.md) to read data from external sources and use [INSERT INTO SELECT](./import-way/insert-into-manual.md) to synchronize this data into Doris, with asynchronous writing via [JOB](../scheduler/job-scheduler.md).
+```sql
+CREATE
+JOB
+  job_name
+  ON SCHEDULE schedule
+  [COMMENT 'string']
+  DO execute_sql;
 
-  - You can use [X2Doris](data-source/migrate-data-from-other-olap.md) to migrate data from other AP systems into Doris.
+schedule: {
+    AT timestamp
+    | EVERY interval
+    [STARTS timestamp ]
+    [ENDS timestamp ]
+}
+interval:
+    quantity { WEEK |DAY | HOUR | MINUTE}
+```
 
-Each import method in Doris is an implicit transaction by default. For more information on transactions, refer to [Transactions](../transaction.md).
+## Usage Example
 
-### Quick Overview of Import Methods
+```sql
+CREATE JOB my_job ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
+```
 
-Doris's import process mainly involves various aspects such as data sources, data formats, import methods, error handling, data transformation, and transactions. You can quickly browse the scenarios suitable for each import method and the supported file formats in the table below.
+This creates a job named "my_job" that executes every minute, importing data from db2.tbl2 into db1.tbl1.
 
-| Import Method                                            | Use Case                                                                                    | Supported File Formats              | Single Import Volume         | Import Mode                       |
-| :------------------------------------------------------- | :------------------------------------------------------------------------------------------ | ----------------------------------- | ---------------------------- | --------------------------------- |
-| [Stream Load](./import-way/stream-load-manual)           | Importing local files or push data in applications via http.                | csv, json, parquet, orc             | Less than 10GB               | Synchronous                       |
-| [Broker Load](./import-way/broker-load-manual.md)        | Importing from object storage, HDFS, etc.                                   | csv, json, parquet, orc             | Tens of GB to hundreds of GB | Asynchronous                      |
-| [INSERT INTO VALUES](./import-way/insert-into-manual.md) | Writing data via JDBC.                                                      | SQL                                 | Simple testing               | Synchronous                       |
-| [INSERT INTO SELECT](./import-way/insert-into-manual.md) | Importing from an external source like a table in a catalog or files in s3. | SQL                                 | Depending on memory size     | Synchronous, Asynchronous via Job |
-| [Routine Load](./import-way/routine-load-manual.md)      | Real-time import from Kafka                                                                 | csv, json                           | Micro-batch import MB to GB  | Asynchronous                      |
-| [MySQL Load](./import-way/mysql-load-manual.md)          | Importing from local files.                                                 | csv                                 | Less than 1GB                | Synchronous                       |
-| [Group Commit](./group-commit-manual.md)                 | Writing with high frequency.                                                | Depending on the import method used | Micro-batch import KB        | -                                 |
+Creating a One-Time Job:
+
+```sql
+CREATE JOB my_job ON SCHEDULE AT '2025-01-01 00:00:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
+```
+
+This creates a job named "my_job" that executes once at 2025-01-01 00:00:00, importing data from db2.tbl2 into db1.tbl1.
+
+Creating a Periodic Job Without End Time:
+
+```sql
+
+CREATE JOB my_job ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2 WHERE create_time >= days_add(now(), -1);
+```
+
+This creates a job named "my_job" that starts on 2025-01-01 00:00:00 and executes every day, importing data from db2.tbl2 into db1.tbl1.
+
+Creating a Periodic Job With End Time:
+
+```sql
+CREATE JOB my_job ON SCHEDULE EVERY 1 DAY STARTS '2025-01-01 00:00:00' ENDS '2026-01-01 00:10:00' DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2 WHERE create_time >= days_add(now(), -1);
+```
+
+This creates a job named "my_job" that starts on 2025-01-01 00:00:00, executes every day, and ends on 2026-01-01 00:10:00, importing data from db2.tbl2 into db1.tbl1.
+
+Using Job for Asynchronous Execution:
+
+```sql
+CREATE JOB my_job ON SCHEDULE AT current_timestamp DO INSERT INTO db1.tbl1 SELECT * FROM db2.tbl2;
+```
+
+Since jobs in Doris are created as synchronous tasks but executed asynchronously, this example sets the job as a one-time task with the start time as the current time, suitable for asynchronous tasks like insert into select.
+
+## Automated Data Synchronization with Job Scheduler and Catalog
+
+For instance, in an e-commerce scenario, users often need to extract business data from MySQL and synchronize it to Doris for data analysis, supporting precise marketing activities. The Job Scheduler, combined with Multi Catalog capabilities, can efficiently accomplish periodic data synchronization across data sources.
+
+```sql
+CREATE TABLE IF NOT EXISTS user.activity (
+    `user_id` INT NOT NULL,
+    `date` DATE NOT NULL,
+    `city` VARCHAR(20),
+    `age` SMALLINT,
+    `sex` TINYINT,
+    `last_visit_date` DATETIME DEFAULT '1970-01-01 00:00:00',
+    `cost` BIGINT DEFAULT '0',
+    `max_dwell_time` INT DEFAULT '0',
+    `min_dwell_time` INT DEFAULT '99999'
+);
+INSERT INTO user.activity VALUES
+    (10000, '2017-10-01', 'Beijing', 20, 0, '2017-10-01 06:00:00', 20, 10, 10),
+    (10000, '2017-10-01', 'Beijing', 20, 0, '2017-10-01 07:00:00', 15, 2, 2),
+    (10001, '2017-10-01', 'Beijing', 30, 1, '2017-10-01 17:05:00', 2, 22, 22),
+    (10002, '2017-10-02', 'Shanghai', 20, 1, '2017-10-02 12:59:00', 200, 5, 5),
+    (10003, '2017-10-02', 'Guangzhou', 32, 0, '2017-10-02 11:20:00', 30, 11, 11),
+    (10004, '2017-10-01', 'Shenzhen', 35, 0, '2017-10-01 10:00:00', 100, 3, 3),
+    (10004, '2017-10-03', 'Shenzhen', 35, 0, '2017-10-03 10:20:00', 11, 6, 6);
+```
+
+| user\_id | date       | city      | age | sex | last\_visit\_date | cost | max\_dwell\_time | min\_dwell\_time |
+| ------------------------------ | ---------- | --------- | --- | --- | ------------------------------------------------------------- | ---- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 10000                          | 2017-10-01 | Beijing   | 20  | 0   | 2017-10-01 06:00                              | 20   | 10                                                           | 10                                                           |
+| 10000                          | 2017-10-01 | Beijing   | 20  | 0   | 2017-10-01 07:00                              | 15   | 2                                                            | 2                                                            |
+| 10001                          | 2017-10-01 | Beijing   | 30  | 1   | 2017-10-01 17:05:45           | 2    | 22                                                           | 22                                                           |
+| 10002                          | 2017-10-02 | Shanghai  | 20  | 1   | 2017-10-02 12:59:12           | 200  | 5                                                            | 5                                                            |
+| 10003                          | 2017-10-02 | Guangzhou | 32  | 0   | 2017-10-02 11:20:00           | 30   | 11                                                           | 11                                                           |
+| 10004                          | 2017-10-01 | Shenzhen  | 35  | 0   | 2017-10-01 10:00:15           | 100  | 3                                                            | 3                                                            |
+| 10004                          | 2017-10-03 | Shenzhen  | 35  | 0   | 2017-10-03 10:20:22           | 11   | 6                                                            | 6                                                            |
+
+Example Workflow
+
+1. Creating a Doris Table:
+
+```sql
+CREATE TABLE IF NOT EXISTS user_activity (
+  `user_id` LARGEINT NOT NULL COMMENT "User ID",
+  `date` DATE NOT NULL COMMENT "Data import date",
+  `city` VARCHAR(20) COMMENT "User city",
+  `age` SMALLINT COMMENT "User age",
+  `sex` TINYINT COMMENT "User gender",
+  `last_visit_date` DATETIME REPLACE DEFAULT "1970-01-01 00:00:00" COMMENT "Last visit date",
+  `cost` BIGINT SUM DEFAULT "0" COMMENT "Total spending",
+  `max_dwell_time` INT MAX DEFAULT "0" COMMENT "Max dwell time",
+  `min_dwell_time` INT MIN DEFAULT "99999" COMMENT "Min dwell time"
+) AGGREGATE KEY(`user_id`, `date`, `city`, `age`, `sex`)
+DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+PROPERTIES (
+  "replication_allocation" = "tag.location.default: 1"
+);
+```
+
+2. Creating a Catalog for the MySQL Database:
+
+```sql
+CREATE CATALOG activity PROPERTIES (
+  "type"="jdbc",
+  "user"="root",
+  "password"="123456",
+  "jdbc_url" = "jdbc:mysql://127.0.0.1:3306/user?useSSL=false",
+  "driver_url" = "mysql-connector-java-5.1.49.jar",
+  "driver_class" = "com.mysql.jdbc.Driver"
+);
+```
+
+3. Importing Data from MySQL to Doris:
+
+- One-Time Scheduling:
+
+```sql
+
+CREATE JOB one_time_load_job ON SCHEDULE AT '2024-08-10 03:00:00' DO INSERT INTO user_activity SELECT * FROM activity.user_activity;
+```
+
+- Periodic Scheduling:
+
+```sql
+CREATE JOB schedule_load ON SCHEDULE EVERY 1 DAY DO INSERT INTO user_activity SELECT * FROM activity.user_activity WHERE last_visit_date >= days_add(now(), -1);
+```
+
+## Design and Implementation
+
+Efficient scheduling often entails substantial resource consumption, especially with high-precision scheduling. Traditional implementations using Java's built-in scheduling capabilities or other libraries may have significant issues with precision and memory usage. To ensure performance while minimizing resource usage, the TimingWheel algorithm is combined with Disruptor to achieve second-level task scheduling.
+Technical Details
+
+Using Netty’s HashedWheelTimer to implement the time wheel algorithm, the Job Manager periodically (default every ten minutes) schedules future events into the time wheel. Disruptor constructs a single-producer, multi-consumer model to ensure efficient task triggering without excessive resource usage. The time wheel only triggers tasks and does not execute them directly. For immediate tasks, they are submitted to the respective execution thread pool.
+
+For single-execution events, the event definition is deleted after scheduling. For periodic events, the time wheel’s system events periodically pull the next cycle's execution tasks. This avoids clustering tasks in one bucket, reducing meaningless traversal and improving processing efficiency. For transactional tasks, the Job Scheduler ensures task execution results align with expectations through strong association and callback mechanisms, maintaining data integrity and consistency.
+Conclusion
+
+## Future Plans
+
+Doris Job Scheduler is a powerful and flexible task scheduling tool essential for data processing. Beyond common scenarios like data lake analysis and internal ETL, it plays a crucial role in implementing asynchronous materialized views. Asynchronous materialized views store precomputed result sets, and their update frequency is closely tied to source table changes. Frequent updates to source table data necess
