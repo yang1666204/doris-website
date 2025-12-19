@@ -1,5 +1,5 @@
 ---
-{ "title": "BIT_SHIFT_RIGHT", "language": "en" }
+{ "title": "BITXOR", "language": "en" }
 ---
 
 <!-- 
@@ -21,65 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bit_shift_right
+## bitxor
 
 ### description
 
-#### syntax
+#### Syntax
 
-`BIT_SHIFT_RIGHT(BIGINT x, TINYINT c)`
+`BITXOR(Integer-type lhs, Integer-type rhs)`
 
-Return result of logical right shift of `BIGINT` type x by c bits.
+Returns the result of the XOR operation of two integers.
+
+Integer range: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
 
 ### example
 
-Normal case
-
-```sql
-select 1024 as x, number as c, bit_shift_right(1024, number) as bit_shift_right from numbers("number"="5")
---------------
-
-+------+------+-----------------+
-| x    | c    | bit_shift_right |
-+------+------+-----------------+
-| 1024 |    0 |            1024 |
-| 1024 |    1 |             512 |
-| 1024 |    2 |             256 |
-| 1024 |    3 |             128 |
-| 1024 |    4 |              64 |
-+------+------+-----------------+
-5 rows in set (0.03 sec)
 ```
+mysql> select bitxor(3,5) ans;
++------+
+| ans  |
++------+
+|    7 |
++------+
 
-Logical right shift `BIGINT` -1 by 1 bits gets `BIGINT_MAX`
-
-```sql
-select bit_shift_right(-1, 1)
---------------
-
-+------------------------+
-| bit_shift_right(-1, 1) |
-+------------------------+
-|    9223372036854775807 |
-+------------------------+
-```
-
-Return zero if `c` is less than 0
-
-```sql
-select bit_shift_right(100, -1)
---------------
-
-+--------------------------+
-| bit_shift_right(100, -1) |
-+--------------------------+
-|                        0 |
-+--------------------------+
-1 row in set (0.04 sec)
+mysql> select bitxor(1,7) ans;
++------+
+| ans  |
++------+
+|    6 |
++------+
 ```
 
 ### keywords
 
     ```
-    BITSHIFT, BITSHIFTRIGHT
+    BITXOR
     ```
