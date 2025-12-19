@@ -1,8 +1,8 @@
 ---
-{ "title": "EXPLAIN", "language": "en" }
+{ "title": "EXPORT", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,500 +21,365 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## EXPORT
 
-The EXPLAIN statement displays Doris's query execution plan for a given query. Doris's query optimizer aims to create an efficient plan using statistical data, data characteristics, and features like HASH JOIN, partitioning, and bucketing. However, due to theoretical and practical constraints, the plan may sometimes under perform.
+### Name
 
-To improve performance, it's essential to analyze the current plan. This article teaches how to use the EXPLAIN statement for optimization.
+EXPORT
 
-## Syntax
+### Description
 
-```plain text
-{EXPLAIN | DESC} [VERBOSE] <query_block>
-```
+The `EXPORT` command is used to export the data of a specified table to a designated location as a file. Currently, it supports exporting to remote storage such as HDFS, S3, BOS, and COS (Tencent Cloud) through Broker process, S3 protocol, or HDFS protocol.
 
-## Required Parameters
+`EXPORT` is an asynchronous operation, and the command submits an `EXPORT JOB` to Doris. The task will be successfully submitted and returns immediately. After execution, you can use the [SHOW EXPORT](../../Show-Statements/SHOW-EXPORT.md) to view the progress.
 
-**<query_block>**
+**grammar**
 
-> This is the query statement for which you want the explain plan.
+  ```sql
+  EXPORT TABLE table_name
+  [PARTITION (p1[,p2])]
+  [WHERE]
+  TO export_path
+  [opt_properties]
+  WITH BROKER/S3/HDFS
+  [broker_properties];
+  ```
 
-## Optional Parameters
+**principle**
 
-**[VERBOSE]**
+The bottom layer of the `Export` statement actually executes the `select...outfile..` statement. The `Export` task will be decomposed into multiple `select...outfile..` statements to execute concurrently according to the value of the `parallelism` parameter. Each `select...outfile..` is responsible for exporting some tablets of table.
 
-> Whether to display detailed information is determined by the `VERBOSE` specification. With `VERBOSE`, comprehensive details are shown, including specifics on each operator, the tuple IDs they use, and detailed descriptions for each tuple. Without it, concise information is provided.
+**illustrate:**
 
-## Return Results
+- `table_name`
 
-### Basic Concepts
+  The table name of the table currently being exported. Only the export of Doris local table / View / External Table data is supported.
 
-To better understand the information displayed by `EXPLAIN`, let's introduce a few core concepts of the Doris execution plan.
+- `partition`
 
-| Name      | Explanation                                                                                                                                                                                                                                                                                                                                       |
-| :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PLAN      | Execution plan. A query is translated into an execution plan by the execution planner, which is then executed by the execution engine.                                                                                                                                                                            |
-| FRAGMENT  | Execution fragment. Since Doris is a distributed execution engine, a complete execution plan is divided into multiple single-node execution fragments. A FRAGMENT table represents a complete single-node execution fragment. Multiple FRAGMENTS combine to form a complete PLAN. |
-| PLAN NODE | Operator. The smallest unit of the execution plan. A FRAGMENT consists of multiple operators. Each operator is responsible for a specific execution logic, such as aggregation, joins, etc.                                                                                       |
+  It is possible to export only some specified partitions of the specified table
 
-### Return Result Structure
+- `export_path`
 
-The result of the Doris `EXPLAIN` statement is a complete PLAN. Within the PLAN, FRAGMENTS are ordered from back to front based on the execution sequence. Within each FRAGMENT, operators (PLAN NODES) are also ordered from back to front based on the execution sequence.
+  The exported file path can be a directory or a file directory with a file prefix, for example: `hdfs://path/to/my_file_`
 
-An example is provided below:
+- `opt_properties`
+
+  Used to specify some export parameters.
+
+  ```sql
+  [PROPERTIES ("key"="value", ...)]
+  ```
+
+  The following parameters can be specified:
+
+  - `label`: This parameter is optional, specifies the label of the export task. If this parameter is not specified, the system randomly assigns a label to the export task.
+
+  - `column_separator`: Specifies the exported column separator, default is `\t`, mulit-bytes is supported. This parameter is only used for `CSV` file format.
+
+  - `line_delimiter`: Specifies the line delimiter for export, the default is `\n`, mulit-bytes is supported. This parameter is only used for `CSV` file format.
+
+  - `timeout`: The timeout period of the export job, the default is 2 hours, the unit is seconds.
+
+  - `columns`: Specifies certain columns of the export job table
+
+  - `format`: Specifies the file format, support: parquet, orc, csv, csv_with_names, csv_with_names_and_types.The default is csv format.
+
+  - `parallelism`: The concurrency degree of the `export` job, the default is `1`. The export job will be divided into `select..outfile..` statements of the number of `parallelism` to execute concurrently. (If the value of `parallelism` is greater than the number of tablets in the table, the system will automatically set `parallelism` to the number of tablets, that is, each `select..outfile..` statement is responsible for one tablet)
+
+  - `delete_existing_files`: default `false`. If it is specified as true, you will first delete all files specified in the directory specified by the file_path, and then export the data to the directory.For example: "file_path" = "/user/tmp", then delete all files and directory under "/user/"; "file_path" = "/user/tmp/", then delete all files and directory under "/user/tmp/"
+
+  - `max_file_size`: it is the limit for the size of a single file in the export job. If the result file exceeds this value, it will be split into multiple files. The valid range for `max_file_size` is [5MB, 2GB], with a default value of 1GB. (When exporting to the ORC file format, the actual size of the split files will be multiples of 64MB, for example, if max_file_size is specified as 5MB, the actual split size will be 64MB; if max_file_size is specified as 65MB, the actual split size will be 128MB.)
+
+  - `with_bom`: The default is false. If it is set to true, the exported file is encoded in UTF8 with BOM (valid only for CSV-related file format).
+
+  - `timeout`: This is the timeout parameter of the export job, the default timeout is 2 hours, and the unit is seconds.
+
+  - `compress_type`: (since 2.1.5) When specifying the export file format as Parquet or ORC, you can choose the compression method for the Parquet or ORC files. For Parquet file format, you can specify the compression method as SNAPPY, GZIP, BROTLI, ZSTD, LZ4, or PLAIN, with the default being SNAPPY. For ORC file format, you can specify the compression method as PLAIN, SNAPPY, ZLIB, or ZSTD, with the default being ZLIB. This parameter is supported starting from version 2.1.5. (PLAIN means no compression is used.)
+
+  > Note that to use the `delete_existing_files` parameter, you also need to add the configuration `enable_delete_existing_files = true` to the fe.conf file and restart the FE. Only then will the `delete_existing_files` parameter take effect. Setting `delete_existing_files = true` is a dangerous operation and it is recommended to only use it in a testing environment.
+
+- `WITH BROKER`
+
+  The export function needs to write data to the remote storage through the Broker process. Here you need to define the relevant connection information for the broker to use.
+
+  ```sql
+  WITH BROKER "broker_name"
+  ("key"="value"[,...])
+
+  Broker related properties:
+        username: user name
+        password: password
+        hadoop.security.authentication: specify the authentication method as kerberos
+        kerberos_principal: specifies the principal of kerberos
+        kerberos_keytab: specifies the path to the keytab file of kerberos. The file must be the absolute path to the file on the server where the broker process is located. and can be accessed by the Broker process
+  ```
+
+- `WITH HDFS`
+
+  You can directly write data to the remote HDFS.
+
+  ```sql
+  WITH HDFS ("key"="value"[,...])
+
+  HDFS related properties:
+        fs.defaultFS: namenode address and port
+        hadoop.username: hdfs username
+        dfs.nameservices: if hadoop enable HA, please set fs nameservice. See hdfs-site.xml
+        dfs.ha.namenodes.[nameservice ID]：unique identifiers for each NameNode in the nameservice. See hdfs-site.xml
+        dfs.namenode.rpc-address.[nameservice ID].[name node ID]: the fully-qualified RPC address for each NameNode to listen on. See hdfs-site.xml
+        dfs.client.failover.proxy.provider.[nameservice ID]：the Java class that HDFS clients use to contact the Active NameNode, usually it is org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider
+
+        For a kerberos-authentication enabled Hadoop cluster, additional properties need to be set:
+        dfs.namenode.kerberos.principal: HDFS namenode service principal
+        hadoop.security.authentication: kerberos
+        hadoop.kerberos.principal: the Kerberos pincipal that Doris will use when connectiong to HDFS.
+        hadoop.kerberos.keytab: HDFS client keytab location.
+  ```
+
+- `WITH S3`
+
+  You can directly write data to a remote S3 object store
+
+  ```sql
+  WITH S3 ("key"="value"[,...])
+
+  S3 related properties:
+    AWS_ENDPOINT
+    AWS_ACCESS_KEY
+    AWS_SECRET_KEY
+    AWS_REGION
+    use_path_style: (optional) default false . The S3 SDK uses the virtual-hosted style by default. However, some object storage systems may not be enabled or support virtual-hosted style access. At this time, we can add the use_path_style parameter to force the use of path style access method.
+  ```
+
+### Example
+
+#### export to local
+
+> Export data to the local file system needs to add `enable_outfile_to_local = true` to the fe.conf and restart the Fe.
+
+1. You can export the `test` table to a local store. Export csv format file by default.
 
 ```sql
-+--------------------------------------------------+
-| Explain String(Nereids Planner)                  |
-+--------------------------------------------------+
-| PLAN FRAGMENT 0                                  |
-|   OUTPUT EXPRS:                                  |
-|     cnt[#10]                                     |
-|     cnt[#11]                                     |
-|   PARTITION: UNPARTITIONED                       |
-|                                                  |
-|   HAS_COLO_PLAN_NODE: false                      |
-|                                                  |
-|   VRESULT SINK                                   |
-|      MYSQL_PROTOCAL                              |
-|                                                  |
-|   7:VEXCHANGE                                    |
-|      offset: 0                                   |
-|      distribute expr lists:                      |
-|                                                  |
-| PLAN FRAGMENT 1                                  |
-|                                                  |
-|   PARTITION: RANDOM                              |
-|                                                  |
-|   HAS_COLO_PLAN_NODE: false                      |
-|                                                  |
-|   STREAM DATA SINK                               |
-|     EXCHANGE ID: 07                              |
-|     UNPARTITIONED                                |
-|                                                  |
-|   6:VHASH JOIN(354)                              |
-|   |  join op: INNER JOIN(BROADCAST)[]            |
-|   |  equal join conjunct: cnt[#7] = cnt[#5]      |
-|   |  cardinality=1                               |
-|   |  vec output tuple id: 8                      |
-|   |  vIntermediate tuple ids: 7                  |
-|   |  hash output slot ids: 5 7                   |
-|   |  distribute expr lists:                      |
-|   |  distribute expr lists:                      |
-|   |                                              |
-|   |----4:VEXCHANGE                               |
-|   |       offset: 0                              |
-|   |       distribute expr lists:                 |
-|   |                                              |
-|   5:VEXCHANGE                                    |
-|      offset: 0                                   |
-|      distribute expr lists:                      |
-|                                                  |
-| PLAN FRAGMENT 2                                  |
-|   ...                                            |
-|                                                  |
-| PLAN FRAGMENT 3                                  |
-|   ...                                            |
-+--------------------------------------------------+
+EXPORT TABLE test TO "file:///home/user/tmp/";
 ```
 
-Operators are linked to their child nodes with dashed lines. When an operator has multiple children, they are arranged vertically, representing a right-to-left order. In the example above, operator 6 (VHASH JOIN) has operator 5 (EXCHANGE) as its left child and operator 4 (EXCHANGE) as its right child.
-
-### Fragment Field Descriptions
-
-| Name                                                                              | Description                                                         |
-| :-------------------------------------------------------------------------------- | :------------------------------------------------------------------ |
-| PARTITION                                                                         | Displays the data distribution of the current Fragment              |
-| HAS_COLO_PLAN_NODE | Indicates if the fragment contains colocate operators               |
-| Sink                                                                              | The method of fragment data output, see the table below for details |
-
-**Sink Methods**
-
-| Name               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| :----------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| STREAM DATA SINK   | Outputs data to the next Fragment. It includes two lines of information.<br />First line: The downstream EXCHANGE NODE to which data is sent.<br />Second line: The method of data distribution. <br />  - UNPARTITIONED means each downstream instance receives the full data set. This typically occurs in broadcast joins or when single-instance logic is required, such as global limit or order by.<br /> - RANDOM means each downstream instance receives a random subset of data without repetition.<br /> - HASH_PARTITIONED uses the listed slots as keys to hash and send data shards to the same downstream instance. This is often used upstream of partition hash joins or the second stage of two-phase aggregations. |
-| RESULT SINK        | Sends result data to the FE. The first line indicates the protocol used for data transmission, currently supporting MySQL and arrow protocols.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| OLAP TABLE SINK    | Writes data to an OLAP table.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| MultiCastDataSinks | A multicast operator that contains multiple STREAM DATA SINKs. Each STREAM DATA SINK sends the full data set to its downstream.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-
-### Tuple Information Description
-
-When using VERBOSE mode, Tuple information is output. Tuple information describes the SLOT details within a row of data, including SLOT type, nullable status, etc.
-
-The output contains multiple TupleDescriptors, each containing multiple SlotDescriptors. An example is shown below:
+2. You can export the k1 and k2 columns in `test` table to a local store, and set export label. Export csv format file by default.
 
 ```sql
-Tuples:
-TupleDescriptor{id=0, tbl=t1}
-  SlotDescriptor{id=0, col=c1, colUniqueId=0, type=int, nullable=true, isAutoIncrement=false, subColPath=null}
-  SlotDescriptor{id=2, col=c3, colUniqueId=2, type=int, nullable=true, isAutoIncrement=false, subColPath=null}
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "label" = "label1",
+  "columns" = "k1,k2"
+);
 ```
 
-#### TupleDescriptor
-
-| Name | Description                                                       |
-| :--- | :---------------------------------------------------------------- |
-| id   | The id of the tuple descriptor                                    |
-| tbl  | The corresponding table of the tuple, or `null` if not applicable |
-
-#### SlotDescriptor
-
-| Name            | Description                                                                    |
-| :-------------- | :----------------------------------------------------------------------------- |
-| id              | The id of the slot descriptor                                                  |
-| col             | The corresponding column of the slot, or left blank if not applicable          |
-| colUniqueId     | The unique id of the corresponding column, or -1 if not applicable             |
-| type            | The type of the slot                                                           |
-| nullable        | Indicates if the corresponding data can be null                                |
-| isAutoIncrement | Indicates if the column is auto-incremented                                    |
-| subColPath      | The sub-column path within the column, currently only applies to variant types |
-
-### Operator Descriptions
-
-#### Operator List
-
-| Name                                                        | Description                                                     |
-| :---------------------------------------------------------- | :-------------------------------------------------------------- |
-| AGGREGATE                                                   | Aggregation operator                                            |
-| ANALYTIC                                                    | Window function operator                                        |
-| ASSERT NUMBER OF ROWS                                       | Operator to check the number of downstream output rows          |
-| EXCHANGE                                                    | Data exchange receiver operator                                 |
-| MERGING-EXCHANGE                                            | Data exchange receiver with sorting and row limit functionality |
-| HASH JOIN                                                   | Hash join operator                                              |
-| NESTED LOOP JOIN                                            | Nested loop join operator                                       |
-| PartitionTopN                                               | Intra-partition data pre-filtering operator                     |
-| REPEAT_NODE                            | Data replication operator                                       |
-| DataGenScanNode                                             | Table-valued function operator                                  |
-| EsScanNode                                                  | ES table scan operator                                          |
-| HIVE_SCAN_NODE    | Hive table scan operator                                        |
-| HUDI_SCAN_NODE    | Hudi table scan operator                                        |
-| ICEBERG_SCAN_NODE | Iceberg table scan operator                                     |
-| PAIMON_SCAN_NODE  | Paimon table scan operator                                      |
-| JdbcScanNode                                                | Jdbc table scan operator                                        |
-| OlapScanNode                                                | Olap table scan operator                                        |
-| SELECT                                                      | Filtering operator                                              |
-| UNION                                                       | Set union operator                                              |
-| EXCEPT                                                      | Set difference operator                                         |
-| INTERSECT                                                   | Set intersection operator                                       |
-| SORT                                                        | Sorting operator                                                |
-| TOP-N                                                       | Sort and return top N results operator                          |
-| TABLE FUNCTION NODE                                         | Table function operator (lateral view)       |
-
-#### Common Fields
-
-| Name                    | Description                                                                                                                                                                                                                                                          |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| limit                   | Limits the number of output rows                                                                                                                                                                                                                                     |
-| offset                  | Number of rows to skip before outputting                                                                                                                                                                                                                             |
-| conjuncts               | Filters the results of the current node. Executed before projections.                                                                                                                                                                |
-| projections             | Projection operations after the current operator. Executed after conjuncts.                                                                                                                                                          |
-| project output tuple id | The output tuple after projection. The slot arrangement within the data tuple can be seen via tuple desc.                                                                                                                            |
-| cardinality             | Estimated row count by the optimizer                                                                                                                                                                                                                                 |
-| distribute expr lists   | The original data distribution method for the child nodes of the current node                                                                                                                                                                                        |
-| Expression's slot id    | The specific slot corresponding to the slot id can be found in the tuple list in verbose mode. This list provides information such as slot type and nullable attributes. Represented as `[#5]` after the expression. |
-
-#### AGGREGATE
-
-| Name                                   | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
-| :------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (Aggregation Phase) | The aggregation phase is represented by two terms.<br /> The first term can be either update (local aggregation) or merge (global aggregation).<br /> The second term indicates whether the current data is serialized (serialize) or has completed final calculations (finalize). |
-| STREAMING                              | Only local aggregation operators in multi-stage aggregation truncation have this flag. Indicates that the current aggregation node may use STREAMING mode, where input data is passed directly to the next stage of aggregation without actual computation.                                                                                                                    |
-| output                                 | The output of the current aggregation operator. All local pre-aggregation functions are prefixed with partial.                                                                                                                                                                                                                                                                 |
-| group by                               | The key for aggregation                                                                                                                                                                                                                                                                                                                                                                                        |
-
-#### ANALYTIC
-
-| Name         | Description                                                                                                                             |
-| :----------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
-| functions    | The name of the current window function                                                                                                 |
-| partition by | Corresponds to the partition by clause in the over clause of the window function. Windowing expression. |
-| order by     | Sorting expression and order within the window                                                                                          |
-| window       | Window range                                                                                                                            |
-
-#### ASSERT NUMBER OF ROWS
-
-| Name | Description                                                |
-| :--- | :--------------------------------------------------------- |
-| EQ   | The downstream output must match this row count constraint |
-
-#### HASH JOIN
-
-| Name                  | Description                                                                                  |
-| :-------------------- | :------------------------------------------------------------------------------------------- |
-| join op               | Type of join                                                                                 |
-| equal join conjunct   | Equality condition in the join condition                                                     |
-| other join predicates | Conditions in the join condition, excluding equality                                         |
-| mark join predicates  | Conditions used in mark join                                                                 |
-| other predicates      | Filtering predicates after join execution                                                    |
-| runtime filters       | Generated runtime filters                                                                    |
-| output slot ids       | List of final output slots                                                                   |
-| hash output slot ids  | List of output slots after hash join execution, but before other join conditions are applied |
-| isMarkJoin            | Indicates whether it is a mark join                                                          |
-
-#### NESTED LOOP JOIN
-
-| Name                 | Description                  |
-| :------------------- | :--------------------------- |
-| join op              | Type of join operation       |
-| join conjuncts       | Conditions for joining       |
-| mark join predicates | Conditions used in mark join |
-| predicates           | Filter predicates after join |
-| runtime filters      | Generated runtime filters    |
-| output slot ids      | List of final output slots   |
-| isMarkJoin           | Whether it is a mark join    |
-
-#### PartitionTopN
-
-| Name                 | Description                                                                                                                                                                                                                                                                                                    |
-| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| functions            | Window functions applying grouped filter optimization                                                                                                                                                                                                                                                          |
-| has global limit     | Presence of a global limit on the number of rows                                                                                                                                                                                                                                                               |
-| partition limit      | Limit on the number of rows within each partition                                                                                                                                                                                                                                                              |
-| partition topn phase | Current phase: TWO_PHASE_GLOBAL_PTOPN for global phase after shuffling by partition key, TWO_PHASE_LOCAL_PTOPN for local phase before shuffling by partition key |
-
-#### REPEAT_NODE
-
-| Name   | Description                                                                           |
-| :----- | :------------------------------------------------------------------------------------ |
-| repeat | Number of repetitions for each row and corresponding slot ids for aggregation columns |
-| exprs  | List of expressions for output data after repetition                                  |
-
-#### DataGenScanNode
-
-| Name                 | Description         |
-| :------------------- | :------------------ |
-| table value function | Table function name |
-
-#### EsScanNode
-
-| Name                                   | Description                    |
-| :------------------------------------- | :----------------------------- |
-| SORT COLUMN                            | Columns for sorting results    |
-| LOCAL_PREDICATES  | Filters executed within Doris  |
-| REMOTE_PREDICATES | Filters executed within ES     |
-| ES index/type                          | ES index and type for querying |
-
-#### HIVE_SCAN_NODE
-
-| Name          | Description                                |
-| :------------ | :----------------------------------------- |
-| inputSplitNum | Number of scan splits                      |
-| totalFileSize | Total file size being scanned              |
-| scanRanges    | Information on scan splits                 |
-| partition     | Number of partitions being scanned         |
-| backends      | Specific data info for each BE to scan     |
-| cardinality   | Estimated number of rows by optimizer      |
-| avgRowSize    | Estimated average row size by optimizer    |
-| numNodes      | Number of BEs used by the current operator |
-| pushdown agg  | Aggregations pushed down to scan           |
-
-#### HUDI_SCAN_NODE
-
-| Name                 | Description                                |
-| :------------------- | :----------------------------------------- |
-| inputSplitNum        | Number of scan splits                      |
-| totalFileSize        | Total file size being scanned              |
-| scanRanges           | Information on scan splits                 |
-| partition            | Number of partitions being scanned         |
-| backends             | Specific data info for each BE to scan     |
-| cardinality          | Estimated number of rows by optimizer      |
-| avgRowSize           | Estimated average row size by optimizer    |
-| numNodes             | Number of BEs used by the current operator |
-| pushdown agg         | Aggregations pushed down to scan           |
-| hudiNativeReadSplits | Number of splits read using native method  |
-
-#### ICEBERG_SCAN_NODE
-
-| Name                     | Description                                |
-| :----------------------- | :----------------------------------------- |
-| inputSplitNum            | Number of scan splits                      |
-| totalFileSize            | Total file size being scanned              |
-| scanRanges               | Information on scan splits                 |
-| partition                | Number of partitions being scanned         |
-| backends                 | Specific data info for each BE to scan     |
-| cardinality              | Estimated number of rows by optimizer      |
-| avgRowSize               | Estimated average row size by optimizer    |
-| numNodes                 | Number of BEs used by the current operator |
-| pushdown agg             | Aggregations pushed down to scan           |
-| icebergPredicatePushdown | Filters pushed down to iceberg API         |
-
-#### PAIMON_SCAN_NODE
-
-| Name                   | Description                                |
-| :--------------------- | :----------------------------------------- |
-| inputSplitNum          | Number of scan splits                      |
-| totalFileSize          | Total file size being scanned              |
-| scanRanges             | Information on scan splits                 |
-| partition              | Number of partitions being scanned         |
-| backends               | Specific data info for each BE to scan     |
-| cardinality            | Estimated number of rows by optimizer      |
-| avgRowSize             | Estimated average row size by optimizer    |
-| numNodes               | Number of BEs used by the current operator |
-| pushdown agg           | Aggregations pushed down to scan           |
-| paimonNativeReadSplits | Number of splits read using native method  |
-
-#### NESTED LOOP JOIN
-
-| Name                 | Description                  |
-| :------------------- | :--------------------------- |
-| join op              | Type of join operation       |
-| join conjuncts       | Conditions for joining       |
-| mark join predicates | Conditions used in mark join |
-| predicates           | Filter predicates after join |
-| runtime filters      | Generated runtime filters    |
-| output slot ids      | List of final output slots   |
-| isMarkJoin           | Whether it is a mark join    |
-
-#### PartitionTopN
-
-| Name                 | Description                                                                                                                                                                                                                                                                                                    |
-| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| functions            | Window functions applying grouped filter optimization                                                                                                                                                                                                                                                          |
-| has global limit     | Presence of a global limit on the number of rows                                                                                                                                                                                                                                                               |
-| partition limit      | Limit on the number of rows within each partition                                                                                                                                                                                                                                                              |
-| partition topn phase | Current phase: TWO_PHASE_GLOBAL_PTOPN for global phase after shuffling by partition key, TWO_PHASE_LOCAL_PTOPN for local phase before shuffling by partition key |
-
-#### REPEAT_NODE
-
-| Name   | Description                                                                           |
-| :----- | :------------------------------------------------------------------------------------ |
-| repeat | Number of repetitions for each row and corresponding slot ids for aggregation columns |
-| exprs  | List of expressions for output data after repetition                                  |
-
-#### DataGenScanNode
-
-| Name                 | Description         |
-| :------------------- | :------------------ |
-| table value function | Table function name |
-
-#### EsScanNode
-
-| Name                                   | Description                    |
-| :------------------------------------- | :----------------------------- |
-| SORT COLUMN                            | Columns for sorting results    |
-| LOCAL_PREDICATES  | Filters executed within Doris  |
-| REMOTE_PREDICATES | Filters executed within ES     |
-| ES index/type                          | ES index and type for querying |
-
-#### HIVE_SCAN_NODE
-
-| Name          | Description                                |
-| :------------ | :----------------------------------------- |
-| inputSplitNum | Number of scan splits                      |
-| totalFileSize | Total file size being scanned              |
-| scanRanges    | Information on scan splits                 |
-| partition     | Number of partitions being scanned         |
-| backends      | Specific data info for each BE to scan     |
-| cardinality   | Estimated number of rows by optimizer      |
-| avgRowSize    | Estimated average row size by optimizer    |
-| numNodes      | Number of BEs used by the current operator |
-| pushdown agg  | Aggregations pushed down to scan           |
-
-#### HUDI_SCAN_NODE
-
-| Name                 | Description                                |
-| :------------------- | :----------------------------------------- |
-| inputSplitNum        | Number of scan splits                      |
-| totalFileSize        | Total file size being scanned              |
-| scanRanges           | Information on scan splits                 |
-| partition            | Number of partitions being scanned         |
-| backends             | Specific data info for each BE to scan     |
-| cardinality          | Estimated number of rows by optimizer      |
-| avgRowSize           | Estimated average row size by optimizer    |
-| numNodes             | Number of BEs used by the current operator |
-| pushdown agg         | Aggregations pushed down to scan           |
-| hudiNativeReadSplits | Number of splits read using native method  |
-
-#### ICEBERG_SCAN_NODE
-
-| Name                     | Description                                |
-| :----------------------- | :----------------------------------------- |
-| inputSplitNum            | Number of scan splits                      |
-| totalFileSize            | Total file size being scanned              |
-| scanRanges               | Information on scan splits                 |
-| partition                | Number of partitions being scanned         |
-| backends                 | Specific data info for each BE to scan     |
-| cardinality              | Estimated number of rows by optimizer      |
-| avgRowSize               | Estimated average row size by optimizer    |
-| numNodes                 | Number of BEs used by the current operator |
-| pushdown agg             | Aggregations pushed down to scan           |
-| icebergPredicatePushdown | Filters pushed down to iceberg API         |
-
-#### PAIMON_SCAN_NODE
-
-| Name                   | Description                                |
-| :--------------------- | :----------------------------------------- |
-| inputSplitNum          | Number of scan splits                      |
-| totalFileSize          | Total file size being scanned              |
-| scanRanges             | Information on scan splits                 |
-| partition              | Number of partitions being scanned         |
-| backends               | Specific data info for each BE to scan     |
-| cardinality            | Estimated number of rows by optimizer      |
-| avgRowSize             | Estimated average row size by optimizer    |
-| numNodes               | Number of BEs used by the current operator |
-| pushdown agg           | Aggregations pushed down to scan           |
-| paimonNativeReadSplits | Number of splits read using native method  |
-
-#### JdbcScanNode
-
-| Name  | Description                  |
-| :---- | :--------------------------- |
-| TABLE | JDBC-side table name to scan |
-| QUERY | Query used for scanning      |
-
-#### OlapScanNode
-
-| Name           | Description                                                                                                                                                                                                                                                                                            |
-| :------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TABLE          | Table being scanned. Parentheses indicate the name of the hit synchronized materialized view.                                                                                                                                                                          |
-| SORT INFO      | Present when SCAN pre-sorting is planned. Indicates partial pre-sorting and pre-truncation of SCAN output.                                                                                                                                                             |
-| SORT LIMIT     | Present when SCAN pre-sorting is planned. Indicates the truncation length for pre-truncation.                                                                                                                                                                          |
-| TOPN OPT       | Present when TOP-N Runtime Filter is planned.                                                                                                                                                                                                                                          |
-| PREAGGREGATION | Indicates whether pre-aggregation is enabled. Relevant for MOR aggregation and primary key models. ON means data at the storage layer satisfies upper-layer needs without extra aggregation. OFF means extra aggregation is performed. |
-| partitions     | Number of partitions currently scanned, total partitions, and list of scanned partition names.                                                                                                                                                                                         |
-| tablets        | Number of tablets scanned and total tablets in the table.                                                                                                                                                                                                                              |
-| tabletList     | List of tablets scanned.                                                                                                                                                                                                                                                               |
-| avgRowSize     | Estimated row size by the optimizer.                                                                                                                                                                                                                                                   |
-| numNodes       | Number of BEs assigned to the current scan.                                                                                                                                                                                                                                            |
-| pushAggOp      | Results are returned by reading zonemap metadata. Supports MIN, MAX, COUNT aggregation information.                                                                                                                                                                    |
-
-#### UNION
-
-| Name           | Description                                                                                             |
-| :------------- | :------------------------------------------------------------------------------------------------------ |
-| constant exprs | List of constant expressions to be included in the output.                              |
-| child exprs    | Children's outputs projected through this expression list as input to the set operator. |
-
-#### EXCEPT
-
-| Name        | Description                                                                                             |
-| :---------- | :------------------------------------------------------------------------------------------------------ |
-| child exprs | Children's outputs projected through this expression list as input to the set operator. |
-
-#### INTERSECT
-
-| Name        | Description                                                                                             |
-| :---------- | :------------------------------------------------------------------------------------------------------ |
-| child exprs | Children's outputs projected through this expression list as input to the set operator. |
-
-#### SORT
-
-| Name     | Description                                          |
-| :------- | :--------------------------------------------------- |
-| order by | Sorting key and specific sort order. |
-
-#### TABLE FUNCTION NODE
-
-| Name                  | Description                                                               |
-| :-------------------- | :------------------------------------------------------------------------ |
-| table function        | Name of the table function used.                          |
-| lateral view tuple id | Tuple ID corresponding to newly generated columns.        |
-| output slot id        | List of slot IDs for columns output after column pruning. |
-
-#### TOP-N
-
-| Name          | Description                                                            |
-| :------------ | :--------------------------------------------------------------------- |
-| order by      | Sorting key and specific sort order.                   |
-| TOPN OPT      | Present when TOP-N runtime filter optimization is hit. |
-| OPT TWO PHASE | Present when TOP-N deferred materialization is hit.    |
+3. You can export the rows where `k1 < 50` in `test` table to a local store, and set column_separator to `,`. Export csv format file by default.
+
+```sql
+EXPORT TABLE test WHERE k1 < 50 TO "file:///home/user/tmp/"
+PROPERTIES (
+  "columns" = "k1,k2",
+  "column_separator"=","
+);
+```
+
+4. Export partitions p1 and p2 from the test table to local storage, with the default exported file format being csv.
+
+```sql
+EXPORT TABLE test PARTITION (p1,p2) TO "file:///home/user/tmp/" 
+PROPERTIES ("columns" = "k1,k2");
+```
+
+5. Export all data in the test table to local storage with a non-default file format.
+
+```sql
+// parquet file format
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "columns" = "k1,k2",
+  "format" = "parquet"
+);
+
+// orc file format
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "columns" = "k1,k2",
+  "format" = "orc"
+);
+
+// csv_with_names file format. Using 'AA' as the column delimiter and 'zz' as the line delimiter.
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "format" = "csv_with_names",
+  "column_separator"="AA",
+  "line_delimiter" = "zz"
+);
+
+// csv_with_names_and_types file format
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "format" = "csv_with_names_and_types"
+);
+
+```
+
+6. set max_file_sizes
+
+```sql
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "format" = "parquet",
+  "max_file_size" = "5MB"
+);
+```
+
+When the exported file size is larger than 5MB, the data will be split into multiple files, with each file containing a maximum of 5MB.
+
+7. set parallelism
+
+```sql
+EXPORT TABLE test TO "file:///home/user/tmp/"
+PROPERTIES (
+  "format" = "parquet",
+  "max_file_size" = "5MB",
+  "parallelism" = "5"
+);
+```
+
+8. set delete_existing_files
+
+```sql
+EXPORT TABLE test TO "file:///home/user/tmp"
+PROPERTIES (
+  "format" = "parquet",
+  "max_file_size" = "5MB",
+  "delete_existing_files" = "true"
+)
+```
+
+Before exporting data, all files and directories in the `/home/user/` directory will be deleted, and then the data will be exported to that directory.
+
+#### export with S3
+
+1. Export all data from the `testTbl` table to S3 using invisible character '\x07' as a delimiter for columns and rows.If you want to export data to minio, you also need to specify use_path_style=true.
+
+  ```sql
+  EXPORT TABLE testTbl TO "s3://bucket/a/b/c" 
+  PROPERTIES (
+    "column_separator"="\\x07", 
+    "line_delimiter" = "\\x07"
+  ) WITH s3 (
+    "s3.endpoint" = "xxxxx",
+    "s3.region" = "xxxxx",
+    "s3.secret_key"="xxxx",
+    "s3.access_key" = "xxxxx"
+  )
+  ```
+
+2. Export all data in the test table to HDFS in the format of parquet, limit the size of a single file to 1024MB, and reserve all files in the specified directory.
+
+#### export with HDFS
+
+1. Export all data from the `test` table to HDFS in `Parquet` format, with a limit of 512MB for the size of a single file in the export job, and retain all files under the specified directory.
+
+  ```sql
+  EXPORT TABLE test TO "hdfs://hdfs_host:port/a/b/c/" 
+  PROPERTIES(
+      "format" = "parquet",
+      "max_file_size" = "512MB",
+      "delete_existing_files" = "false"
+  )
+  with HDFS (
+  "fs.defaultFS"="hdfs://hdfs_host:port",
+  "hadoop.username" = "hadoop"
+  );
+  ```
+
+#### export with Broker
+
+You need to first start the broker process and add it to the FE before proceeding.
+
+1. Export the `test` table to hdfs
+
+  ```sql
+  EXPORT TABLE test TO "hdfs://hdfs_host:port/a/b/c" 
+  WITH BROKER "broker_name" 
+  (
+    "username"="xxx",
+    "password"="yyy"
+  );
+  ```
+
+2. Export partitions 'p1' and 'p2' from the 'testTbl' table to HDFS using ',' as the column delimiter and specifying a label.
+
+  ```sql
+  EXPORT TABLE testTbl PARTITION (p1,p2) TO "hdfs://hdfs_host:port/a/b/c" 
+  PROPERTIES (
+    "label" = "mylabel",
+    "column_separator"=","
+  ) 
+  WITH BROKER "broker_name" 
+  (
+    "username"="xxx",
+    "password"="yyy"
+  );
+  ```
+
+3. Export all data from the 'testTbl' table to HDFS using the non-visible character '\x07' as the column and row delimiter.
+
+```sql
+EXPORT TABLE testTbl TO "hdfs://hdfs_host:port/a/b/c" 
+PROPERTIES (
+  "column_separator"="\\x07", 
+  "line_delimiter" = "\\x07"
+) 
+WITH BROKER "broker_name" 
+(
+  "username"="xxx", 
+  "password"="yyy"
+)
+```
+
+### Keywords
+
+    ```
+    EXPORT
+    ```
+
+### Best Practice
+
+#### Concurrent Export
+
+An Export job can be configured with the `parallelism` parameter to concurrently export data. The `parallelism` parameter specifies the number of threads to execute the `EXPORT Job`. Each thread is responsible for exporting a subset of the total tablets.
+
+The underlying execution logic of an `Export Job `is actually the `SELECT INTO OUTFILE` statement. Each thread specified by the `parallelism` parameter executes independent `SELECT INTO OUTFILE` statements.
+
+The specific logic for splitting an `Export Job` into multiple `SELECT INTO OUTFILE` is, to evenly distribute all the tablets of the table among all parallel threads. For example:
+
+- If num(tablets) = 40 and parallelism = 3, then the three threads will be responsible for 14, 13, and 13 tablets, respectively.
+- If num(tablets) = 2 and parallelism = 3, then Doris automatically sets the parallelism to 2, and each thread is responsible for one tablet.
+
+When the number of tablets responsible for a thread exceeds the `maximum_tablets_of_outfile_in_export` value (default is 10, and can be modified by adding the `maximum_tablets_of_outfile_in_export` parameter in fe.conf), the thread will split the tablets which are responsibled for this thread into multiple `SELECT INTO OUTFILE` statements. For example:
+
+- If a thread is responsible for 14 tablets and `maximum_tablets_of_outfile_in_export = 10`, then the thread will be responsible for two `SELECT INTO OUTFILE` statements. The first `SELECT INTO OUTFILE` statement exports 10 tablets, and the second `SELECT INTO OUTFILE` statement exports 4 tablets. The two `SELECT INTO OUTFILE` statements are executed serially by this thread.
+
+#### memory limit
+
+The query plan for an `Export Job` typically involves only `scanning and exporting`, and does not involve compute logic that requires a lot of memory. Therefore, the default memory limit of 2GB is usually sufficient to meet the requirements.
+
+However, in certain scenarios, such as a query plan that requires scanning too many tablets on the same BE, or when there are too many data versions of tablets, it may result in insufficient memory. In these cases, you can adjust the session variable `exec_mem_limit` to increase the memory usage limit.
+
+#### Precautions
+
+- Exporting a large amount of data at one time is not recommended. The maximum recommended export data volume for an Export job is several tens of GB. An overly large export results in more junk files and higher retry costs. If the amount of table data is too large, it is recommended to export by partition.
+
+- If the Export job fails, the generated files will not be deleted, and the user needs to delete it manually.
+
+- The Export job only exports the data of the Base table / View / External table, not the data of the materialized view.
+
+- The export job scans data and occupies IO resources, which may affect the query latency of the system.
+
+- Currently, The `Export Job` is simply check whether the `Tablets version` is the same, it is recommended not to import data during the execution of the `Export Job`.
+
+- The maximum number of partitions that an `Export job` allows is 2000. You can add a parameter to the fe.conf `maximum_number_of_export_partitions` and restart FE to modify the setting.
