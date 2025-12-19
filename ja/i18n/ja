@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CREATE-CATALOG", "language": "en" }
+{ "title": "SHOW-CREATE-DATABASE", "language": "en" }
 ---
 
 <!--
@@ -21,39 +21,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CREATE-CATALOG
+## SHOW-CREATE-DATABASE
 
 ### Name
 
-SHOW CREATE CATALOG
+SHOW CREATE DATABASE
 
 ### Description
 
-This statement shows the creating statement of a doris catalog.
+This statement checks the creation of the doris database, support database from both internal catalog and hms catalog
 
 grammar:
 
 ```sql
-SHOW CREATE CATALOG catalog_name;
+SHOW CREATE DATABASE db_name;
 ```
 
 illustrate:
 
-- `catalog_name`: The name of the catalog which exist in doris.
+- `db_name`: The name of the database
+- if specific a database from hms catalog, will return same with this stmt in hive
 
 ### Example
 
-1. View the creating statement of the hive catalog in doris
+1. View the creation of the test database in doris internal catalog
 
-   ```sql
-   SHOW CREATE CATALOG hive;
-   ```
+    ```sql
+    mysql> SHOW CREATE DATABASE test;
+    +----------+----------------------------+
+    | Database | Create Database |
+    +----------+----------------------------+
+    | test | CREATE DATABASE `test` |
+    +----------+----------------------------+
+    1 row in set (0.00 sec)
+    ```
+
+2. view a database named `hdfs_text` from a hms catalog
+
+    ```sql
+    mysql> show create database hdfs_text;                                                                                     
+    +-----------+------------------------------------------------------------------------------------+                         
+    | Database  | Create Database                                                                    |                         
+    +-----------+------------------------------------------------------------------------------------+                         
+    | hdfs_text | CREATE DATABASE `hdfs_text` LOCATION 'hdfs://HDFS1009138/hive/warehouse/hdfs_text' |                         
+    +-----------+------------------------------------------------------------------------------------+                         
+    1 row in set (0.01 sec)  
+    ```
 
 ### Keywords
 
-    ```
-    SHOW, CREATE, CATALOG
-    ```
+     ```
+      SHOW, CREATE, DATABASE
+     ```
 
 ### Best Practice
-
