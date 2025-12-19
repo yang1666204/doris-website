@@ -1,5 +1,5 @@
 ---
-{ "title": "url_decode", "language": "en" }
+{ "title": "UUID", "language": "en" }
 ---
 
 <!-- 
@@ -21,35 +21,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## url_decode
+## uuid
+
+uuid
 
 ### description
 
-Converts an url to a decode string.
-
 #### Syntax
 
-```sql
-VARCHAR url_decode(VARCHAR url)
-```
+`VARCHAR uuid()`
 
-### Parameters
-
-- url: the string to decode. If url is not a string type.
+return a random uuid string
 
 ### example
 
 ```
-mysql> mysql> select url_decode('https%3A%2F%2Fdoris.apache.org%2Fzh-CN%2Fdocs%2Fsql-manual%2Fsql-functions%2Fstring-functions');
-+------------------------------------------------+
-| url_decode('https%3A%2F%2Fdoris.apache.org%2Fzh-CN%2Fdocs%2Fsql-manual%2Fsql-functions%2Fstring-functions') |
-+------------------------------------------------+
-| https://doris.apache.org/zh-CN/docs/sql-manual/sql-functions/string-functions                               |
-+------------------------------------------------+
+mysql> select uuid();
++--------------------------------------+
+| uuid()                               |
++--------------------------------------+
+| 29077778-fc5e-4603-8368-6b5f8fd55c24 |
++--------------------------------------+
+
 ```
 
 ### keywords
 
     ```
-    URL DECODE
+    UUID
     ```
