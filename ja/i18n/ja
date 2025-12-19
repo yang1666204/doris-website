@@ -1,5 +1,5 @@
 ---
-{ "title": "views", "language": "en" }
+{ "title": "workload_group_privileges", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-Stores all view information.
+Stores permission information for Workload Groups.
 
 ## Database
 
@@ -31,15 +31,9 @@ Stores all view information.
 
 ## Table Information
 
-| Column Name                                                    | Type                             | Description                                       |
-| -------------------------------------------------------------- | -------------------------------- | ------------------------------------------------- |
-| TABLE_CATALOG                             | varchar(512)  | Catalog name                                      |
-| TABLE_SCHEMA                              | varchar(64)   | Database name                                     |
-| TABLE_NAME                                | varchar(64)   | View name                                         |
-| VIEW_DEFINITION                           | varchar(8096) | View definition statement                         |
-| CHECK_OPTION                              | varchar(8)    | No practical effect, only for MySQL compatibility |
-| IS_UPDATABLE                              | varchar(3)    | No practical effect, only for MySQL compatibility |
-| DEFINER                                                        | varchar(77)   | No practical effect, only for MySQL compatibility |
-| SECURITY_TYPE                             | varchar(7)    | No practical effect, only for MySQL compatibility |
-| CHARACTER_SET_CLIENT | varchar(32)   | No practical effect, only for MySQL compatibility |
-| COLLATION_CONNECTION                      | varchar(32)   | No practical effect, only for MySQL compatibility |
+| Column Name                                                   | Type                            | Description                              |
+| ------------------------------------------------------------- | ------------------------------- | ---------------------------------------- |
+| GRANTEE                                                       | varchar(64)  | The user granted permissions             |
+| WORKLOAD_GROUP_NAME | varchar(256) | The name of the Workload Group           |
+| PRIVILEGE_TYPE                           | varchar(64)  | The type of privilege                    |
+| IS_GRANTABLE                             | varchar(3)   | Whether it can be granted to other users |
