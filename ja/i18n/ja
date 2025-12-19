@@ -1,5 +1,5 @@
 ---
-{ "title": "SWITCH", "language": "en" }
+{ "title": "SYNC", "language": "en" }
 ---
 
 <!--
@@ -21,33 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SWITCH
+## SYNC
 
 ### Name
 
-SWITCH
+SYNC
 
 ### Description
 
-This statement is used to switch catalog.
+Used to synchronize metadata for fe non-master nodes. doris only master node can write fe metadata, other fe nodes write metadata operations will be forwarded to master. After master finishes metadata writing operation, there will be a short delay for non-master nodes to replay metadata, you can use this statement to synchronize metadata.
 
-Syntax:
+grammar:
 
 ```sql
-SWITCH catalog_name
+SYNC;
 ```
 
 ### Example
 
-1. Switch to hive
+1. Synchronized metadata:
 
-   ```sql
-    SWITCH hive;
-   ```
+    ```sql
+    SYNC;
+    ```
 
 ### Keywords
 
-SWITCH, CATALOG
+    ```
+    SYNC
+    ```
 
 ### Best Practice
 
