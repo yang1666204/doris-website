@@ -1,5 +1,5 @@
 ---
-{ "title": "FROM_DAYS", "language": "en" }
+{ "title": "FROM_SECOND", "language": "en" }
 ---
 
 <!-- 
@@ -21,50 +21,54 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## from_days
+## from_second
 
-### Description
+### description
 
-#### Syntax
+#### syntax
 
-`DATE FROM_DAYS(INT N)`
+`DATETIME FROM_SECOND(BIGINT unix_timestamp)`
+`DATETIME FROM_MILLISECOND(BIGINT unix_timestamp)`
+`DATETIME FROM_MICROSECOND(BIGINT unix_timestamp)`
 
-Given a day number, returns a DATE. Note that to maintain consistent behavior with MySQL, the date 0000-02-29 does not exist.
+Converts a timestamp to its DATETIME represent, with argument as an integer and returned as a DATETIME type. Returns `NULL` if `unix_timestamp < 0` or if the function result is greater than `9999-12-31 23:59:59.999999`.
 
 ### example
 
 ```
-mysql > select from_days (730669);
-+-------------------+
-| from_days(730669) |
-+-------------------+
-| 2000-07-03        |
-+-------------------+
+mysql> set time_zone='Asia/Shanghai';
 
-mysql> select from_days (5);
-+--------------+
-| from_days(5) |
-+--------------+
-| 0000-01-05   |
-+--------------+
+mysql> select from_second(-1);
++---------------------------+
+| from_second(-1)           |
++---------------------------+
+| NULL                      |
++---------------------------+
 
-mysql> select from_days (59);
-+---------------+
-| from_days(59) |
-+---------------+
-| 0000-02-28    |
-+---------------+
+mysql> select from_millisecond(12345678);
++----------------------------+
+| from_millisecond(12345678) |
++----------------------------+
+| 1970-01-01 11:25:45.678    |
++----------------------------+
 
-mysql> select from_days (60);
-+---------------+
-| from_days(60) |
-+---------------+
-| 0000-03-01    |
-+---------------+
+mysql> select from_microsecond(253402271999999999);
++--------------------------------------+
+| from_microsecond(253402271999999999) |
++--------------------------------------+
+| 9999-12-31 23:59:59.999999           |
++--------------------------------------+
+
+mysql> select from_microsecond(253402272000000000);
++--------------------------------------+
+| from_microsecond(253402272000000000) |
++--------------------------------------+
+| NULL                                 |
++--------------------------------------+
 ```
 
 ### keywords
 
     ```
-    FROM_DAYS,FROM,DAYS
+    FROM_SECOND,FROM,SECOND,MILLISECOND,MICROSECOND
     ```
