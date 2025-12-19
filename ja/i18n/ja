@@ -1,5 +1,5 @@
 ---
-{ "title": "NEGATIVE", "language": "en" }
+{ "title": "PI", "language": "en" }
 ---
 
 <!-- 
@@ -19,39 +19,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## negative
+## Pi
 
 ### description
 
 #### Syntax
 
-```sql
-BIGINT negative(BIGINT x)
-DOUBLE negative(DOUBLE x)
-DECIMAL negative(DECIMAL x)
-```
-
-Return `-x`.
+`DOUBLE Pi()`
+Returns the constant `Pi` value.
 
 ### example
 
 ```
-mysql> SELECT negative(-10);
-+---------------+
-| negative(-10) |
-+---------------+
-|            10 |
-+---------------+
-mysql> SELECT negative(12);
-+--------------+
-| negative(12) |
-+--------------+
-|          -12 |
-+--------------+
+mysql> select Pi();
++--------------------+
+| pi()               |
++--------------------+
+| 3.1415926535897931 |
++--------------------+
 ```
 
 ### keywords
 
  ```
- NEGATIVE
+ PI
  ```
