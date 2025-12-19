@@ -1,8 +1,8 @@
 ---
-{ "title": "Load High Availability", "language": "en-US" }
+{ "title": "Loading Overview", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,101 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Load High Availability
+Apache Doris offers various methods for importing and integrating data, allowing you to import data from diverse sources into the database. These methods can be categorized into four types:
 
-## Overview
+- **Real-Time Writing**: Data is written into Doris tables in real-time via HTTP or JDBC, suitable for scenarios requiring immediate analysis and querying.
 
-Doris provides various mechanisms to ensure high availability during data import. This article will detail Doris's default import behavior and additional options for improving import availability, especially the minimum write replica number feature.
+  - For small amounts of data (once every 5 minutes), you can use [JDBC INSERT](./import-way/insert-into-manual.md).
 
-## Majority Write
+  - For higher concurrency or frequency (more than 20 concurrent writes or multiple writes per minute), you can enable enable [Group Commit](./group-commit-manual.md) and use JDBC INSERT or Stream Load.
 
-By default, Doris adopts a majority write strategy to ensure data reliability and consistency:
+  - For high throughput, you can use [Stream Load](./import-way/stream-load-manual) via HTTP.
 
-- An import is considered successful when the number of successfully written replicas exceeds half of the total number of replicas.
-- For example, for a table with three replicas, at least two replicas must be successfully written for the import to be considered successful.
+- **Streaming Synchronization**: Real-time data streams (e.g., Flink, Kafka, transactional databases) are imported into Doris tables, ideal for real-time analysis and querying.
 
-### How It Works
+  - You can use [Flink Doris Connector](../../ecosystem/flink-doris-connector.md) to write Flink’s real-time data streams into Doris.
 
-1. Data Distribution: The import task first distributes data to all relevant BE nodes.
+  - You can use [Routine Load](./import-way/routine-load-manual.md) or [Doris Kafka Connector](../../ecosystem/doris-kafka-connector.md) for Kafka’s real-time data streams. Routine Load pulls data from Kafka to Doris and supports CSV and JSON formats, while Kafka Connector writes data to Doris, supporting Avro, JSON, CSV, and Protobuf formats.
 
-2. Parallel Writing: Each BE node processes data writing operations in parallel.
+  - You can use [Flink CDC](../../ecosystem/flink-doris-connector.md) or [Datax](../../ecosystem/datax.md) to write transactional database CDC data streams into Doris.
 
-3. Write Confirmation: After completing the data write, each BE node sends a confirmation to the FE.
+- **Batch Import**: Data is batch-loaded from external storage systems (e.g., S3, HDFS, local files, NAS) into Doris tables, suitable for non-real-time data import needs.
 
-4. Majority Judgment: The FE counts the number of successfully written replicas, and considers the import successful when a majority is reached.
+  - You can use [Broker Load](./import-way/broker-load-manual.md) to write files from S3 and HDFS into Doris.
 
-5. Transaction Commit: The FE commits the import transaction, making the data visible externally.
+  - You can use [INSERT INTO SELECT](./import-way/insert-into-manual.md) to synchronously load files from S3, HDFS, and NAS into Doris, and you can perform the operation asynchronously using a [JOB](../scheduler/job-scheduler.md).
 
-6. Asynchronous Replication: For replicas that were not successfully written, the system will asynchronously replicate data in the background to ensure eventual consistency across all replicas.
+  - You can use [Stream Load](./import-way/stream-load-manual) or [Doris Streamloader](../../ecosystem/doris-streamloader.md) to write local files into Doris.
 
-The majority write strategy is Doris's balance between data reliability and system availability. For scenarios with special requirements, Doris provides other options such as the minimum write replica number to further enhance system flexibility.
+- **External Data Source Integration**: Query and partially import data from external sources (e.g., Hive, JDBC, Iceberg) into Doris tables.
 
-## Minimum Write Replica Number
+  - You can create a [Catalog](../../lakehouse/lakehouse-overview.md) to read data from external sources and use [INSERT INTO SELECT](./import-way/insert-into-manual.md) to synchronize this data into Doris, with asynchronous writing via [JOB](../scheduler/job-scheduler.md).
 
-While the majority write strategy ensures data reliability, it may affect system availability in certain scenarios. For example, in a two-replica situation, both replicas must be successfully written to complete the import, meaning no replica is allowed to be unavailable during the import process.
+  - You can use [X2Doris](data-source/migrate-data-from-other-olap.md) to migrate data from other AP systems into Doris.
 
-To address this issue and improve import availability, Doris provides the Min Load Replica Num option.
+Each import method in Doris is an implicit transaction by default. For more information on transactions, refer to [Transactions](../transaction.md).
 
-### Feature Description
+### Quick Overview of Import Methods
 
-The minimum write replica number allows users to specify the minimum number of replicas that need to be successfully written during data import. The import is considered successful when the number of successfully written replicas is greater than or equal to this value.
+Doris's import process mainly involves various aspects such as data sources, data formats, import methods, error handling, data transformation, and transactions. You can quickly browse the scenarios suitable for each import method and the supported file formats in the table below.
 
-### Use Cases
-
-- When some nodes are unavailable, but data import still needs to be guaranteed.
-
-- When there are high requirements for data import speed, and users are willing to sacrifice some reliability for higher availability.
-
-### Configuration Methods
-
-#### 1. Single Table Configuration
-
-a. Set when creating a table:
-
-```sql
-CREATE TABLE example_table
-(
-id INT,
-name STRING
-)
-DUPLICATE KEY(id)
-DISTRIBUTED BY HASH(id) BUCKETS 10
-PROPERTIES
-(
-'replication_num' = '3',
-'min_load_replica_num' = '2'
-);
-```
-
-b. Modify an existing table:
-
-```sql
-ALTER TABLE example_table
-SET ( 'min_load_replica_num' = '2' );
-```
-
-#### 2. Global Configuration
-
-Set through the FE configuration item `min_load_replica_num`.
-
-- Valid values: greater than 0
-
-- Default value: -1 (indicating that the global minimum write replica number is not enabled)
-
-Priority: Table property > Global configuration > Default majority rule
-
-If the table property is not set or invalid, and the global configuration is valid, the minimum write replica number for the table is:
-`min(FE configured min_load_replica_num, table's replica number/2 + 1)`
-
-For viewing and modifying FE configuration items, please refer to the [FE Configuration Document](../../admin-manual/config/fe-config.md).
-
-## Other High Availability Mechanisms
-
-In addition to the minimum write replica number option, Doris also adopts the following mechanisms to improve import availability:
-
-1. Import Retry: Automatically retry failed import tasks caused by temporary failures.
-
-2. Load Balancing: Distribute import tasks to different BE nodes to avoid excessive pressure on a single point.
-
-3. Transaction Mechanism: Ensure data consistency, automatically rollback in case of failure.
-
+| Import Method                                            | Use Case                                                                                    | Supported File Formats              | Single Import Volume         | Import Mode                       |
+| :------------------------------------------------------- | :------------------------------------------------------------------------------------------ | ----------------------------------- | ---------------------------- | --------------------------------- |
+| [Stream Load](./import-way/stream-load-manual)           | Importing local files or push data in applications via http.                | csv, json, parquet, orc             | Less than 10GB               | Synchronous                       |
+| [Broker Load](./import-way/broker-load-manual.md)        | Importing from object storage, HDFS, etc.                                   | csv, json, parquet, orc             | Tens of GB to hundreds of GB | Asynchronous                      |
+| [INSERT INTO VALUES](./import-way/insert-into-manual.md) | Writing data via JDBC.                                                      | SQL                                 | Simple testing               | Synchronous                       |
+| [INSERT INTO SELECT](./import-way/insert-into-manual.md) | Importing from an external source like a table in a catalog or files in s3. | SQL                                 | Depending on memory size     | Synchronous, Asynchronous via Job |
+| [Routine Load](./import-way/routine-load-manual.md)      | Real-time import from Kafka                                                                 | csv, json                           | Micro-batch import MB to GB  | Asynchronous                      |
+| [MySQL Load](./import-way/mysql-load-manual.md)          | Importing from local files.                                                 | csv                                 | Less than 1GB                | Synchronous                       |
+| [Group Commit](./group-commit-manual.md)                 | Writing with high frequency.                                                | Depending on the import method used | Micro-batch import KB        | -                                 |
