@@ -1,8 +1,8 @@
 ---
-{ "title": "REPEAT", "language": "en" }
+{ "title": "REPLACE", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,36 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## repeat
+## replace
 
-### Description
+### description
 
 #### Syntax
 
-`VARCHAR repeat (VARCHAR str, INT count)`
+`VARCHAR REPLACE (VARCHAR str, VARCHAR old, VARCHAR new)`
 
-Repeat the str of the string count times, return empty string when count is less than 1, return NULL when str, count is any NULL
+replace all old substring with new substring in str
 
 ### example
 
 ```
-mysql> SELECT repeat("a", 3);
-+----------------+
-| repeat('a', 3) |
-+----------------+
-| aaa            |
-+----------------+
-
-mysql> SELECT repeat("a", -1);
-+-----------------+
-| repeat('a', -1) |
-+-----------------+
-|                 |
-+-----------------+
+mysql> select replace("http://www.baidu.com:9090", "9090", "");
++------------------------------------------------------+
+| replace('http://www.baidu.com:9090', '9090', '') |
++------------------------------------------------------+
+| http://www.baidu.com:                                |
++------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    REPEAT
+    REPLACE
     ```
