@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-FUNCTION", "language": "en" }
+{ "title": "DROP-INDEX", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-FUNCTION
+## DROP-INDEX
 
 ### Name
 
-DROP FUNCTION
+DROP INDEX
 
 ### Description
 
-Delete a custom function. Function names and parameter types are exactly the same to be deleted.
-
+This statement is used to delete the index of the specified name from a table.
 grammar:
 
 ```sql
-DROP [GLOBAL] FUNCTION function_name
-     (arg_type [, ...])
+DROP INDEX [IF EXISTS] index_name ON [db_name.]table_name;
 ```
-
-Parameter Description:
-
-- `function_name`: the name of the function to delete
-- `arg_type`: the argument list of the function to delete
 
 ### Example
 
-1. Delete a function
+1. Delete the index
 
     ```sql
-    DROP FUNCTION my_add(INT, INT)
-    ```
-2. Delete a global function
-
-    ```sql
-    DROP GLOBAL FUNCTION my_add(INT, INT)
+    DROP INDEX [IF NOT EXISTS] index_name ON table1 ;
     ```
 
 ### Keywords
 
      ```
-      DROP, FUNCTION
+      DROP, INDEX
      ```
 
 ### Best Practice
