@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAY_REVERSE_SORT", "language": "en" }
+{ "title": "ARRAY_REVERSE_SPLIT", "language": "en" }
 ---
 
 <!-- 
@@ -19,51 +19,58 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_reverse_sort
+## array_sortby
 
-array_reverse_sort
+array_reverse_split
 
 ### description
 
 #### Syntax
 
-`ARRAY<T> array_reverse_sort(ARRAY<T> arr)`
+```sql
+ARRAY<ARRAY<T>> array_reverse_split(ARRAY<T> arg, Array<Boolean> cond)
+ARRAY<ARRAY<T>> array_reverse_split(lambda, ARRAY<T0> arg0...)
+```
 
-Return the array which has been sorted in descending order. Return NULL for NULL input.
-If the element of array is NULL, it will be placed in the last of the sorted array.
+1. pass in two `ARRAY` of equal length, the second of which is an `Array<Boolean>`, and split the `arg` according to the split point to the right of the position in the `cond` that is `true`.
+2. Higher-order functions, passed a lambda expression and at least one `ARRAY arg0`, split `arg0` by the right-hand side of the `true` position in the `cond` of the `Array<Boolean>` result of the operation on the lambda expression.
 
 ### example
 
-```mysql> select k1, k2, array_reverse_sort(k2) from array_test;
-+------+-----------------------------+-----------------------------+
-| k1   | k2                          | array_reverse_sort(`k2`)    |
-+------+-----------------------------+-----------------------------+
-|  1   | [1, 2, 3, 4, 5]             | [5, 4, 3, 2, 1]             |
-|  2   | [6, 7, 8]                   | [8, 7, 6]                   |
-|  3   | []                          | []                          |
-|  4   | NULL                        | NULL                        |
-|  5   | [1, 2, 3, 4, 5, 4, 3, 2, 1] | [5, 4, 4, 3, 3, 2, 2, 1, 1] |
-|  6   | [1, 2, 3, NULL]             | [3, 2, 1, NULL]             |
-|  7   | [1, 2, 3, NULL, NULL]       | [3, 2, 1, NULL, NULL]       |
-|  8   | [1, 1, 2, NULL, NULL]       | [2, 1, 1, NULL, NULL]       |
-|  9   | [1, NULL, 1, 2, NULL, NULL] | [2, 1, 1, NULL, NULL, NULL] |
-+------+-----------------------------+-----------------------------+
+```
+mysql> select array_reverse_split([1,2,3,4,5], [1,0,1,0,0]);
++-------------------------------------------------------------------------------+
+| array_reverse_split([1, 2, 3, 4, 5], cast([1, 0, 1, 0, 0] as ARRAY<BOOLEAN>)) |
++-------------------------------------------------------------------------------+
+| [[1], [2, 3], [4, 5]]                                                         |
++-------------------------------------------------------------------------------+
+1 row in set (0.12 sec)
 
-mysql> select k1, k2, array_reverse_sort(k2) from array_test01;
-+------+------------------------------------------+------------------------------------------+
-| k1   | k2                                       | array_reverse_sort(`k2`)                 |
-+------+------------------------------------------+------------------------------------------+
-|  1   | ['a', 'b', 'c', 'd', 'e']                | ['e', 'd', 'c', 'b', 'a']                |
-|  2   | ['f', 'g', 'h']                          | ['h', 'g', 'f']                          |
-|  3   | ['']                                     | ['']                                     |
-|  3   | [NULL]                                   | [NULL]                                   |
-|  5   | ['a', 'b', 'c', 'd', 'e', 'a', 'b', 'c'] | ['e', 'd', 'c', 'c', 'b', 'b', 'a', 'a'] |
-|  6   | NULL                                     | NULL                                     |
-|  7   | ['a', 'b', NULL]                         | ['b', 'a', NULL]                         |
-|  8   | ['a', 'b', NULL, NULL]                   | ['b', 'a', NULL, NULL]                  |
-+------+------------------------------------------+------------------------------------------+
+mysql> select array_reverse_split((x,y)->y, [1,2,3,4,5], [1,0,0,0,0]);
++------------------------------------------------------------------------------------------------------------------------+
+| array_reverse_split([1, 2, 3, 4, 5], cast(array_map((x, y) -> y, [1, 2, 3, 4, 5], [1, 0, 0, 0, 0]) as ARRAY<BOOLEAN>)) |
++------------------------------------------------------------------------------------------------------------------------+
+| [[1], [2, 3, 4, 5]]                                                                                                    |
++------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.13 sec)
+
+mysql> select array_reverse_split((x,y)->(y+1), ['a', 'b', 'c', 'd'], [-1, -1, 0, -1]);
++----------------------------------------------------------------------------------------------------------------------------------------+
+| array_reverse_split(['a', 'b', 'c', 'd'], cast(array_map((x, y) -> (y + 1), ['a', 'b', 'c', 'd'], [-1, -1, 0, -1]) as ARRAY<BOOLEAN>)) |
++----------------------------------------------------------------------------------------------------------------------------------------+
+| [["a", "b", "c"], ["d"]]                                                                                                               |
++----------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.13 sec)
+
+mysql> select array_reverse_split(x->(year(x)>2013),["2020-12-12", "2013-12-12", "2015-12-12", null]);
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| array_reverse_split(['2020-12-12', '2013-12-12', '2015-12-12', NULL], array_map(x -> (year(cast(x as DATEV2)) > 2013), ['2020-12-12', '2013-12-12', '2015-12-12', NULL])) |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| [["2020-12-12"], ["2013-12-12", "2015-12-12"], [null]]                                                                                                                    |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.14 sec)
 ```
 
 ### keywords
 
-ARRAY, SORT, REVERSE, ARRAY_SORT, ARRAY_REVERSE_SORT
+ARRAY, REVERSE, SPLIT, ARRAY_REVERSE_SPLIT
