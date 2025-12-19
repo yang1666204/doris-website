@@ -1,108 +1,123 @@
 ---
-{
-  "title": "Connecting by MySQL Protocol",
-  "language": "en"
-}
+{ "title": "AutoMQ Load", "language": "en" }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+[AutoMQ](https://github.com/AutoMQ/automq) is a cloud-native fork of Kafka by separating storage to object storage like S3. It remains 100% compatible with Apache Kafka® while offering users up to a 10x cost-effective and 100x elasticity . Through its innovative shared storage architecture, it achieves capabilities such as reassign partitions in seconds, self-balancing and auto scaling in seconds while ensuring high throughput and low latency.
+![AutoMQ Storage Architecture](/images/automq/automq_storage_architecture.png)
 
-  http://www.apache.org/licenses/LICENSE-2.0
+This article will explain how to use Apache Doris Routine Load to import data from AutoMQ into Doris. For more details on Routine Load, please refer to the [Routine Load](https://doris.apache.org/docs/data-operate/import/routine-load-manual/) document.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Environment Preparation
 
-Apache Doris adopts the MySQL network connection protocol. It is compatible with command-line tools, JDBC/ODBC drivers, and various visualization tools within the MySQL ecosystem. Additionally, Apache Doris comes with a built-in, easy-to-use Web UI. This guide is about how to connect to Doris using MySQL Client, MySQL JDBC Connector, DBeaver, and the built-in Doris Web UI.
+### Prepare Apache Doris and Test Data
 
-## MySQL Client
+Ensure that a working Apache Doris cluster is already set up. For demonstration purposes, we have deployed a test Apache Doris environment on Linux following the [Deploying with Docker](https://doris.apache.org/docs/install/cluster-deployment/run-docker-cluster) document.
+Create databases and test tables:
 
-Download MySQL Client from the MySQL official website or use the pre-installed [MySQL client](https://dev.mysql.com/downloads/mysql/) for Linux provided by the Apache Doris community. Currently, Doris is primarily compatible with MySQL 5.7 and later clients.
+```
+create database automq_db;
+CREATE TABLE automq_db.users (
+                                 id bigint NOT NULL,
+                                 name string NOT NULL,
+                                 timestamp string NULL,
+                                 status string NULL
 
-Extract the downloaded MySQL client. In the `bin/` directory, find the `mysql` command-line tool. Execute the following command to connect to Doris:
-
-```shell
-# FE_IP represents the listening address of the FE node, while FE_QUERY_PORT represents the port of the MySQL protocol service of the FE. This corresponds to the query_port parameter in fe.conf and it defaults to 9030.
-mysql -h FE_IP -P FE_QUERY_PORT -u USER_NAME 
+) DISTRIBUTED BY hash (id) PROPERTIES ('replication_num' = '1');
 ```
 
-After login, the following message will be displayed.
+### Prepare Kafka Command Line Tools
 
-```shell
-Welcome to the MySQL monitor.  Commands end with ; or \g.                               
-Your MySQL connection id is 236                                                         
-Server version: 5.7.99 Doris version doris-2.0.3-rc06-37d31a5                           
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.            
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. Other names may be trademarks of their respective owners.                                     Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.          mysql> 
+Download the latest TGZ package from [AutoMQ Releases](https://github.com/AutoMQ/automq) and extract it. Assuming the extraction directory is $AUTOMQ_HOME, this article will use the scripts under $AUTOMQ_HOME/bin to create topics and generate test data.
+
+### Prepare AutoMQ and test data
+
+Refer to the AutoMQ [official deployment documentation](https://docs.automq.com/docs/automq-opensource/EvqhwAkpriAomHklOUzcUtybn7g) to deploy a functional cluster, ensuring network connectivity between AutoMQ and Apache Doris.
+Quickly create a topic named example_topic in AutoMQ and write a test JSON data to it by following these steps.
+
+**Create Topic**
+
+Use the Apache Kafka® command line tool in AutoMQ to create the topic, ensuring that you have access to a Kafka environment and that the Kafka service is running. Here is an example command to create a topic:
+
+```
+$AUTOMQ_HOME/bin/kafka-topics.sh --create --topic exampleto_topic --bootstrap-server 127.0.0.1:9092  --partitions 1 --replication-factor 1
 ```
 
-## MySQL JDBC Connector
+> Tips: When executing the command, replace `topic` and `bootstarp-server` with the actual AutoMQ Bootstrap Server address.
 
-Download the corresponding JDBC Connector from the official MySQL website.
+After creating the topic, you can use the following command to verify that the topic has been successfully created.
 
-Example of connection code:
+```
+$AUTOMQ_HOME/bin/kafka-topics.sh --describe example_topic --bootstrap-server 127.0.0.1:9092
+```
 
-```Java
-String user = "user_name";
-String password = "user_password";
-String newUrl = "jdbc:mysql://FE_IP:FE_PORT/demo？useUnicode=true&characterEncoding=utf8&useTimezone=true&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true";
-try {
-    Connection myCon = DriverManager.getConnection(newUrl, user, password);
-    Statement stmt = myCon.createStatement();
-    ResultSet result = stmt.executeQuery("show databases");
-    ResultSetMetaData metaData = result.getMetaData();
-    int columnCount = metaData.getColumnCount();
-    while (result.next()) {
-        for (int i = 1; i <= columnCount; i++) {
-            System.out.println(result.getObject(i));
-        }
-    }
-} catch (SQLException e) {
-    log.error("get JDBC connection exception.", e);
+**Generate test data**
+
+Create a JSON-formatted test data entry, corresponding to the table mentioned earlier.
+
+```
+{
+  "id": 1,
+  "name": "testuser",
+  "timestamp": "2023-11-10T12:00:00",
+  "status": "active"
 }
 ```
 
-## DBeaver
+**Write test data**
 
-Create a MySQL connection to Apache Doris:
+Use Kafka's command-line tools or a programming approach to write the test data to a topic named `example_topic`. Below is an example using the command-line tool:
 
-![database-connect-dbeaver](/images/database-connect-dbeaver.png)
-
-Query in DBeaver:
-
-![query-in-dbeaver](/images/query-in-dbeaver.png)
-
-## Built-in Web UI of Doris
-
-Doris FE has a built-in Web UI. It allows users to perform SQL queries and view other related information without the need to install the MySQL client
-
-To access the Web UI, simply enter the URL in a web browser: http://fe_ip:fe_port, for example, [http://172.20.63.118:8030](http://172.20.63.118:8030/). This will open the built-in Web console of Doris.
-
-The built-in Web console is primarily intended for use by the root account of the cluster. By default, the root account password is empty after installation.
-
-![web-login-username-password](/images/web-login-username-password.png)
-
-For example, you can execute the following command in the Playground to add a BE node.
-
-```SQL
-ALTER SYSTEM ADD BACKEND "be_host_ip:heartbeat_service_port";
+```
+echo '{"id": 1, "name": "testuser", "timestamp": "2023-11-10T12:00:00", "status": "active"}' | sh kafka-console-producer.sh --broker-list 127.0.0.1:9092 --topic example_topic
 ```
 
-![Doris-Web-UI-Playground-en](/images/Doris-Web-UI-Playground-en.png)
+To view the data just written to the topic, use the following command:
 
-:::tip
-For successful execution of statements that are not related to specific databases/tables in the Playground, it is necessary to randomly select a database from the left-hand database panel. This limitation will be removed later.
+```
+sh $AUTOMQ_HOME/bin/kafka-console-consumer.sh --bootstrap-server 127.0.0.1:9092 --topic example_topic --from-beginning
+```
 
-The current built-in web console cannot execute SET type SQL statements. Therefore, the web console does not support statements like SET PASSWORD FOR 'user' = PASSWORD('user_password').
-:::
+> Tips: When executing the command, replace `topic` and `bootstarp-server` with the actual AutoMQ Bootstrap Server address.
+
+## Create a Routine Load import job
+
+In the Apache Doris command line, create a Routine Load job that accepts JSON data to continuously import data from an AutoMQ Kafka topic. For detailed parameter information of Routine Load, please refer to [Doris Routine Load].
+
+```
+CREATE ROUTINE LOAD automq_example_load ON users
+COLUMNS(id, name, timestamp, status)
+PROPERTIES
+(
+    "format" = "json",
+    "jsonpaths" = "[\"$.id\",\"$.name\",\"$.timestamp\",\"$.status\"]"
+ )
+FROM KAFKA
+(
+    "kafka_broker_list" = "127.0.0.1:9092",
+    "kafka_topic" = "example_topic",
+    "property.kafka_default_offsets" = "OFFSET_BEGINNING"
+);
+```
+
+> Tips: When executing the command, you need to replace kafka_broker_list with the actual AutoMQ Bootstrap Server address.
+
+## Verify data import
+
+First, check the status of the Routine Load import job to ensure that the task is running.
+
+```
+show routine load\G;
+```
+
+Then query the relevant tables in the Apache Doris database, and you will see that the data has been successfully imported.
+
+```
+select * from users;
++------+--------------+---------------------+--------+
+| id   | name         | timestamp           | status |
++------+--------------+---------------------+--------+
+|    1 | testuser     | 2023-11-10T12:00:00 | active |
+|    2 | testuser     | 2023-11-10T12:00:00 | active |
++------+--------------+---------------------+--------+
+2 rows in set (0.01 sec)
+```
