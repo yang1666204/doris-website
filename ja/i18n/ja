@@ -1,5 +1,5 @@
 ---
-{ "title": "MAKEDATE", "language": "en" }
+{ "title": "MICROSECOND", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## makedate
+## microsecond
 
-### Description
+### description
 
 #### Syntax
 
-`DATE MAKEDATE(INT year, INT dayofyear)`
+`INT MICROSECOND(DATETIMEV2 date)`
 
-Returns a date, given year and day-of-year values. dayofyear must be greater than 0 or the result is NULL.
+Returns microsecond information in the time type.
+
+The parameter is Datetime type
 
 ### example
 
 ```
-mysql> select makedate(2021,1), makedate(2021,100), makedate(2021,400);
-+-------------------+---------------------+---------------------+
-| makedate(2021, 1) | makedate(2021, 100) | makedate(2021, 400) |
-+-------------------+---------------------+---------------------+
-| 2021-01-01        | 2021-04-10          | 2022-02-04          |
-+-------------------+---------------------+---------------------+
+mysql> select microsecond(cast('1999-01-02 10:11:12.000123' as datetimev2(6))) as microsecond;
++-------------+
+| microsecond |
++-------------+
+|         123 |
++-------------+
 ```
 
 ### keywords
 
     ```
-    MAKEDATE
+    MICROSECOND
     ```
