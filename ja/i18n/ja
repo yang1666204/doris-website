@@ -1,8 +1,8 @@
 ---
-{ "title": "RPAD", "language": "en" }
+{ "title": "RTRIM", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,45 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## rpad
+## rtrim
 
-### Description
+### description
 
 #### Syntax
 
-`VARCHAR rpad (VARCHAR str, INT len, VARCHAR pad)`
+`VARCHAR rtrim(VARCHAR str[, VARCHAR rhs])`
 
-Returns a string of length len in str, starting with the initials. If len is longer than str, pad characters are added to the right of STR until the length of the string reaches len. If len is less than str's length, the function is equivalent to truncating STR strings and returning only strings of len's length. The len is character length not the bye size.
-
-Except when it contains a NULL in parameters, when pad's length is 0, the return value is the empty string.
+When the 'rhs' parameter is not present, remove the continuous spaces that appear from the ending of the 'str' parameter. Otherwise, remove 'rhs'.
 
 ### example
 
 ```
-mysql> SELECT rpad("hi", 5, "xy");
-+---------------------+
-| rpad('hi', 5, 'xy') |
-+---------------------+
-| hixyx               |
-+---------------------+
+mysql> SELECT rtrim('ab d   ') str;
++------+
+| str  |
++------+
+| ab d |
++------+
 
-mysql> SELECT rpad("hi", 1, "xy");
-+---------------------+
-| rpad('hi', 1, 'xy') |
-+---------------------+
-| h                   |
-+---------------------+
-
-mysql> SELECT rpad("", 0, "");
-+-----------------+
-| rpad('', 0, '') |
-+-----------------+
-|                 |
-+-----------------+
+mysql> SELECT rtrim('ababccaab','ab') str;
++---------+
+| str     |
++---------+
+| ababcca |
++---------+
 ```
 
 ### keywords
 
     ```
-    RPAD
+    RTRIM
     ```
