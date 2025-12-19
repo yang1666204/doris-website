@@ -1,5 +1,5 @@
 ---
-{ "title": "l1_distance", "language": "en" }
+{ "title": "l2_distance", "language": "en" }
 ---
 
 <!-- 
@@ -19,17 +19,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## l1_distance
+## l2_distance
 
 ### description
 
 #### Syntax
 
 ```sql
-DOUBLE l1_distance(ARRAY<T> array1, ARRAY<T> array2)
+DOUBLE l2_distance(ARRAY<T> array1, ARRAY<T> array2)
 ```
 
-Calculates the distance between two points (the values of the vectors are the coordinates) in L1 space.
+Calculates the distance between two points (the values of the vectors are the coordinates) in Euclidean space.
 Return NULL if input array is NULL or any element of array is NULL.
 
 #### Notice
@@ -40,16 +40,16 @@ Return NULL if input array is NULL or any element of array is NULL.
 ### example
 
 ```
-sql> SELECT l1_distance([1, 2], [2, 3]);
+sql> SELECT l2_distance([1, 2], [2, 3]);
 +---------------------------------------+
-| l1_distance(ARRAY(1, 2), ARRAY(2, 3)) |
+| l2_distance(ARRAY(1, 2), ARRAY(2, 3)) |
 +---------------------------------------+
-|                                     2 |
+|                    1.4142135623730951 |
 +---------------------------------------+
 ```
 
 ### keywords
 
  ```
- L1_DISTANCE,DISTANCE,L1,ARRAY
+ L2_DISTANCE,DISTANCE,L2,ARRAY
  ```
