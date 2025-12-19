@@ -1,5 +1,5 @@
 ---
-{ "title": "FineBI", "language": "en" }
+{ "title": "Power BI", "language": "en" }
 ---
 
 <!--
@@ -21,72 +21,78 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## FineBI Introduction
+## Power BI Introduction
 
-As a business intelligence product, FineBI has a system architecture of data processing, real-time analysis, multidimensional analysis Dashboard and other functions. FineBI supports rich data source connection and analysis and management of tables with multiple views. FineBI can successfully support the modeling and visualization of internal and external data of Apache Doris.
+Power BI is a collection of software services and application connectors that can connect to multiple data sources, including Excel, SQL Server, Azure, Google Analytics, etc., so that users can easily consolidate and clean their data. With Power BI's data modeling, users can create relational models, data analysis expressions, and data relationships to support advanced data analysis and visualization. Power BI offers a wealth of visualization options, including ICONS, maps, dashboards, and custom visualization tools to help users make a more intuitive sense of data.
+
+Apache Doris is highly compatible with MySQL protocol and can be connected to Power BI and Apache Doris through MySQL Driver. At present, internal data modeling, data query and visualization processing of Apache Doris have been officially supported in Power BI.
 
 ## Precondition
 
-Install FineBI 5.0 or later, Download link: https://intl.finebi.com/
+If you do not have Power BI desktop installed, you can download it from https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop
 
-## Login and Connection
+## Connector configuration of Power BI and Doris
 
-1. Create  account and  log in FineBI
+:::info Note
+Currently verified using MySQL JDBC Connector version 8.0.26
+:::
 
-   ![login page](/images/bi-finebi-en-1.png)
+Download and installation MySQL Connector
+Download link: https://downloads.mysql.com/archives/c-net/. Select version 8.0.26. There are incompatibilities in higher versions
 
-2. Select the Built-in database, If you need to select an external database configuration, the documentation is available：https://help.fanruan.com/finebi-en/doc-view-4437.html
+## Load data locally and create models
 
-   :::info Note
-   It is recommended to select the built-in database as the information repository of FineBI. The database type selected here is not the target database for querying and analyzing data, but the database for storing and maintaining FineBI model, dashboard and other information. FineBI needs to add, delete, modify and check it.
-   :::
+1. Start the Power BI Desktop
 
-   ![select database](/images/bi-finebi-en-2.png)
+2. Open the Power BI Desktop screen and click Create Report. If a local report exists, you can open it.
 
-3. Click the Management System button and select the database connection management in Data Connections to create a new database connection.
+   ![start page](/images/powerbi/bi-powerbi-en-2.png)
 
-   ![data connection](/images/bi-finebi-en-3.png)
+3. Click get data. In the dialog box that is displayed, select MySQL database.
 
-4. On the new database connection page, select MySQL database
+   ![get data](/images/powerbi/bi-powerbi-en-3.png)
 
-   ![select connection](/images/bi-finebi-en-4.png)
+4. Configure the database connection information and enter ip:port in the server text box. The default port number for Doris is 9030.
 
-5. Fill in the link information of the Doris database
+   ![connection information](/images/powerbi/bi-powerbi-en-4.png)
 
-   - Parameters are described as follows：
+5. Click OK in the previous step and select "Database" in the new connection window to connect, and fill in the connection information of Doris in the username and password.
 
-     - Username：The username for logging into Doris。
+   ![uname and pwd](/images/powerbi/bi-powerbi-en-5.png)
 
-     - Password：Password of the current user。
+6. Load the selected table to the Power BI Desktop
 
-     - Host：IP address of the FE host in the Doris cluster。
+   ![load data](/images/powerbi/bi-powerbi-en-6.png)
 
-     - Port：FE query port of the Doris cluster。
+7. Configure statistical compass
 
-     - Coding：Encoding format of the Doris cluster。
+   ![create compass](/images/powerbi/bi-powerbi-en-7.png)
 
-     - Name Database：Target database in Doris cluster。
+8. Save statistical compass to location
 
-   ![connection information](/images/bi-finebi-en-5-1.png)
+   ![save file](/images/powerbi/bi-powerbi-en-8.png)
 
-6. Click the test link. Connection succeeded is displayed when the connection information is correct
+## Set  data refresh automatic
 
-   ![connection test](/images/bi-finebi-en-6.png)
+1. Download the On-premises data gateway. Download address: https://learn.microsoft.com/en-us/power-bi/connect-data/service-gateway-personal-mode
 
-## Create  model
+2. Install the On-premises data gateway
 
-1. In the "Public Data" section, click to create a new dataset. Then click the database table
+   ![gateway install](/images/powerbi/bi-powerbi-en-9.png)
 
-   ![new dataset](/images/bi-finebi-en-7.png)
+3. Log into Power BI Online and import the local model in your workspace
 
-2. You need to import tables in the existing database connection
+   ![upload](/images/powerbi/bi-powerbi-en-10-zh.png)
 
-   ![select table](/images/bi-finebi-en-8-2.png)
+4. Click the model to set the automatic refresh time
 
-3. You need to refresh each imported table after importing the table. You can analyze the table in the topic only after refreshing the table
+   ![click module](/images/powerbi/bi-powerbi-en-11.png)
 
-   ![refresh table](/images/bi-finebi-en-9.png)
+5. The data refresh configuration requires a gataway connection. After the gateway is enabled locally, you can see the  started gateway in the gateway connection locally. Select the local gateway.
 
-4. Add the imported public data to the edited topic, and then conduct compass analysis and configuration according to business logic.
+   ![config gateway](/images/powerbi/bi-powerbi-en-12.png)
 
-   ![data analysis](/images/bi-finebi-en-10.png)
+6. Configure the refresh schedule to complete the automatic data refresh on Power BI
+
+   ![make plan](/images/powerbi/bi-powerbi-en-13.png)
+
