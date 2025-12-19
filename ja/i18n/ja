@@ -1,5 +1,5 @@
 ---
-{ "title": "partitions", "language": "en" }
+{ "title": "processlist", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-Show the Partition status of all tables in the database.
+View All Current Connections
 
 ## Database
 
@@ -31,30 +31,19 @@ Show the Partition status of all tables in the database.
 
 ## Table Information
 
-| Column Name                                                             | Type                             | Description                       |
-| ----------------------------------------------------------------------- | -------------------------------- | --------------------------------- |
-| TABLE_CATALOG                                      | varchar(64)   | Catalog name                      |
-| TABLE_SCHEMA                                       | varchar(64)   | Database name                     |
-| TABLE_NAME                                         | varchar(64)   | Table name                        |
-| PARTITION_NAME                                     | varchar(64)   | Partition name                    |
-| SUBPARTITION_NAME                                  | varchar(64)   | Always empty                      |
-| PARTITION_ORDINAL_POSITION    | int                              | Ordinal position of the partition |
-| SUBPARTITION_ORDINAL_POSITION | int                              | Always empty                      |
-| PARTITION_METHOD                                   | varchar(13)   | Partition method                  |
-| SUBPARTITION_METHOD                                | varchar(13)   | Always empty                      |
-| PARTITION_EXPRESSION                               | varchar(2048) | Partition expression              |
-| SUBPARTITION_EXPRESSION                            | varchar(2048) | Always empty                      |
-| PARTITION_DESCRIPTION                              | text                             | Partition description             |
-| TABLE_ROWS                                         | bigint                           |                                   |
-| AVG_ROW_LENGTH                | bigint                           |                                   |
-| DATA_LENGTH                                        | bigint                           |                                   |
-| MAX_DATA_LENGTH               | bigint                           |                                   |
-| INDEX_LENGTH                                       | bigint                           |                                   |
-| DATA_FREE                                          | bigint                           |                                   |
-| CREATE_TIME                                        | bigint                           |                                   |
-| UPDATE_TIME                                        | datetime                         |                                   |
-| CHECK_TIME                                         | datetime                         |                                   |
-| CHECKSUM                                                                | bigint                           |                                   |
-| PARTITION_COMMENT                                  | text                             |                                   |
-| NODEGROUP                                                               | varchar(256)  |                                   |
-| TABLESPACE_NAME                                    | varchar(268)  |                                   |
+| Column Name                            | Type                              | Description                                 |
+| -------------------------------------- | --------------------------------- | ------------------------------------------- |
+| CURRENT_CONNECTED | varchar(16)    | Deprecated, always No                       |
+| ID                                     | largeint                          | Connection ID                               |
+| USER                                   | varchar(32)    | Connected user                              |
+| HOST                                   | varchar(261)   | Connection address                          |
+| LOGIN_TIME        | datetime                          | Login time                                  |
+| CATALOG                                | varchar(64)    | Current Catalog                             |
+| DB                                     | varchar(64)    | Current Database                            |
+| COMMAND                                | varchar(16)    | Type of MySQL Command currently sent        |
+| TIME                                   | int                               | Execution time of the last query            |
+| STATE                                  | varchar(64)    | Status of the last query                    |
+| QUERY_ID          | varchar(256)   | ID of the last query                        |
+| INFO                                   | varchar(65533) | Query statement of the last query           |
+| FE                                     | varchar(64)    | Connected Front-End (FE) |
+| CLOUD_CLUSTER     | varchar(64)    | Name of the Cloud Cluster being used        |
