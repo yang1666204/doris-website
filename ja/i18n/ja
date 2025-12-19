@@ -1,5 +1,5 @@
 ---
-{ "title": "INITCAP", "language": "en" }
+{ "title": "INSTR", "language": "en" }
 ---
 
 <!-- 
@@ -21,30 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## initcap
+## instr
 
-### description
+### Description
 
 #### Syntax
 
-`VARCHAR initcap(VARCHAR str)`
+`INSTR (VARCHAR STR, VARCHAR substrate)`
 
-Convert the first letter of each word to upper case and the rest to lower case.
-Words are sequences of alphanumeric characters separated by non-alphanumeric characters.
+Returns the location where substr first appeared in str (counting from 1). If substr does not appear in str, return 0.
 
 ### example
 
 ```
-mysql> select initcap('hello hello.,HELLO123HELlo');
-+---------------------------------------+
-| initcap('hello hello.,HELLO123HELlo') |
-+---------------------------------------+
-| Hello Hello.,Hello123hello            |
-+---------------------------------------+
+mysql> select instr("abc", "b");
++-------------------+
+| instr('abc', 'b') |
++-------------------+
+|                 2 |
++-------------------+
+
+mysql> select instr("abc", "d");
++-------------------+
+| instr('abc', 'd') |
++-------------------+
+|                 0 |
++-------------------+
 ```
 
 ### keywords
 
     ```
-    INITCAP
+    INSTR
     ```
