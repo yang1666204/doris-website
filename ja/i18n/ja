@@ -1,5 +1,5 @@
 ---
-{ "title": "TIMESTAMPADD", "language": "en" }
+{ "title": "TIMESTAMPDIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,41 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## timestampadd
+## timestampdiff
 
 ### description
 
 #### Syntax
 
-`DATETIME TIMESTAMPADD(unit, interval, DATETIME datetime_expr)`
+`INT TIMESTAMPDIFF(unit, DATETIME datetime_expr1, DATETIME datetime_expr2)`
 
-Adds the integer expression interval to the date or datetime expression datetime_expr.
+Returns datetime_expr2 − datetime_expr1, where datetime_expr1 and datetime_expr2 are date or datetime expressions.
 
-The unit for interval is given by the unit argument, which should be one of the following values:
+The unit for the result (an integer) is given by the unit argument.
 
-SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, or YEAR.
+The legal values for unit are the same as those listed in the description of the TIMESTAMPADD() function.
 
 ### example
 
 ```
 
-mysql> SELECT TIMESTAMPADD(MINUTE,1,'2019-01-02');
-+------------------------------------------------+
-| timestampadd(MINUTE, 1, '2019-01-02 00:00:00') |
-+------------------------------------------------+
-| 2019-01-02 00:01:00                            |
-+------------------------------------------------+
+MySQL> SELECT TIMESTAMPDIFF(MONTH,'2003-02-01','2003-05-01');
++--------------------------------------------------------------------+
+| timestampdiff(MONTH, '2003-02-01 00:00:00', '2003-05-01 00:00:00') |
++--------------------------------------------------------------------+
+|                                                                  3 |
++--------------------------------------------------------------------+
 
-mysql> SELECT TIMESTAMPADD(WEEK,1,'2019-01-02');
-+----------------------------------------------+
-| timestampadd(WEEK, 1, '2019-01-02 00:00:00') |
-+----------------------------------------------+
-| 2019-01-09 00:00:00                          |
-+----------------------------------------------+
+MySQL> SELECT TIMESTAMPDIFF(YEAR,'2002-05-01','2001-01-01');
++-------------------------------------------------------------------+
+| timestampdiff(YEAR, '2002-05-01 00:00:00', '2001-01-01 00:00:00') |
++-------------------------------------------------------------------+
+|                                                                -1 |
++-------------------------------------------------------------------+
+
+
+MySQL> SELECT TIMESTAMPDIFF(MINUTE,'2003-02-01','2003-05-01 12:05:55');
++---------------------------------------------------------------------+
+| timestampdiff(MINUTE, '2003-02-01 00:00:00', '2003-05-01 12:05:55') |
++---------------------------------------------------------------------+
+|                                                              128885 |
++---------------------------------------------------------------------+
+
 ```
 
 ### keywords
 
     ```
-    TIMESTAMPADD
+    TIMESTAMPDIFF
     ```
