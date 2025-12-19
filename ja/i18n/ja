@@ -1,5 +1,5 @@
 ---
-{ "title": "ALTER-SYSTEM-ADD-BACKEND", "language": "en" }
+{ "title": "ALTER-SYSTEM-ADD-BROKER", "language": "en" }
 ---
 
 <!--
@@ -21,60 +21,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## ALTER-SYSTEM-ADD-BROKER
 
-The ADD BACKEND command is used to add one or more backend nodes to a Doris OLAP database cluster. This command allows administrators to specify the host and port of the new backend nodes, along with optional properties that configure their behavior.
+### Name
 
-## Syntax
+ALTER SYSTEM ADD BROKER
+
+### Description
+
+This statement is used to add a BROKER node. (Administrator only!)
+
+grammar:
 
 ```sql
--- Add nodes (add this method if you do not use the multi-tenancy function)
-   ALTER SYSTEM ADD BACKEND "host:heartbeat_port"[,"host:heartbeat_port"...] [PROPERTIES ("key"="value", ...)];
+ALTER SYSTEM ADD BROKER broker_name "broker_host1:broker_ipc_port1","broker_host2:broker_ipc_port2",...;
 ```
 
-## Parameters
+### Example
 
-- `host` can be a hostname or an ip address of the backend node while `heartbeat_port` is the heartbeat port of the node
-- `PROPERTIES ("key"="value", ...)`: (Optional) A set of key-value pairs that define additional properties for the backend nodes. These properties can be used to customize the configuration of the backends being added. Available properties include:
-
-  - tag.location: Specifies the resource group where the backend node belongs. For example, PROPERTIES ("tag.location" = "groupb").
-  - tag.compute_group_name: Specifies the resource group where the backend node belongs. For example, PROPERTIES ("tag.compute_group_name" = "groupb").
-
-## Example
-
-1. Adding Backends Without Additional Properties
+1. Add two brokers
 
     ```sql
-    ALTER SYSTEM ADD BACKEND "host1:9050,host2:9050";
+     ALTER SYSTEM ADD BROKER "host1:port", "host2:port";
     ```
+2. When fe enable fqdn([fqdn](../../../admin-manual/cluster-management/fqdn.md)),add one Broker
 
-   This command adds two backend nodes to the cluster:
+   ```sql
+    ALTER SYSTEM ADD BROKER "broker_fqdn1:port";
+   ```
 
-   - host1 with port 9050
-   - host2 with port 9050
-
-   No additional properties are specified, so the default settings will apply to these backends.
-
-2. Adding Backends With Resource Group
-
-    ```sql
-    ALTER SYSTEM ADD BACKEND "host3:9050" PROPERTIES ("tag.location" = "groupb");
-    ```
-
-   This command adds a single backend node (host3 with port 9050) to the cluster in resource group `groupb`:
-
-3. Adding Backends With Compute Group
-
-    ```sql
-    ALTER SYSTEM ADD BACKEND "host3:9050" PROPERTIES ("tag.compute_group_name" = "groupb");
-    ```
-
-   This command adds a single backend node (host3 with port 9050) to the cluster in compute group `groupb`:
-
-## Keywords
+### Keywords
 
     ```
-    ALTER, SYSTEM, ADD, BACKEND, PROPERTIES
+    ALTER, SYSTEM, ADD, FOLLOWER, ALTER SYSTEM
     ```
 
-## Best Practice
+### Best Practice
+
