@@ -1,5 +1,5 @@
 ---
-{ "title": "ST_AREA", "language": "en" }
+{ "title": "ST_ASBINARY", "language": "en" }
 ---
 
 <!-- 
@@ -21,59 +21,47 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ST_Area_Square_Meters,ST_Area_Square_Km
+## ST_AsBinary
 
 ### Syntax
 
-```sql
-DOUBLE ST_Area_Square_Meters(GEOMETRY geo)
-DOUBLE ST_Area_Square_Km(GEOMETRY geo)
-```
+`VARCHAR ST_AsBinary(GEOMETRY geo)`
 
-### description
+### Description
 
-Calculate the area of the area on the earth's sphere. Currently, the parameter geo supports St_Point, St_LineString, St_Circle and St_Polygon.
+Converting a geometric figure into a standard WKB (Well-known binary) representation
 
-Returns zero if the input is St_Point, St_LineString.
-
-Among them, the unit returned by ST_Area_Square_Meters (GEOMETRY geo) is square meters, and the unit returned by ST_Area_Square_Km (GEOMETRY geo) is square kilometers.
+Currently supported geometric figures are: Point, LineString, Polygon.
 
 ### example
 
 ```
-mysql> SELECT ST_Area_Square_Meters(ST_Circle(0, 0, 1));
-+-------------------------------------------------+
-| st_area_square_meters(st_circle(0.0, 0.0, 1.0)) |
-+-------------------------------------------------+
-|                              3.1415926535897869 |
-+-------------------------------------------------+
-1 row in set (0.04 sec)
-
-mysql> SELECT ST_Area_Square_Km(ST_Polygon("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"));
-+----------------------------------------------------------------------+
-| st_area_square_km(st_polygon('POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))')) |
-+----------------------------------------------------------------------+
-|                                                   12364.036567076409 |
-+----------------------------------------------------------------------+
+mysql> select ST_AsBinary(st_point(24.7, 56.7));
++----------------------------------------------+
+| st_asbinary(st_point(24.7, 56.7))            |
++----------------------------------------------+
+| \x01010000003333333333b338409a99999999594c40 |
++----------------------------------------------+
 1 row in set (0.01 sec)
 
-mysql> SELECT ST_Area_Square_Meters(ST_Point(0, 1));
-+-------------------------------------------+
-| st_area_square_meters(st_point(0.0, 1.0)) |
-+-------------------------------------------+
-|                                         0 |
-+-------------------------------------------+
-1 row in set (0.05 sec)
+mysql> select ST_AsBinary(ST_GeometryFromText("LINESTRING (1 1, 2 2)"));
++--------------------------------------------------------------------------------------+
+| st_asbinary(st_geometryfromtext('LINESTRING (1 1, 2 2)'))                            |
++--------------------------------------------------------------------------------------+
+| \x010200000002000000000000000000f03f000000000000f03f00000000000000400000000000000040 |
++--------------------------------------------------------------------------------------+
+1 row in set (0.04 sec)
 
-mysql> SELECT ST_Area_Square_Meters(ST_LineFromText("LINESTRING (1 1, 2 2)"));
-+-----------------------------------------------------------------+
-| st_area_square_meters(st_linefromtext('LINESTRING (1 1, 2 2)')) |
-+-----------------------------------------------------------------+
-|                                                               0 |
-+-----------------------------------------------------------------+
-1 row in set (0.03 sec)
+mysql> select ST_AsBinary(ST_Polygon("POLYGON ((114.104486 22.547119,114.093758 22.547753,114.096504 22.532057,114.104229 22.539826,114.106203 22.542680,114.104486 22.547119))"));
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| st_asbinary(st_polygon('POLYGON ((114.104486 22.547119,114.093758 22.547753,114.096504 22.532057,114.104229 22.539826,114.106203 22.542680,114.104486 22.547119))'))                                                         |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| \x01030000000100000006000000f3380ce6af865c402d05a4fd0f8c364041ef8d2100865c403049658a398c3640b9fb1c1f2d865c409d9b36e334883640de921cb0ab865c40cf876709328a36402cefaa07cc865c407b319413ed8a3640f3380ce6af865c402d05a4fd0f8c3640 |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.02 sec)
+
 ```
 
 ### keywords
 
-ST_Area_Square_Meters,ST_Area_Square_Km,ST_Area,ST,Area
+ST_ASBINARY,ST,ASBINARY
