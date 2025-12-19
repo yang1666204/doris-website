@@ -1,5 +1,5 @@
 ---
-{ "title": "LCASE", "language": "en" }
+{ "title": "LENGTH", "language": "en" }
 ---
 
 <!-- 
@@ -21,18 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## lcase
+## length
 
 ### Description
 
 #### Syntax
 
-`INT lcase (VARCHAR str)`
+`INT length (VARCHAR str)`
 
-Convert all strings in parameters to lowercase. Another alias for this function is [lower](./lower.md).
+Returns the length of the string in byte size.
+
+### example
+
+```
+mysql> select length("abc");
++---------------+
+| length('abc') |
++---------------+
+|             3 |
++---------------+
+
+mysql> select length("中国");
++------------------+
+| length('中国')   |
++------------------+
+|                6 |
++------------------+
+```
 
 ### keywords
 
     ```
-    LCASE
+    LENGTH
     ```
