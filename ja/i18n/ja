@@ -1,5 +1,5 @@
 ---
-{ "title": "month_floor", "language": "en" }
+{ "title": "MONTHNAME", "language": "en" }
 ---
 
 <!-- 
@@ -21,43 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## month_floor
+## monthname
 
-### description
+### Description
 
 #### Syntax
 
-```sql
-DATETIME MONTH_FLOOR(DATETIME datetime)
-DATETIME MONTH_FLOOR(DATETIME datetime, DATETIME origin)
-DATETIME MONTH_FLOOR(DATETIME datetime, INT period)
-DATETIME MONTH_FLOOR(DATETIME datetime, INT period, DATETIME origin)
-```
+`VARCHAR MONTHNAME (DATE)`
 
-Convert the date to the nearest rounding down time of the specified time interval period.
+Month name corresponding to return date
 
-- datetime: a valid date expression.
-- period: specifies how many months each cycle consists of.
-- origin: starting from 0001-01-01T00:00:00.
+The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select month_floor("2023-07-13 22:28:18", 5);
-+--------------------------------------------------------------+
-| month_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+--------------------------------------------------------------+
-| 2023-05-01 00:00:00                                          |
-+--------------------------------------------------------------+
-1 row in set (0.12 sec)
+mysql> select monthname('2008-02-03 00:00:00');
++----------------------------------+
+| monthname('2008-02-03 00:00:00') |
++----------------------------------+
+| February                         |
++----------------------------------+
 ```
 
 ### keywords
 
     ```
-    MONTH_FLOOR, MONTH, FLOOR
+    MONTHNAME
     ```
-
-### Best Practice
-
-See also [date_floor](./date_floor)
