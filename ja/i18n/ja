@@ -1,5 +1,5 @@
 ---
-{ "title": "Logout Action", "language": "en" }
+{ "title": "Meta Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,35 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Logout Action
+# Meta Action
 
 ## Request
 
 ```
-POST /rest/v1/logout
+GET /image
+GET /info
+GET /version
+GET /put
+GET /journal_id
+GET /role
+GET /check
+GET /dump
 ```
 
 ## Description
 
-Logout Action is used to log out of the current login.
+This is a set of APIs related to FE metadata, except for `/dump`, they are all used for internal communication between FE nodes.
 
 ## Path parameters
 
-None
+TODO
 
 ## Query parameters
 
-None
+TODO
 
 ## Request body
 
-None
+TODO
 
-### Response
+## Response
 
-```
-{
-	"msg": "OK",
-	"code": 0
-}
-```
+TODO
+
+## Examples
+
+TODO
