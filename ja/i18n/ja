@@ -1,5 +1,5 @@
 ---
-{ "title": "uuid_numeric", "language": "en" }
+{ "title": "XOR", "language": "en" }
 ---
 
 <!-- 
@@ -10,9 +10,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,32 +19,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## uuid_numeric
+## Description
 
-### description
+Return the XOR value of two numbers.
 
-#### Syntax
+## Syntax
 
-`LARGEINT uuid_numeric()`
+`BOOLEAN xor BOOLEAN`
 
-Return a uuid in type `LARGEINT`.
+## Example
 
-Note that `LARGEINT` has type Int128, so we could get a negative number from `uuid_numeric()`.
-
-### example
+```sql
+mysql >select true xor false,true xor true;
++------------------+-----------------+
+| (TRUE XOR FALSE) | (TRUE XOR TRUE) |
++------------------+-----------------+
+|                1 |               0 |
++------------------+-----------------+
 
 ```
 
-mysql> select uuid_numeric();
-+----------------------------------------+
-| uuid_numeric()                         |
-+----------------------------------------+
-| 82218484683747862468445277894131281464 |
-+----------------------------------------+
-```
+## Keywords
 
-### keywords
-
-    ```
-    UUID UUID-NUMERIC 
-    ```
+ ```
+ XOR
+ ```
