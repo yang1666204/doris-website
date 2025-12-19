@@ -1,5 +1,5 @@
 ---
-{ "title": "WEEKOFYEAR", "language": "en" }
+{ "title": "WEEKS_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## weekofyear
+## weeks_add
 
-### Description
+### description
 
 #### Syntax
 
-`INT WEEKOFYEAR (DATETIME DATE)`
+`DATETIME WEEKS_ADD(DATETIME date, INT weeks)`
 
-Get the Weeks of the Year
+ADD a specified number of weeks from a datetime or date
 
-The parameter is Date or Datetime type
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select weekofyear('2008-02-20 00:00:00');
-+-----------------------------------+
-| weekofyear('2008-02-20 00:00:00') |
-+-----------------------------------+
-|                                 8 |
-+-----------------------------------+
+mysql> select weeks_add("2020-02-02 02:02:02", 1);
++-------------------------------------+
+| weeks_add('2020-02-02 02:02:02', 1) |
++-------------------------------------+
+| 2020-02-09 02:02:02                 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    WEEKOFYEAR
+    WEEKS_ADD
     ```
