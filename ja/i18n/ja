@@ -1,98 +1,118 @@
----
-{ "title": "Data Skew Handling", "language": "en" }
----
-
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-# Data Skew Handling
+# Parallelism Tuning
 
 ## Overview
 
-Doris is an MPP database that relies on data shuffle for parallel computing acceleration. However, in actual production scenarios, performance bottlenecks in single threads of query parallelism are often encountered due to data skew. The following sections introduce how to identify such problems and provide some general solutions.
+Doris queries are executed in an MPP (Massively Parallel Processing) framework, where each query is executed in parallel across multiple BEs (Backend Executors). Meanwhile, within a single BE, a multi-threaded parallel approach is adopted to enhance query execution efficiency. Currently, all types of statements, including queries, DML (Data Manipulation Language), and DDL (Data Definition Language), support parallel execution.
 
-## Case 1: Bucket Data Skew Leading to Suboptimal Shuffle Method
+The control parameter for parallelism within a single BE is `parallel_pipeline_task_num`, which refers to the number of working tasks used by a single Fragment during execution. In actual production scenarios, performance issues may arise due to improper parallelism settings. The following examples illustrate cases of optimizing parallelism.
 
-When data skew occurs on the Join Key of a table, the data will be unevenly distributed among different BE instances, resulting in a single-point execution bottleneck and thus slowing down the overall query execution time.
+## Principles of Parallelism Tuning
+
+The purpose of setting `parallel_pipeline_task_num` is to fully utilize multi-core resources and reduce query latency. However, to enable multi-core parallel execution, some data shuffle operators and synchronization logic between multiple threads are usually introduced, which may also lead to unnecessary resource wastage.
+
+The default value in Doris is 0, which is half the number of CPU cores of the BE. This value takes into account the resource utilization of both single queries and concurrent operations, and usually does not require user intervention for adjustment. When there is a performance bottleneck, refer to the following examples for necessary adjustments. Doris is continuously improving its adaptive strategy, and it is usually recommended to make necessary adjustments in specific scenarios or at the SQL level.
+
+### Examples
+
+Suppose the BE has 16 CPU cores:
+
+1. For simple operations on a single table (such as single-table point queries, `WHERE` clause scans to retrieve a small amount of data, `LIMIT` a small amount of data, or hitting a materialized view), **the parallelism can be set to 1**.
+   Explanation: Simple operations on a single table involve only one Fragment. The bottleneck of such queries usually lies in data scanning and processing. The data scanning thread and the query execution thread are separated, and the data scanning thread will perform parallel scanning adaptively. Here, the bottleneck is not the query thread, so the parallelism can be directly set to 1.
+2. For queries involving two-table `JOIN` or aggregation queries, if the data volume is large and it is confirmed to be a CPU-bound query, **the parallelism can be set to 16**.
+   Explanation: For two-table `JOIN` or aggregation queries, which are data computation-intensive queries, if the CPU is not fully utilized, consider increasing the parallelism on the basis of the default value to take advantage of the parallel capabilities of the Pipeline execution engine and fully utilize CPU resources for computation. It cannot be guaranteed that each PipelineTask can utilize the allocated CPU resources to the fullest. Therefore, the parallelism can be adjusted appropriately, for example, set to 16, to make better use of the CPU. However, the parallelism should not be increased indefinitely. Setting it to 48 will not bring substantial benefits and will instead increase thread scheduling overhead and framework scheduling overhead.
+3. In a stress testing scenario, where the multiple queries in the stress test can fully utilize the CPU, **the parallelism can be set to 1**.
+   Explanation: In a stress testing scenario, there are sufficient query tasks. Excessive parallelism also brings thread scheduling overhead and framework scheduling overhead. Setting it to 1 is more reasonable in this case.
+4. For complex queries, the parallelism should be adjusted flexibly based on the Profile and machine load. Here, it is recommended to use the default value. If it is not suitable, a stepwise adjustment of 4-2-1 can be tried, and the query performance and machine load should be observed.
+
+## Methods of Parallelism Tuning
+
+Doris allows users to manually specify the parallelism of a query to adjust the parallel execution efficiency during query execution.
+
+### SQL Level Adjustment:
+
+Use SQL HINT to specify the parallelism of a single SQL statement. This allows for flexible control of the parallelism of different SQL statements to achieve the best execution results.
+
+```sql
+select /*SET_VAR("parallel_pipeline_task_num=8")*/ * from nation, lineitem where lineitem.l_suppkey = nation.n_nationkey
+```
+
+### Session Level Adjustment:
+
+Adjust the parallelism at the session level through session variables. All query statements in the session will be executed with the specified parallelism. Please note that even single-line SQL queries will use this parallelism, which may lead to performance degradation.
 
 ```SQL
-HASH_JOIN_OPERATOR  (id=27): 
-      -  PlanInfo 
-            -  join  op: INNER  JOIN(PARTITIONED)[] 
-            -  equal  join  conjunct:  (customer_number  =  customer_number) 
-            -  runtime  filters:  RF001[bloom]  <-  customer_number(200/256/2048) 
-            -  cardinality=200         
-            -  vec  output  tuple  id:  28 
-            -  output  tuple  id:  28  
-            -  vIntermediate  tuple  ids:  27 
-            -  hash  output  slot  ids:  192  193  194  195  196  197  198  199  200  201  174  175  240  176  177  178  179  180  181  182  183  184  185  186  187  188  189  190  191 
-            -  project  output  tuple  id:  28 
-      -  BlocksProduced:  sum  4.883K  (4883),  avg  33,  max  39,  min  29 
-      -  CloseTime:  avg  37.28us,  max  132.653us,  min  13.945us  
-      -  ExecTime:  avg  166.206ms,  max  10s947.344ms,  min  8.845ms 
-      -  InitTime:  avg  0ns,  max  0ns,  min  0ns  
-      -  MemoryUsage:  sum ,  avg ,  max ,  min 
-          -  PeakMemoryUsage:  sum  11.81  MB,  avg  84.00  KB,  max  84.00  KB,  min  84.00  KB 
-          -  ProbeKeyArena:  sum  11.81  MB,  avg  84.00  KB,  max  84.00  KB,  min  84.00  KB 
-      -  OpenTime:  avg  194.970us,  max  497.685us,  min  93.738us  
-      -  ProbeRows:  sum  23.884018M  (23884018),  avg  165.861K  (165861),  max  219.346276M  (219346276),  min  1984  (1984) 
-      -  ProjectionTime:  avg  7.336ms,  max  33.540ms,  min  3.760ms 
-      -  RowsProduced:  sum  28.8K  (28800),  avg  200,  max  200,  min  200 
+set parallel_pipeline_task_num = 8;
 ```
 
-From the max indicators in the above Join's Profile, there is an obvious skew in the execution time and ProbeRows.
+### Global Adjustment:
 
-```Bash
-ExecTime:  avg  166.206ms,  max  10s947.344ms,  min  8.845ms 
-ProbeRows:  sum  23.884018M  (23884018),  avg  165.861K  (165861),  max  219.346276M  (219346276),  min  1984  (1984) 
-```
-
-However, due to the uneven distribution of data after shuffling based on the join key, one thread may process 200 million rows of data while another thread only processes a few thousand rows.
-In the ideal case of the above scenario, each thread should process approximately the same amount of data. But due to the data skew problem of the Join column, a large amount of computational work may be completed by a single thread. To solve this performance bottleneck, refer to the tuning techniques mentioned in the "Using Hint to Control Join Shuffle Method" section and specify the broadcast join hint as follows to prevent the left table from shuffling data, thus effectively avoiding the performance bottleneck caused by data skew on the Join column.
+If global adjustment is required, usually involving CPU utilization adjustment, the parallelism can be set globally.
 
 ```SQL
-SELECT COUNT(*) FROM orders o JOIN [broadcast] customer c ON o.customer_number = c.customer_number;
+set global parallel_pipeline_task_num = 8;
 ```
 
-## Case 2: Column Data Skew Leading to Reversed Join Sides
+## Case 1: High Parallelism Leading to High CPU Usage in a High-Concurrency Pressure Scenario
 
-The current Doris optimizer estimates the selectivity based on the assumption of uniform data distribution. Large deviations in the estimated number of rows after filtering can affect the operator's plan selection. Take the following SQL as an example:
+When observing high CPU usage online, which affects the performance of some low-latency queries, consider adjusting the query parallelism to reduce CPU usage. Since Doris's design philosophy is to prioritize using more resources to obtain query results as quickly as possible, in some scenarios with tight online resources, this may lead to poor performance. Therefore, appropriate adjustment of parallelism can improve the overall stability and efficiency of queries under limited resources.
+
+Set the parallelism from the default value of 0 (half the number of CPU cores) to 4:
 
 ```SQL
-select count(*) 
-from orders, customer 
-where o_custkey = c_custkey
-and o_orderdate < '1920-01-02';
+set global parallel_pipeline_task_num = 4;
 ```
 
-Under the assumption of uniform distribution, the optimizer may think that the number of rows output after filtering by `o_orderdate < '1920-01-02'` will be less than the number of rows in the `customer` table. Therefore, it may choose the join order of `customer` join `orders`.
-However, if the actual data is skewed and the number of rows in the `orders` table that satisfy the condition is greater than that in the `customer` table, then a more reasonable join order should be `orders` join `customer`. To solve this performance problem, refer to the tuning techniques mentioned in the "Using Leading Hint to Control Join Order" section and specify the leading hint as follows to force the generation of the join order of `customer` join `orders`.
+After the global setting, it takes effect for the current connection and new connections. Existing other connections are not affected. If immediate global effect is required, the FE (Frontend) can be restarted. After the adjustment, the CPU usage is reduced to 60% of the previous peak value, reducing the impact on some low-latency queries.
 
-Rewrite the SQL as follows:
+## Case 2: Increasing Parallelism to Further Utilize the CPU for Query Acceleration
+
+The current default parallelism in Doris is half the number of CPU cores, and some computation-intensive scenarios cannot fully utilize the CPU for query acceleration.
 
 ```SQL
-select /*+leading(orders customer)*/ count(*) 
-from orders, customer 
-where o_custkey = c_custkey
-and o_orderdate < '1920-01-02'
+select sum(if(t2.value is null, 0, 1)) exist_value, sum(if(t2.value is null, 1, 0)) no_exist_value
+from  t1 left join  t2 on t1.key = t2.key;
 ```
+
+In a scenario with 2 billion rows in the left table and 5 million rows in the right table, the above SQL takes 28 seconds to execute. Observe the Profile:
+
+```SQL
+HASH_JOIN_OPERATOR (id=3, nereids_id=448):
+                - PlanInfo
+                   - join op: LEFT OUTER JOIN(BROADCAST)[]
+                   - equal join conjunct: (value = value)
+                   - cardinality=2,462,330,332
+                   - vec output tuple id: 5
+                   - output tuple id: 5
+                   - vIntermediate tuple ids: 4 
+                   - hash output slot ids: 16 
+                   - projections: value
+                   - project output tuple id: 5
+                - BlocksProduced: sum 360.099K (360099), avg 45.012K (45012), max 45.014K (45014), min 45.011K (45011)
+                - CloseTime: avg 8.44us, max 13.327us, min 5.574us
+                - ExecTime: avg 26sec153ms, max 26sec261ms, min 26sec33ms
+                - InitTime: avg 7.122us, max 13.395us, min 4.541us
+                - MemoryUsage: sum, avg, max, min 
+                  - PeakMemoryUsage: sum 1.16 MB, avg 148.00 KB, max 148.00 KB, min 148.00 KB
+                  - ProbeKeyArena: sum 1.16 MB, avg 148.00 KB, max 148.00 KB, min 148.00 KB
+                - OpenTime: avg 2.967us, max 4.120us, min 1.562us
+                - ProbeRows: sum 1.4662330332B (1462330332), avg 182.791291M (182791291), max 182.811875M (182811875), min 182.782658M (182782658)
+                - ProjectionTime: avg 165.392ms, max 169.762ms, min 161.727ms
+                - RowsProduced: sum 1.462330332B (1462330332), avg 182.791291M (182791291), max 182.811875M (182811875), min 182.782658M (182782658)
+```
+
+The main time-consuming part here: `ExecTime: avg 26sec153ms, max 26sec261ms, min 26sec33ms` all occurs in the Join operator, and the total amount of data processed: `ProbeRows: sum 1.4662330332B` is 1.4 billion, which is a typical CPU-intensive computation scenario. Observing the machine monitoring, it is found that the CPU resources are not fully utilized, with a CPU utilization rate of 60%. At this time, consider increasing the parallelism to further utilize the idle CPU resources for acceleration.
+
+Set the parallelism as follows:
+
+```SQL
+set parallel_pipeline_task_num = 16;
+```
+
+The query execution time is reduced from 28 seconds to 19 seconds, and the CPU utilization rate is increased from 60% to 90%.
 
 ## Summary
 
-Data skew is a common performance problem in production scenarios. By observing the plan and execution bottlenecks through the EXPLAIN and PROFILE tool outputs, locating the cause of the skew, and then using the Hint tool to make corresponding plan adjustments, the impact of data skew on performance can be avoided.
+Usually, users do not need to adjust the query parallelism. If adjustment is required, the following points should be noted:
+
+1. It is recommended to start from the CPU utilization. Observe whether it is a CPU bottleneck through the PROFILE tool output and try to make reasonable modifications to the parallelism.
+2. Adjusting a single SQL is relatively safe. Try not to make overly aggressive global modifications.
