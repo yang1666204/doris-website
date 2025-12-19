@@ -1,5 +1,5 @@
 ---
-{ "title": "CUT_IPV6", "language": "en" }
+{ "title": "IPV4_CIDR_TO_RANGE", "language": "en" }
 ---
 
 <!-- 
@@ -19,30 +19,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CUT_IPV6
+## IPV4_CIDR_TO_RANGE
 
-CUT_IPV6
+IPV4_CIDR_TO_RANGE
 
 ### Description
 
 #### Syntax
 
-`STRING CUT_IPV6(IPV4 ipv4, TinyInt cut_ipv6_bytes, TinyInt cut_ipv4_bytes)`
+`STRUCT<IPV4, IPV4> IPV4_CIDR_TO_RANGE(IPV4 ip_v4, INT16 cidr)`
 
-accept an IPv6 type address and return a string containing the address of the specified number of bytes removed in text format
+Receive an IPv4 and an Int16 value containing CIDR. Returns a struct that contains two IPv4 fields representing the lower range (min) and higher range (max) of the subnet, respectively.
 
 ### Example
 
 ```sql
-mysql [(none)]>select cut_ipv6(to_ipv6('2001:0DB8:AC10:FE01:FEED:BABE:CAFE:F00D'), 10, 0);
-+-------------------+
-| '2001:db8:ac10::' |
-+-------------------+
-| 2001:db8:ac10::   |
-+-------------------+
-1 row in set (0.00 sec)
+mysql> SELECT ipv4_cidr_to_range(ipv4_string_to_num('192.168.5.2'), 16);
++-----------------------------------------------------------+
+| ipv4_cidr_to_range(ipv4_string_to_num('192.168.5.2'), 16) |
++-----------------------------------------------------------+
+| {"min": "192.168.0.0", "max": "192.168.255.255"}          |
++-----------------------------------------------------------+
+
+mysql> SELECT ipv4_cidr_to_range(to_ipv4('192.168.5.2'), 16);
++--------------------------------------------------+
+| ipv4_cidr_to_range(to_ipv4('192.168.5.2'), 16)   |
++--------------------------------------------------+
+| {"min": "192.168.0.0", "max": "192.168.255.255"} |
++--------------------------------------------------+
+
+mysql> SELECT ipv4_cidr_to_range(NULL, NULL);
++--------------------------------+
+| ipv4_cidr_to_range(NULL, NULL) |
++--------------------------------+
+| NULL                           |
++--------------------------------+
 ```
 
 ### Keywords
 
-CUT_IPV6, IP
+IPV4_CIDR_TO_RANGE, IP
