@@ -1,5 +1,5 @@
 ---
-{ "title": "Variant", "language": "en" }
+{ "title": "Aliyun OSS", "language": "en" }
 ---
 
 <!-- 
@@ -21,165 +21,184 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The VARIANT type can store semi-structured JSON data, allowing for the storage of complex data structures that contain different data types (such as integers, strings, booleans, etc.) without the need to predefine specific columns in the table structure. This type is particularly suitable for handling complex nested structures that may change at any time. During the writing process, the VARIANT type can automatically infer the structure and type of the columns, dynamically merging the written schema, and storing the JSON keys and their corresponding values as columns and dynamic sub-columns. For more documentation, please refer to [VARIANT](../../../sql-manual/sql-data-types/semi-structured/VARIANT.md).
+Doris provides two ways to load files from Aliyun OSS:
 
-## Usage Limitations
+- Use S3 Load to load Aliyun OSS files into Doris, which is an asynchronous load method.
+- Use TVF to load Aliyun OSS files into Doris, which is a synchronous load method.
 
-Supports CSV and JSON formats.
+## load with S3 Load
 
-## Loading CSV Format
+Use S3 Load to import files on object storage. For detailed steps, please refer to the [Broker Load Manual](../import-way/broker-load-manual)
 
-### Step 1: Prepare Data
+### Step 1: Prepare the data
 
-Create a CSV file named `test_variant.csv` with the following content:
+Create a CSV file s3load_example.csv The file is stored on Aliyun OSS and its content is as follows:
 
-```SQL
-14186154924|PushEvent|{"avatar_url":"https://avatars.githubusercontent.com/u/282080?","display_login":"brianchandotcom","gravatar_id":"","id":282080,"login":"brianchandotcom","url":"https://api.github.com/users/brianchandotcom"}|{"id":1920851,"name":"brianchandotcom/liferay-portal","url":"https://api.github.com/repos/brianchandotcom/liferay-portal"}|{"before":"abb58cc0db673a0bd5190000d2ff9c53bb51d04d","commits":[""],"distinct_size":4,"head":"91edd3c8c98c214155191feb852831ec535580ba","push_id":6027092734,"ref":"refs/heads/master","size":4}|1|2020-11-14 02:00:00
+```
+1,Emily,25
+2,Benjamin,35
+3,Olivia,28
+4,Alexander,60
+5,Ava,17
+6,William,69
+7,Sophia,32
+8,James,64
+9,Emma,37
+10,Liam,64
 ```
 
-### Step 2: Create Table in Database
+### Step 2: Create a table in Doris
 
-Execute the following SQL statement to create the table:
-
-```SQL
-CREATE TABLE IF NOT EXISTS testdb.test_variant (
-    id BIGINT NOT NULL,
-    type VARCHAR(30) NULL,
-    actor VARIANT NULL,
-    repo VARIANT NULL,
-    payload VARIANT NULL,
-    public BOOLEAN NULL,
-    created_at DATETIME NULL,
-    INDEX idx_payload (`payload`) USING INVERTED PROPERTIES("parser" = "english") COMMENT 'inverted index for payload'
+```sql
+CREATE TABLE test_s3load(
+    user_id            BIGINT       NOT NULL COMMENT "user id",
+    name               VARCHAR(20)           COMMENT "name",
+    age                INT                   COMMENT "age"
 )
-DUPLICATE KEY(`id`)
-DISTRIBUTED BY HASH(id) BUCKETS 10
-properties("replication_num" = "1");
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-### Step 3: Load Data
+### Step 3: Load data using S3 Load
 
-Using stream load as an example, use the following command to load data:
+:::caution Caution
+The endpoint URLs for public and internal access are different.
+If the server and OSS are in the same region, it is recommended to use the internal endpoint link.
 
-```SQL
-curl --location-trusted -u root:  -T test_variant.csv -H "column_separator:|" http://127.0.0.1:8030/api/testdb/test_variant/_stream_load
-```
+- internal endpoint: `oss-cn-hangzhou-internal.aliyuncs.com`
+- public endpoint: `oss-cn-hangzhou.aliyuncs.com`
+  :::
 
-Example of load results:
-
-```SQL
-{
-    "TxnId": 12,
-    "Label": "96cd6250-9c78-4a9f-b8b3-2b7cef0dd606",
-    "Comment": "",
-    "TwoPhaseCommit": "false",
-    "Status": "Success",
-    "Message": "OK",
-    "NumberTotalRows": 1,
-    "NumberLoadedRows": 1,
-    "NumberFilteredRows": 0,
-    "NumberUnselectedRows": 0,
-    "LoadBytes": 660,
-    "LoadTimeMs": 213,
-    "BeginTxnTimeMs": 0,
-    "StreamLoadPutTimeMs": 6,
-    "ReadDataTimeMs": 0,
-    "WriteDataTimeMs": 183,
-    "ReceiveDataTimeMs": 14,
-    "CommitAndPublishTimeMs": 20
-}
-```
-
-### Step 4: Check Loaded Data
-
-Use the following SQL query to check the loaded data:
-
-```SQL
-mysql> select * from testdb.test_variant\G
-*************************** 1. row ***************************
-        id: 14186154924
-      type: PushEvent
-     actor: {"avatar_url":"https://avatars.githubusercontent.com/u/282080?","display_login":"brianchandotcom","gravatar_id":"","id":282080,"login":"brianchandotcom","url":"https://api.github.com/users/brianchandotcom"}
-      repo: {"id":1920851,"name":"brianchandotcom/liferay-portal","url":"https://api.github.com/repos/brianchandotcom/liferay-portal"}
-   payload: {"before":"abb58cc0db673a0bd5190000d2ff9c53bb51d04d","commits":[""],"distinct_size":4,"head":"91edd3c8c98c214155191feb852831ec535580ba","push_id":6027092734,"ref":"refs/heads/master","size":4}
-    public: 1
-created_at: 2020-11-14 02:00:00
-```
-
-## Loading JSON Format
-
-### Step 1: Prepare Data
-
-Create a JSON file named `test_variant.json` with the following content:
-
-```SQL
-{"id": "14186154924","type": "PushEvent","actor": {"id": 282080,"login":"brianchandotcom","display_login": "brianchandotcom","gravatar_id": "","url": "https://api.github.com/users/brianchandotcom","avatar_url": "https://avatars.githubusercontent.com/u/282080?"},"repo": {"id": 1920851,"name": "brianchandotcom/liferay-portal","url": "https://api.github.com/repos/brianchandotcom/liferay-portal"},"payload": {"push_id": 6027092734,"size": 4,"distinct_size": 4,"ref": "refs/heads/master","head": "91edd3c8c98c214155191feb852831ec535580ba","before": "abb58cc0db673a0bd5190000d2ff9c53bb51d04d","commits": [""]},"public": true,"created_at": "2020-11-13T18:00:00Z"}
-```
-
-### Step 2: Create Table in Database
-
-Execute the following SQL statement to create the table:
-
-```SQL
-CREATE TABLE IF NOT EXISTS testdb.test_variant (
-    id BIGINT NOT NULL,
-    type VARCHAR(30) NULL,
-    actor VARIANT NULL,
-    repo VARIANT NULL,
-    payload VARIANT NULL,
-    public BOOLEAN NULL,
-    created_at DATETIME NULL,
-    INDEX idx_payload (`payload`) USING INVERTED PROPERTIES("parser" = "english") COMMENT 'inverted index for payload'
+```sql
+LOAD LABEL s3_load_2022_04_01
+(
+    DATA INFILE("s3://your_bucket_name/s3load_example.csv")
+    INTO TABLE test_s3load
+    COLUMNS TERMINATED BY ","
+    FORMAT AS "CSV"
+    (user_id, name, age)
 )
-DUPLICATE KEY(`id`)
-DISTRIBUTED BY HASH(id) BUCKETS 10;
+WITH S3
+(
+    "provider" = "OSS",
+    "s3.endpoint" = "oss-cn-hangzhou.aliyuncs.com",  
+    "s3.region" = "oss-cn-hangzhou",
+    "s3.access_key" = "<your-ak>",
+    "s3.secret_key" = "<your-sk>"
+)
+PROPERTIES
+(
+    "timeout" = "3600"
+);
 ```
 
-### Step 3: Load Data
+### Step 4: Check the imported data
 
-Using stream load as an example, use the following command to load data:
-
-```SQL
-curl --location-trusted -u root:  -T test_variant.json -H "format:json"  http://127.0.0.1:8030/api/testdb/test_variant/_stream_load
+```sql
+SELECT * FROM test_s3load;
 ```
 
-Example of load results:
+Results:
 
-```SQL
-{
-    "TxnId": 12,
-    "Label": "96cd6250-9c78-4a9f-b8b3-2b7cef0dd606",
-    "Comment": "",
-    "TwoPhaseCommit": "false",
-    "Status": "Success",
-    "Message": "OK",
-    "NumberTotalRows": 1,
-    "NumberLoadedRows": 1,
-    "NumberFilteredRows": 0,
-    "NumberUnselectedRows": 0,
-    "LoadBytes": 660,
-    "LoadTimeMs": 213,
-    "BeginTxnTimeMs": 0,
-    "StreamLoadPutTimeMs": 6,
-    "ReadDataTimeMs": 0,
-    "WriteDataTimeMs": 183,
-    "ReceiveDataTimeMs": 14,
-    "CommitAndPublishTimeMs": 20
-}
+```
+mysql> select * from test_s3load;
++---------+-----------+------+
+| user_id | name      | age  |
++---------+-----------+------+
+|       5 | Ava       |   17 |
+|      10 | Liam      |   64 |
+|       7 | Sophia    |   32 |
+|       9 | Emma      |   37 |
+|       1 | Emily     |   25 |
+|       4 | Alexander |   60 |
+|       2 | Benjamin  |   35 |
+|       3 | Olivia    |   28 |
+|       6 | William   |   69 |
+|       8 | James     |   64 |
++---------+-----------+------+
+10 rows in set (0.04 sec)
 ```
 
-### Step 4: Check Loaded Data
+## Load with TVF
 
-Use the following SQL query to check the loaded data:
+### Step 1: Prepare the data
 
-```SQL
-mysql> select * from testdb.test_variant\G
-*************************** 1. row ***************************
-        id: 14186154924
-      type: PushEvent
-     actor: {"avatar_url":"https://avatars.githubusercontent.com/u/282080?","display_login":"brianchandotcom","gravatar_id":"","id":282080,"login":"brianchandotcom","url":"https://api.github.com/users/brianchandotcom"}
-      repo: {"id":1920851,"name":"brianchandotcom/liferay-portal","url":"https://api.github.com/repos/brianchandotcom/liferay-portal"}
-   payload: {"before":"abb58cc0db673a0bd5190000d2ff9c53bb51d04d","commits":[""],"distinct_size":4,"head":"91edd3c8c98c214155191feb852831ec535580ba","push_id":6027092734,"ref":"refs/heads/master","size":4}
-    public: 1
-created_at: 2020-11-14 02:00:00
+Create a CSV file s3load_example.csv The file is stored on Aliyun OSS and its content is as follows:
+
+```
+1,Emily,25
+2,Benjamin,35
+3,Olivia,28
+4,Alexander,60
+5,Ava,17
+6,William,69
+7,Sophia,32
+8,James,64
+9,Emma,37
+10,Liam,64
+```
+
+### Step 2: Create a table in Doris
+
+```sql
+CREATE TABLE test_s3load(
+    user_id            BIGINT       NOT NULL COMMENT "user id",
+    name               VARCHAR(20)           COMMENT "name",
+    age                INT                   COMMENT "age"
+)
+DUPLICATE KEY(user_id)
+DISTRIBUTED BY HASH(user_id) BUCKETS 10;
+```
+
+### Step 3: Load data using TVF
+
+:::caution Caution
+The endpoint URLs for public and internal access are different.
+If the server and OSS are in the same region, it is recommended to use the internal endpoint link.
+
+- internal endpoint: `oss-cn-hangzhou-internal.aliyuncs.com`
+- public endpoint: `oss-cn-hangzhou.aliyuncs.com`
+  :::
+
+```sql
+INSERT INTO test_s3load
+SELECT * FROM S3
+(
+    "uri" = "s3://your_bucket_name/s3load_example.csv",
+    "format" = "csv",
+    "provider" = "OSS",
+    "s3.endpoint" = "oss-cn-hangzhou.aliyuncs.com",
+    "s3.region" = "oss-cn-hangzhou",
+    "s3.access_key" = "<your-ak>",
+    "s3.secret_key" = "<your-sk>",
+    "column_separator" = ",",
+    "csv_schema" = "user_id:int;name:string;age:int"
+);
+```
+
+### Step 4: Check the imported data
+
+```sql
+SELECT * FROM test_s3load;
+```
+
+Results:
+
+```
+mysql> select * from test_s3load;
++---------+-----------+------+
+| user_id | name      | age  |
++---------+-----------+------+
+|       5 | Ava       |   17 |
+|      10 | Liam      |   64 |
+|       7 | Sophia    |   32 |
+|       9 | Emma      |   37 |
+|       1 | Emily     |   25 |
+|       4 | Alexander |   60 |
+|       2 | Benjamin  |   35 |
+|       3 | Olivia    |   28 |
+|       6 | William   |   69 |
+|       8 | James     |   64 |
++---------+-----------+------+
+10 rows in set (0.04 sec)
 ```
