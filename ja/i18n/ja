@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 1.2.1", "language": "en" }
+{ "title": "Release 1.2.2", "language": "en" }
 ---
 
 <!--
@@ -21,74 +21,113 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# New Features
+
+### Lakehouse
+
+- Support automatic synchronization of Hive metastore.
+
+- Support reading the Iceberg Snapshot, and viewing the Snapshot history.
+
+- JDBC Catalog supports PostgreSQL, Clickhouse, Oracle, SQLServer
+
+- JDBC Catalog supports Insert operation
+
+Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/)
+
+### Auto Bucket
+
+Set and scale the number of buckets for different partitions to keep the number of tablet in a relatively appropriate range.
+
+### New Functions
+
+Add the new function `width_bucket`.
+
+Reference: [https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/width-bucket/#description](https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/width-bucket/#description)
+
+# Behavior Changes
+
+- Disable BE's page cache by default: `disable_storage_page_cache=true`
+
+Turn off this configuration to optimize memory usage and reduce the risk of memory OOM.
+But it will reduce the query latency of some small queries.
+If you are sensitive to query latency, or have high concurrency and small query scenarios, you can configure _disable_storage_page_cache=false_ to enable page cache again.
+
+- Add new session variable `group_by_and_having_use_alias_first`, used to control whether the group and having clauses use alias.
+
+Reference: [https://doris.apache.org/docs/dev/advanced/variables](https://doris.apache.org/docs/dev/advanced/variables)
+
 # Improvement
 
-### Supports new type DecimalV3
+### Compaction
 
-DecimalV3, which supports higher precision and better performance, has the following advantages over past versions.
+- Support `Vertical Compaction`. To optimize the compaction overhead and efficiency of wide tables.
 
-- Larger representable range, the range of values are significantly expanded, and the valid number range [1,38].
+- Support `Segment ompaction`. Fix -238 and -235 issues with high frequency imports.
 
-- Higher performance, adaptive adjustment of the storage space occupied according to different precision.
+### Lakehouse
 
-- More complete precision derivation support, for different expressions, different precision derivation rules are applied to the accuracy of the result.
+- Hive Catalog can be compatible with Hive version 1/2/3
 
-[DecimalV3](https://doris.apache.org/docs/dev/sql-manual/sql-reference/Data-Types/DECIMALV3/)
+- Hive Catalog can access JuiceFS based HDFS with Broker.
 
-### Support Iceberg V2
+- Iceberg Catalog Support Hive Metastore and Rest Catalog type.
 
-Support Iceberg V2 (only Position Delete is supported, Equality Delete will be supported in subsequent versions).
+- ES Catalog support _id column mapping.
 
-Tables in Iceberg V2 format can be accessed through the Multi-Catalog feature.
+- Optimize Iceberg V2 read performance with large number of delete rows.
 
-### Support OR condition to IN
+- Support for reading Iceberg tables after Schema Evolution
 
-Support converting  OR condition to IN condition, which can improve the execution efficiency in some scenarios.[#15437](https://github.com/apache/doris/pull/15437) [#12872](https://github.com/apache/doris/pull/12872)
+- Parquet Reader handles column name case correctly.
 
-### Optimize the import and query performance of JSONB type
+### Other
 
-Optimize the import and query performance of JSONB type. [#15219](https://github.com/apache/doris/pull/15219)  [#15219](https://github.com/apache/doris/pull/15219)
+- Support for accessing Hadoop KMS-encrypted HDFS.
 
-### Stream load supports quoted csv data
+- Support to cancel the Export export task in progress.
 
-Search trim_double_quotes in Document:[https://doris.apache.org/docs/dev/sql-manual/sql-reference/Data-Manipulation-Statements/Load/STREAM-LOAD](https://doris.apache.org/docs/dev/sql-manual/sql-reference/Data-Manipulation-Statements/Load/STREAM-LOAD)
+- Optimize the performance of `explode_split` with 1x.
 
-### Broker supports Tencent Cloud CHDFS and Baidu Cloud BOS, AFS
+- Optimize the read performance of nullable columns with 3x.
 
-Data on CHDFS, BOS, and AFS can be accessed through Broker. [#15297](https://github.com/apache/doris/pull/15297) [#15448](https://github.com/apache/doris/pull/15448)
-
-### New function
-
-Add function `substring_index`. [#15373](https://github.com/apache/doris/pull/15373)
+- Optimize some problems of Memtracker, improve memory management accuracy, and optimize memory application.
 
 # Bug Fix
 
-- In some cases, after upgrading from version 1.1 to version 1.2, the user permission information will be lost. [#15144](https://github.com/apache/doris/pull/15144)
+- Fixed memory leak when loading data with Doris Flink Connector.
 
-- Fix the problem that the partition value is wrong when using datev2/datetimev2 type for partitioning. [#15094](https://github.com/apache/doris/pull/15094)
+- Fixed the possible thread scheduling problem of BE and reduce the `Fragment sent timeout` error caused by BE thread exhaustion.
 
-- Bug fixes for a large number of released features. For a complete list see: [PR List](https://github.com/apache/doris/pulls?q=is%3Apr+label%3Adev%2F1.2.1-merged+is%3Aclosed)
+- Fixed various correctness and precision issues of column type datetimev2/decimalv3.
 
-# Upgrade Notice
+- Fixed the problem data correctness issue with Unique Key Merge-on-Read table.
 
-### Known Issues
+- Fixed various known issues with the Light Schema Change feature.
 
-- Do not use JDK11 as the runtime JDK of BE, it will cause BE Crash.
-- The reading performance of the csv format in this version has declined, which will affect the import and reading efficiency of the csv format. We will fix it as soon as possible in the next three-digit version
+- Fixed various data correctness issues of bitmap type Runtime Filter.
 
-### Behavior Changed
+- Fixed the problem of poor reading performance of csv reader introduced in version 1.2.1.
 
-- The default value of the BE configuration item `high_priority_flush_thread_num_per_store` is changed from 1 to 6, to improve the write efficiency of Routine Load. (https://github.com/apache/doris/pull/14775)
+- Fixed the problem of BE OOM caused by Spark Load data download phase.
 
-- The default value of the FE configuration item `enable_new_load_scan_node` is changed to true. Import tasks will be performed using the new File Scan Node. No impact on users.[#14808](https://github.com/apache/doris/pull/14808)
+- Fixed possible metadata compatibility issues when upgrading from version 1.1 to version 1.2.
 
-- Delete the FE configuration item `enable_multi_catalog`. The Multi-Catalog function is enabled by default.
+- Fixed the metadata problem when creating JDBC Catalog with Resource.
 
-- The vectorized execution engine is forced to be enabled by default.[#15213](https://github.com/apache/doris/pull/15213)
+- Fixed the problem of high CPU usage caused by load operation.
 
-The session variable enable_vectorized_engine will no longer take effect. Enabled by default.
+- Fixed the problem of FE OOM caused by a large number of failed Broker Load jobs.
 
-To make it valid again, set the FE configuration item `disable_enable_vectorized_engine` to false, and restart FE to make `enable_vectorized_engine` valid again.
+- Fixed the problem of precision loss when loading floating-point types.
+
+- Fixed the problem of memory leak when useing 2PC stream load
+
+# Other
+
+Add metrics to view the total rowset and segment numbers on BE
+
+- doris_be_all_rowsets_num and doris_be_all_segments_num
 
 # Big Thanks
 
@@ -110,13 +149,13 @@ Thanks to ALL who contributed to this release!
 
 @chenlinzhong
 
+@DarvenDuan
+
 @dataroaring
 
 @Doris-Extras
 
 @dutyu
-
-@eldenmoon
 
 @englefly
 
@@ -128,15 +167,27 @@ Thanks to ALL who contributed to this release!
 
 @Henry2SS
 
-@hf200012
+@htyoung
+
+@isHuangXin
+
+@JackDrogon
 
 @jacktengg
 
 @Jibing-Li
 
+@kaka11chen
+
 @Kikyou1997
 
+@Lchangliang
+
+@LemonLiTree
+
 @liaoxin01
+
+@liqing-coder
 
 @luozenglin
 
@@ -150,11 +201,13 @@ Thanks to ALL who contributed to this release!
 
 @qidaye
 
+@qzsee
+
 @spaces-X
 
-@starocean999
+@stalary
 
-@wangshuo128
+@starocean999
 
 @weizuo93
 
@@ -164,7 +217,7 @@ Thanks to ALL who contributed to this release!
 
 @xinyiZzz
 
-@xutaoustc
+@xy720
 
 @yangzhg
 
@@ -172,17 +225,19 @@ Thanks to ALL who contributed to this release!
 
 @yixiutt
 
+@Yukang-Lian
+
 @Yulei-Yang
 
-@yuxuan-luo
+@zclllyybb
 
-@zenoyang
+@zddr
 
 @zhangstar333
 
 @zhannngchen
 
-@zhengshengjun
+@zy-kkk
 
 
 
