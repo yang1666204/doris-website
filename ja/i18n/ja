@@ -1,5 +1,8 @@
 ---
-{ "title": "workload_group_privileges", "language": "en" }
+{
+  "title": "workload_group_resource_usage",
+  "language": "en"
+}
 ---
 
 <!--
@@ -23,7 +26,7 @@ under the License.
 
 ## Overview
 
-Stores permission information for Workload Groups.
+Stores usage information for Workload Group resources.
 
 ## Database
 
@@ -31,9 +34,11 @@ Stores permission information for Workload Groups.
 
 ## Table Information
 
-| Column Name                                                   | Type                            | Description                              |
-| ------------------------------------------------------------- | ------------------------------- | ---------------------------------------- |
-| GRANTEE                                                       | varchar(64)  | The user granted permissions             |
-| WORKLOAD_GROUP_NAME | varchar(256) | The name of the Workload Group           |
-| PRIVILEGE_TYPE                           | varchar(64)  | The type of privilege                    |
-| IS_GRANTABLE                             | varchar(3)   | Whether it can be granted to other users |
+| Column Name                                                                                                      | Type   | Description                               |
+| ---------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------- |
+| BE_ID                                                                                       | bigint | The ID of the Backend                     |
+| WORKLOAD_GROUP_ID                                                      | bigint | The ID of the Workload Group              |
+| MEMORY_USAGE_BYTES                                                     | bigint | Memory usage in bytes                     |
+| CPU_USAGE_PERCENT                                                      | double | CPU usage percentage                      |
+| LOCAL_SCAN_BYTES_PER_SECOND  | bigint | Local scan data rate in bytes per second  |
+| REMOTE_SCAN_BYTES_PER_SECOND | bigint | Remote scan data rate in bytes per second |
