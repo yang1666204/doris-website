@@ -1,181 +1,346 @@
 ---
-{ "title": "Resource Group", "language": "en" }
+{ "title": "Spill Disk", "language": "en" }
 ---
 
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements. See the NOTICE file
+or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
-regarding copyright ownership. The ASF licenses this file
+regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at
+with the License.  You may obtain a copy of the License at
 
   http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied. See the License for the
+KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
 
-Resource Group is a mechanism under the compute-storage integration architecture that achieves physical isolation between different workloads. Its basic principle is illustrated in this diagram:
+## 概述
 
-![Resource Group](/images/resource_group.png)
+Doris's computing layer adopts an MPP (Massively Parallel Processing) architecture, where all computing tasks are completed in the memory of BEs (Backends), and data exchange between BEs is also conducted through memory. Therefore, memory management plays a crucial role in ensuring the stability of queries. According to online query statistics, a significant portion of query errors are related to memory issues. As more and more users migrate tasks such as ETL data processing, multi-table materialized view processing, and complex AdHoc queries to Doris, it is necessary to offload intermediate operation results to disk to enable the execution of queries that require more memory than each query or each node can handle. Specifically, when processing large datasets or executing complex queries, memory consumption can increase rapidly, exceeding the memory limits of a single node or the entire query processing process. Doris alleviates memory pressure by writing intermediate results (such as intermediate states of aggregation, temporary data for sorting, etc.) to disk rather than relying solely on memory to store these data. This approach offers several benefits:
 
-- By using tags, BEs are divided into different groups, each identified by the tag's name. For example, in the diagram above, host1, host2, and host3 are all set to group a, while host4 and host5 are set to group b.
+- Scalability: Allows Doris to handle datasets much larger than the memory limit of a single node.
+- Stability: Reduces the risk of query failures or system crashes due to insufficient memory.
+- Flexibility: Enables users to execute more complex queries without increasing hardware resources.
 
-- Different replicas of a table are placed in different groups. For instance, in the diagram above, table1 has 3 replicas, all located in group a, while table2 has 4 replicas, with 2 in group a and 2 in group b.
+To avoid triggering OOM (Out of Memory) when requesting memory, Doris has introduced a reserve memory mechanism. The workflow of this mechanism is as follows:
 
-- During queries, different Resource Groups are used based on the user. For example, online users can only access data on host1, host2, and host3, so they can access both table1 and table2. However, offline users can only access host4 and host5, so they can only access data from table2. Since table1 does not have corresponding replicas in group b, accessing it would result in an error.
+- During execution, Doris estimates the memory size required to process each block and then requests it from a unified memory manager.
+- The global memory allocator determines whether the current memory request exceeds the memory limit of the query or the entire process. If it does, the request fails.
+- When Doris receives a failure message, it suspends the current query, selects the largest operator for spilling to disk, and resumes query execution after spilling is complete.
 
-Essentially, a Resource Group is a placement strategy for table replicas, so it has the following advantages and limitations:
+Currently, the operators that support spilling include:
 
-- Different Resource Groups use different BEs, so they are completely isolated from each other. Even if a BE within a group fails, it will not affect queries in other groups. Since data loading require multiple replicas to succeed, if the remaining number of replicas does not meet the quorum, the data loading will still fail.
+- Hash Join operator
+- Aggregation operator
+- Sort operator
+- CTE
 
-- Each Resource Group must have at least one replica of each table. For example, if you want to establish 5 Resource Groups and each group may access all tables, then each table needs 5 replicas, which can result in significant storage costs.
+When a query triggers spilling, additional disk read/write operations may significantly increase query time. It is recommended to increase the FE Session variable query_timeout. Additionally, spilling can generate significant disk I/O, so it is advisable to configure a separate disk directory or use SSD disks to reduce the impact of query spilling on normal data ingestion or queries. The query spilling feature is currently disabled by default.
 
-## Typical Use Cases
+\##Memory Management Mechanism
+Doris's memory management is divided into three levels: process level, WorkloadGroup level, and Query level.
+![spill_disk_memory](/images/workload-management/spill_disk_memory.png)
 
-- Read-write isolation: A cluster can be divided into two Resource Groups, with an Offline Resource Group for executing ETL jobs and an Online Resource Group for handling online queries. Data is stored with 3 replicas, with 2 replicas in the Online Resource Group and 1 replica in the Offline Resource Group. The Online Resource Group is primarily used for high-concurrency, low-latency online data services, while large queries or offline ETL operations can be executed using nodes in the Offline Resource Group. This allows for the provision of both online and offline services within a unified cluster.
+### BE Process Memory Configuration
 
-- Isolation between different businesses: When data is not shared between multiple businesses, a Resource Group can be assigned to each business, ensuring no interference between them. This effectively consolidates multiple physical clusters into a single large cluster for management.
+The memory of the entire BE process is controlled by the mem_limit parameter in be.conf. Once Doris's memory usage exceeds this threshold, Doris cancels the current query that is requesting memory. Additionally, a background task asynchronously kills some queries to release memory or cache. Therefore, Doris's internal management operations (such as spilling to disk, flushing memtable, etc.) need to run when approaching this threshold to avoid reaching it. Once the threshold is reached, to prevent the entire process from experiencing OOM, Doris takes some drastic self-protection measures.
+When Doris's BE is collocated with other processes (such as Doris FE, Kafka, HDFS), the actual available memory for Doris BE may be significantly less than the user-set mem_limit, causing the internal memory release mechanism to fail and potentially leading to the Doris process being killed by the operating system's OOM Killer.
+When the Doris process is deployed in K8S or managed by Cgroup, Doris automatically senses the memory configuration of the container.
 
-- Isolation between different users: For example, if there is a business table within a cluster that needs to be shared among all three users, but it is desirable to minimize resource contention between them, we can create 3 replicas of the table, stored in 3 different Resource Groups, and bind each user to a specific Resource Group.
+### Workload Group Memory Configuration
 
-## Configure Resource Group
+- memory_limit，default is 30%. Represents the percentage of memory allocated to the current workload group as a fraction of the entire process memory.
+- enable_memory_overcommit, default is true. Indicates whether the memory limit for the current workload group is a hard or soft limit. When this value is true, it means that the memory usage of all tasks within this workload group can exceed the memory_limit. However, when the memory of the entire process is insufficient, to ensure rapid memory reclamation, BE will prioritize canceling queries from workload groups that exceed their limits without waiting for spilling to disk. This is a user-friendly configuration strategy when users are unsure how much memory to allocate to multiple workload groups.
+- write_buffer_ratio，default is 20%. Represents the size of the write buffer within the current workload group. To speed up data ingestion, Doris first accumulates data in memory (i.e., constructs a Memtable), sorts it in its entirety when it reaches a certain size, and then writes it to disk. However, accumulating too many Memtables in memory can affect the memory available for normal queries, leading to query cancellation. Therefore, Doris allocates a separate write buffer for each workload group. For workload groups with heavy write operations, a larger write buffer can effectively improve ingestion throughput; for workload groups with more query operations, this value can be reduced.
+- low watermark: Default is 75%.
+- high watermark: Default is 90%.
 
-### Setting Tags for BEs
+## Query Memory Management
 
-Assuming the current Doris cluster has 6 BE nodes, named host[1-6]. Initially, all BE nodes belong to a default resource group (Default).
+### Static Memory Allocation
 
-We can use the following commands to divide these 6 nodes into 3 resource groups: group_a, group_b, and group_c.
+The memory used by a query is controlled by the following two parameters:
 
-   ```sql
-   alter system modify backend "host1:9050" set ("tag.location" = "group_a");
-   alter system modify backend "host2:9050" set ("tag.location" = "group_a");
-   alter system modify backend "host3:9050" set ("tag.location" = "group_b");
-   alter system modify backend "host4:9050" set ("tag.location" = "group_b");
-   alter system modify backend "host5:9050" set ("tag.location" = "group_c");
-   alter system modify backend "host6:9050" set ("tag.location" = "group_c");
-   ```
+- exec_mem_limit, representing the maximum memory that a query can use, with a default value of 2GB.
+- enable_mem_overcommit, default is true. Indicates whether the memory used by a query can exceed the exec_mem_limit. The default value is true, meaning it can exceed this limit. When the process memory is insufficient, queries that exceed the memory limit will be killed. If set to false, the query's memory usage cannot exceed this limit. When exceeded, spilling to disk or query killing will occur based on user settings. These two parameters must be set by the user in the session variable before query execution and cannot be dynamically modified during execution.
 
-    ```
-    Here, we will form Resource Group group_a with host[1-2], Resource Group group_b with host[3-4], and Resource Group group_c with host[5-6].
-    ```
+### Slot-Based Memory Allocation
 
-> Note: A BE can only belong to one Resource Group.
+In practice, we found that with static memory allocation, users often do not know how much memory to allocate to a query. Therefore, exec_mem_limit is frequently set to half of the entire BE process memory, meaning that the memory used by all queries within the BE cannot exceed half of the process memory. In this scenario, this feature effectively becomes a kind of fuse. When we need to implement more granular policy control based on memory size, such as spilling to disk, this value is too large to rely on for control.
+Therefore, we have implemented a new slot-based memory limitation method based on workload groups. The principle of this strategy is as follows:
 
-### Redistribution data by Resource Group
+- Each workload group is configured with two parameters by the user: memory_limit and max_concurrency. It is assumed that the memory of the entire BE is divided into max_concurrency slots, with each slot occupying memory_limit / max_concurrency of memory.
+- By default, each query occupies one slot during execution. If the user wants a query to use more memory, they need to modify the query_slot_count value.
+- Since the total number of slots in a workload group is fixed, increasing query_slot_count means each query occupies more slots, dynamically reducing the number of queries that can run concurrently in the workload group, causing new queries to automatically queue.
 
-After dividing the resource groups, you can distribute different replicas of user data across different resource groups. Assuming we have a user table named UserTable, and we want to store one replica in each of the three resource groups. This can be achieved through the following table creation statement:
+The slot_memory_policy for workload groups can have three optional values:
 
-   ```sql
-   create table UserTable
-   (k1 int, k2 int)
-   distributed by hash(k1) buckets 1
-   properties(
-       "replication_allocation"="tag.location.group_a:1, tag.location.group_b:1, tag.location.group_c:1"
-   )
-   ```
+- disabled, the default value, indicating that it is not enabled and the static memory allocation method is used.
+- fixed, where the memory that each query can use is calculated as workload group's mem_limit \* query_slot_count / max_concurrency.
+- dynamic, where the memory that each query can use is calculated as workload group's mem_limit \* query_slot_count / sum(running query slots). This mainly overcomes the issue of unused slots in fixed mode. Both fixed and dynamic set hard limits for queries. Once exceeded, spilling to disk or query killing will occur, and these will override the static memory allocation parameters set by the user. Therefore, when setting slot_memory_policy, it is essential to properly configure max_concurrency for the workload group to avoid memory insufficiency issues.
 
-In this way, the data in the UserTable will be stored in three replicas, each located on nodes within the resource groups group_a, group_b, and group_c, respectively.
+## Spilling
 
-The following diagram demonstrates the current division of nodes and data distribution:
+### Enabling Query Intermediate Result Spilling
 
-   ```text
-    ┌────────────────────────────────────────────────────┐
-    │                                                    │
-    │         ┌──────────────────┐  ┌──────────────────┐ │
-    │         │ host1            │  │ host2            │ │
-    │         │  ┌─────────────┐ │  │                  │ │
-    │ group_a │  │   replica1  │ │  │                  │ │
-    │         │  └─────────────┘ │  │                  │ │
-    │         │                  │  │                  │ │
-    │         └──────────────────┘  └──────────────────┘ │
-    │                                                    │
-    ├────────────────────────────────────────────────────┤
-    ├────────────────────────────────────────────────────┤
-    │                                                    │
-    │         ┌──────────────────┐  ┌──────────────────┐ │
-    │         │ host3            │  │ host4            │ │
-    │         │                  │  │  ┌─────────────┐ │ │
-    │ group_b │                  │  │  │   replica2  │ │ │
-    │         │                  │  │  └─────────────┘ │ │
-    │         │                  │  │                  │ │
-    │         └──────────────────┘  └──────────────────┘ │
-    │                                                    │
-    ├────────────────────────────────────────────────────┤
-    ├────────────────────────────────────────────────────┤
-    │                                                    │
-    │         ┌──────────────────┐  ┌──────────────────┐ │
-    │         │ host5            │  │ host6            │ │
-    │         │                  │  │  ┌─────────────┐ │ │
-    │ group_c │                  │  │  │   replica3  │ │ │
-    │         │                  │  │  └─────────────┘ │ │
-    │         │                  │  │                  │ │
-    │         └──────────────────┘  └──────────────────┘ │
-    │                                                    │
-    └────────────────────────────────────────────────────┘
-   ```
+#### BE Configuration Items
 
-When a database contains a very large number of tables, modifying the distribution strategy for each table can be cumbersome. Therefore, Doris also supports setting a unified data distribution strategy at the database level, but the settings for individual tables have higher priority than those at the database level. For example, consider a database db1 with four tables: table1 requires a replica distribution strategy of group_a:1,group_b:2, while table2, table3, and table4 require a strategy of group_c:1,group_b:2.
+```
+spill_storage_root_path=/mnt/disk1/spilltest/doris/be/storage;/mnt/disk2/doris-spill;/mnt/disk3/doris-spill
+spill_storage_limit=100%
+```
 
-    ```
-    To create db1 with a default distribution strategy, you can use the following statement:
-    ```
+- spill_storage_root_path: The storage path for query intermediate result spilling files, which defaults to the same as storage_root_path.
+- spill_storage_limit: The disk space limit for spilling files. It can be configured with a specific space size (e.g., 100GB, 1TB) or a percentage, with a default of 20%. If spill_storage_root_path is configured with a separate disk, it can be set to 100%. This parameter primarily prevents spilling from occupying too much disk space, impeding normal data storage. After modifying the configuration items, you need to restart BE for them to take effect.
 
-   ```sql
-   CREATE DATABASE db1 PROPERTIES (
-   "replication_allocation" = "tag.location.group_c:1, tag.location.group_b:2"
-   )
-   ```
+#### FE Session Variable
 
-    ```
-    Create table1 with a specific distribution strategy:
-    ```
+```
+set enable_spill=true;
+set exec_mem_limit = 10g
+set enable_mem_overcommit = false
+```
 
-   ```sql
-   CREATE TABLE table1
-   (k1 int, k2 int)
-   distributed by hash(k1) buckets 1
-   properties(
-   "replication_allocation"="tag.location.group_a:1, tag.location.group_b:2"
-   )
-   ```
+- enable_spill, indicates whether spilling is enabled for a query.
+- exec_mem_limit, represents the maximum memory size used by a query.
+- enable_mem_overcommit, indicates whether a query can use memory exceeding the exec_mem_limit.
 
-For table2, table3, and table4, you do not need to specify replication_allocation in their creation statements, as they will inherit the database-level default strategy.
+#### Workload Group
 
-:::caution
-Changing the replica distribution strategy at the database level will not affect existing tables.
-:::
+The default memory_limit for workload groups is 30%, which can be adjusted based on the actual number of workload groups. If there is only one workload group, it can be adjusted to 90%.
 
-## Setting Resource Groups for Users
+```
+alter workload group normal properties ( 'memory_limit'='90%' );
+```
 
-You can use the following statements to restrict users' access to specific resource groups. For example, user1 can only use nodes in the group_a resource group, user2 can only use group_b, and user3 can use all three resource groups:
+### Monitoring Spilling
 
-   ```sql
-   set property for 'user1' 'resource_tags.location' = 'group_a';
-   set property for 'user2' 'resource_tags.location' = 'group_b';
-   set property for 'user3' 'resource_tags.location' = 'group_a, group_b, group_c';
-   ```
+#### Audit Logs
 
-After setting, when user1 queries the UserTable, it will only access data replicas on nodes in the group_a resource group and use computing resources from this group. User3's queries can use replicas and computing resources from any resource group.
+The FE audit log has added the SpillWriteBytesToLocalStorage and SpillReadBytesFromLocalStorage fields, representing the total amount of data written to and read from local storage during spilling, respectively.
 
-> Note: By default, the resource_tags.location property for users is empty. In versions before 2.0.2, users are not restricted by tags and can use any resource group. In versions 2.0.3 and later, ordinary users can only use the default resource group by default. Root and admin users can use any resource group.
+```
+SpillWriteBytesToLocalStorage=503412182|SpillReadBytesFromLocalStorage=503412182
+```
 
-:::caution Caution:
-After modifying the resource_tags.location property, users need to re-establish connections for the changes to take effect.
-:::
+#### Profile
 
-## Resource Group Allocation for Data Loading Jobs
+If spilling is triggered during a query, some Spill-prefixed counters are added to the Query Profile to mark and count spilling-related activities. Taking HashJoin's Build HashTable as an example, you can see the following counters:
 
-The resource usage for data loading jobs (including insert, broker load, routine load, stream load, etc.) can be divided into two parts:
+```
+PARTITIONED_HASH_JOIN_SINK_OPERATOR  (id=4  ,  nereids_id=179):(ExecTime:  6sec351ms)
+      -  Spilled:  true
+      -  CloseTime:  528ns
+      -  ExecTime:  6sec351ms
+      -  InitTime:  5.751us
+      -  InputRows:  6.001215M  (6001215)
+      -  MemoryUsage:  0.00  
+      -  MemoryUsagePeak:  554.42  MB
+      -  MemoryUsageReserved:  1024.00  KB
+      -  OpenTime:  2.267ms
+      -  PendingFinishDependency:  0ns
+      -  SpillBuildTime:  2sec437ms
+      -  SpillInMemRow:  0
+      -  SpillMaxRowsOfPartition:  68.569K  (68569)
+      -  SpillMinRowsOfPartition:  67.455K  (67455)
+      -  SpillPartitionShuffleTime:  836.302ms
+      -  SpillPartitionTime:  131.839ms
+      -  SpillTotalTime:  5sec563ms
+      -  SpillWriteBlockBytes:  714.13  MB
+      -  SpillWriteBlockCount:  1.344K  (1344)
+      -  SpillWriteFileBytes:  244.40  MB
+      -  SpillWriteFileTime:  350.754ms
+      -  SpillWriteFileTotalCount:  32
+      -  SpillWriteRows:  6.001215M  (6001215)
+      -  SpillWriteSerializeBlockTime:  4sec378ms
+      -  SpillWriteTaskCount:  417
+      -  SpillWriteTaskWaitInQueueCount:  0
+      -  SpillWriteTaskWaitInQueueTime:  8.731ms
+      -  SpillWriteTime:  5sec549ms
+```
 
-- Computing Part: responsible for reading data sources, data transformation, and distribution.
+#### System Tables
 
-- Writing Part: responsible for data encoding, compression, and writing to disk.
+##### backend_active_tasks
 
-Since writing resources must be on nodes where data replicas are located, and computing resources can be allocated from any node, Resource Groups can only restrict the resources used for the computing part in data loading scenarios.
+The SPILL_WRITE_BYTES_TO_LOCAL_STORAGE and SPILL_READ_BYTES_FROM_LOCAL_STORAGE fields have been added, representing the total amount of data currently being written to and read from local storage for intermediate results during a query.
+
+```
+mysql [information_schema]>select * from backend_active_tasks;
++-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
+| BE_ID | FE_HOST    | WORKLOAD_GROUP_ID | QUERY_ID                          | TASK_TIME_MS | TASK_CPU_TIME_MS | SCAN_ROWS | SCAN_BYTES | BE_PEAK_MEMORY_BYTES | CURRENT_USED_MEMORY_BYTES | SHUFFLE_SEND_BYTES | SHUFFLE_SEND_ROWS | QUERY_TYPE | SPILL_WRITE_BYTES_TO_LOCAL_STORAGE | SPILL_READ_BYTES_FROM_LOCAL_STORAGE |
++-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
+| 10009 | 10.16.10.8 |                 1 | 6f08c74afbd44fff-9af951270933842d |        13612 |            11025 |  12002430 | 1960955904 |            733243057 |                  70113260 |                  0 |                 0 | SELECT     |                          508110119 |                            26383070 |
+| 10009 | 10.16.10.8 |                 1 | 871d643b87bf447b-865eb799403bec96 |            0 |                0 |         0 |          0 |                    0 |                         0 |                  0 |                 0 | SELECT     |                                  0 |                                   0 |
++-------+------------+-------------------+-----------------------------------+--------------+------------------+-----------+------------+----------------------+---------------------------+--------------------+-------------------+------------+------------------------------------+-------------------------------------+
+2 rows in set (0.00 sec)
+```
+
+##### workload_group_resource_usage
+
+The WRITE_BUFFER_USAGE_BYTES field has been added, representing the memory usage of Memtables for ingestion tasks within the workload group.
+
+```
+mysql [information_schema]>select * from workload_group_resource_usage;
++-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
+| BE_ID | WORKLOAD_GROUP_ID | MEMORY_USAGE_BYTES | CPU_USAGE_PERCENT | LOCAL_SCAN_BYTES_PER_SECOND | REMOTE_SCAN_BYTES_PER_SECOND | WRITE_BUFFER_USAGE_BYTES |
++-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
+| 10009 |                 1 |          102314948 |              0.69 |                           0 |                            0 |                 23404836 |
++-------+-------------------+--------------------+-------------------+-----------------------------+------------------------------+--------------------------+
+1 row in set (0.01 sec)
+```
+
+## Testing
+
+### Test Environment
+
+#### Machine Configuration
+
+The test used Alibaba Cloud servers with the following specific configurations:
+
+1FE:
+
+```
+16 cores(vCPU) 32 GiB 200 Mbps ecs.c6.4xlarge
+```
+
+3BE:
+
+```
+16 cores(vCPU) 64 GiB 0 Mbps ecs.g6.4xlarge
+```
+
+#### 测试数据
+
+The test data used TPC-DS 10TB as input, sourced from Alibaba Cloud DLF, and mounted to Doris using the Catalog method. The SQL statement is as follows:
+
+```
+CREATE CATALOG dlf PROPERTIES (
+"type"="hms",
+"hive.metastore.type" = "dlf",
+"dlf.proxy.mode" = "DLF_ONLY",
+"dlf.endpoint" = "dlf-vpc.cn-beijing.aliyuncs.com",
+"dlf.region" = "cn-beijing",
+"dlf.uid" = "217316283625971977",
+"dlf.catalog.id" = "emr_dev",
+"dlf.access_key" = "fill in as applicable",
+"dlf.secret_key" = "fill in as applicable"
+);
+```
+
+Reference website: https://doris.apache.org/zh-CN/docs/dev/benchmark/tpcds
+
+### Test Results
+
+The dataset size was 10TB. The ratio of memory to dataset size was 1:52. The overall runtime was 32,000 seconds, and all 99 queries were successfully executed. In the future, we will provide spilling capabilities for more operators (such as window functions, Intersect, etc.) and continue to optimize performance under spilling conditions, reduce disk consumption, and improve query stability.
+
+| query   | Time(ms) |
+| ------- | --------------------------- |
+| query1  | 25590                       |
+| query2  | 126445                      |
+| query3  | 103859                      |
+| query4  | 1174702                     |
+| query5  | 266281                      |
+| query6  | 62950                       |
+| query7  | 212745                      |
+| query8  | 67000                       |
+| query9  | 602291                      |
+| query10 | 70904                       |
+| query11 | 544436                      |
+| query12 | 25759                       |
+| query13 | 229144                      |
+| query14 | 1120895                     |
+| query15 | 29409                       |
+| query16 | 117287                      |
+| query17 | 260122                      |
+| query18 | 97453                       |
+| query19 | 127384                      |
+| query20 | 32749                       |
+| query21 | 4471                        |
+| query22 | 10162                       |
+| query23 | 1772561                     |
+| query24 | 535506                      |
+| query25 | 272458                      |
+| query26 | 83342                       |
+| query27 | 175264                      |
+| query28 | 887007                      |
+| query29 | 427229                      |
+| query30 | 13661                       |
+| query31 | 108778                      |
+| query32 | 37303                       |
+| query33 | 181351                      |
+| query34 | 84159                       |
+| query35 | 81701                       |
+| query36 | 152990                      |
+| query37 | 36815                       |
+| query38 | 172531                      |
+| query39 | 20155                       |
+| query40 | 75749                       |
+| query41 | 527                         |
+| query42 | 95910                       |
+| query43 | 66821                       |
+| query44 | 209947                      |
+| query45 | 26946                       |
+| query46 | 131490                      |
+| query47 | 158011                      |
+| query48 | 149482                      |
+| query49 | 303515                      |
+| query50 | 298089                      |
+| query51 | 156487                      |
+| query52 | 97440                       |
+| query53 | 98258                       |
+| query54 | 202583                      |
+| query55 | 93268                       |
+| query56 | 185255                      |
+| query57 | 80308                       |
+| query58 | 252746                      |
+| query59 | 171545                      |
+| query60 | 202915                      |
+| query61 | 272184                      |
+| query62 | 38749                       |
+| query63 | 94327                       |
+| query64 | 247074                      |
+| query65 | 270705                      |
+| query66 | 101465                      |
+| query67 | 3744186                     |
+| query68 | 151543                      |
+| query69 | 15559                       |
+| query70 | 132505                      |
+| query71 | 180079                      |
+| query72 | 3085373                     |
+| query73 | 82623                       |
+| query74 | 330087                      |
+| query75 | 830993                      |
+| query76 | 188805                      |
+| query77 | 239730                      |
+| query78 | 1895765                     |
+| query79 | 144829                      |
+| query80 | 463652                      |
+| query81 | 15319                       |
+| query82 | 76961                       |
+| query83 | 32437                       |
+| query84 | 22849                       |
+| query85 | 58186                       |
+| query86 | 33933                       |
+| query87 | 185421                      |
+| query88 | 434867                      |
+| query89 | 108265                      |
+| query90 | 31131                       |
+| query91 | 18864                       |
+| query92 | 24510                       |
+| query93 | 281904                      |
+| query94 | 67761                       |
+| query95 | 3738968                     |
+| query96 | 47245                       |
+| query97 | 536702                      |
+| query98 | 97800                       |
+| query99 | 62210                       |
+| sum     | 31797707                    |
+
