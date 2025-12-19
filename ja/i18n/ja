@@ -1,5 +1,5 @@
 ---
-{ "title": "PI", "language": "en" }
+{ "title": "PMOD", "language": "en" }
 ---
 
 <!-- 
@@ -19,28 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Pi
+## pmod
 
 ### description
 
 #### Syntax
 
-`DOUBLE Pi()`
-Returns the constant `Pi` value.
+```sql
+BIGINT PMOD(BIGINT x, BIGINT y)
+DOUBLE PMOD(DOUBLE x, DOUBLE y)
+```
+
+Returns the positive result of x mod y in the residue systems.
+Formally, return `(x%y+y)%y`.
 
 ### example
 
 ```
-mysql> select Pi();
-+--------------------+
-| pi()               |
-+--------------------+
-| 3.1415926535897931 |
-+--------------------+
+MySQL [test]> SELECT PMOD(13,5);
++-------------+
+| pmod(13, 5) |
++-------------+
+|           3 |
++-------------+
+
+MySQL [test]> SELECT PMOD(-13,5);
++-------------+
+| pmod(-13, 5) |
++-------------+
+|           2 |
++-------------+
 ```
 
 ### keywords
 
  ```
- PI
+ PMOD
  ```
