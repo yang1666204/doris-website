@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-BACKENDS", "language": "en" }
+{ "title": "SHOW-BACKUP", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,60 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-BACKENDS
+## SHOW-BACKUP
 
 ### Name
 
-SHOW BACKENDS
+SHOW BACKUP
 
 ### Description
 
-This statement is used to view the BE nodes in the cluster
+This statement is used to view BACKUP tasks
+
+grammar:
 
 ```sql
- SHOW BACKENDS;
+ SHOW BACKUP [FROM db_name]
+    [WHERE SnapshotName ( LIKE | = ) 'snapshot name']
 ```
 
 illustrate:
 
-        ```
-            1. LastStartTime indicates the last BE start time.
-            2. LastHeartbeat indicates the last heartbeat.
-            3. Alive indicates whether the node is alive or not.
-            4. If SystemDecommissioned is true, it means that the node is being safely decommissioned.
-            5. If ClusterDecommissioned is true, it means that the node is going offline in the current cluster.
-            6. TabletNum represents the number of shards on the node.
-            7. DataUsedCapacity Indicates the space occupied by the actual user data.
-            8. AvailCapacity Indicates the available space on the disk.
-            9. TotalCapacity represents the total disk space. TotalCapacity = AvailCapacity + DataUsedCapacity + other non-user data files occupy space.
-           10. UsedPct Indicates the percentage of disk used.
-           11. ErrMsg is used to display the error message when the heartbeat fails.
-           12. Status is used to display some status information of BE in JSON format, including the time information of the last time BE reported its tablet.
-           13. HeartbeatFailureCounter: The current number of heartbeats that have failed consecutively. If the number exceeds the `max_backend_heartbeat_failure_tolerance_count` configuration, the isAlive will be set to false.
-           14. NodeRole is used to display the role of Backend node. Now there are two roles: mix and computation. Mix node represent the origin Backend node and computation Node represent the compute only node.
-        ```
+1. Only the most recent BACKUP task is saved in Doris.
+2. The meaning of each column is as follows:
+   - `JobId`: Unique job id
+   - `SnapshotName`: The name of the backup
+   - `DbName`: belongs to the database
+   - `State`: current stage
+     - `PENDING`: The initial state after submitting the job
+     - `SNAPSHOTING`: Executing snapshot
+     - `UPLOAD_SNAPSHOT`: Snapshot completed, ready to upload
+     - `UPLOADING`: Snapshot uploading
+     - `SAVE_META`: Save job meta information to a local file
+     - `UPLOAD_INFO`: Upload job meta information
+     - `FINISHED`: The job was successful
+     - `CANCELLED`: Job failed
+   - `BackupObjs`: Backed up tables and partitions
+   - `CreateTime`: task submission time
+   - `SnapshotFinishedTime`: Snapshot completion time
+   - `UploadFinishedTime`: Snapshot upload completion time
+   - `FinishedTime`: Job finish time
+   - `UnfinishedTasks`: Displays unfinished subtask ids during SNAPSHOTING and UPLOADING stages
+   - `Status`: If the job fails, display the failure message
+   - `Timeout`: Job timeout, in seconds
 
 ### Example
+
+1. View the last BACKUP task under example_db.
+
+   ```sql
+    SHOW BACKUP FROM example_db;
+   ```
 
 ### Keywords
 
     ```
-    SHOW, BACKENDS
+    SHOW, BACKUP
     ```
 
 ### Best Practice
