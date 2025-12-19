@@ -1,5 +1,5 @@
 ---
-{ "title": "YEARS_DIFF", "language": "en" }
+{ "title": "YEARS_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## years_diff
+## years_sub
 
 ### description
 
 #### Syntax
 
-`INT years_diff(DATETIME enddate, DATETIME startdate)`
+`DATETIME YEARS_SUB(DATETIME date, INT years)`
 
-The difference between the start time and the end time is several years
+Subtracts a specified number of years from a datetime or date
+
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select years_diff('2020-12-25','2019-10-25');
-+----------------------------------------------------------+
-| years_diff('2020-12-25 00:00:00', '2019-10-25 00:00:00') |
-+----------------------------------------------------------+
-|                                                        1 |
-+----------------------------------------------------------+
+mysql> select years_sub("2020-02-02 02:02:02", 1);
++-------------------------------------+
+| years_sub('2020-02-02 02:02:02', 1) |
++-------------------------------------+
+| 2019-02-02 02:02:02                 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    years_diff
+    YEARS_SUB
     ```
