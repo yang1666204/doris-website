@@ -1,5 +1,5 @@
 ---
-{ "title": "HLL_TO_BASE64", "language": "en" }
+{ "title": "CUT_IPV6", "language": "en" }
 ---
 
 <!-- 
@@ -19,60 +19,30 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## hll_to_base64
+## CUT_IPV6
 
-### description
+CUT_IPV6
+
+### Description
 
 #### Syntax
 
-`VARCHAR HLL_TO_BASE64(HLL input)`
+`STRING CUT_IPV6(IPV4 ipv4, TinyInt cut_ipv6_bytes, TinyInt cut_ipv4_bytes)`
 
-Convert an input hll to a base64 string. If input is NULL, return NULL.
+accept an IPv6 type address and return a string containing the address of the specified number of bytes removed in text format
 
-### example
+### Example
 
-```
-mysql> select hll_to_base64(NULL);
-+---------------------+
-| hll_to_base64(NULL) |
-+---------------------+
-| NULL                |
-+---------------------+
+```sql
+mysql [(none)]>select cut_ipv6(to_ipv6('2001:0DB8:AC10:FE01:FEED:BABE:CAFE:F00D'), 10, 0);
++-------------------+
+| '2001:db8:ac10::' |
++-------------------+
+| 2001:db8:ac10::   |
++-------------------+
 1 row in set (0.00 sec)
-
-mysql> select hll_to_base64(hll_empty());
-+----------------------------+
-| hll_to_base64(hll_empty()) |
-+----------------------------+
-| AA==                       |
-+----------------------------+
-1 row in set (0.02 sec)
-
-mysql> select hll_to_base64(hll_hash('abc'));
-+--------------------------------+
-| hll_to_base64(hll_hash('abc')) |
-+--------------------------------+
-| AQEC5XSzrpDsdw==               |
-+--------------------------------+
-1 row in set (0.03 sec)
-
-mysql> select hll_union_agg(hll_from_base64(hll_to_base64(pv))), hll_union_agg(pv) from test_hll;
-+---------------------------------------------------+-------------------+
-| hll_union_agg(hll_from_base64(hll_to_base64(pv))) | hll_union_agg(pv) |
-+---------------------------------------------------+-------------------+
-|                                                 3 |                 3 |
-+---------------------------------------------------+-------------------+
-1 row in set (0.04 sec)
-
-mysql>  select hll_cardinality(hll_from_base64(hll_to_base64(hll_hash('abc'))));
-+------------------------------------------------------------------+
-| hll_cardinality(hll_from_base64(hll_to_base64(hll_hash('abc')))) |
-+------------------------------------------------------------------+
-|                                                                1 |
-+------------------------------------------------------------------+
-1 row in set (0.04 sec)
 ```
 
-### keywords
+### Keywords
 
-HLL_TO_BASE64, HLL
+CUT_IPV6, IP
