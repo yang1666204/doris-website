@@ -1,5 +1,5 @@
 ---
-{ "title": "SUB_BITMAP", "language": "en" }
+{ "title": "TO_BITMAP", "language": "en" }
 ---
 
 <!-- 
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,43 +21,42 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## sub_bitmap
+## to_bitmap
 
 ### description
 
 #### Syntax
 
-`BITMAP SUB_BITMAP(BITMAP src, BIGINT offset, BIGINT cardinality_limit)`
+`BITMAP TO_BITMAP(expr)`
 
-Starting from the position specified by offset, intercept cardinality_limit bitmap elements and return a bitmap subset.
+Convert an unsigned bigint (ranging from 0 to 18446744073709551615) to a bitmap containing that value.
+Null will be return when the input value is not in this range.
+Mainly be used to load integer value into bitmap column, e.g.,
+
+```
+cat data | curl --location-trusted -u user:passwd -T - -H "columns: dt,page,user_id, user_id=to_bitmap(user_id)"   http://host:8410/api/test/testDb/_stream_load
+```
 
 ### example
 
 ```
-mysql> select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), 0, 3)) value;
-+-------+
-| value |
-+-------+
-| 0,1,2 |
-+-------+
+mysql> select bitmap_count(to_bitmap(10));
++-----------------------------+
+| bitmap_count(to_bitmap(10)) |
++-----------------------------+
+|                           1 |
++-----------------------------+
 
-mysql> select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), -3, 2)) value;
-+-------+
-| value |
-+-------+
-| 2,3   |
-+-------+
-
-mysql> select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), 2, 100)) value;
-+-------+
-| value |
-+-------+
-| 2,3,5 |
-+-------+
+MySQL> select bitmap_to_string(to_bitmap(-1));
++---------------------------------+
+| bitmap_to_string(to_bitmap(-1)) |
++---------------------------------+
+|                                 |
++---------------------------------+
 ```
 
 ### keywords
 
     ```
-    SUB_BITMAP,BITMAP_SUBSET,BITMAP
+    TO_BITMAP,BITMAP
     ```
