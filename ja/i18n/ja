@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_IPV4_OR_NULL", "language": "en" }
+{ "title": "TO_IPV4", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## TO_IPV4_OR_NULL
+## TO_IPV4
 
-TO_IPV4_OR_NULL
+TO_IPV4
 
 ### Description
 
 #### Syntax
 
-`IPV4 TO_IPV4_OR_NULL(STRING ipv4_str)`
+`IPV4 TO_IPV4(STRING ipv4_str)`
 
-Same as to_ipv4, but if the IPv4 address has an invalid format, it returns NULL.
+This function like ipv4_string_to_num that takes a string form of IPv4 address and returns value of IPv4 type,
+which is binary equal to value returned by ipv4_string_to_num.
+If the IPv4 address has an invalid format, throw an exception.
 
 #### Notice
 
-`If input is NULL, return NULL.`
+`Input cannot be NULL. If it is NULL, an exception will be thrown.`
 
 ### Example
 
 ```sql
-mysql> select to_ipv4_or_null('.');
-+----------------------+
-| to_ipv4_or_null('.') |
-+----------------------+
-| NULL                 |
-+----------------------+
-
-mysql> select to_ipv4_or_null(NULL);
-+-----------------------+
-| to_ipv4_or_null(NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
+mysql> select to_ipv4('255.255.255.255');
++----------------------------+
+| to_ipv4('255.255.255.255') |
++----------------------------+
+| 255.255.255.255            |
++----------------------------+
 ```
 
 ### Keywords
 
-TO_IPV4_OR_NULL, IP
+TO_IPV4, IP
