@@ -1,5 +1,5 @@
 ---
-{ "title": "LENGTH", "language": "en" }
+{ "title": "LOCATE", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## length
+## locate
 
 ### Description
 
 #### Syntax
 
-`INT length (VARCHAR str)`
+`INT LOCATION (VARCHAR substrate, VARCHAR str [, INT pos]]`
 
-Returns the length of the string in byte size.
+Returns where substr appears in str (counting from 1). If the third parameter POS is specified, the position where substr appears is found from the string where STR starts with POS subscript. If not found, return 0
 
 ### example
 
 ```
-mysql> select length("abc");
-+---------------+
-| length('abc') |
-+---------------+
-|             3 |
-+---------------+
+mysql> SELECT LOCATE('bar', 'foobarbar');
++----------------------------+
+| locate('bar', 'foobarbar') |
++----------------------------+
+|                          4 |
++----------------------------+
 
-mysql> select length("中国");
-+------------------+
-| length('中国')   |
-+------------------+
-|                6 |
-+------------------+
+mysql> SELECT LOCATE('xbar', 'foobar');
++--------------------------+
+| locate('xbar', 'foobar') |
++--------------------------+
+|                        0 |
++--------------------------+
+
+mysql> SELECT LOCATE('bar', 'foobarbar', 5);
++-------------------------------+
+| locate('bar', 'foobarbar', 5) |
++-------------------------------+
+|                             7 |
++-------------------------------+
 ```
 
 ### keywords
 
     ```
-    LENGTH
+    LOCATE
     ```
