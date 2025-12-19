@@ -1,5 +1,5 @@
 ---
-{ "title": "Cancel Load Action", "language": "en" }
+{ "title": "Check Decommission Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Cancel Load Action
+# Check Decommission Action
 
 ## Request
 
-`POST /api/<db>/_cancel`
+`GET /api/check_decommission`
 
 ## Description
 
-Used to cancel the load transaction of the specified label.
-RETURN VALUES
-Return a JSON format string:
-Status:
-Success: cancel succeed
-Others: cancel failed
-Message: Error message if cancel failed
+Used to determine whether the specified BE can be decommissioned. For example, after the node being decommissioned, whether the remaining nodes can meet the space requirements and the number of replicas.
 
 ## Path parameters
 
-- `<db>`
-
-  Specify the database name
+None
 
 ## Query parameters
 
-- `<label>`
+- `host_ports`
 
-  Specify the load label
+  Specify one or more BEs, separated by commas. Such as: `ip1:port1,ip2:port2,...`.
+
+  Where port is the heartbeat port of BE.
 
 ## Request body
 
@@ -55,40 +49,29 @@ None
 
 ## Response
 
-- Cancel success
+Return a list of nodes that can be decommissioned
 
-    ```
-    {
-    	"msg": "OK",
-    	"code": 0,
-    	"data": null,
-    	"count": 0
-    }
-    ```
-
-- Cancel failed
-
-    ```
-    {
-    	"msg": "Error msg...",
-    	"code": 1,
-    	"data": null,
-    	"count": 0
-    }
-    ```
+```
+{
+	"msg": "OK",
+	"code": 0,
+	"data": ["192.168.10.11:9050", "192.168.10.11:9050"],
+	"count": 0
+}
+```
 
 ## Examples
 
-1. Cancel the load transaction of the specified label
+1. Check whether the specified BE node can be decommissioned
 
     ```
-    POST /api/example_db/_cancel?label=my_label1
+    GET /api/check_decommission?host_ports=192.168.10.11:9050,192.168.10.11:9050
     
     Response:
     {
     	"msg": "OK",
     	"code": 0,
-    	"data": null,
+    	"data": ["192.168.10.11:9050"],
     	"count": 0
     }
     ```
