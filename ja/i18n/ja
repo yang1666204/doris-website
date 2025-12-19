@@ -1,5 +1,5 @@
 ---
-{ "title": "IPV4", "language": "en" }
+{ "title": "IPV6", "language": "en" }
 ---
 
 <!-- 
@@ -21,12 +21,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## IPV4
+## IPV6
 
 ### description
 
-IPv4 type, stored in the form of UInt32 in 4 bytes, used to represent IPv4 addresses.
-The range of values is ['0.0.0.0', '255.255.255.255'].
+IPv6 type, stored in UInt128 format in 16 bytes, used to represent IPv6 addresses.
+The range of values is ['::', 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'].
 
 `Inputs that exceed the value range or have invalid format will return NULL`
 
@@ -35,9 +35,9 @@ The range of values is ['0.0.0.0', '255.255.255.255'].
 Create table example:
 
 ```
-CREATE TABLE ipv4_test (
+CREATE TABLE ipv6_test (
   `id` int,
-  `ip_v4` ipv4
+  `ip_v6` ipv6
 ) ENGINE=OLAP
 DISTRIBUTED BY HASH(`id`) BUCKETS 4
 PROPERTIES (
@@ -48,28 +48,26 @@ PROPERTIES (
 Insert data example:
 
 ```
-insert into ipv4_test values(1, '0.0.0.0');
-insert into ipv4_test values(2, '127.0.0.1');
-insert into ipv4_test values(3, '59.50.185.152');
-insert into ipv4_test values(4, '255.255.255.255');
-insert into ipv4_test values(5, '255.255.255.256'); // invalid data
+insert into ipv6_test values(1, '::');
+insert into ipv6_test values(2, '2001:16a0:2:200a::2');
+insert into ipv6_test values(3, 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff');
+insert into ipv6_test values(4, 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffffg'); // invalid data
 ```
 
 Select data example:
 
 ```
-mysql> select * from ipv4_test order by id;
-+------+-----------------+
-| id   | ip_v4           |
-+------+-----------------+
-|    1 | 0.0.0.0         |
-|    2 | 127.0.0.1       |
-|    3 | 59.50.185.152   |
-|    4 | 255.255.255.255 |
-|    5 | NULL            |
-+------+-----------------+
+mysql> select * from ipv6_test order by id;
++------+-----------------------------------------+
+| id   | ip_v6                                   |
++------+-----------------------------------------+
+|    1 | ::                                      |
+|    2 | 2001:16a0:2:200a::2                     |
+|    3 | ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff |
+|    4 | NULL                                    |
++------+-----------------------------------------+
 ```
 
 ### keywords
 
-IPV4
+IPV6
