@@ -1,5 +1,5 @@
 ---
-{ "title": "SKEW,SKEW_POP,SKEWNESS", "language": "en" }
+{ "title": "STDDEV_SAMP", "language": "en" }
 ---
 
 <!-- 
@@ -21,64 +21,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## skewness,skew,skew_pop
+## STDDEV_SAMP
 
 ### Description
 
-Returns the [skewness](https://en.wikipedia.org/wiki/Skewness) of the expr expression.
-The forumula used for this function is `3-th centrol moment / ((variance)^{1.5})`, when variance is zero, `skewness` will return `NULL`.
+#### Syntax
 
-### Syntax
+`STDDEV SAMP (expr)`
 
-`skewness(expr)`
+Returns the sample standard deviation of the expr expression
 
-### Arguments
+### example
 
-TinyInt/SmallInt/Integer/BigInt/Float/Double, Decimal will be casted to a float number.
-
-### Return value
-
-`Double`
-
-### Example
-
-```sql
-create table statistic_test (tag int, val1 double not null, val2 double null)
-                distributed by hash(tag) properties("replication_num"="1")
-
-insert into statistic_test values (1, -10, -10),
-                                  (2, -20, NULL),
-                                  (3, 100, NULL),
-                                  (4, 100, NULL),
-                                  (5, 1000,1000);
-
-// NULL is ignored
-select skew(val1), skew(val2) from statistic_test
---------------
-
-+--------------------+--------------------+
-| skew(val1)         | skew(val2)         |
-+--------------------+--------------------+
-| 1.4337199628825619 | 1.1543940205711711 |
-+--------------------+--------------------+
-1 row in set (0.01 sec)
-
-// Each group just has one row, result is NULL
-select skew(val1), skew(val2) from statistic_test group by tag
---------------
-
-+------------+------------+
-| skew(val1) | skew(val2) |
-+------------+------------+
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-+------------+------------+
-5 rows in set (0.04 sec)
+```
+MySQL > select stddev_samp(scan_rows) from log_statis group by datetime;
++--------------------------+
+| stddev_samp(`scan_rows`) |
++--------------------------+
+|        2.372044195280762 |
++--------------------------+
 ```
 
-### Related Commands
+### keywords
 
-[kurt](./kurt.md)
+STDDEV SAMP,STDDEV,SAMP
