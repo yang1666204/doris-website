@@ -1,5 +1,5 @@
 ---
-{ "title": "UNHEX", "language": "en" }
+{ "title": "UPPER", "language": "en" }
 ---
 
 <!-- 
@@ -21,45 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## unhex
+## upper
 
 ### description
 
 #### Syntax
 
-`VARCHAR unhex(VARCHAR str)`
+`VARCHAR upper(VARCHAR str)`
 
-Enter a string, if the length of the string is 0 or an odd number, an empty string is returned;
-If the string contains characters other than `[0-9], [a-f], [A-F]`, an empty string is returned;
-In other cases, every two characters are a group of characters converted into hexadecimal, and then spliced into a string for output.
+Convert all strings in parameters to uppercase. Another alias for this function is [ucase](./ucase.md).
 
 ### example
 
 ```
-mysql> select unhex('@');
-+------------+
-| unhex('@') |
-+------------+
-|            |
-+------------+
-
-mysql> select unhex('41');
-+-------------+
-| unhex('41') |
-+-------------+
-| A           |
-+-------------+
-
-mysql> select unhex('4142');
-+---------------+
-| unhex('4142') |
-+---------------+
-| AB            |
-+---------------+
+mysql> SELECT upper("aBc123");
++-----------------+
+| upper('aBc123') |
++-----------------+
+| ABC123          |
++-----------------+
 ```
 
 ### keywords
 
     ```
-    UNHEX
+    UPPER
     ```
