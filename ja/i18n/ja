@@ -1,6 +1,6 @@
 ---
 {
-  "title": "SHOW-CONVERT-LIGHT-SCHEMA-CHANGE-PROCESS",
+  "title": "SHOW-CREATE-ASYNC-MATERIALIZED-VIEW",
   "language": "en"
 }
 ---
@@ -24,40 +24,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CONVERT-LIGHT-SCHEMA-CHANGE-PROCESS
+## SHOW-CREATE-ASYNC-MATERIALIZED-VIEW
 
 ### Name
 
-SHOW CONVERT LIGHT SCHEMA CHANGE PROCESS
+SHOW CREATE ASYNC MATERIALIZED VIEW
 
 ### Description
 
-This statement is used to show the process of converting light schema change process. should enable config `enable_convert_light_weight_schema_change`.
+This statement is used to display the creation statement of asynchronous materialized views.
 
-grammar:
+grammar：
 
 ```sql
-SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS [FROM db]
+SHOW CREATE MATERIALIZED VIEW [DBNAME.]MV_NAME
 ```
+
+illustrate：
+
+1. `DBNAMNE` : 数据库名称
+2. `MV_NAME` : 异步物化视图的名称
 
 ### Example
 
-1. View the converting process in db named test
+1. View the creation statement of mv1
 
-    ```sql
-     SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS FROM test;
-    ```
-
-2. View the converting process globally
-
-    ```sql
-    SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS;
-    ```
+   ```sql
+   SHOW CREATE MATERIALIZED VIEW mv1;
+   ```
 
 ### Keywords
 
     ```
-    SHOW, CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS
+    SHOW, CREATE, MATERIALIZED, VIEW, ASYNC
     ```
 
 ### Best Practice
+
