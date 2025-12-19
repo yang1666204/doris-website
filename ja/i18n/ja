@@ -1,5 +1,5 @@
 ---
-{ "title": "minute_ceil", "language": "en" }
+{ "title": "minute_floor", "language": "en" }
 ---
 
 <!-- 
@@ -21,20 +21,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## minute_ceil
+## minute_floor
 
 ### description
 
 #### Syntax
 
 ```sql
-DATETIME MINUTE_CEIL(DATETIME datetime)
-DATETIME MINUTE_CEIL(DATETIME datetime, DATETIME origin)
-DATETIME MINUTE_CEIL(DATETIME datetime, INT period)
-DATETIME MINUTE_CEIL(DATETIME datetime, INT period, DATETIME origin)
+DATETIME MINUTE_FLOOR(DATETIME datetime)
+DATETIME MINUTE_FLOOR(DATETIME datetime, DATETIME origin)
+DATETIME MINUTE_FLOOR(DATETIME datetime, INT period)
+DATETIME MINUTE_FLOOR(DATETIME datetime, INT period, DATETIME origin)
 ```
 
-Convert the date to the nearest rounding up time of the specified time interval period.
+Convert the date to the nearest rounding down time of the specified time interval period.
 
 - datetime: a valid date expression.
 - period: specifies how many minutes each cycle consists of.
@@ -43,21 +43,21 @@ Convert the date to the nearest rounding up time of the specified time interval 
 ### example
 
 ```
-mysql> select minute_ceil("2023-07-13 22:28:18", 5);
-+--------------------------------------------------------------+
-| minute_ceil(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+--------------------------------------------------------------+
-| 2023-07-13 22:30:00                                          |
-+--------------------------------------------------------------+
-1 row in set (0.21 sec)
+mysql> select minute_floor("2023-07-13 22:28:18", 5);
++---------------------------------------------------------------+
+| minute_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
++---------------------------------------------------------------+
+| 2023-07-13 22:25:00                                           |
++---------------------------------------------------------------+
+1 row in set (0.06 sec)
 ```
 
 ### keywords
 
     ```
-    MINUTE_CEIL, MINUTE, CEIL
+    MINUTE_FLOOR, MINUTE, FLOOR
     ```
 
 ### Best Practice
 
-See also [date_ceil](./date_ceil)
+See also [date_floor](./date_floor)
