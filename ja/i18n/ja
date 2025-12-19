@@ -1,5 +1,5 @@
 ---
-{ "title": "KILL", "language": "en" }
+{ "title": "RECOVER", "language": "en" }
 ---
 
 <!--
@@ -21,74 +21,142 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## KILL
+## RECOVER
 
 ### Name
 
-KILL
+RECOVER
 
 ### Description
 
-Each Doris connection runs in a separate thread. You can kill a thread with the KILL processlist_id statement.
+This statement is used to restore a previously deleted database, table or partition. It supports recover meta information by name or id, and you can set new name for recovered meta information.
 
-The thread process list identifier can be queried from the Id column output by SHOW PROCESSLIST or SELECT CONNECTION_ID() to query the current connection id.
-
-grammar:
-
-```sql
-KILL [CONNECTION] processlist_id
-```
-
-In addition, you can also use processlist_id or query_id terminates the executing query command
+You can get all meta informations that can be recovered by statement `SHOW CATALOG RECYCLE BIN`.
 
 grammar:
 
-```sql
-KILL QUERY processlist_id | query_id
-```
+1. restore database by name
+
+   ```sql
+   RECOVER DATABASE db_name;
+   ```
+
+2. restore table by name
+
+   ```sql
+   RECOVER TABLE [db_name.]table_name;
+   ```
+
+3. restore partition by name
+
+    ```sql
+    RECOVER PARTITION partition_name FROM [db_name.]table_name;
+    ```
+
+4. restore database by name and id
+
+   ```sql
+   RECOVER DATABASE db_name db_id;
+   ```
+
+5. restore table by name and id
+
+   ```sql
+   RECOVER TABLE [db_name.]table_name table_id;
+   ```
+
+6. restore partition by name and id
+
+   ```sql
+   RECOVER PARTITION partition_name partition_id FROM [db_name.]table_name;
+   ```
+
+7. restore database by name, and set new db name
+
+   ```sql
+   RECOVER DATABASE db_name AS new_db_name;
+   ```
+
+8. restore table by name and id, and set new table name
+
+   ```sql
+   RECOVER TABLE [db_name.]table_name table_id AS new_table_name;
+   ```
+
+9. restore partition by name and id, and set new partition name
+
+   ```sql
+   RECOVER PARTITION partition_name partition_id AS new_partition_name FROM [db_name.]table_name;
+   ```
+
+illustrate:
+
+- This operation can only restore meta information that was deleted in the previous period. Default is 1 day. (Configurable through the `catalog_trash_expire_second` parameter in fe.conf)
+- If you recover a meta information by name without id, it will recover the last dropped one which has same name.
+- You can get all meta informations that can be recovered by statement `SHOW CATALOG RECYCLE BIN`.
 
 ### Example
 
-1. View the connection id of the current connection.
+1. Restore the database named example_db
 
 ```sql
-mysql> select connection_id();
-+-----------------+
-| connection_id() |
-+-----------------+
-| 48              |
-+-----------------+
-1 row in set (0.00 sec)
+RECOVER DATABASE example_db;
 ```
 
-2. View the connection ids of all connections.
+2. Restore the table named example_tbl
 
 ```sql
-mysql> SHOW PROCESSLIST;
-+------------------+------+------+--------------------+---------------------+----------+---------+---------+------+-------+-----------------------------------+---------------------------------------------------------------------------------------+
-| CurrentConnected | Id   | User | Host               | LoginTime           | Catalog  | Db      | Command | Time | State | QueryId                           | Info                                                                                  |
-+------------------+------+------+--------------------+---------------------+----------+---------+---------+------+-------+-----------------------------------+---------------------------------------------------------------------------------------+
-| Yes              |   48 | root | 10.16.xx.xx:44834   | 2023-12-29 16:49:47 | internal | test | Query   |    0 | OK    | e6e4ce9567b04859-8eeab8d6b5513e38 | SHOW PROCESSLIST                                                                      |
-|                  |   50 | root | 192.168.xx.xx:52837 | 2023-12-29 16:51:34 | internal |      | Sleep   | 1837 | EOF   | deaf13c52b3b4a3b-b25e8254b50ff8cb | SELECT @@session.transaction_isolation                                                |
-|                  |   51 | root | 192.168.xx.xx:52843 | 2023-12-29 16:51:35 | internal |      | Sleep   |  907 | EOF   | 437f219addc0404f-9befe7f6acf9a700 | /* ApplicationName=DBeaver Ultimate 23.1.3 - Metadata */ SHOW STATUS                  |
-|                  |   55 | root | 192.168.xx.xx:55533 | 2023-12-29 17:09:32 | internal | test | Sleep   |  271 | EOF   | f02603dc163a4da3-beebbb5d1ced760c | /* ApplicationName=DBeaver Ultimate 23.1.3 - SQLEditor <Console> */ SELECT DATABASE() |
-|                  |   47 | root | 10.16.xx.xx:35678   | 2023-12-29 16:21:56 | internal | test | Sleep   | 3528 | EOF   | f4944c543dc34a99-b0d0f3986c8f1c98 | select * from test                                                                    |
-+------------------+------+------+--------------------+---------------------+----------+---------+---------+------+-------+-----------------------------------+---------------------------------------------------------------------------------------+
-5 rows in set (0.00 sec)
+RECOVER TABLE example_db.example_tbl;
 ```
 
-3. Terminate the running query. The running query will appear canceled.
+3. Restore the partition named p1 in table example_tbl
 
 ```sql
-mysql> kill query 55;
-Query OK, 0 rows affected (0.01 sec)
+RECOVER PARTITION p1 FROM example_tbl;
+```
+
+4. Restore the database named example_db with id example_db_id
+
+```sql
+RECOVER DATABASE example_db example_db_id;
+```
+
+5. Restore the table named example_tbl with id example_tbl_id
+
+```sql
+RECOVER TABLE example_db.example_tbl example_tbl_id;
+```
+
+6. Restore the partition named p1 with id p1_id in table example_tbl
+
+```sql
+RECOVER PARTITION p1 p1_id FROM example_tbl;
+```
+
+7. Restore the database named example_db with id example_db_id, and set new name new_example_db
+
+```sql
+RECOVER DATABASE example_db example_db_id AS new_example_db;
+```
+
+8. Restore the table named example_tbl, and set new name new_example_tbl
+
+```sql
+RECOVER TABLE example_db.example_tbl AS new_example_tbl;
+```
+
+9. Restore the partition named p1 with id p1_id in table example_tbl, and new name new_p1
+
+```sql
+RECOVER PARTITION p1 p1_id AS new_p1 FROM example_tbl;
 ```
 
 ### Keywords
 
-    ```
-    KILL
-    ```
+     ```
+      RECOVER
+     ```
 
 ### Best Practice
+
 
