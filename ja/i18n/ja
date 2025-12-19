@@ -1,5 +1,5 @@
 ---
-{ "title": "LOG", "language": "en" }
+{ "title": "LOG10", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,44 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## log
+## log10
 
 ### description
 
 #### Syntax
 
-`DOUBLE log(DOUBLE b, DOUBLE x)`
-Returns the logarithm of `x` based on base `b`.
+`DOUBLE log10(DOUBLE x)`
+Returns the natural logarithm of `x` to base `10`.
+
+:::tip
+Another alias for this function is `dlog10`.
+:::
 
 ### example
 
 ```
-mysql> select log(5,1);
-+---------------+
-| log(5.0, 1.0) |
-+---------------+
-|             0 |
-+---------------+
-mysql> select log(3,20);
+mysql> select log10(1);
++------------+
+| log10(1.0) |
++------------+
+|          0 |
++------------+
+mysql> select log10(10);
++-------------+
+| log10(10.0) |
++-------------+
+|           1 |
++-------------+
+mysql> select log10(16);
 +--------------------+
-| log(3.0, 20.0)     |
+| log10(16.0)        |
 +--------------------+
-| 2.7268330278608417 |
+| 1.2041199826559248 |
 +--------------------+
-mysql> select log(2,65536);
-+-------------------+
-| log(2.0, 65536.0) |
-+-------------------+
-|                16 |
-+-------------------+
 ```
 
 ### keywords
 
  ```
- LOG
+ LOG10, DLOG10
  ```
