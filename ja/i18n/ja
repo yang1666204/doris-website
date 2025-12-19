@@ -1,5 +1,5 @@
 ---
-{ "title": "SEC_TO_TIME", "language": "en" }
+{ "title": "SECOND", "language": "en" }
 ---
 
 <!-- 
@@ -21,30 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## sec_to_time
+## Description
 
-### description
+Returns second information in the time type, ranging from 0,59
 
-#### Syntax
+The parameter is Date or Datetime or Time type
 
-`TIME sec_to_time(INT timestamp)`
+## Syntax
 
-The parameter is a timestamp of type INT, and the function returns a time of type TIME.
+`INT SECOND(DATETIME date)`
 
-### example
+## Example
 
+```sql
+mysql> select second('2018-12-31 23:59:59');
++-----------------------------+
+| second('2018-12-31 23:59:59') |
++-----------------------------+
+|                          59 |
++-----------------------------+
 ```
-mysql >select sec_to_time(time_to_sec(cast('16:32:18' as time)));
-+----------------------------------------------------+
-| sec_to_time(time_to_sec(CAST('16:32:18' AS TIME))) |
-+----------------------------------------------------+
-| 16:32:18                                           |
-+----------------------------------------------------+
-1 row in set (0.53 sec)
-```
 
-### keywords
+## Keywords
 
     ```
-    SEC_TO_TIME
+    SECOND
     ```
