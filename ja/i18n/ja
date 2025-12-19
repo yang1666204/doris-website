@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-SYNC-JOB", "language": "en" }
+{ "title": "SHOW-TABLE-ID", "language": "en" }
 ---
 
 <!--
@@ -21,40 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-SYNC-JOB
+## SHOW-TABLE-ID
 
 ### Name
 
-SHOW SYNC JOB
+SHOW TABLE ID
 
 ### Description
 
-This command is used to currently display the status of resident data synchronization jobs in all databases.
+This statement is used to find the corresponding database name, table name according to the table id (only for administrators)
 
 grammar:
 
 ```sql
-SHOW SYNC JOB [FROM db_name]
+SHOW TABLE [table_id]
 ```
 
 ### Example
 
-1. Display the status of all data synchronization jobs in the current database.
+1. Find the corresponding database name, table name according to the table id
 
-    ```sql
-    SHOW SYNC JOB;
-    ```
-
-2. Display the status of all data synchronization jobs under the database `test_db`.
-
-    ```sql
-    SHOW SYNC JOB FROM `test_db`;
-    ```
+     ```sql
+     SHOW TABLE 10001;
+     ```
 
 ### Keywords
 
     ```
-    SHOW, SYNC, JOB
+    SHOW, TABLE, ID
     ```
 
 ### Best Practice
