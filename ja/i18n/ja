@@ -1,5 +1,8 @@
 ---
-{ "title": "CRC32", "language": "en" }
+{
+  "title": "CUT_TO_FIRST_SIGNIFICANT_SUBDOMAIN",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -21,30 +24,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-### Description
+## Description
 
-Use CRC32 to compute the result.
+## Syntax
 
-### Syntax
+`VARCHAR  cut_to_first_significant_subdomain(VARCHAR url)`
 
-`BIGINT crc32 (VARCHAR str)`
+Extract the part of the domain in the URL from the top-level subdomain down to the "first valid subdomain." If invalid, return an empty string.
 
-Returns the Cyclic Redundancy Check value of this string.
-
-### Example
+## Examples
 
 ```sql
-mysql> select crc32("abc");
-+--------------+
-| crc32('abc') |
-+--------------+
-|    891568578 |
-+--------------+
+mysql [(none)]>select cut_to_first_significant_subdomain("www.baidu.com");
++-----------------------------------------------------+
+| cut_to_first_significant_subdomain('www.baidu.com') |
++-----------------------------------------------------+
+| baidu.com                                           |
++-----------------------------------------------------+
 
+mysql [(none)]>select cut_to_first_significant_subdomain("www.google.com.cn");
++---------------------------------------------------------+
+| cut_to_first_significant_subdomain('www.google.com.cn') |
++---------------------------------------------------------+
+| google.com.cn                                           |
++---------------------------------------------------------+
+
+mysql [(none)]>select cut_to_first_significant_subdomain("wwwwwwww");
++------------------------------------------------+
+| cut_to_first_significant_subdomain('wwwwwwww') |
++------------------------------------------------+
+|                                                |
++------------------------------------------------+
 ```
 
 ### Keywords
 
-    ```
-    CRC32
-    ```
+CUT_TO_FIRST_SIGNIFICANT_SUBDOMAIN
