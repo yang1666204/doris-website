@@ -1,5 +1,5 @@
 ---
-{ "title": "QUARTERS_ADD", "language": "en" }
+{ "title": "QUARTERS_SUB", "language": "en" }
 ---
 
 <!-- 
@@ -25,24 +25,24 @@ under the License.
 
 #### Syntax
 
-`DATE/DATETIME QUARTERS_ADD(DATE/DATETIME date, INT years)`
+`DATE/DATETIME QUARTERS_SUB(DATE/DATETIME date, INT years)`
 
-Add a specified number of quarters to a given date
+Subtract a specified number of quarters for a given date
 
 The parameter `date` can be of type `DATETIME` or `DATE`, and the return type is the same as the type of the parameter `date`.
 
 ### Example
 
 ```sql
-mysql> select quarters_add("2020-01-31 02:02:02", 1);
+mysql> select quarters_sub("2020-01-31 02:02:02", 1);
 +---------------------------------------------------------------+
-| quarters_add(cast('2020-01-31 02:02:02' as DATETIMEV2(0)), 1) |
+| quarters_sub(cast('2020-01-31 02:02:02' as DATETIMEV2(0)), 1) |
 +---------------------------------------------------------------+
-| 2020-04-30 02:02:02                                           |
+| 2019-10-31 02:02:02                                           |
 +---------------------------------------------------------------+
 1 row in set (0.10 sec)
 ```
 
 ### keywords
 
-QUARTERS, ADD, QUARTERS_ADD
+QUARTERS, SUB, QUARTERS_SUB
