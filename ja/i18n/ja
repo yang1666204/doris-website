@@ -1,5 +1,5 @@
 ---
-{ "title": "Tableau", "language": "en" }
+{ "title": "BladePipe", "language": "en" }
 ---
 
 <!--
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,34 +21,67 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Introduction
+BladePipe is a **real-time end-to-end data replication** tool, moving data between **30+** databases, message queues, search engines, caching, real-time data warehouses, data lakes and more, with **ultra-low latency less than 3 seconds**. It features efficiency, stability and scalability, compatibility with diverse database engines, one-stop management, enhanced security, and complex data transformation.
 
-Tableau is a lightweight data visualization analysis platform that combines data operations with beautiful charts perfectly. It seamlessly combines data computation with visually appealing charts, requiring no coding from the user. By simply dragging and dropping, users can quickly gain insights into the data. They can explore different views and even easily combine multiple data sources to complete tasks such as data visualization, exploration, and analysis.
+## Functions
 
-## Precondition
+BladePipe presents a visual management interface, allowing you to easily create DataJobs to realize **schema migration, data migration, synchronization, verification and correction**, etc. In addition, more refined and customized configurations are supported by setting parameters. Now BladePipe supports data movement from the following source DataSources to Doris:
 
-Tableau Desktop via the following link to download: https://www.tableau.com/products/desktop/download
+| Source DataSource           | Schema Migration | Data Migration | Data Sync | Verification & Correction |
+| --------------------------- | ---------------- | -------------- | --------- | --------------------------------------------- |
+| MySQL/MariaDB/AuroraMySQL   | Yes              | Yes            | Yes       | Yes                                           |
+| Oracle                      | Yes              | Yes            | Yes       | Yes                                           |
+| PostgreSQL/AuroraPostgreSQL | Yes              | Yes            | Yes       | Yes                                           |
+| SQL Server                  | Yes              | Yes            | Yes       | Yes                                           |
+| Kafka                       | No               | No             | Yes       | No                                            |
+| AutoMQ                      | No               | No             | Yes       | No                                            |
+| TiDB                        | Yes              | Yes            | Yes       | Yes                                           |
+| Hana                        | Yes              | Yes            | Yes       | Yes                                           |
+| PolarDB-X                   | Yes              | Yes            | Yes       | Yes                                           |
 
-## Driver installation
+:::info
+For more functions and parameter settings, please refer to [BladePipe Connections](https://doc.bladepipe.com/dataMigrationAndSync/connection/mysql2?target=Doris).
+:::
 
-1. Install iODBC
-   1. Close the Tableau Desktop
-   2. Install iODBC Driver Manager. Obtain the latest version (mxkozzz.dmg) from iODBC.org
-   3. Click on the downloaded dmg file to install
-2. Install the MySQL driver
+## Installation
 
-When choosing the ODBC driver for MySQL to connect to Doris, you should install the MySQL 5.x ODBC driver. Using the latest MySQL driver may result in an "Unsupported command" error when connecting to Doris.
+Follow the instructions in [Install Worker (Docker)](https://doc.bladepipe.com/productOP/docker/install_worker_docker) or [Install Worker (Binary)](https://doc.bladepipe.com/productOP/binary/install_worker_binary) to download and install a BladePipe Worker.
 
-## Connection Configuration and Usage
+## Example
 
-1. Click the Tableau Desktop home page and select MySQL at the connection data source
+Taking a MySQL instance as an example, the following part describes how to move data from MySQL to Doris.
 
-   ![main page](/images/bi-tableau-en-1.png)
+### Add DataSources
 
-2. Fill in the Doris server address, port and other relevant information, and click sigin in button after correctly filling
+1. Log in to the [BladePipe Cloud](https://cloud.bladepipe.com/). Click **DataSource** > **Add DataSource**.
 
-   ![sign in page](/images/bi-tableau-en-2.png)
+2. Select MySQL and Doris as the Type respectively, and fill in the setup form accordingly.
+   ![Add DataSources-1](/images/bp-doris-1.png)
 
-3. After entering Tableau, select the corresponding library table to carry out the relevant compass processing.
+3. Click **Test Connection**. After successful connection, click **Add DataSource** to add the DataSource.
+   ![Add DataSources-2](/images/bp-doris-2.png)
 
-   ![usage page](/images/bi-tableau-en-3.png)
+### Create a DataJob
+
+1. Click DataJob > [Create DataJob](https://doc.bladepipe.com/operation/job_manage/create_job/create_full_incre_task).
+
+2. Select the source and target DataSources, and click **Test Connection** to ensure the connection to the source and target DataSources are both successful.
+   ![Create a DataJob-1](/images/bp-doris-3.png)
+
+3. Select **Incremental** for DataJob Type, together with the **Full Data** option.
+   ![Create a DataJob-2](/images/bp-doris-4.png)
+
+4. Select the tables to be replicated.
+   ![Create a DataJob-3](/images/bp-doris-5.png)
+
+5. Select the columns to be replicated.
+   ![Create a DataJob-4](/images/bp-doris-6.png)
+
+6. Confirm the DataJob creation.
+
+7. The DataJob runs automatically. BladePipe will automatically run the following DataTasks:
+
+- **Schema Migration**: The schemas of the source tables will be migrated to the target instance.
+- **Full Data**: All existing data of the source tables will be fully migrated to the target instance.
+- **Incremental**: Ongoing data changes will be continuously synchronized to the target instance.
+  ![Create a DataJob-5](/images/bp-doris-8.png)
