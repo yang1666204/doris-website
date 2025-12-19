@@ -1,5 +1,5 @@
 ---
-{ "title": "ROUND_BANKERS", "language": "en" }
+{ "title": "ROUND", "language": "en" }
 ---
 
 <!-- 
@@ -19,75 +19,77 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## round_bankers
+## round
 
 ### description
 
 #### Syntax
 
-`T round_bankers(T x[, d])`
-Rounds the argument `x` to `d` specified decimal places. `d` defaults to 0 if not specified. If d is negative, the left d digits of the decimal point are 0. If x or d is null, null is returned.
+`T round(T x[, d])`
+Rounds the argument `x` to `d` decimal places. `d` defaults to 0 if not specified. If d is negative, the left d digits of the decimal point are 0. If x or d is null, null is returned.
+2.5 will round up to 3. If you want to round down to 2, please use the round_bankers function.
 
 If `d` is a column, and `x` has Decimal type, scale of result Decimal will always be same with input Decimal.
 
-- If the rounding number is halfway between two numbers, the function uses banker’s rounding.
-- In other cases, the function rounds numbers to the nearest integer.
+:::tip
+Another alias for this function is `dround`.
+:::
 
 ### example
 
 ```
-mysql> select round_bankers(0.4);
-+--------------------+
-| round_bankers(0.4) |
-+--------------------+
-|                  0 |
-+--------------------+
-mysql> select round_bankers(-3.5);
+mysql> select round(2.4);
++------------+
+| round(2.4) |
++------------+
+|          2 |
++------------+
+mysql> select round(2.5);
++------------+
+| round(2.5) |
++------------+
+|          3 |
++------------+
+mysql> select round(-3.4);
++-------------+
+| round(-3.4) |
++-------------+
+|          -3 |
++-------------+
+mysql> select round(-3.5);
++-------------+
+| round(-3.5) |
++-------------+
+|          -4 |
++-------------+
+mysql> select round(1667.2725, 2);
 +---------------------+
-| round_bankers(-3.5) |
+| round(1667.2725, 2) |
 +---------------------+
-|                  -4 |
+|             1667.27 |
 +---------------------+
-mysql> select round_bankers(-3.4);
-+---------------------+
-| round_bankers(-3.4) |
-+---------------------+
-|                  -3 |
-+---------------------+
-mysql> select round_bankers(10.755, 2);
-+--------------------------+
-| round_bankers(10.755, 2) |
-+--------------------------+
-|                    10.76 |
-+--------------------------+
-mysql> select round_bankers(1667.2725, 2);
-+-----------------------------+
-| round_bankers(1667.2725, 2) |
-+-----------------------------+
-|                     1667.27 |
-+-----------------------------+
-mysql> select round_bankers(1667.2725, -2);
-+------------------------------+
-| round_bankers(1667.2725, -2) |
-+------------------------------+
-|                         1700 |
-+------------------------------+
+mysql> select round(1667.2725, -2);
++----------------------+
+| round(1667.2725, -2) |
++----------------------+
+|                 1700 |
++----------------------+
 mysql> SELECT number
-    -> , round_bankers(number * 2.5, number - 1) AS rb_decimal_column
-    -> , round_bankers(number * 2.5, 0) AS rb_decimal_literal
-    -> , round_bankers(cast(number * 2.5 AS DOUBLE), number - 1) AS rb_double_column
-    -> , round_bankers(cast(number * 2.5 AS DOUBLE), 0) AS rb_double_literal
+    -> , round(number * 2.5, number - 1) AS r_decimal_column
+    -> , round(number * 2.5, 0) AS r_decimal_literal
+    -> , round(cast(number * 2.5 AS DOUBLE), number - 1) AS r_double_column
+    -> , round(cast(number * 2.5 AS DOUBLE), 0) AS r_double_literal
     -> FROM test_enhanced_round
     -> WHERE rid = 1;
-+--------+-------------------+--------------------+------------------+-------------------+
-| number | rb_decimal_column | rb_decimal_literal | rb_double_column | rb_double_literal |
-+--------+-------------------+--------------------+------------------+-------------------+
-|      1 |               2.0 |                  2 |                2 |                 2 |
-+--------+-------------------+--------------------+------------------+-------------------+
++--------+------------------+-------------------+-----------------+------------------+
+| number | r_decimal_column | r_decimal_literal | r_double_column | r_double_literal |
++--------+------------------+-------------------+-----------------+------------------+
+|      1 |              3.0 |                 3 |               3 |                3 |
++--------+------------------+-------------------+-----------------+------------------+
 ```
 
 ### keywords
 
  ```
- round_bankers
+ ROUND, DROUND
  ```
