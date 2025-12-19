@@ -1,8 +1,8 @@
 ---
-{ "title": "ARRAY_APPLY", "language": "en" }
+{ "title": "ARRAY_AVG", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,52 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_apply
+## array_avg
 
-array_apply
+array_avg
 
 ### description
 
-Filter array to match specific binary condition
-
 #### Syntax
 
-```sql
-array_apply(arr, op, val)
-```
+`Array<T> array_avg(arr)`
 
-#### Arguments
-
-`arr` — The array to inspect. If it null, null will be returned.
-`op` — The compare operation, op includes `=`, `>=`, `<=`, `>`, `<`, `!=`. Support const value only.
-`val` — The compared value.If it null, null will be returned. Support const value only.
-
-#### Returned value
-
-The filtered array matched with condition.
-
-Type: Array.
+Get the average of all elements in an array (`NULL` values are skipped).
+When the array is empty or all elements in the array are `NULL` values, the function returns `NULL`.
 
 ### example
 
-```
-mysql> select array_apply([1, 2, 3, 4, 5], ">=", 2);
-+--------------------------------------------+
-| array_apply(ARRAY(1, 2, 3, 4, 5), '>=', 2) |
-+--------------------------------------------+
-| [2, 3, 4, 5]                               |
-+--------------------------------------------+
-1 row in set (0.01 sec)
+```shell
+mysql> create table array_type_table(k1 INT, k2 Array<int>) duplicate key (k1)
+    -> distributed by hash(k1) buckets 1 properties('replication_num' = '1');
+mysql> insert into array_type_table values (0, []), (1, [NULL]), (2, [1, 2, 3]), (3, [1, NULL, 3]);
+mysql> select k2, array_avg(k2) from array_type_table;
++--------------+-----------------+
+| k2           | array_avg(`k2`) |
++--------------+-----------------+
+| []           |            NULL |
+| [NULL]       |            NULL |
+| [1, 2, 3]    |               2 |
+| [1, NULL, 3] |               2 |
++--------------+-----------------+
+4 rows in set (0.01 sec)
 
-mysql> select array_apply([1000000, 1000001, 1000002], "=", "1000002");
-+-------------------------------------------------------------+
-| array_apply(ARRAY(1000000, 1000001, 1000002), '=', 1000002) |
-+-------------------------------------------------------------+
-| [1000002]                                                   |
-+-------------------------------------------------------------+
-1 row in set (0.01 sec)
 ```
 
 ### keywords
 
-ARRAY,APPLY,ARRAY_APPLY
+ARRAY,AVG,ARRAY_AVG
+
