@@ -1,5 +1,5 @@
 ---
-{ "title": "Show Proc Action", "language": "en" }
+{ "title": "Show Runtime Info Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Show Proc Action
+# Show Runtime Info Action
 
 ## Request
 
-`GET /api/show_proc`
+`GET /api/show_runtime_info`
 
 ## Description
 
-Used to obtain PROC information.
+Used to obtain Runtime information of FE JVM
 
 ## Path parameters
 
@@ -37,13 +37,7 @@ None
 
 ## Query parameters
 
-- path
-
-  Specify Proc Path
-
-- forward
-
-  Whether to forward to Master FE for execution
+None
 
 ## Request body
 
@@ -55,47 +49,33 @@ None
 {
 	"msg": "success",
 	"code": 0,
-	"data": [
-		proc infos ...
-	],
+	"data": {
+		"free_mem": "855642056",
+		"total_mem": "1037959168",
+		"thread_cnt": "98",
+		"max_mem": "1037959168"
+	},
 	"count": 0
 }
 ```
 
 ## Examples
 
-1. View `/statistic` information
+1. Get the JVM information of the current FE node
 
     ```
-    GET /api/show_proc?path=/statistic
+    GET /api/show_runtime_info
     
     Response:
     {
     	"msg": "success",
     	"code": 0,
-    	"data": [
-    		["10003", "default_cluster:db1", "2", "3", "3", "3", "3", "0", "0", "0"],
-    		["10013", "default_cluster:doris_audit_db__", "1", "4", "4", "4", "4", "0", "0", "0"],
-    		["Total", "2", "3", "7", "7", "7", "7", "0", "0", "0"]
-    	],
-    	"count": 0
-    }
-    ```
-
-2. Forward to Master for execution
-
-    ```
-    GET /api/show_proc?path=/statistic&forward=true
-    
-    Response:
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": [
-    		["10003", "default_cluster:db1", "2", "3", "3", "3", "3", "0", "0", "0"],
-    		["10013", "default_cluster:doris_audit_db__", "1", "4", "4", "4", "4", "0", "0", "0"],
-    		["Total", "2", "3", "7", "7", "7", "7", "0", "0", "0"]
-    	],
+    	"data": {
+    		"free_mem": "855642056",
+    		"total_mem": "1037959168",
+    		"thread_cnt": "98",
+    		"max_mem": "1037959168"
+    	},
     	"count": 0
     }
     ```
