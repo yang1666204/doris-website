@@ -1,5 +1,5 @@
 ---
-{ "title": "UTC_TIMESTAMP", "language": "en" }
+{ "title": "WEEK", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,52 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## utc_timestamp
+## week
 
 ### Description
 
 #### Syntax
 
-`DATETIME UTC_TIMESTAMP()`
+`INT WEEK(DATE date[, INT mode])`
 
-Returns the current UTC date and time in "YYYY-MM-DD HH: MM: SS" or
+Returns the week number for date.The value of the mode argument defaults to 0.
+The following table describes how the mode argument works.
 
-A Value of "YYYYMMDDHMMSS" Format
+| Mode | First day of week | Range | Week 1 is the first week …    |
+| :--- | :---------------- | :---- | :---------------------------- |
+| 0    | Sunday            | 0-53  | with a Sunday in this year    |
+| 1    | Monday            | 0-53  | with 4 or more days this year |
+| 2    | Sunday            | 1-53  | with a Sunday in this year    |
+| 3    | Monday            | 1-53  | with 4 or more days this year |
+| 4    | Sunday            | 0-53  | with 4 or more days this year |
+| 5    | Monday            | 0-53  | with a Monday in this year    |
+| 6    | Sunday            | 1-53  | with 4 or more days this year |
+| 7    | Monday            | 1-53  | with a Monday in this year    |
 
-Depending on whether the function is used in a string or numeric context
+The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select utc_timestamp(),utc_timestamp() + 1;
-+---------------------+---------------------+
-| utc_timestamp()     | utc_timestamp() + 1 |
-+---------------------+---------------------+
-| 2019-07-10 12:31:18 |      20190710123119 |
-+---------------------+---------------------+
+mysql> select week('2020-1-1');
++------------------+
+| week('2020-1-1') |
++------------------+
+|                0 |
++------------------+
+```
+
+```
+mysql> select week('2020-7-1',1);
++---------------------+
+| week('2020-7-1', 1) |
++---------------------+
+|                  27 |
++---------------------+
 ```
 
 ### keywords
 
     ```
-    UTC_TIMESTAMP,UTC,TIMESTAMP
+    WEEK
     ```
