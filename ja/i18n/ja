@@ -1,5 +1,5 @@
 ---
-{ "title": "DOUBLE", "language": "en" }
+{ "title": "FLOAT", "language": "en" }
 ---
 
 <!-- 
@@ -21,13 +21,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DOUBLE
+## FLOAT
 
 ### Description
 
-DOUBLE
-8-byte floating point number
+FLOAT
+4-byte floating point number
 
 ### keywords
 
-DOUBLE
+FLOAT
