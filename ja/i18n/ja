@@ -1,5 +1,5 @@
 ---
-{ "title": "CREATE-TABLE-AS-SELECT", "language": "en" }
+{ "title": "CREATE-TABLE-LIKE", "language": "en" }
 ---
 
 <!--
@@ -21,81 +21,77 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CREATE-TABLE-AS-SELECT
+## CREATE-TABLE-LIKE
 
 ### Name
 
-CREATE TABLE AS SELECT
+CREATE TABLE LIKE
 
 ### Description
 
-This statement creates the table structure by returning the results from the Select statement and imports the data at the same time
+This statement is used to create an empty table with the exact same table structure as another table, and can optionally replicate some rollups.
 
-grammar：
+grammar:
 
 ```sql
-CREATE TABLE table_name [( column_name_list )]
-    opt_engine:engineName
-    opt_keys:keys
-    opt_comment:tableComment
-    opt_partition:partition
-    opt_distribution:distribution
-    opt_rollup:index
-    opt_properties:tblProperties
-    opt_ext_properties:extProperties
-    KW_AS query_stmt:query_def
+CREATE [EXTERNAL] TABLE [IF NOT EXISTS] [database.]table_name LIKE [database.]table_name [WITH ROLLUP (r1,r2,r3,...)]
 ```
 
 illustrate:
 
-- The user needs to have`SELECT`permission for the source table and`CREATE`permission for the target database
-
-- After a table is created, data is imported. If the import fails, the table is deleted
-
-- You can specify the key type. The default key type is `Duplicate Key`
-
-- All columns of type string (varchar/var/string) are created as type "string".
-
-- If the created source is an external table and the first column is of type String, the first column is automatically set to VARCHAR(65533). Because of Doris internal table, String column is not allowed as first column.
+- The copied table structure includes Column Definition, Partitions, Table Properties, etc.
+- The user needs to have `SELECT` permission on the copied original table
+- Support for copying external tables such as MySQL
+- Support the rollup of copying OLAP Table
 
 ### Example
 
-1. Using the field names in the SELECT statement
+1. Create an empty table with the same table structure as table1 under the test1 library, the table name is table2
 
     ```sql
-    create table `test`.`select_varchar` 
-    PROPERTIES("replication_num" = "1") 
-    as select * from `test`.`varchar_table`
+    CREATE TABLE test1.table2 LIKE test1.table1
     ```
 
-2. Custom field names (need to match the number of fields returned)
+2. Create an empty table with the same table structure as test1.table1 under the test2 library, the table name is table2
+
     ```sql
-    create table `test`.`select_name`(user, testname, userstatus) 
-    PROPERTIES("replication_num" = "1") 
-    as select vt.userId, vt.username, jt.status 
-    from `test`.`varchar_table` vt join 
-    `test`.`join_table` jt on vt.userId=jt.userId
+    CREATE TABLE test2.table2 LIKE test1.table1
     ```
 
-3. Specify table model, partitions, and buckets
+3. Create an empty table with the same table structure as table1 under the test1 library, the table name is table2, and copy the two rollups of r1 and r2 of table1 at the same time
+
     ```sql
-    CREATE TABLE t_user(dt, id, name)
-    ENGINE=OLAP
-    UNIQUE KEY(dt, id)
-    COMMENT "OLAP"
-    PARTITION BY RANGE(dt)
-    (
-       FROM ("2020-01-01") TO ("2021-12-31") INTERVAL 1 YEAR
-    )
-    DISTRIBUTED BY HASH(id) BUCKETS 1
-    PROPERTIES("replication_num"="1")
-    AS SELECT cast('2020-05-20' as date) as dt, 1 as id, 'Tom' as name;
+    CREATE TABLE test1.table2 LIKE test1.table1 WITH ROLLUP (r1,r2)
+    ```
+
+4. Create an empty table with the same table structure as table1 under the test1 library, the table name is table2, and copy all the rollups of table1 at the same time
+
+    ```sql
+    CREATE TABLE test1.table2 LIKE test1.table1 WITH ROLLUP
+    ```
+
+5. Create an empty table with the same table structure as test1.table1 under the test2 library, the table name is table2, and copy the two rollups of r1 and r2 of table1 at the same time
+
+    ```sql
+    CREATE TABLE test2.table2 LIKE test1.table1 WITH ROLLUP (r1,r2)
+    ```
+
+6. Create an empty table with the same table structure as test1.table1 under the test2 library, the table name is table2, and copy all the rollups of table1 at the same time
+
+    ```sql
+    CREATE TABLE test2.table2 LIKE test1.table1 WITH ROLLUP
+    ```
+
+7. Create an empty table under the test1 library with the same table structure as the MySQL outer table1, the table name is table2
+
+    ```sql
+    CREATE TABLE test1.table2 LIKE test1.table1
     ```
 
 ### Keywords
 
     ```
-    CREATE, TABLE, AS, SELECT
+    CREATE, TABLE, LIKE
     ```
 
 ### Best Practice
