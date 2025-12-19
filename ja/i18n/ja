@@ -1,5 +1,5 @@
 ---
-{ "title": "RESUME-MATERIALIZED-VIEW", "language": "en" }
+{ "title": "SWITCH", "language": "en" }
 ---
 
 <!--
@@ -21,35 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## RESUME-MATERIALIZED-VIEW
+## SWITCH
 
 ### Name
 
-RESUME MATERIALIZED VIEW
+SWITCH
 
 ### Description
 
-This statement is used to temporarily restore the scheduled scheduling of materialized views
+This statement is used to switch catalog.
 
-syntax:
+Syntax:
 
 ```sql
-RESUME MATERIALIZED VIEW JOB ON mvName=multipartIdentifier
+SWITCH catalog_name
 ```
 
 ### Example
 
-1. Timed scheduling for restoring materialized view mv1
+1. Switch to hive
 
-    ```sql
-    RESUME MATERIALIZED VIEW JOB ON mv1;
-    ```
+   ```sql
+    SWITCH hive;
+   ```
 
 ### Keywords
 
-    ```
-    RESUME, MATERIALIZED, VIEW
-    ```
+SWITCH, CATALOG
 
 ### Best Practice
 
