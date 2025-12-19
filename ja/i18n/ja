@@ -1,5 +1,5 @@
 ---
-{ "title": "SECONDS_ADD", "language": "en" }
+{ "title": "SECONDS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## seconds_add
+## seconds_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME SECONDS_ADD(DATETIME date, INT seconds)`
+`INT seconds_diff(DATETIME enddate, DATETIME startdate)`
 
-ADD a specified number of seconds from a datetime or date
-
-The parameter date can be DATETIME or DATE, and the return type is DATETIME.
+The difference between the start time and the end time is seconds
 
 ### example
 
 ```
-mysql> select seconds_add("2020-02-02 02:02:02", 1);
-+---------------------------------------+
-| seconds_add('2020-02-02 02:02:02', 1) |
-+---------------------------------------+
-| 2020-02-02 02:02:03                   |
-+---------------------------------------+
+mysql> select seconds_diff('2020-12-25 22:00:00','2020-12-25 21:00:00');
++------------------------------------------------------------+
+| seconds_diff('2020-12-25 22:00:00', '2020-12-25 21:00:00') |
++------------------------------------------------------------+
+|                                                       3600 |
++------------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    SECONDS_ADD
+    seconds_diff
     ```
