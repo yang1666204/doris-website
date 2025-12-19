@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-VIEW", "language": "en" }
+{ "title": "SHOW-WARM-UP-JOB", "language": "en" }
 ---
 
 <!--
@@ -21,35 +21,45 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-VIEW
+## Description
 
-### Name
+The commands are used to display warm-up jobs in Doris.
 
-SHOW VIEW
-
-### Description
-
-This statement is used to display all views based on the given table
-
-grammar:
+## Syntax
 
 ```sql
-  SHOW VIEW { FROM | IN } table [ FROM db ]
+   SHOW WARM UP JOB [ WHERE id = 'id' ] ;
 ```
 
-### Example
+## Parameters
 
-1. Show all views created based on table testTbl
+- id : id of the warm-up job.
+
+## Example
+
+1. View all warmup job
 
     ```sql
-    SHOW VIEW FROM testTbl;
+    SHOW WARM UP JOB;
     ```
 
-### Keywords
+2. View one warmup job with id = 13418
+
+```sql
+    SHOW WARM UP JOB WHERE id = 13418;
+```
+
+## Related Commands
+
+- [WARMUP COMPUTE GROUP](../Database-Administration-Statements/WARM-UP-COMPUTE-GROUP.md)
+
+## References
+
+- [MANAGING FILE CACHE](../../../compute-storage-decoupled/file-cache.md)
+
+## Keywords
 
     ```
-    SHOW, VIEW
+    SHOW, CACHE, HOTSPOT, COMPUTE GROUP 
     ```
-
-### Best Practice
 
