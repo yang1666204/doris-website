@@ -1,5 +1,5 @@
 ---
-{ "title": "DAYS_ADD", "language": "en" }
+{ "title": "DAYS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## days_add
+## days_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME DAYS_ADD(DATETIME date, INT days)`
+`INT days_diff(DATETIME enddate, DATETIME startdate)`
 
-From date time or date plus specified days
-
-The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
+The number of days between end date and start date, the date judgment is accurate to seconds and rounded down to the nearest integer. Different from the date_diff function, the datediff function judges the date with precision to the day."
 
 ### example
 
 ```
-mysql> select days_add(to_date("2020-02-02 02:02:02"), 1);
-+---------------------------------------------+
-| days_add(to_date('2020-02-02 02:02:02'), 1) |
-+---------------------------------------------+
-| 2020-02-03                                  |
-+---------------------------------------------+
+mysql> select days_diff('2020-12-25 22:00:00','2020-12-24 22:00:00');
++---------------------------------------------------------+
+| days_diff('2020-12-25 22:00:00', '2020-12-24 22:00:00') |
++---------------------------------------------------------+
+|                                                       1 |
++---------------------------------------------------------+
+
+mysql> select days_diff('2020-12-25 22:00:00','2020-12-24 22:00:01');
++---------------------------------------------------------+
+| days_diff('2020-12-24 22:00:01', '2020-12-25 22:00:00') |
++---------------------------------------------------------+
+|                                                       0 |
++---------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    DAYS_ADD
+    days_diff
     ```
