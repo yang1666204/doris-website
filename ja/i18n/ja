@@ -1,5 +1,5 @@
 ---
-{ "title": "RANDOM", "language": "en" }
+{ "title": "ROUND_BANKERS", "language": "en" }
 ---
 
 <!-- 
@@ -19,62 +19,75 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## random
+## round_bankers
 
 ### description
 
 #### Syntax
 
-`DOUBLE random()`
-Returns a random number between 0 and 1.
+`T round_bankers(T x[, d])`
+Rounds the argument `x` to `d` specified decimal places. `d` defaults to 0 if not specified. If d is negative, the left d digits of the decimal point are 0. If x or d is null, null is returned.
 
-`DOUBLE random(DOUBLE seed)`
-Returns a random number between 0 and 1, seeded with `seed`.
+If `d` is a column, and `x` has Decimal type, scale of result Decimal will always be same with input Decimal.
 
-`BIGINT random(BIGINT a, BIGINT b)`
-Returns a random number between a and b. a must be less than b.
-
-Alias: `rand`.
-
-Note: All parameters must be constants.
+- If the rounding number is halfway between two numbers, the function uses banker’s rounding.
+- In other cases, the function rounds numbers to the nearest integer.
 
 ### example
 
-```sql
-mysql> select random();
+```
+mysql> select round_bankers(0.4);
++--------------------+
+| round_bankers(0.4) |
++--------------------+
+|                  0 |
++--------------------+
+mysql> select round_bankers(-3.5);
 +---------------------+
-| random()            |
+| round_bankers(-3.5) |
 +---------------------+
-| 0.35446706030596947 |
+|                  -4 |
 +---------------------+
-
-mysql> select rand(1.2);
+mysql> select round_bankers(-3.4);
 +---------------------+
-| rand(1)             |
+| round_bankers(-3.4) |
 +---------------------+
-| 0.13387664401253274 |
+|                  -3 |
 +---------------------+
-1 row in set (0.13 sec)
-
-mysql> select rand(1.2);
-+---------------------+
-| rand(1)             |
-+---------------------+
-| 0.13387664401253274 |
-+---------------------+
-1 row in set (0.11 sec)
-
-mysql> select rand(-20, -10);
-+------------------+
-| random(-20, -10) |
-+------------------+
-|              -13 |
-+------------------+
-1 row in set (0.10 sec)
+mysql> select round_bankers(10.755, 2);
++--------------------------+
+| round_bankers(10.755, 2) |
++--------------------------+
+|                    10.76 |
++--------------------------+
+mysql> select round_bankers(1667.2725, 2);
++-----------------------------+
+| round_bankers(1667.2725, 2) |
++-----------------------------+
+|                     1667.27 |
++-----------------------------+
+mysql> select round_bankers(1667.2725, -2);
++------------------------------+
+| round_bankers(1667.2725, -2) |
++------------------------------+
+|                         1700 |
++------------------------------+
+mysql> SELECT number
+    -> , round_bankers(number * 2.5, number - 1) AS rb_decimal_column
+    -> , round_bankers(number * 2.5, 0) AS rb_decimal_literal
+    -> , round_bankers(cast(number * 2.5 AS DOUBLE), number - 1) AS rb_double_column
+    -> , round_bankers(cast(number * 2.5 AS DOUBLE), 0) AS rb_double_literal
+    -> FROM test_enhanced_round
+    -> WHERE rid = 1;
++--------+-------------------+--------------------+------------------+-------------------+
+| number | rb_decimal_column | rb_decimal_literal | rb_double_column | rb_double_literal |
++--------+-------------------+--------------------+------------------+-------------------+
+|      1 |               2.0 |                  2 |                2 |                 2 |
++--------+-------------------+--------------------+------------------+-------------------+
 ```
 
 ### keywords
 
  ```
- RANDOM, RAND
+ round_bankers
  ```
