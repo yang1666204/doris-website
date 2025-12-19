@@ -1,5 +1,5 @@
 ---
-{ "title": "IS_IPV6_STRING", "language": "en" }
+{ "title": "TO_IPV4_OR_DEFAULT", "language": "en" }
 ---
 
 <!-- 
@@ -19,55 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## IS_IPV6_STRING
+## TO_IPV4_OR_DEFAULT
 
-IS_IPV6_STRING
+TO_IPV4_OR_DEFAULT
 
 ### Description
 
 #### Syntax
 
-`BOOLEAN IS_IPV6_STRING(STRING ipv6_str)`
+`IPV4 TO_IPV4_OR_DEFAULT(STRING ipv4_str)`
 
-Receive an IPv6 address in the form of a string as a parameter, and return true if it is a properly formatted and valid IPv6 address; On the contrary, return false.
+Same as to_ipv4, but if the IPv4 address has an invalid format, it returns 0.0.0.0 (0 as IPv4).
 
 #### Notice
 
-`If the input parameter is NULL, return NULL, indicating invalid input`
+`If input is NULL, return 0.0.0.0 (0 as IPv4).`
 
 ### Example
 
 ```sql
-mysql> select is_ipv6_string(NULL);
-+----------------------+
-| is_ipv6_string(NULL) |
-+----------------------+
-|                 NULL |
-+----------------------+
+mysql> select to_ipv4_or_default('.');
++-------------------------+
+| to_ipv4_or_default('.') |
++-------------------------+
+| 0.0.0.0                 |
++-------------------------+
 
-mysql> CREATE TABLE `test_is_ipv6_string` (
-      `id` int,
-      `ip_v6` string
-    ) ENGINE=OLAP
-    DISTRIBUTED BY HASH(`id`) BUCKETS 4
-    PROPERTIES (
-    "replication_allocation" = "tag.location.default: 1"
-    );
-    
-mysql> insert into test_is_ipv6_string values(0, NULL), (1, '::'), (2, ''), (3, '2001:1b70:a1:610::b102:2'), (4, 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffffg');
-
-mysql> select id, is_ipv6_string(ip_v6) from test_is_ipv6_string order by id;
-+------+-----------------------+
-| id   | is_ipv6_string(ip_v6) |
-+------+-----------------------+
-|    0 |                  NULL |
-|    1 |                     1 |
-|    2 |                     0 |
-|    3 |                     1 |
-|    4 |                     0 |
-+------+-----------------------+
+mysql> select to_ipv4_or_default(NULL);
++--------------------------+
+| to_ipv4_or_default(NULL) |
++--------------------------+
+| 0.0.0.0                  |
++--------------------------+
 ```
 
 ### Keywords
 
-IS_IPV6_STRING, IP
+TO_IPV4_OR_DEFAULT, IP
