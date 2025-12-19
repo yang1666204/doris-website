@@ -1,8 +1,8 @@
 ---
-{ "title": "SHOW TABLET STORAGE FORMAT", "language": "en" }
+{ "title": "UNINSTALL-PLUGIN", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,43 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW TABLET STORAGE FORMAT
+## UNINSTALL-PLUGIN
 
-### description
+### Name
 
+UNINSTALL PLUGIN
+
+### Description
+
+This statement is used to uninstall a plugin.
+
+grammar:
+
+```sql
+UNINSTALL PLUGIN plugin_name;
+```
+
+plugin_name can be viewed with the `SHOW PLUGINS;` command.
+
+Only non-builtin plugins can be uninstalled.
+
+### Example
+
+1. Uninstall a plugin:
+
+    ```sql
+    UNINSTALL PLUGIN auditdemo;
     ```
-    This statement is used to display tablet storage foramt information (for administrators only)
-    Grammar:
-        SHOW TABLET STORAGE FORMAT [VERBOSE]
-    ```
 
-### example
-
-    ````
-    ```
-    MySQL [(none)]> show tablet storage format;
-    +-----------+---------+---------+
-    | BackendId | V1Count | V2Count |
-    +-----------+---------+---------+
-    | 10002     | 0       | 2867    |
-    +-----------+---------+---------+
-    1 row in set (0.003 sec)
-    MySQL [test_query_qa]> show tablet storage format verbose;
-    +-----------+----------+---------------+
-    | BackendId | TabletId | StorageFormat |
-    +-----------+----------+---------------+
-    | 10002     | 39227    | V2            |
-    | 10002     | 39221    | V2            |
-    | 10002     | 39215    | V2            |
-    | 10002     | 39199    | V2            |
-    +-----------+----------+---------------+
-    4 rows in set (0.034 sec)
-    ```
-    ````
-
-### keywords
+### Keywords
 
     ```
-    SHOW, TABLET, STORAGE, FORMAT
+    UNINSTALL, PLUGIN
     ```
+
+### Best Practice
 
