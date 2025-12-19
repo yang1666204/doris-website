@@ -1,5 +1,5 @@
 ---
-{ "title": "ATAN", "language": "en" }
+{ "title": "ATAN2", "language": "en" }
 ---
 
 <!-- 
@@ -19,34 +19,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## atan
+## atan2
 
 ### description
 
 #### Syntax
 
-`DOUBLE atan(DOUBLE x)`
-Returns the arctangent of `x`, where `x` is in radians.
+`DOUBLE atan2(DOUBLE y, DOUBLE x)`
+Returns the arc tangent of 'y' / 'x'.
 
 ### example
 
 ```
-mysql> select atan(0);
-+-----------+
-| atan(0.0) |
-+-----------+
-|         0 |
-+-----------+
-mysql> select atan(2);
-+--------------------+
-| atan(2.0)          |
-+--------------------+
-| 1.1071487177940904 |
-+--------------------+
+mysql> select atan2(0.1, 0.2);
++---------------------+
+| atan2(0.1, 0.2)     |
++---------------------+
+| 0.46364760900080609 |
++---------------------+
+
+mysql> select atan2(1.0, 1.0);
++---------------------+
+| atan2(1.0, 1.0)     |
++---------------------+
+| 0.78539816339744828 |
++---------------------+
 ```
 
 ### keywords
 
  ```
- ATAN
+ ATAN2
  ```
