@@ -1,5 +1,5 @@
 ---
-{ "title": "MULTI_SEARCH_ALL_POSITIONS", "language": "en" }
+{ "title": "SPACE", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## multi_search_all_positions
+## space
 
 ### Description
 
 #### Syntax
 
-`ARRAY<INT> multi_search_all_positions(VARCHAR haystack, ARRAY<VARCHAR> needles)`
+`VARCHAR space(Int num)`
 
-Returns an `ARRAY` where the `i`-th element is the position of the `i`-th element in `needles`(i.e. `needle`)'s **first** occurrence in the string `haystack`. Positions are counted from 1, with 0 meaning the element was not found. **Case-sensitive**.
+Returns a string consisting of num spaces.
 
 ### example
 
 ```
-mysql> select multi_search_all_positions('Hello, World!', ['hello', '!', 'world']);
-+----------------------------------------------------------------------+
-| multi_search_all_positions('Hello, World!', ['hello', '!', 'world']) |
-+----------------------------------------------------------------------+
-| [0,13,0]                                                             |
-+----------------------------------------------------------------------+
+mysql> select length(space(10));
++-------------------+
+| length(space(10)) |
++-------------------+
+|                10 |
++-------------------+
+1 row in set (0.01 sec)
 
-select multi_search_all_positions("Hello, World!", ['hello', '!', 'world', 'Hello', 'World']);
-+---------------------------------------------------------------------------------------------+
-| multi_search_all_positions('Hello, World!', ARRAY('hello', '!', 'world', 'Hello', 'World')) |
-+---------------------------------------------------------------------------------------------+
-| [0, 13, 0, 1, 8]                                                                            |
-+---------------------------------------------------------------------------------------------+
+mysql> select length(space(-10));
++--------------------+
+| length(space(-10)) |
++--------------------+
+|                  0 |
++--------------------+
+1 row in set (0.02 sec)
 ```
 
 ### keywords
 
     ```
-    MULTI_SEARCH,SEARCH,POSITIONS
+    space
     ```
