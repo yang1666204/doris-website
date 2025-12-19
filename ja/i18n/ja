@@ -1,5 +1,5 @@
 ---
-{ "title": "ASIN", "language": "en" }
+{ "title": "ATAN", "language": "en" }
 ---
 
 <!-- 
@@ -19,34 +19,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## asin
+## atan
 
 ### description
 
 #### Syntax
 
-`DOUBLE asin(DOUBLE x)`
-Returns the arc sine of `x`, or `nan` if `x` is not in the range `-1` to `1`.
+`DOUBLE atan(DOUBLE x)`
+Returns the arctangent of `x`, where `x` is in radians.
 
 ### example
 
 ```
-mysql> select asin(0.5);
-+---------------------+
-| asin(0.5)           |
-+---------------------+
-| 0.52359877559829893 |
-+---------------------+
-mysql> select asin(2);
+mysql> select atan(0);
 +-----------+
-| asin(2.0) |
+| atan(0.0) |
 +-----------+
-|       nan |
+|         0 |
 +-----------+
+mysql> select atan(2);
++--------------------+
+| atan(2.0)          |
++--------------------+
+| 1.1071487177940904 |
++--------------------+
 ```
 
 ### keywords
 
  ```
- ASIN
+ ATAN
  ```
