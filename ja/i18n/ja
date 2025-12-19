@@ -1,5 +1,5 @@
 ---
-{ "title": "Row Count Action", "language": "en" }
+{ "title": "Session Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Row Count Action
+# Session Action
 
 ## Request
 
-`GET /api/rowcount`
+`GET /rest/v1/session`
+
+`GET /rest/v1/session/all`
 
 ## Description
 
-Used to manually update the row count statistics of the specified table. While updating the statistics of the number of rows, the table and the number of rows corresponding to the rollup will also be returned in JSON format
+Session Action is used to obtain the current session information.
 
 ## Path parameters
 
@@ -37,17 +39,15 @@ None
 
 ## Query parameters
 
-- `db`
-
-  Specify database
-
-- `table`
-
-  Specify table
+None
 
 ## Request body
 
 None
+
+## Obtain the current session information
+
+`GET /rest/v1/session`
 
 ## Response
 
@@ -56,26 +56,62 @@ None
 	"msg": "success",
 	"code": 0,
 	"data": {
-		"tbl1": 10000
+		"column_names": ["Id", "User", "Host", "Cluster", "Db", "Command", "Time", "State", "Info"],
+		"rows": [{
+			"User": "root",
+			"Command": "Sleep",
+			"State": "",
+			"Cluster": "default_cluster",
+			"Host": "10.81.85.89:31465",
+			"Time": "230",
+			"Id": "0",
+			"Info": "",
+			"Db": "db1"
+		}]
 	},
-	"count": 0
+	"count": 2
 }
 ```
 
-## Examples
+## Obtain all FE session information
 
-1. Update and get the number of rows in the specified Table
+`GET /rest/v1/session/all`
 
-    ```
-    GET /api/rowcount?db=example_db&table=tbl1
-    
-    Response:
-    {
-    	"msg": "success",
-    	"code": 0,
-    	"data": {
-    		"tbl1": 10000
-    	},
-    	"count": 0
-    }
-    ```
+## Response
+
+```
+{
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"column_names": ["FE", "Id", "User", "Host", "Cluster", "Db", "Command", "Time", "State", "Info"],
+		"rows": [{
+		    "FE": "10.14.170.23",
+			"User": "root",
+			"Command": "Sleep",
+			"State": "",
+			"Cluster": "default_cluster",
+			"Host": "10.81.85.89:31465",
+			"Time": "230",
+			"Id": "0",
+			"Info": "",
+			"Db": "db1"
+		},
+		{
+            "FE": "10.14.170.24",
+			"User": "root",
+			"Command": "Sleep",
+			"State": "",
+			"Cluster": "default_cluster",
+			"Host": "10.81.85.88:61465",
+			"Time": "460",
+			"Id": "1",
+			"Info": "",
+			"Db": "db1"
+		}]
+	},
+	"count": 2
+}
+```
+
+The returned result is the same as `System Action`. Is a description of the table.
