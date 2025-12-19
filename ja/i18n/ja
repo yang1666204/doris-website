@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-REPLICA-DISTRIBUTION", "language": "en" }
+{ "title": "SHOW-REPLICA-STATUS", "language": "en" }
 ---
 
 <!--
@@ -21,44 +21,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-REPLICA-DISTRIBUTION
+## SHOW-REPLICA-STATUS
 
 ### Name
 
-SHOW REPLICA DISTRIBUTION
+SHOW REPLICA STATUS
 
 ### Description
 
-This statement is used to display the distribution status of a table or partition replica
+This statement is used to display replica status information for a table or partition.
 
 grammar:
 
 ```sql
-SHOW REPLICA DISTRIBUTION FROM [db_name.]tbl_name [PARTITION (p1, ...)];
+SHOW REPLICA STATUS FROM [db_name.]tbl_name [PARTITION (p1, ...)]
+[where_clause];
 ```
 
-illustrate:
+illustrate
 
-1. The Graph column in the result shows the replica distribution ratio in the form of a graph
+1. where_clause:
+   WHERE STATUS [!]= "replica_status"
+
+2. replica_status:
+   OK: replica is healthy
+   DEAD: The Backend where the replica is located is unavailable
+   VERSION_ERROR: replica data version is missing
+   SCHEMA_ERROR: The schema hash of the replica is incorrect
+   MISSING: replica does not exist
 
 ### Example
 
-1. View the replica distribution of the table
+1. View the status of all replicas of the table
 
-    ```sql
-    SHOW REPLICA DISTRIBUTION FROM tbl1;
-    ```
+   ```sql
+   SHOW REPLICA STATUS FROM db1.tbl1;
+   ```
 
-2. View the replica distribution of the partitions of the table
+2. View a copy of a table with a partition status of VERSION_ERROR
 
-      ```sql
-      SHOW REPLICA DISTRIBUTION FROM db1.tbl1 PARTITION(p1, p2);
-      ```
+   ```sql
+   SHOW REPLICA STATUS FROM tbl1 PARTITION (p1, p2)
+   WHERE STATUS = "VERSION_ERROR";
+   ```
+
+3. View all unhealthy replicas of the table
+
+   ```sql
+   SHOW REPLICA STATUS FROM tbl1
+   WHERE STATUS != "OK";
+   ```
 
 ### Keywords
 
     ```
-    ADMIN, SHOW, REPLICA, DISTRIBUTION
+    SHOW, REPLICA, STATUS
     ```
 
 ### Best Practice
