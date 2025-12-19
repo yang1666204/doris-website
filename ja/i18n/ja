@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.2", "language": "en" }
+{ "title": "Release 2.0.3", "language": "en" }
 ---
 
 <!--
@@ -21,134 +21,224 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Release 2.0.2
+Thanks to our community users and developers, about 1000 improvements and bug fixes have been made in Doris 2.0.3 version, including optimizer statistics, inverted index, complex datatypes, data lake, replica management.
 
-Thanks to our community users and developers, 489 improvements and bug fixes have been made in Doris 2.0.2.
+## 1 Behavior change
 
-## Behavior Changes
+- The output format of the complex data type array/map/struct has been changed to be consistent to the input format and JSON specification. The main changes from the previous version are that DATE/DATETIME and STRING/VARCHAR are enclosed in double quotes and null values inside ARRAY/MAP are displayed as `null` instead of `NULL`.
+  - https://github.com/apache/doris/pull/25946
+- SHOW_VIEW permission is supported. Users with SELECT or LOAD permission will no longer be able to execute the 'SHOW CREATE VIEW' statement and must be granted the SHOW_VIEW permission separately.
+  - https://github.com/apache/doris/pull/25370
 
-- [Remove json -> operator convert to json_extract #24679](https://github.com/apache/doris/pull/24679)
+## 2 New features
 
-  Remove json '->' operator since it is conflicted with lambda function syntax. It's a syntax sugar for function json_extract and can be replaced with the former.
-- [Start the script to set metadata_failure_recovery #24308](https://github.com/apache/doris/pull/24308)
+### 2.1 Support collecting statistics for optimizer automatically
 
-  Move metadata_failure_recovery from fe.conf to start_fe.sh argument to prevent being used unexpectedly.
-- [Change ordinary type null value is \N,complex type null value is null #24207](https://github.com/apache/doris/pull/24207)
-- [Optimize priority_ network matching logic for be #23795](https://github.com/apache/doris/pull/23795)
-- [Fix cancel load failed because Job could not be cancelled… #17730](https://github.com/apache/doris/pull/17730)
+Collecting statistics helps the optimizer understand the data distribution characteristics and choose a better plan to greatly improve query performance. It is officially supported starting from version 2.0.3 and is enabled all day by default.
 
-  Allow cancel a retrying load job.
+### 2.2 Support complex datatypes for more datalake source
 
-## Improvements
+- Support complex datatypes for JAVA UDF, JDBC and Hudi MOR
+  - https://github.com/apache/doris/pull/24810
+  - https://github.com/apache/doris/pull/26236
+- Support complex datatypes for Paimon
+  - https://github.com/apache/doris/pull/25364
+- Suport Paimon version 0.5
+  - https://github.com/apache/doris/pull/24985
 
-### Easier to use
+### 2.3 Add more builtin functions
 
-- [Support custom lib dir to save custom libs #23887](https://github.com/apache/doris/pull/23887)
+- Support the BitmapAgg function in new optimizer
+  - https://github.com/apache/doris/pull/25508
+- Supports SHA series digest functions
+  - https://github.com/apache/doris/pull/24342
+- Support the BITMAP datatype in the aggregate functions min_by and max_by
+  - https://github.com/apache/doris/pull/25430
+- Add milliseconds/microseconds_add/sub/diff functions
+  - https://github.com/apache/doris/pull/24114
+- Add some json functions: json_insert, json_replace, json_set
+  - https://github.com/apache/doris/pull/24384
 
-  Add a custom_lib dir to allow users place custom lib files and custom_lib will not be replaced.
-- [Optimize priority_ network matching logic #23784](https://github.com/apache/doris/pull/23784)
+## 3 Improvement and optimizations
 
-  Optimize priority_network logic to avoid error when this config is wrong or not configured.
-- [Row policy support role #23022](https://github.com/apache/doris/pull/23022)
+### 3.1 Performance optimizations
 
-  Support role based auth for row policy.
+- When the inverted index MATCH WHERE condition with a high filter rate is combined with the common WHERE condition with a low filter rate, the I/O of the index column is greatly reduced.
+- Optimize the efficiency of random data access after the where filter.
+- Optimizes the performance of the old get_json_xx function on JSON data types by 2~4x.
+- Supports the configuration to reduce the priority of the data read thread, ensuring the CPU resources for real-time writing.
+- Adds `uuid-numeric` function that returns largeint, which is 20 times faster than `uuid` function that returns string.
+- Optimized the performance of case when by 3x.
+- Cut out unnecessary predicate calculations in storage engine execution.
+- Accelerate count performance by pushing down count operator to storage tier.
+- Optimizes the computation performance of the nullable type in and or expressions.
+- Supports rewriting the limit operator before `join` in more scenarios to improve query performance.
+- Eliminate useless `order by` operators from inline view to improve query performance.
+- Optimizes the accuracy of cardinality estimates and cost models in some cases.
+- Optimized jdbc catalog predicate pushdown logic.
+- Optimized the read efficiency of the file cache when it's enable for the first time.
+- Optimizes the hive table sql cache policy and uses the partition update time stored in HMS to improve the cache hit ratio.
+- Optimize mow compaction efficiency.
+- Optimized thread allocation logic for external table query to reduce memory usage
+- Optimize memory usage for column reader.
 
-### New optimizer Nereids statistics collection improvement
+### 3.2 Distributed replica management improvements
 
-- [Disable file cache while running analysis tasks. #23663](https://github.com/apache/doris/pull/23663)
-- [Show column stats even when error occurred. #23703](https://github.com/apache/doris/pull/23703)
-- [Support basic jdbc external table stats collection. #23965](https://github.com/apache/doris/pull/23965)
-- [Skip unknown col stats check on __internal_scheam and information_schema #24625](https://github.com/apache/doris/pull/24625)
+Distributed replica management improvements include skipping partition deletion, colocate group deletion, balance failure due to continuous write, and hot and cold seperation table balance.
 
-### Better support for JDBC, HDFS, Hive, MySQL, Max Compute, Multi-Catalog
+### 3.3 Security enhancement
 
-- [Support hadoop viewfs. #24168](https://github.com/apache/doris/pull/24168)
-- [Avoid calling checksum when replaying creating jdbc catalog and fix ranger issue #22369](https://github.com/apache/doris/pull/22369)
-- [Optimize the JDBC Catalog connection error message #23868](https://github.com/apache/doris/pull/23868)
+- The audit log plug-in uses a token instead of a plaintext password to enhance security
+  - https://github.com/apache/doris/pull/26278
+- log4j configures security enhancement
+  - https://github.com/apache/doris/pull/24861
+- Sensitive user information is not displayed in logs
+  - https://github.com/apache/doris/pull/26912
 
-  Improve property check and error message for JDBC catalog
-- [Fix mc decimal type parse, fix wrong obj location #24242](https://github.com/apache/doris/pull/24242)
+## 4 Bugfix and stability
 
-  Fix some issues for Max Compute catalog
-- [Support sql cache for hms catalog #23391](https://github.com/apache/doris/pull/23391)
+### 4.1 Complex datatypes
 
-  SQL cache for Hive catalog
-- [Merge hms partition events. #22869](https://github.com/apache/doris/pull/22869)
+- Fix issues that fixed-length CHAR(n) was not truncated correctly in map/struct.
+  - https://github.com/apache/doris/pull/25725
+- Fix write failure for struct datatype nested for map/array
+  - https://github.com/apache/doris/pull/26973
+- Fix the issue that count distinct did not support array/map/struct
+  - https://github.com/apache/doris/pull/25483
+- Fix be crash in updating to 2.0.3 after the delete complex type appeared in query
+  - https://github.com/apache/doris/pull/26006
+- Fix be crash when JSON datatype is in WHERE clause.
+  - https://github.com/apache/doris/pull/27325
+- Fix be crash when ARRAY datatype is in OUTER JOIN clause.
+  - https://github.com/apache/doris/pull/25669
+- Fix reading incorrect result for DECIMAL datatype in ORC format.
+  - https://github.com/apache/doris/pull/26548
+  - https://github.com/apache/doris/pull/25977
+  - https://github.com/apache/doris/pull/26633
 
-  Improve performance for Hive metadata sync
-- [Add metadata_name_ids for quickly get catlogs,db,table and add profiling table in order to Compatible with mysql #22702](https://github.com/apache/doris/pull/22702)
+### 4.2 Inverted index
 
-### Performance for inverted index query
+- Fix incorrect result for OR NOT combination in WHERE clause were incorrect when disable inverted index query.
+  - https://github.com/apache/doris/pull/26327
+- Fix be crash when write a empty with inverted index
+  - https://github.com/apache/doris/pull/25984
+- Fix be crash in index compaction when the output of compaction is empty.
+  - https://github.com/apache/doris/pull/25486
+- Fixed the problem of adding an inverted index to be crashed when no data is written to the newly added column.
+- Fix be crash when BUILD INDEX after ADD COLUMN without new data written.
+  - https://github.com/apache/doris/pull/27276
+- Fix missing and leak problem of hardlink for inverted index file.
+  - https://github.com/apache/doris/pull/26903
+- Fix index file corrupt when disk is full temporarilly
+  - https://github.com/apache/doris/pull/28191
+- Fix incorrect result due to optimization for skip reading index column
+  - https://github.com/apache/doris/pull/28104
 
-- [Add bkd index query cache to improve perf #23952](https://github.com/apache/doris/pull/23952)
-- [Improve performance for count on index other than match #24678](https://github.com/apache/doris/pull/24678)
-- [Improve match performance without index #24751](https://github.com/apache/doris/pull/24751)
-- [Optimize multiple terms conjunction query #23871](https://github.com/apache/doris/pull/23871)
-  Improve performance of MATCH_ALL
-- [Optimize unnecessary conversions #24389](https://github.com/apache/doris/pull/24389)
-  Improve performance of MATCH
+### 4.3 Materialized View
 
-### Improve Array functions
+- Fix the problem of BE crash caused by repeated expressions in the group by statement
+- Fix be crash when there are duplicate expressions in `group by` statements.
+  - https://github.com/apache/doris/pull/27523
+- Disables the float/double type in the `group by` clause when a view is created.
+  - https://github.com/apache/doris/pull/25823
+- Improve the function of select query matching materialized view
+  - https://github.com/apache/doris/pull/24691
+- Fix an issue that materialized views could not be matched when a table alias was used
+  - https://github.com/apache/doris/pull/25321
+- Fix the problem using percentile_approx when creating materialized views
+  - https://github.com/apache/doris/pull/26528
 
-- [[Fix old optimizer with some array literal functions #23630](https://github.com/apache/doris/pull/23630)
-- [Improve array union support multi params #24327](https://github.com/apache/doris/pull/24327)
-- [Improve explode func with array nested complex type #24455](https://github.com/apache/doris/pull/24455)
+### 4.4 Table sample
 
-## Important Bug fixes
+- Fix the problem that table sample query can not work on table with partitions.
+  - https://github.com/apache/doris/pull/25912
+- Fix the problem that table sample query can not work when specify tablet.
+  - https://github.com/apache/doris/pull/25378
 
-- [The parameter positions of timestamp diff function to sql are reversed #23601](https://github.com/apache/doris/pull/23601)
-- [Fix old optimizer with some array literal functions #23630](https://github.com/apache/doris/pull/23630)
-- [Fix query cache returns wrong result after deleting partitions. #23555](https://github.com/apache/doris/pull/23555)
-- [Fix potential data loss when clone task's dst tablet is cooldown replica #17644](https://github.com/apache/doris/pull/17644)
-- [Fix array map batch append data with right next_array_item_rowid #23779](https://github.com/apache/doris/pull/23779)
-- [Fix or to in rule #23940](https://github.com/apache/doris/pull/23940)
-- [Fix 'char' function's toSql implementation is wrong #23860](https://github.com/apache/doris/pull/23860)
-- [Record wrong best plan properties #23973](https://github.com/apache/doris/pull/23973)
-- [Make TVF's distribution spec always be RANDOM #24020](https://github.com/apache/doris/pull/24020)
-- [External scan use STORAGE_ANY instead of ANY as distibution #24039](https://github.com/apache/doris/pull/24039)
-- [Runtimefilter target is not SlotReference #23958](https://github.com/apache/doris/pull/23958)
-- [mv in select materialized_view should disable show table #24104](https://github.com/apache/doris/pull/24104)
-- [Fail over to remote file reader if local cache failed #24097](https://github.com/apache/doris/pull/24097)
-- [Fix revoke role operation cause fe down #23852](https://github.com/apache/doris/pull/23852)
-- [Handle status code correctly and add a new error code `ENTRY_NOT_FOUND` #24139](https://github.com/apache/doris/pull/24139)
-- [Fix leaky abstraction and shield the status code `END_OF_FILE` from upper layers #24165](https://github.com/apache/doris/pull/24165)
-- [Fix bug that Read garbled files caused be crash. #24164](https://github.com/apache/doris/pull/24164)
-- [Fix be core when user sepcified empty `column_separator` using hdfs tvf #24369](https://github.com/apache/doris/pull/24369)
-- [Fix need to restart BE after replacing the jar package in java-udf #24372](https://github.com/apache/doris/pull/24372)
-- [Need to call 'set_version' in nested functions #24381](https://github.com/apache/doris/pull/24381)
-- [windown_funnel compatibility issue with multi backends #24385](https://github.com/apache/doris/pull/24385)
-- [correlated anti join shouldn't be translated to null aware anti join #24290](https://github.com/apache/doris/pull/24290)
-- [Change ordinary type null value is \N,complex type null value is null #24207](https://github.com/apache/doris/pull/24207)
-- [Fix analyze failed when there are thousands of partitions. #24521](https://github.com/apache/doris/pull/24521)
-- [Do not use enum as the data type for JavaUdfDataType. #24460](https://github.com/apache/doris/pull/24460)
-- [Fix multi window projection issue temporarily #24568](https://github.com/apache/doris/pull/24568)
-- [Make metadata compatible with 2.0.3 #24610](https://github.com/apache/doris/pull/24610)
-- [Select outfile column order is wrong #24595](https://github.com/apache/doris/pull/24595)
-- [Incorrect result of semi/anti mark join #24616](https://github.com/apache/doris/pull/24616)
-- [Fix broker read issue #24635](https://github.com/apache/doris/pull/24635)
-- [Skip unknown col stats check on __internal_scheam and information_schema #24625](https://github.com/apache/doris/pull/24625)
-- [Fixed bug when parsing multi-character delimiters. #24572](https://github.com/apache/doris/pull/24572)
-- [Fix timezone parse when there is no tzfile #24578](https://github.com/apache/doris/pull/24578)
-- [We need to issue an error when starting FE without setting the Java home environment #23943](https://github.com/apache/doris/pull/23943)
-- [Enable_unique_key_partial_update should be forwarded to master #24697](https://github.com/apache/doris/pull/24697)
-- [Fix paimon file catalog meta issue and replication num analysis issue #24681](https://github.com/apache/doris/pull/24681)
-- [Add more log for ingest_binlog && Fix ingest_binlog not rewrite rowset_meta tablet_uid #24617](https://github.com/apache/doris/pull/24617)
-- [Do not abort when a disk is broken #24692](https://github.com/apache/doris/pull/24692)
-- [colocate join could not work well on full outer join #24700](https://github.com/apache/doris/pull/24700)
-- [Optimize unnecessary conversions #24389](https://github.com/apache/doris/pull/24389)
-- [Optimize the reading efficiency of nullable (string) columns. #24698](https://github.com/apache/doris/pull/24698)
-- [Fix segment cache core when output rowset is nullptr #24778](https://github.com/apache/doris/pull/24778)
-- [Fix duplicate key in schema change #24782](https://github.com/apache/doris/pull/24782)
-- [Make metadata compatible for future version after 2.0.2 #24800](https://github.com/apache/doris/pull/24800)
-- [Fix map/array deserialize string with quote pair #24808](https://github.com/apache/doris/pull/24808)
-- [Failed on arm platform, with clang compiler and pch on, close #24633 #24636](https://github.com/apache/doris/pull/24636)
-- [Table column order is changed if add a column and do truncate #24981](https://github.com/apache/doris/pull/24981)
-- [Make parser mode coarse grained by default #24949](https://github.com/apache/doris/pull/24949)
+### 4.5 Unique with merge on write
 
-See the complete list of improvements and bug fixes on [github](https://github.com/apache/doris/issues?q=label%3Adev%2F2.0.2-merged+is%3Aclosed) .
+- Fix null pointer exception in conditional update based on primary key
+  - https://github.com/apache/doris/pull/26881
+- Fix field name capitalization issues in partial update
+  - https://github.com/apache/doris/pull/27223
+- Fix duplicate keys occur in mow during schema change repairement.
+  - https://github.com/apache/doris/pull/25705
 
-## Big Thanks
+### 4.6 Load and compaction
 
-Thanks all who contribute to this release:
+- Fix unkown slot descriptor error in routineload for running multiple tables
+  - https://github.com/apache/doris/pull/25762
+- Fix be crash due to concurrent memory access when caculating memory
+  - https://github.com/apache/doris/pull/27101
+- Fix be crash on duplicate cancel for load.
+  - https://github.com/apache/doris/pull/27111
+- Fix broker connection error during broker load
+  - https://github.com/apache/doris/pull/26050
+- Fix incorrect result delete predicates in concurrent case of compation and scan.
+  - https://github.com/apache/doris/pull/24638
+- Fix the problem tha compaction task would print too many stacktrace logs
+  - https://github.com/apache/doris/pull/25597
 
-[@adonis0147](https://github.com/adonis0147) [@airborne12](https://github.com/airborne12) [@amorynan](https://github.com/amorynan) [@AshinGau](https://github.com/AshinGau) [@BePPPower](https://github.com/BePPPower) [@BiteTheDDDDt](https://github.com/BiteTheDDDDt) [@bobhan1](https://github.com/bobhan1) [@ByteYue](https://github.com/ByteYue) [@caiconghui](https://github.com/caiconghui) [@CalvinKirs](https://github.com/CalvinKirs) [@cambyzju](https://github.com/cambyzju) [@ChengDaqi2023](https://github.com/ChengDaqi2023) [@ChinaYiGuan](https://github.com/ChinaYiGuan) [@CodeCooker17](https://github.com/CodeCooker17) [@csun5285](https://github.com/csun5285) [@dataroaring](https://github.com/dataroaring) [@deadlinefen](https://github.com/deadlinefen) [@DongLiang-0](https://github.com/DongLiang-0) [@Doris-Extras](https://github.com/Doris-Extras) [@dutyu](https://github.com/dutyu) [@eldenmoon](https://github.com/eldenmoon) [@englefly](https://github.com/englefly) [@freemandealer](https://github.com/freemandealer) [@Gabriel39](https://github.com/Gabriel39) [@gnehil](https://github.com/gnehil) [@GoGoWen](https://github.com/GoGoWen) [@gohalo](https://github.com/gohalo) [@HappenLee](https://github.com/HappenLee) [@hello-stephen](https://github.com/hello-stephen) [@HHoflittlefish777](https://github.com/HHoflittlefish777) [@hubgeter](https://github.com/hubgeter) [@hust-hhb](https://github.com/hust-hhb) [@ixzc](https://github.com/ixzc) [@JackDrogon](https://github.com/JackDrogon) [@jacktengg](https://github.com/jacktengg) [@jackwener](https://github.com/jackwener) [@Jibing-Li](https://github.com/Jibing-Li) [@JNSimba](https://github.com/JNSimba) [@kaijchen](https://github.com/kaijchen) [@kaka11chen](https://github.com/kaka11chen) [@Kikyou1997](https://github.com/Kikyou1997) [@Lchangliang](https://github.com/Lchangliang) [@LemonLiTree](https://github.com/LemonLiTree) [@liaoxin01](https://github.com/liaoxin01) [@LiBinfeng-01](https://github.com/LiBinfeng-01) [@liugddx](https://github.com/liugddx) [@luwei16](https://github.com/luwei16) [@mongo360](https://github.com/mongo360) [@morningman](https://github.com/morningman) [@morrySnow](https://github.com/morrySnow) @mrhhsg @Mryange @mymeiyi @neuyilan @pingchunzhang @platoneko @qidaye @realize096 @RYH61 @shuke987 @sohardforaname @starocean999 @SWJTU-ZhangLei @TangSiyang2001 @Tech-Circle-48 @w41ter @wangbo @wsjz @wuwenchi @wyx123654 @xiaokang @XieJiann @xinyiZzz @XuJianxu @xutaoustc @xy720 @xyfsjq @xzj7019 @yiguolei @yujun777 @Yukang-Lian @Yulei-Yang @zclllyybb @zddr @zhangguoqiang666 @zhangstar333 @ZhangYu0123 @zhannngchen @zxealous @zy-kkk @zzzxl1993 @zzzzzzzs
+### 4.7 Data Lake compatibility
+
+- Solve the problem that the iceberg table contains special characters that cause query failure
+  - https://github.com/apache/doris/pull/27108
+- Fix compatibility issues of different hive metastore versions
+  - https://github.com/apache/doris/pull/27327
+- Fix an error reading max compute partition table
+  - https://github.com/apache/doris/pull/24911
+- Fix the issue that backup to object storage failed
+  - https://github.com/apache/doris/pull/25496
+  - https://github.com/apache/doris/pull/25803
+
+### 4.8 JDBC external table compatibility
+
+- Fix Oracle date type format error in jdbc catalog
+  - https://github.com/apache/doris/pull/25487
+- Fix MySQL 0000-00-00 date exception in jdbc catalog
+  - https://github.com/apache/doris/pull/26569
+- Fix an exception in reading data from Mariadb where the default value of the time type is current_timestamp
+  - https://github.com/apache/doris/pull/25016
+- Fix be crash when processing BITMAP datatype in jdbc catalog
+  - https://github.com/apache/doris/pull/25034
+  - https://github.com/apache/doris/pull/26933
+
+### 4.9 SQL Planner and Optimizer
+
+- Fix partition prune error in some scenes
+  - https://github.com/apache/doris/pull/27047
+  - https://github.com/apache/doris/pull/26873
+  - https://github.com/apache/doris/pull/25769
+  - https://github.com/apache/doris/pull/27636
+
+- Fix incorrect sub-query processing in some scenarios
+  - https://github.com/apache/doris/pull/26034
+  - https://github.com/apache/doris/pull/25492
+  - https://github.com/apache/doris/pull/25955
+  - https://github.com/apache/doris/pull/27177
+
+- Fix some semantic parsing errors
+  - https://github.com/apache/doris/pull/24928
+  - https://github.com/apache/doris/pull/25627
+
+- Fix data loss during right outer/anti join
+  - https://github.com/apache/doris/pull/26529
+
+- Fix incorrect pushing down of predicate pass aggregation operators.
+  - https://github.com/apache/doris/pull/25525
+
+- Fix incorrect result header in some cases
+  - https://github.com/apache/doris/pull/25372
+
+- Fix incorrect plan when the nullsafeEquals expression (<=>) is used as the join condition
+  - https://github.com/apache/doris/pull/27127
+
+- Fix correct column prune in set operation operator.
+  - https://github.com/apache/doris/pull/26884
+
+### Others
+
+- Fix BE crash when the order of columns in a table is changed and then upgraded to 2.0.3.
+  - https://github.com/apache/doris/pull/28205
+
+See the complete list of improvements and bug fixes on [github dev/2.0.3-merged](https://github.com/apache/doris/issues?q=label%3Adev%2F2.0.3-merged+is%3Aclosed) .
