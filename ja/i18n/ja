@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW DATA SKEW", "language": "en" }
+{ "title": "SHOW-DATA-TYPES", "language": "en" }
 ---
 
 <!-- 
@@ -21,39 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-DATA-SKEW
+## SHOW-DATA-TYPES
 
 ### Name
 
-SHOW DATA SKEW
+SHOW DATA TYPES
 
 ### Description
 
     ```
-    This statement is used to view the data skew of a table or a partition.
+    This statement is used to view all supported data types.
     
     grammar:
-    
-        SHOW DATA SKEW FROM [db_name.]tbl_name [PARTITION (p1)];
-    
-    Description:
-    
-    	1. Only one partition must be specified. For non-partitioned tables, the partition name is the same as the table name.
-    	2. The result will show row count and data volume of each bucket under the specified partition, and the proportion of the data volume of each bucket in the total data volume.
+        ```sql
+        SHOW DATA TYPES;
+        ```
     ```
 
 ### Example
 
     ```
-    1. View the data skew of the table
+    1. Display all supported data types
     
-        SHOW DATA SKEW FROM db1.test PARTITION(p1);
+        SHOW DATA TYPES;
     ```
 
 ### Keywords
 
     ```
-    SHOW, DATA, SKEW
+    SHOW,DATA,TYPES
     ```
 
 ### Best Practice
