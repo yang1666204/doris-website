@@ -1,5 +1,5 @@
 ---
-{ "title": "Get Small File Action", "language": "en" }
+{ "title": "HA Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Get Small File
+# HA Action
 
 ## Request
 
-`GET /api/get_small_file`
+```
+GET /rest/v1/ha
+```
 
 ## Description
 
-Through the file id, download the file in the small file manager.
+HA Action is used to obtain the high availability group information of the FE cluster.
 
 ## Path parameters
 
@@ -37,13 +39,7 @@ None
 
 ## Query parameters
 
-- `token`
-
-  The token of the cluster. It can be viewed in the file `doris-meta/image/VERSION`.
-
-- `file_id`
-
-  The file id displayed in the file manager. The file id can be viewed with the `SHOW FILE` command.
+None
 
 ## Request body
 
@@ -52,48 +48,44 @@ None
 ## Response
 
 ```
-< HTTP/1.1 200
-< Vary: Origin
-< Vary: Access-Control-Request-Method
-< Vary: Access-Control-Request-Headers
-< Content-Disposition: attachment;fileName=ca.pem
-< Content-Type: application/json;charset=UTF-8
-< Transfer-Encoding: chunked
-
-... File Content ...
-```
-
-If there is an error, it returns:
-
-```
 {
-	"msg": "File not found or is not content",
-	"code": 1,
-	"data": null,
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"Observernodes": [],
+		"CurrentJournalId": [{
+			"Value": 433648,
+			"Name": "FrontendRole"
+		}],
+		"Electablenodes": [{
+			"Value": "host1",
+			"Name": "host1"
+		}],
+		"allowedFrontends": [{
+			"Value": "name: 192.168.1.1_9213_1597652404352, role: FOLLOWER, 192.168.1.1:9213",
+			"Name": "192.168.1.1_9213_1597652404352"
+		}],
+		"removedFrontends": [],
+		"CanRead": [{
+			"Value": true,
+			"Name": "Status"
+		}],
+		"databaseNames": [{
+			"Value": "433436 ",
+			"Name": "DatabaseNames"
+		}],
+		"FrontendRole": [{
+			"Value": "MASTER",
+			"Name": "FrontendRole"
+		}],
+		"CheckpointInfo": [{
+			"Value": 433435,
+			"Name": "Version"
+		}, {
+			"Value": "2020-09-03T02:07:37.000+0000",
+			"Name": "lastCheckPointTime"
+		}]
+	},
 	"count": 0
 }
 ```
-
-## Examples
-
-1. Download the file with the specified id
-
-    ```
-    GET /api/get_small_file?token=98e8c0a6-3a41-48b8-a72b-0432e42a7fe5&file_id=11002
-    
-    Response:
-    
-    < HTTP/1.1 200
-    < Vary: Origin
-    < Vary: Access-Control-Request-Method
-    < Vary: Access-Control-Request-Headers
-    < Content-Disposition: attachment;fileName=ca.pem
-    < Content-Type: application/json;charset=UTF-8
-    < Transfer-Encoding: chunked
-    
-    ... File Content ...
-    ```
-
-
-
-
