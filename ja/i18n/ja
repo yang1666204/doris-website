@@ -1,5 +1,5 @@
 ---
-{ "title": "REFRESH-LDAP", "language": "en" }
+{ "title": "REFRESH-MATERIALIZED-VIEW", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## REFRESH-LDAP
+## REFRESH-MATERIALIZED-VIEW
 
 ### Name
 
-REFRESH-LDAP
+REFRESH MATERIALIZED VIEW
 
 ### Description
 
-This statement is used to refresh the cached information of LDAP in Doris. The default timeout for LDAP information cache in Doris is 12 hours, which can be viewed by `SHOW FRONTEND CONFIG LIKE 'ldap_ user_cache_timeout_s';`.
+This statement is used to manually refresh the specified asynchronous materialized view
 
 syntax:
 
 ```sql
-REFRESH LDAP ALL;
-REFRESH LDAP [for user_name];
+REFRESH MATERIALIZED VIEW mvName=multipartIdentifier (partitionSpec | COMPLETE | AUTO)
 ```
+
+Explanation:
+
+Asynchronous refresh of data for a materialized view
+
+- AUTO: The calculation will determine which partitions of the materialized view are not synchronized with the base table. (Currently, if the base table is an external table, it is considered to be always synchronized with the materialized view. Therefore, if the base table is an external table, it is necessary to specify `COMPLETE` or designate the partitions to be refreshed), and then proceed to refresh the corresponding partitions accordingly.
+- COMPLETE: It will forcibly refresh all partitions of the materialized view without checking whether the partitions are synchronized with the base table.
+- partitionSpec: It will forcibly refresh the specified partitions without checking whether the partitions are synchronized with the base table.
 
 ### Example
 
-1. refresh all LDAP user cache information
+1. Refresh materialized view mv1 (automatically calculate the partition to be refreshed)
 
     ```sql
-    REFRESH LDAP ALL;
+    REFRESH MATERIALIZED VIEW mv1 AUTO;
     ```
 
-2. refresh the cache information for the current LDAP user
+2. Refresh partition named p_19950801_19950901和p_19950901_19951001
 
     ```sql
-    REFRESH LDAP;
+    REFRESH MATERIALIZED VIEW mv1 partitions(p_19950801_19950901,p_19950901_19951001);
     ```
 
-3. refresh the cache information of the specified LDAP user user1
+3. Force refresh of all materialized view data
 
     ```sql
-    REFRESH LDAP for user1;
+    REFRESH MATERIALIZED VIEW mv1 complete;
     ```
 
 ### Keywords
 
-REFRESH, LDAP
+    ```
+    REFRESH, MATERIALIZED, VIEW
+    ```
 
 ### Best Practice
+
