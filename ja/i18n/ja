@@ -1,5 +1,5 @@
 ---
-{ "title": "Time Zone", "language": "en" }
+{ "title": "Upgrading Cluster", "language": "en" }
 ---
 
 <!-- 
@@ -21,226 +21,224 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Time Zone
+Doris provides the capability for rolling upgrades, enabling step-by-step upgrades of FE and BE nodes, minimizing downtime, and ensuring the system remains operational during the upgrade process.
 
-Doris supports custom time zone settings
+## Version Compatibility
 
-## Basic concepts
+Doris versioning consists of three components: the first digit represents a major milestone version, the second digit indicates a feature version, and the third digit corresponds to a bug fix. New features are not introduced in bug fix versions. For example, in Doris version 2.1.3, "2" indicates the second milestone version, "1" represents the feature version under this milestone, and "3" denotes the third bug fix for this feature version.
 
-The following two time zone related parameters exist within Doris:
+During version upgrades, the following rules apply:
 
-- `system_time_zone` : When the server starts up, it will be set automatically according to the time zone set by the machine, and cannot be modified after it is set.
-- `time_zone` : The current time zone of the cluster. This variable will be set to the same as `system_time_zone` when the cluster starts and will not be changed again unless manually changed by the user.
+- **Three-digit versions:** Versions with the same first two digits can be directly upgraded across three-digit versions. For example, version 2.1.3 can be directly upgraded to version 2.1.7.
 
-## Specific operations
+- **Two-digit and one-digit versions:** Cross-version upgrades for two-digit versions are not recommended due to compatibility concerns. It is advised to upgrade sequentially through each two-digit version. For example, upgrading from version 3.0 to 3.3 should follow the sequence 3.0 -> 3.1 -> 3.2 -> 3.3.
 
-1. `SHOW VARIABLES LIKE '% time_zone%'`
+The detailed version information can be found in the [versioning rules](../../../../docusaurus-plugin-content-docs-community/current/release-versioning).
 
-   View the current time zone related configuration
+## Upgrade Precautions
 
-2. `SET [global] time_zone = 'Asia/Shanghai'`
+When performing an upgrade, pay attention to the following:
 
-   This command sets the time zone at the session level. If the `global` keyword is used, Doris FE persists the parameter and it takes effect for all new sessions afterwards.
+- **Behavioral changes between versions:** Review the Release Notes before upgrading to identify compatibility issues.
 
-## Data source
+- **Add retry mechanisms for tasks in the cluster:** Nodes are restarted sequentially during upgrades. Ensure that retry mechanisms are in place for query tasks and Stream Load import jobs to avoid task failures. Routine Load jobs using flink-doris-connector or spark-doris-connector already include retry mechanisms in their code and do not require additional logic.
 
-The time zone data contains the name of the time zone, the corresponding time offset, and the change of daylight saving time. On the machine where the BE is located, the source of the data is the directory returned by command `TZDIR`. If was not supported, the directory `/usr/share/zoneinfo`.
+- **Disable replica repair and balance functions:** Disable these functions during the upgrade process. Regardless of the upgrade outcome, re-enable these functions after the upgrade is complete.
 
-## Impact of time zone
+## Metadata Compatibility Testing
 
-### 1. functions
+:::caution Note
 
-Includes values displayed by time functions such as `NOW()` or `CURTIME()`, and also time values in `show load`, `show backends`.
+In a production environment, it is recommended to configure at least three FE nodes for high availability. If there is only one FE node, metadata compatibility testing must be performed before upgrading. Metadata compatibility is critical as incompatibility may cause upgrade failures and data loss. It is recommended to conduct metadata compatibility tests before each upgrade, keeping in mind the following:
 
-However, it does not affect the less than value of the time-type partitioned columns in `create table`, nor does it affect the display of values stored as `date/datetime` types.
+- Perform metadata compatibility testing on a development machine or BE node whenever possible to avoid using FE nodes.
 
-Functions affected by time zone:
+- If testing must be conducted on an FE node, use a non-Master node and stop the original FE process.
 
-- `FROM_UNIXTIME`: Given a UTC timestamp, return its date and time in the time zone specified by Doris session `time_zone`. For example, when `time_zone` is `CST`, `FROM_UNIXTIME(0)` returns `1970-01-01 08: 00:00`.
+:::
 
-- `UNIX_TIMESTAMP`: Given a date and time, return its UTC timestamp in the time zone specified by Doris session `time_zone`, such as when `time_zone` is `CST` `UNIX_TIMESTAMP('1970-01-01 08:00:00 ')` returns `0`.
+Before upgrading, conduct metadata compatibility testing to prevent failures caused by metadata incompatibility.
 
-- `CURTIME`: Returns the time in the time zone specified by the current Doris session `time_zone`.
+1. **Backup metadata information:**
 
-- `NOW`: Returns the date and time of the current Doris session `time_zone` specified time zone.
+   Before starting the upgrade, back up the metadata of the Master FE node.
 
-- `CONVERT_TZ`: Convert a datetime from one specified time zone to another.
+   Use the `show frontends` command and refer to the `IsMaster` column to identify the Master FE node. FE metadata can be hot-backed up without stopping the FE node. By default, FE metadata is stored in the `fe/doris-meta` directory. This can be confirmed via the `meta_dir` parameter in the `fe.conf` configuration file.
 
-### 2. Values of time types
+2. **Modify the `fe.conf` configuration file of the test FE node:**
 
-For `DATE` and `DATETIME` types, we support time zone conversion when importing data.
+   ```bash
+   vi ${DORIS_NEW_HOME}/conf/fe.conf
+   ```
 
-- If the data has a time zone, such as "2020-12-12 12:12:12+08:00" with the current Doris `time_zone = +00:00`, then the data is imported into Doris and the actual value is "2020-12-12 04:12:12".
+   Modify the following port information, ensuring all ports are different from those in the production environment, and update the `clusterID` parameter:
 
-- If the data does not contain a time zone, such as "2020-12-12 12:12:12", the time is considered to be an absolute time and no conversion occurs.
+   ```
+   ...
+   ## modify port
+   http_port = 18030
+   rpc_port = 19020
+   query_port = 19030
+   arrow_flight_sql_port = 19040
+   edit_log_port = 19010
 
-### 3. Daylight Saving Time
+   ## modify clusterIP
+   clusterId=<a_new_clusterIP, such as 123456>
+   ...
+   ```
 
-Daylight Saving Time is essentially the actual time offset of a named time zone, which changes on certain dates.
+3. Copy the backed-up Master FE metadata to the new compatibility testing environment.
 
-For example, the `America/Los_Angeles` time zone contains a Daylight Saving Time adjustment that begins and ends approximately in March and November of each year. That is, the `America/Los_Angeles` actual time zone offset changes from `-08:00` to `-07:00` at the start of Daylight Savings Time in March, and from `-07:00` to `-08:00` at the end of Daylight Savings Time in November.
-If you do not want Daylight Saving Time to be turned on, set `time_zone` to `-08:00` instead of `America/Los_Angeles`.
+   ```bash
+   cp ${DORIS_OLD_HOME}/fe/doris-meta/* ${DORIS_NEW_HOME}/fe/doris-meta
+   ```
 
-## Usage
+4. Edit the `VERSION` file in the copied metadata directory to update the `cluster_id` to a new cluster IP, for example, change it to `123456` as shown in the example:
 
-Time zone values can be given in a variety of formats. The following standard formats are well supported in Doris:
+   ```bash
+   vi ${DORIS_NEW_HOME}/fe/doris-meta/image/VERSION
+   clusterId=123456
+   ```
 
-1. standard named time zone formats, such as "Asia/Shanghai", "America/Los_Angeles". This format is derived from [time zone data on this machine](#data-source). "Etc/GMT+3" etc. also belongs to this category.
+5. Start the FE process in the testing environment.
 
-2. standard offset formats, such as "+02:30", "-10:00".(special offsets such as "+12:03" are not supported)
+   ```bash
+   sh ${DORIS_NEW_HOME}/bin/start_fe.sh --daemon --metadata_failure_recovery
+   ```
 
-3. abbreviated time zone formats, currently only support:
+   For versions earlier than 2.0.2, add the `metadata_failure_recovery` parameter to the `fe.conf` file before starting the FE process:
 
-   1. "GMT", "UTC", equivalent to "+00:00" time zone
+   ```bash
+   echo "metadata_failure_recovery=true" >> ${DORIS_NEW_HOME}/conf/fe.conf
+   sh ${DORIS_NEW_HOME}/bin/start_fe.sh --daemon 
+   ```
 
-   2. "CST", which is equivalent to the "Asia/Shanghai" time zone
+6. Verify that the FE process has started successfully by connecting to the current FE using the MySQL command. For example, use the query port `19030` as mentioned above:
 
-4. single letter Z, for Zulu time zone, equivalent to "+00:00" time zone
+   ```bash
+   mysql -uroot -P19030 -h127.0.0.1
+   ```
 
-Besides, all parsing of alphabet is case insensitive.
+## Upgrade Steps
 
-Note: Some other formats are currently supported in some imports in Doris due to different implementations. **Production environments should not rely on these formats that are not listed here, and their behaviour may change at any time**, so keep an eye on the relevant changelog for version updates.
+The detailed process for the upgrade is as follows:
 
-## Best Practices
+1. Disable replica repair and balance functions
 
-### Time Zone Sensitive Data
+2. Upgrade BE nodes
 
-The time zone issue involves three main influences:
+3. Upgrade FE nodes
 
-1. session variable `time_zone` -- cluster timezone
+4. Enable replica repair and balance functions
 
-2. header `timezone` specified during import(Stream Load, Broker Load etc.) -- importing timezone
+During the upgrade process, the principle of upgrading BE nodes first, followed by upgrading FE nodes, should be followed. When upgrading FE, upgrade the Observer FE and Follower FE nodes first, and then upgrade the Master FE node.
 
-3. timezone type literal "+08:00" in "2023-12-12 08:00:00+08:00" -- data timezone
+:::caution Note
 
-We can understand it as follows:
+In general, only the `/bin` and `/lib` directories under the FE directory and the `/bin` and `/lib` directories under the BE directory need to be upgraded.
 
-Doris is currently compatible with importing data in various time zones into Doris. Since Doris's own `DATETIME` and other time types do not contain time zone information, and the data will not change with time zone changes after being imported, when time data is imported into Doris, it can be divided into the following two categories:
+For versions 2.0.2 and later, a `custom_lib/` directory has been added under the FE and BE deployment paths (if it doesn't exist, it can be manually created). The `custom_lib/` directory is used to store some user-defined third-party jar files, such as `hadoop-lzo-*.jar`, `orai18n.jar`, etc. This directory does not need to be replaced during the upgrade.
 
-1. Absolute time
+:::
 
-   Absolute time means that the data scene it is associated with has nothing to do with time zones. This type of data should be imported without any time zone suffix and will be stored as-is.
+### Step 1: Disable Replica Repair and Balance Functions
 
-2. Time in a specific time zone
-
-   The time in a specific time zone means that the data scenario it is associated with is related to the time zone. For this type of data, it should be imported with a specific time zone suffix. When imported, they will be converted to the Doris cluster `time_zone` time zone or the header `timezone` specified in Stream Load/Broker Load.
-
-   This type of data is converted to absolute time storage in the time zone specified during import after import, so subsequent imports and queries should maintain this time zone to avoid confusion in the meaning of the data.
-
-- For the Insert statement, we can illustrate it through the following example:
-
-    ```sql
-    Doris > select @@time_zone;
-    +---------------+
-    | @@time_zone   |
-    +---------------+
-    | Asia/Shanghai |
-    +---------------+
-    
-    Doris > insert into dt values('2020-12-12 12:12:12+02:00'); --- The imported data specifies a time zone of +02:00
-    
-    Doris > select * from dt;
-    +---------------------+
-    | dt                  |
-    +---------------------+
-    | 2020-12-12 18:12:12 | --- Is converted to the Doris cluster time zone Asia/Shanghai, subsequent imports and queries should maintain this time zone.
-    +---------------------+
-    
-    Doris > set time_zone = 'America/Los_Angeles';
-    
-    Doris > select * from dt;
-    +---------------------+
-    | dt                  |
-    +---------------------+
-    | 2020-12-12 18:12:12 | --- If time_zone is modified, the time value will not change accordingly, and its meaning during query will be confused.
-    +---------------------+
-    ```
-
-- For import methods such as Stream Load and Broker Load, we can achieve this by specifying header `timezone`. For example, for Stream Load, we can illustrate it through the following example:
-
-    ```shell
-    cat dt.csv
-    2020-12-12 12:12:12+02:00
-    
-    curl --location-trusted -u root: \
-     -H "Expect:100-continue" \
-     -H "strict_mode: true" \
-     -H "timezone: Asia/Shanghai" \
-     -T dt.csv -XPUT \
-     http://127.0.0.1:8030/api/test/dt/_stream_load
-    ```
-
-    ```sql
-    Doris > select @@time_zone;
-    +---------------+
-    | @@time_zone   |
-    +---------------+
-    | Asia/Shanghai |
-    +---------------+
-    
-    Doris > select * from dt;
-    +---------------------+
-    | dt                  |
-    +---------------------+
-    | 2020-12-12 18:12:12 | --- Is converted to the Doris cluster time zone Asia/Shanghai, subsequent imports and queries should maintain this time zone.
-    +---------------------+
-    ```
-
-  :::tip
-
-  - In import methods such as Stream Load and Broker Load, the header `timezone` will overwrite the Doris cluster `time_zone`, so it should be consistent during import.
-  - In import methods such as Stream Load and Broker Load, the header `timezone` will affect the functions used in import conversion.
-  - If the header `timezone` is not specified when importing, the East Eighth Zone will be used by default.
-    :::
-
-**To sum up, the best practice for dealing with time zone issues is:**
-
-:::info Best Practices
-
-1. Confirm the time zone represented by the cluster and set `time_zone` before use, and do not change it after that.
-
-2. Set header `timezone` to be consistent with cluster `time_zone` when importing.
-
-3. For absolute time, import without time zone suffix; for time with time zone, import with specific time zone suffix, and it will be converted to Doris `time_zone` time zone after import.
-   :::
-
-### Daylight Saving Time
-
-The start and end times for Daylight Saving Time are taken from the [current time zone data source](#data-source) and may not necessarily correspond exactly to the actual officially recognised times for the current year's time zone location. This data is maintained by ICANN. If you need to ensure that Daylight Saving Time behaves as specified for the current year, please make sure that data source selected by Doris is the latest ICANN published time zone data. See below for download access.
-
-### Information Update
-
-Real-world time zone and daylight saving time data may change from time to time for a variety of reasons, and IANA periodically records these changes and updates the corresponding time zone files. If you want the time zone information in Doris to be up to date with the latest IANA data, do one of the followings:
-
-1. Use the Package Manager to update
-
-Depending on the package manager used by the current operating system, you can update the time zone data directly using the corresponding command:
-
-```shell
-# yum
-> sudo yum update tzdata
-# apt
-> sudo apt update tzdata
+During the upgrade process, nodes will be restarted, which may trigger unnecessary cluster balancing and replica repair logic. Disable these functions first using the following command:
+
+```sql
+admin set frontend config("disable_balance" = "true");
+admin set frontend config("disable_colocate_balance" = "true");
+admin set frontend config("disable_tablet_scheduler" = "true");
 ```
 
-The data updated in this way is located under the system `$TZDIR` (typically `usr/share/zoneinfo`).
+### Step 2: Upgrade BE Nodes
 
-2. pull the IANA time zone database manually (recommended)
+:::info Note:
 
-Most Linux distributions have a package manager where tzdata is not synchronised in a timely manner. If the accuracy of the time zone data is important, you can pull the data published by IANA on a regular basis:
+To ensure the safety of your data, please use 3 replicas to store your data to avoid data loss caused by upgrade mistakes or failures.
+:::
 
-```shell
-wget https://www.iana.org/time-zones/repository/tzdb-latest.tar.lz
+1. In a multi-replica cluster, you can choose to stop the process on one BE node and perform a gradual upgrade:
+
+   ```bash
+   sh ${DORIS_OLD_HOME}/be/bin/stop_be.sh
+   ```
+
+2. Rename the `/bin` and `/lib` directories in the BE directory:
+
+   ```bash
+   mv ${DORIS_OLD_HOME}/be/bin ${DORIS_OLD_HOME}/be/bin_back
+   mv ${DORIS_OLD_HOME}/be/lib ${DORIS_OLD_HOME}/be/lib_back
+   ```
+
+3. Copy the new version's `/bin` and `/lib` directories to the original BE directory:
+
+   ```bash
+   cp -r ${DORIS_NEW_HOME}/be/bin ${DORIS_OLD_HOME}/be/bin
+   cp -r ${DORIS_NEW_HOME}/be/lib ${DORIS_OLD_HOME}/be/lib
+   ```
+
+4. Start the BE node:
+
+   ```bash
+   sh ${DORIS_OLD_HOME}/be/bin/start_be.sh --daemon
+   ```
+
+5. Connect to the cluster and check the node information:
+
+   ```sql
+   show backends\G
+   ```
+
+   If the BE node's `alive` status is `true` and the `Version` value is the new version, the node has been successfully upgraded.
+
+### Step 3: Upgrade FE Nodes
+
+1. In a multi-FE node setup, select a non-Master node for the upgrade and stop it first:
+
+   ```bash
+   sh ${DORIS_OLD_HOME}/fe/bin/stop_fe.sh
+   ```
+
+2. Rename the `/bin`, `/lib`, and `/mysql_ssl_default_certificate` directories in the FE directory:
+
+   ```bash
+   mv ${DORIS_OLD_HOME}/fe/bin ${DORIS_OLD_HOME}/fe/bin_back
+   mv ${DORIS_OLD_HOME}/fe/lib ${DORIS_OLD_HOME}/fe/lib_back
+   mv ${DORIS_OLD_HOME}/fe/mysql_ssl_default_certificate ${DORIS_OLD_HOME}/fe/mysql_ssl_default_certificate_back
+   ```
+
+3. Copy the new version's `/bin`, `/lib`, and `/mysql_ssl_default_certificate` directories to the original FE directory:
+
+   ```bash
+   cp -r ${DORIS_NEW_HOME}/fe/bin ${DORIS_OLD_HOME}/fe/bin
+   cp -r ${DORIS_NEW_HOME}/fe/lib ${DORIS_OLD_HOME}/fe/lib
+   cp -r ${DORIS_NEW_HOME}/fe/mysql_ssl_default_certificate ${DORIS_OLD_HOME}/fe/mysql_ssl_default_certificate
+   ```
+
+4. Start the FE node:
+
+   ```sql
+   sh ${DORIS_OLD_HOME}/fe/bin/start_fe.sh --daemon
+   ```
+
+5. Connect to the cluster and check the node information:
+
+   ```sql
+   show frontends\G
+   ```
+
+   If the FE node's `alive` status is `true` and the `Version` value is the new version, the node has been successfully upgraded.
+
+6. Complete the upgrade of the other FE nodes in sequence, and finally upgrade the Master node.
+
+### Step 4: Enable Replica Repair and Balance Functions
+
+After the upgrade is complete and all BE nodes' status is `Alive`, enable the cluster's replica repair and balance functions:
+
+```sql
+admin set frontend config("disable_balance" = "false");
+admin set frontend config("disable_colocate_balance" = "false");
+admin set frontend config("disable_tablet_scheduler" = "false");
 ```
 
-Then generate the specific zoneinfo data according the README file in the extracted folder. The generated data should be copied to override `$TZDIR` folder.
-
-Please note that all the above operations **must** be restarted \*\*on the corresponding BE to take effect after they are done on the BE machine.
-
-## Extended Reading
-
-- [List of tz database time zones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
-
-- [IANA Time Zone Database](https://www.iana.org/time-zones)
-
-- [The tz-announce Archives](https://mm.icann.org/pipermail/tz-announce/)
