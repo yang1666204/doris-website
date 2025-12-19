@@ -1,5 +1,5 @@
 ---
-{ "title": "REVERSE", "language": "en" }
+{ "title": "RPAD", "language": "en" }
 ---
 
 <!-- 
@@ -21,65 +21,45 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## reverse
+## rpad
 
-### description
+### Description
 
 #### Syntax
 
-```sql
-VARCHAR reverse(VARCHAR str)
-ARRAY<T> reverse(ARRAY<T> arr)
-```
+`VARCHAR rpad (VARCHAR str, INT len, VARCHAR pad)`
 
-The REVERSE() function reverses a string or array and returns the result.
+Returns a string of length len in str, starting with the initials. If len is longer than str, pad characters are added to the right of STR until the length of the string reaches len. If len is less than str's length, the function is equivalent to truncating STR strings and returning only strings of len's length. The len is character length not the bye size.
+
+Except when it contains a NULL in parameters, when pad's length is 0, the return value is the empty string.
 
 ### example
 
 ```
-mysql> SELECT REVERSE('hello');
-+------------------+
-| REVERSE('hello') |
-+------------------+
-| olleh            |
-+------------------+
-1 row in set (0.00 sec)
+mysql> SELECT rpad("hi", 5, "xy");
++---------------------+
+| rpad('hi', 5, 'xy') |
++---------------------+
+| hixyx               |
++---------------------+
 
-mysql> SELECT REVERSE('你好');
-+------------------+
-| REVERSE('你好')   |
-+------------------+
-| 好你              |
-+------------------+
-1 row in set (0.00 sec)
+mysql> SELECT rpad("hi", 1, "xy");
++---------------------+
+| rpad('hi', 1, 'xy') |
++---------------------+
+| h                   |
++---------------------+
 
-mysql> select k1, k2, reverse(k2) from array_test order by k1;
-+------+-----------------------------+-----------------------------+
-| k1   | k2                          | reverse(`k2`)               |
-+------+-----------------------------+-----------------------------+
-|  1   | [1, 2, 3, 4, 5]             | [5, 4, 3, 2, 1]             |
-|  2   | [6, 7, 8]                   | [8, 7, 6]                   |
-|  3   | []                          | []                          |
-|  4   | NULL                        | NULL                        |
-|  5   | [1, 2, 3, 4, 5, 4, 3, 2, 1] | [1, 2, 3, 4, 5, 4, 3, 2, 1] |
-|  6   | [1, 2, 3, NULL]             | [NULL, 3, 2, 1]             |
-|  7   | [4, 5, 6, NULL, NULL]       | [NULL, NULL, 6, 5, 4]       |
-+------+-----------------------------+-----------------------------+
-
-mysql> select k1, k2, reverse(k2) from array_test01 order by k1;
-+------+-----------------------------------+-----------------------------------+
-| k1   | k2                                | reverse(`k2`)                     |
-+------+-----------------------------------+-----------------------------------+
-|  1   | ['a', 'b', 'c', 'd']              | ['d', 'c', 'b', 'a']              |
-|  2   | ['e', 'f', 'g', 'h']              | ['h', 'g', 'f', 'e']              |
-|  3   | [NULL, 'a', NULL, 'b', NULL, 'c'] | ['c', NULL, 'b', NULL, 'a', NULL] |
-|  4   | ['d', 'e', NULL, ' ']             | [' ', NULL, 'e', 'd']             |
-|  5   | [' ', NULL, 'f', 'g']             | ['g', 'f', NULL, ' ']             |
-+------+-----------------------------------+-----------------------------------+
+mysql> SELECT rpad("", 0, "");
++-----------------+
+| rpad('', 0, '') |
++-----------------+
+|                 |
++-----------------+
 ```
 
 ### keywords
 
     ```
-    REVERSE, ARRAY
+    RPAD
     ```
