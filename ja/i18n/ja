@@ -1,5 +1,5 @@
 ---
-{ "title": "QUARTERS_SUB", "language": "en" }
+{ "title": "SEC_TO_TIME", "language": "en" }
 ---
 
 <!-- 
@@ -21,28 +21,30 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-### Description
+## sec_to_time
+
+### description
 
 #### Syntax
 
-`DATE/DATETIME QUARTERS_SUB(DATE/DATETIME date, INT years)`
+`TIME sec_to_time(INT timestamp)`
 
-Subtract a specified number of quarters for a given date
+The parameter is a timestamp of type INT, and the function returns a time of type TIME.
 
-The parameter `date` can be of type `DATETIME` or `DATE`, and the return type is the same as the type of the parameter `date`.
+### example
 
-### Example
-
-```sql
-mysql> select quarters_sub("2020-01-31 02:02:02", 1);
-+---------------------------------------------------------------+
-| quarters_sub(cast('2020-01-31 02:02:02' as DATETIMEV2(0)), 1) |
-+---------------------------------------------------------------+
-| 2019-10-31 02:02:02                                           |
-+---------------------------------------------------------------+
-1 row in set (0.10 sec)
+```
+mysql >select sec_to_time(time_to_sec(cast('16:32:18' as time)));
++----------------------------------------------------+
+| sec_to_time(time_to_sec(CAST('16:32:18' AS TIME))) |
++----------------------------------------------------+
+| 16:32:18                                           |
++----------------------------------------------------+
+1 row in set (0.53 sec)
 ```
 
 ### keywords
 
-QUARTERS, SUB, QUARTERS_SUB
+    ```
+    SEC_TO_TIME
+    ```
