@@ -1,5 +1,5 @@
 ---
-{ "title": "CHAR", "language": "en" }
+{ "title": "CONCAT_WS", "language": "en" }
 ---
 
 <!-- 
@@ -21,49 +21,69 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## function char
+## concat_ws
 
-### description
+### Description
 
 #### Syntax
 
-`VARCHAR char(INT,..., [USING charset_name])`
+```sql
+VARCHAR concat_ws(VARCHAR sep, VARCHAR str,...)
+VARCHAR concat_ws(VARCHAR sep, ARRAY array)
+```
 
-Interprets each argument as an integer and returns a string consisting of the characters given by the code values of those integers. `NULL` values are skipped.
-
-If the result string is illegal for the given character set, the result from `CHAR()` becomes `NULL`.
-
-Arguments larger than `255` are converted into multiple result bytes. For example, `char(15049882)` is equivalent to `char(229, 164, 154)`.
-
-Currently only `utf8` is supported for `charset_name`.
+Using the first parameter SEP as a connector, the second parameter and all subsequent parameters(or all string in an ARRAY) are spliced into a string.
+If the separator is NULL, return NULL.
+The `concat_ws` function does not skip empty strings, it skips NULL values.
 
 ### example
 
 ```
-mysql> select char(68, 111, 114, 105, 115);
-+--------------------------------------+
-| char('utf8', 68, 111, 114, 105, 115) |
-+--------------------------------------+
-| Doris                                |
-+--------------------------------------+
+mysql> select concat_ws("or", "d", "is");
++----------------------------+
+| concat_ws('or', 'd', 'is') |
++----------------------------+
+| doris                      |
++----------------------------+
 
-mysql> select char(15049882, 15179199, 14989469);
-+--------------------------------------------+
-| char('utf8', 15049882, 15179199, 14989469) |
-+--------------------------------------------+
-| 多睿丝                                     |
-+--------------------------------------------+
+mysql> select concat_ws(NULL, "d", "is");
++----------------------------+
+| concat_ws(NULL, 'd', 'is') |
++----------------------------+
+| NULL                       |
++----------------------------+
 
-mysql> select char(255);
-+-------------------+
-| char('utf8', 255) |
-+-------------------+
-| NULL              |
-+-------------------+
+mysql> select concat_ws("or", "d", NULL,"is");
++---------------------------------+
+| concat_ws("or", "d", NULL,"is") |
++---------------------------------+
+| doris                           |
++---------------------------------+
+
+mysql> select concat_ws("or", ["d", "is"]);
++-----------------------------------+
+| concat_ws('or', ARRAY('d', 'is')) |
++-----------------------------------+
+| doris                             |
++-----------------------------------+
+
+mysql> select concat_ws(NULL, ["d", "is"]);
++-----------------------------------+
+| concat_ws(NULL, ARRAY('d', 'is')) |
++-----------------------------------+
+| NULL                              |
++-----------------------------------+
+
+mysql> select concat_ws("or", ["d", NULL,"is"]);
++-----------------------------------------+
+| concat_ws('or', ARRAY('d', NULL, 'is')) |
++-----------------------------------------+
+| doris                                   |
++-----------------------------------------+
 ```
 
 ### keywords
 
     ```
-    CHAR
+    CONCAT_WS,CONCAT,WS,ARRAY
     ```
