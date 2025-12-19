@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-TABLE-STATS", "language": "en" }
+{ "title": "SHOW-TABLE-STATUS", "language": "en" }
 ---
 
 <!--
@@ -21,51 +21,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-TABLE-STATS
+## SHOW-TABLE-STATUS
 
 ### Name
 
-SHOW TABLE STATS
+SHOW TABLE STATUS
 
 ### Description
 
-Use `SHOW TABLE STATS` to view an overview of statistics collection for a table.
+This statement is used to view some information about the Table.
 
-Syntax:
-
-```SQL
-SHOW TABLE STATS table_name;
-```
-
-Where:
-
-- table_name: The target table name. It can be in the format `db_name.table_name`.
-
-Output:
-
-| Column Name    | Description                                                                                                    |
-| :------------- | :------------------------------------------------------------------------------------------------------------- |
-| `updated_rows` | Updated rows since the last ANALYZE                                                                            |
-| `query_times`  | Reserved column for recording the number of times the table was queried in future versions                     |
-| `row_count`    | Number of rows (does not reflect the exact number of rows at the time of command execution) |
-| `updated_time` | Last update time                                                                                               |
-| `columns`      | Columns for which statistics information has been collected                                                    |
-
-Here's an example:
+grammar:
 
 ```sql
-mysql> show table stats lineitem \G;
-*************************** 1. row ***************************
-updated_rows: 0
- query_times: 0
-   row_count: 6001215
-updated_time: 2023-11-07
-     columns: [l_returnflag, l_receiptdate, l_tax, l_shipmode, l_suppkey, l_shipdate, l_commitdate, l_partkey, l_orderkey, l_quantity, l_linestatus, l_comment, l_extendedprice, l_linenumber, l_discount, l_shipinstruct]
-     trigger: MANUAL
+SHOW TABLE STATUS
+[FROM db] [LIKE "pattern"]
 ```
 
-<br/>
+illustrate:
+
+1. This statement is mainly used to be compatible with MySQL syntax, currently only a small amount of information such as Comment is displayed
+
+### Example
+
+1. View the information of all tables under the current database
+
+     ```sql
+     SHOW TABLE STATUS;
+     ```
+
+2. View the information of the table whose name contains example under the specified database
+
+     ```sql
+     SHOW TABLE STATUS FROM db LIKE "%example%";
+     ```
 
 ### Keywords
 
-SHOW, TABLE, STATS
+    ```
+    SHOW, TABLE, STATUS
+    ```
+
+### Best Practice
+
