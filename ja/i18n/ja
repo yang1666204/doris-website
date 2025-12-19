@@ -1,5 +1,5 @@
 ---
-{ "title": "Managing Compute Groups", "language": "en" }
+{ "title": "Managing Storage Vault", "language": "en" }
 ---
 
 <!--
@@ -21,140 +21,181 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In a compute-storage decoupled architecture, one or more compute nodes (BE) can be grouped into a Compute Group. This document describes how to use compute groups, including operations such as:
+The Storage Vault is a remote shared storage used by Doris in a decoupled storage-compute model. You can configure one or more Storage Vaults to store different tables in different Storage Vaults.
 
-- Viewing all compute groups
-- Granting compute group access
-- Binding compute groups at the user level (`default_compute_group`) for user-level isolation
-
-_Note_
-In versions prior to 3.0.2, this was referred to as a Compute Cluster.
-
-## Compute Group Usage Scenarios
-
-In a multi-compute group architecture, you can group one or more stateless BE nodes into compute clusters. By using compute cluster specification statements (use @<compute_group_name>), you can allocate specific workloads to specific compute clusters, achieving physical isolation of multiple import and query workloads.
-
-Assume there are two compute clusters: C1 and C2.
-
-- **Read-Read Isolation**: Before initiating two large queries, use `use @c1` and `use @c2` respectively to ensure that the queries run on different compute nodes. This prevents resource contention (CPU, memory, etc.) when accessing the same dataset.
-
-- **Read-Write Isolation**: Doris data imports consume substantial resources, especially in scenarios with large data volumes and high-frequency imports. To avoid resource contention between queries and imports, you can use `use @c1` and `use @c2` to specify that queries execute on C1 and imports on C2. Additionally, the C1 compute cluster can access newly imported data in the C2 compute cluster.
-
-- **Write-Write Isolation**: Similar to read-write isolation, imports can also be isolated from each other. For example, when the system has both high-frequency small imports and large batch imports, batch imports typically take longer and have higher retry costs, while high-frequency small imports are quick with lower retry costs. To prevent small imports from interfering with batch imports, you can use `use @c1` and `use @c2` to specify small imports to execute on C1 and batch imports on C2.
-
-## Default Compute Group Selection Mechanism
-
-When a user has not explicitly [set a default compute group](#setting-default-compute-group), the system will automatically select a compute group with Active BE that the user has usage permissions for. Once the default compute group is determined in a specific session, it will remain unchanged during that session unless the user explicitly changes the default setting.
-
-In different sessions, if the following situations occur, the system may automatically change the user's default compute group:
-
-- The user has lost usage permissions for the default compute group selected in the last session
-- A compute group has been added or removed
-- The previously selected default compute group no longer has Alive BE
-
-Situations one and two will definitely lead to a change in the automatically selected default compute group, while situation three may lead to a change.
-
-## Viewing All Compute Groups
-
-Use the `SHOW COMPUTE GROUPS` command to view all compute groups in the current repository. The returned results will display different content based on the user's permission level:
-
-- Users with `ADMIN` privileges can view all compute groups
-- Regular users can only view compute groups for which they have usage permissions (USAGE_PRIV)
-- If a user doesn't have usage permissions for any compute groups, an empty result will be returned
-
-```sql
-SHOW COMPUTE GROUPS;
-```
-
-## Adding Compute Groups
-
-Managing compute groups requires `OPERATOR` privilege, which controls node management permissions. For more details, please refer to [Privilege Management](../sql-manual/sql-statements/Account-Management-Statements/GRANT.md). By default, only the root account has the `OPERATOR` privilege, but it can be granted to other accounts using the `GRANT` command.
-To add a BE and assign it to a compute group, use the [Add BE](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-BACKEND.md) command. For example:
-
-```sql
-ALTER SYSTEM ADD BACKEND 'host:9050' PROPERTIES ("tag.compute_group_name" = "new_group");
-```
-
-The above sql will add `host:9050` to compute group `new_group`. The BE will be added to compute group `default_compute_group` if you omit PROPERTIES statement, for example:
-
-```sql
-ALTER SYSTEM ADD BACKEND 'host:9050';
-```
-
-## Granting Compute Group Access
-
-Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
-
-```sql
-GRANT USAGE_PRIV ON COMPUTE GROUP {compute_group_name} TO {user}
-```
-
-## Revoking Compute Group Access
-
-Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
-
-```sql
-REVOKE USAGE_PRIV ON COMPUTE GROUP {compute_group_name} FROM {user}
-```
-
-## Setting Default Compute Group
-
-To set the default compute group for the current user(This operation requires the current user to already have permission to use the computing group):
-
-```sql
-SET PROPERTY 'default_compute_group' = '{clusterName}';
-```
-
-To set the default compute group for other users (this operation requires Admin privileges):
-
-```sql
-SET PROPERTY FOR {user} 'default_compute_group' = '{clusterName}';
-```
-
-To view the current user's default compute group, the value of `default_compute_group` in the returned result is the default compute group:
-
-```sql
-SHOW PROPERTY;
-```
-
-To view the default compute group of other users, This operation requires the current user to have admin privileges, and the value of `default_compute_group` in the returned result is the default compute group:
-
-```sql
-SHOW PROPERTY FOR {user};
-```
-
-To view all available compute groups in the current repository:
-
-```sql
-SHOW COMPUTE GROUPS;
-```
-
-:::info Note
-
-- If the current user has an Admin role, for example: `CREATE USER jack IDENTIFIED BY '123456' DEFAULT ROLE "admin"`, then:
-  - They can set the default compute group for themselves and other users;
-  - They can view their own and other users' `PROPERTY`.
-- If the current user does not have an Admin role, for example: `CREATE USER jack1 IDENTIFIED BY '123456'`, then:
-  - They can set the default compute group for themselves;
-  - They can view their own `PROPERTY`;
-  - They cannot view all compute groups, as this operation requires `GRANT ADMIN` privileges.
-- If the current user has not configured a default compute group, the existing system will trigger an error when performing data read/write operations. To resolve this issue, the user can execute the `use @cluster` command to specify the compute group used by the current context, or use the `SET PROPERTY` statement to set the default compute group.
-- If the current user has configured a default compute group, but that cluster is subsequently deleted, an error will also be triggered during data read/write operations. The user can execute the `use @cluster` command to re-specify the compute group used by the current context, or use the `SET PROPERTY` statement to update the default cluster settings.
-
-:::
-
-## Switching Compute Groups
-
-Users can specify the database and compute group to use in a compute-storage decoupled architecture.
+## Create a Storage Vault
 
 **Syntax**
 
 ```sql
-USE { [catalog_name.]database_name[@compute_group_name] | @compute_group_name }
+CREATE STORAGE VAULT [IF NOT EXISTS] <vault_name>
+PROPERTIES
+("key" = "value",...)
 ```
 
-If the database or compute group name contains reserved keywords, the corresponding name must be enclosed in backticks \`\`\`.
+<vault_name> is the user-defined name of the Storage Vault, which serves as the identifier for accessing the Storage Vault.
 
-## Scaling Compute Groups
+### Create an HDFS Storage Vault
 
-You can scale compute groups by adding or removing BE using `ALTER SYSTEM ADD BACKEND` and `ALTER SYSTEM DECOMMISION BACKEND`.
+To create an HDFS-based decoupled storage-compute Doris cluster, ensure that all nodes (including FE/BE nodes, Meta Service) have privilege to access the specified HDFS, including completing Kerberos authorization configuration and connectivity checks in advance (which can be tested using Hadoop Client on each corresponding node).
+
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS ssb_hdfs_vault
+    PROPERTIES (
+        "type"="hdfs",                                     -- required
+        "fs.defaultFS"="hdfs://127.0.0.1:8020",            -- required
+        "path_prefix"="big/data",                          -- optional, generally filled in according to business name
+        "hadoop.username"="user"                           -- optional
+        "hadoop.security.authentication"="kerberos"        -- optional
+        "hadoop.kerberos.principal"="hadoop/127.0.0.1@XXX" -- optional
+        "hadoop.kerberos.keytab"="/etc/emr.keytab"         -- optional
+    );
+```
+
+### Create an S3 Storage Vault
+
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS ssb_s3_vault
+    PROPERTIES (
+        "type"="S3",                                   -- required
+        "s3.endpoint" = "oss-cn-beijing.aliyuncs.com", -- required
+        "s3.region" = "bj",                            -- required
+        "s3.bucket" = "bucket",                        -- required
+        "s3.root.path" = "big/data/prefix",            -- required
+        "s3.access_key" = "ak",                        -- required
+        "s3.secret_key" = "sk",                        -- required
+        "provider" = "OSS"                             -- required
+    );
+```
+
+More parameter explanations and examples can be found in [CREATE-STORAGE-VAULT](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-STORAGE-VAULT.md).
+
+## View Storage Vaults
+
+**Syntax**
+
+```
+SHOW STORAGE VAULTS
+```
+
+The returned result includes 4 columns: the Storage Vault name, Storage Vault ID, properties, and whether it is the default Storage Vault.
+
+## Set the Default Storage Vault
+
+**Syntax**
+
+```sql
+SET <vault_name> AS DEFAULT STORAGE VAULT
+```
+
+## Specify Storage Vault When Creating a Table
+
+When creating a table, specify `storage_vault_name` in `PROPERTIES`, and the data will be stored in the Storage Vault corresponding to the specified `vault name`. Once the table is successfully created, the `storage_vault` cannot be modified, meaning changing the Storage Vault is not supported.
+
+**Example**
+
+```sql
+CREATE TABLE IF NOT EXISTS supplier (
+  s_suppkey int(11) NOT NULL COMMENT "",
+  s_name varchar(26) NOT NULL COMMENT "",
+  s_address varchar(26) NOT NULL COMMENT "",
+  s_city varchar(11) NOT NULL COMMENT "",
+  s_nation varchar(16) NOT NULL COMMENT "",
+  s_region varchar(13) NOT NULL COMMENT "",
+  s_phone varchar(16) NOT NULL COMMENT ""
+)
+UNIQUE KEY (s_suppkey)
+DISTRIBUTED BY HASH(s_suppkey) BUCKETS 1
+PROPERTIES (
+"replication_num" = "1",
+"storage_vault_name" = "ssb_hdfs_vault"
+);
+```
+
+## Alter Storage Vault
+
+Used to alter modifiable properties of the Storage Vault configuration.
+
+S3 Storage Vault allowed properties:
+
+- `VAULT_NAME`
+- `s3.access_key`
+- `s3.secret_key`
+- `use_path_style`
+
+HDFS Storage Vault forbidden properties:
+
+- `path_prefix`
+- `fs.defaultFS`
+
+Properties explanations can be found in [CREATE-STORAGE-VAULT](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-STORAGE-VAULT.md).
+
+**Example**
+
+```sql
+ALTER STORAGE VAULT old_s3_vault
+PROPERTIES (
+    "type" = "S3",
+    "VAULT_NAME" = "new_s3_vault",
+    "s3.access_key" = "new_ak"
+    "s3.secret_key" = "new_sk"
+);
+```
+
+```sql
+ALTER STORAGE VAULT old_hdfs_vault
+PROPERTIES (
+    "type" = "hdfs",
+    "VAULT_NAME" = "new_hdfs_vault",
+    "hadoop.username" = "hdfs"
+);
+```
+
+## Delete an Storage Vault
+
+Not supported
+
+## Storage Vault Privilege
+
+Grant a specified MySQL user the usage privilege for a certain Storage Vault, allowing the user to specify that Storage Vault when creating tables or viewing Storage Vaults.
+
+### Grant
+
+```sql
+GRANT
+    USAGE_PRIV
+    ON STORAGE VAULT <vault_name>
+    TO { ROLE | USER } {<role> | <user>}
+```
+
+Only Admin users have the authority to execute the `GRANT` statement, which is used to grant specified Storage Vault privileges to User/Role. Users/Roles with `USAGE_PRIV` privilege for a certain Storage Vault can perform the following operations:
+
+- View the information of that Storage Vault through `SHOW STORAGE VAULT`;
+- Specify the use of that Storage Vault in `PROPERTIES` when creating tables.
+
+**Example**
+
+```sql
+grant usage_priv on storage vault my_storage_vault to user1
+```
+
+### Revoke
+
+Revoke the Storage Vault privileges of a specified MySQL user.
+
+**Syntax**
+
+```sql
+REVOKE 
+    USAGE_PRIV
+    ON STORAGE VAULT <vault_name>
+    FROM { ROLE | USER } {<role> | <user>}
+```
+
+Only Admin users have the authority to execute the `REVOKE` statement, which is used to revoke the privileges of User/Role for the specified Storage Vault.
+
+**Example**
+
+```sql
+revoke usage_priv on storage vault my_storage_vault from user1
+```
