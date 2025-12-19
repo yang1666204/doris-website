@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-REPOSITORIES", "language": "en" }
+{ "title": "SHOW-RESOURCES", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,69 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-REPOSITORIES
+## SHOW-RESOURCES
 
 ### Name
 
-SHOW REPOSITORIES
+SHOW RESOURCES
 
 ### Description
 
-This statement is used to view the currently created warehouse
+This statement is used to display resources that the user has permission to use. Ordinary users can only display resources with permission, and root or admin users will display all resources.
 
 grammar:
 
 ```sql
-SHOW REPOSITORIES;
+SHOW RESOURCES
+[
+  WHERE
+  [NAME [ = "your_resource_name" | LIKE "name_matcher"]]
+  [RESOURCETYPE = ["SPARK"]]
+] | [LIKE "pattern"]
+[ORDER BY...]
+[LIMIT limit][OFFSET offset];
 ```
 
 illustrate:
 
-1. The meanings of the columns are as follows:
-   RepoId: Unique repository ID
-   RepoName: repository name
-   CreateTime: The time when the repository was first created
-   IsReadOnly: Whether it is a read-only repository
-   Location: The root directory in the warehouse for backing up data
-   Broker: Dependent Broker
-   ErrMsg: Doris will regularly check the connectivity of the warehouse, if there is a problem, an error message will be displayed here
+1. If NAME LIKE is used, it will match Resource whose Name contains name_matcher in RESOURCES
+2. If NAME = is used, it will match the specified Name exactly
+3. If RESOURCETYPE is specified, match the corresponding Resrouce type
+4. You can use ORDER BY to sort on any combination of columns
+5. If LIMIT is specified, limit matching records are displayed. Otherwise show all
+6. If OFFSET is specified, the query results are displayed starting at offset offset. By default the offset is 0.
+7. If using LIKE, the WHERE clause will be ignored.
 
 ### Example
 
-1. View the created repository:
+1. Display all resources that the current user has permissions to
 
-```sql
-  SHOW REPOSITORIES;
-```
+   ```sql
+   SHOW RESOURCES;
+   ```
+
+2. Display the specified Resource, the name contains the string "20140102", and display 10 attributes
+
+   ```sql
+   SHOW RESOURCES WHERE NAME LIKE "2014_01_02" LIMIT 10;
+   ```
+
+3. Display the specified Resource, specify the name as "20140102" and sort by KEY in descending order
+
+   ```sql
+   SHOW RESOURCES WHERE NAME = "20140102" ORDER BY `KEY` DESC;
+   ```
+
+4. Using LIKE to match the resource
+
+   ```sql
+   SHOW RESOURCES LIKE "jdbc%";
+   ```
 
 ### Keywords
 
     ```
-    SHOW, REPOSITORIES
+    SHOW, RESOURCES
     ```
 
 ### Best Practice
