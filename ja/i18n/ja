@@ -1,5 +1,5 @@
 ---
-{ "title": "UPPER", "language": "en" }
+{ "title": "url_decode", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## upper
+## url_decode
 
 ### description
 
+Converts an url to a decode string.
+
 #### Syntax
 
-`VARCHAR upper(VARCHAR str)`
+```sql
+VARCHAR url_decode(VARCHAR url)
+```
 
-Convert all strings in parameters to uppercase. Another alias for this function is [ucase](./ucase.md).
+### Parameters
+
+- url: the string to decode. If url is not a string type.
 
 ### example
 
 ```
-mysql> SELECT upper("aBc123");
-+-----------------+
-| upper('aBc123') |
-+-----------------+
-| ABC123          |
-+-----------------+
+mysql> mysql> select url_decode('https%3A%2F%2Fdoris.apache.org%2Fzh-CN%2Fdocs%2Fsql-manual%2Fsql-functions%2Fstring-functions');
++------------------------------------------------+
+| url_decode('https%3A%2F%2Fdoris.apache.org%2Fzh-CN%2Fdocs%2Fsql-manual%2Fsql-functions%2Fstring-functions') |
++------------------------------------------------+
+| https://doris.apache.org/zh-CN/docs/sql-manual/sql-functions/string-functions                               |
++------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    UPPER
+    URL DECODE
     ```
