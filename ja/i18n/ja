@@ -1,5 +1,5 @@
 ---
-{ "title": "Check Decommission Action", "language": "en" }
+{ "title": "Check Storage Type Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Check Decommission Action
+# Check Storage Type Action
 
 ## Request
 
-`GET /api/check_decommission`
+`GET /api/_check_storagetype`
 
 ## Description
 
-Used to determine whether the specified BE can be decommissioned. For example, after the node being decommissioned, whether the remaining nodes can meet the space requirements and the number of replicas.
+It is used to check whether the storage format of the table under the specified database is the row storage format. (The row format is deprecated)
 
 ## Path parameters
 
@@ -37,11 +37,9 @@ None
 
 ## Query parameters
 
-- `host_ports`
+- `db`
 
-  Specify one or more BEs, separated by commas. Such as: `ip1:port1,ip2:port2,...`.
-
-  Where port is the heartbeat port of BE.
+  Specify the database
 
 ## Request body
 
@@ -49,33 +47,35 @@ None
 
 ## Response
 
-Return a list of nodes that can be decommissioned
-
 ```
 {
-	"msg": "OK",
+	"msg": "success",
 	"code": 0,
-	"data": ["192.168.10.11:9050", "192.168.10.11:9050"],
+	"data": {
+		"tbl2": {},
+		"tbl1": {}
+	},
 	"count": 0
 }
 ```
 
+If there is content after the table name, the base or rollup table whose storage format is row storage will be displayed.
+
 ## Examples
 
-1. Check whether the specified BE node can be decommissioned
+1. Check whether the storage format of the following table of the specified database is row format
 
     ```
-    GET /api/check_decommission?host_ports=192.168.10.11:9050,192.168.10.11:9050
+    GET /api/_check_storagetype
     
     Response:
     {
-    	"msg": "OK",
+    	"msg": "success",
     	"code": 0,
-    	"data": ["192.168.10.11:9050"],
+    	"data": {
+    		"tbl2": {},
+    		"tbl1": {}
+    	},
     	"count": 0
     }
     ```
-
-
-
-
