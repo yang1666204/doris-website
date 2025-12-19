@@ -1,5 +1,5 @@
 ---
-{ "title": "ASSERT_TRUE", "language": "en" }
+{ "title": "CASE", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-### Description
+## case
+
+### description
 
 #### Syntax
 
-`BOOLEAN assert_true(BOOLEAN condition, VarcharLiteral errmsg)`
-
-When `condition` is `true`, return `true`. Otherwise throws an error with message `errmsg`.
-`errmsg` could only be Literal.
-
-### Example
-
-```sql
-mysql> select assert_true(1, "wrong");
-+------------------------------------------+
-| assert_true(cast(1 as BOOLEAN), 'wrong') |
-+------------------------------------------+
-|                                        1 |
-+------------------------------------------+
-1 row in set (0.12 sec)
-
-mysql> select assert_true(1, nullable("wrong"));
-ERROR 1105 (HY000): errCode = 2, detailMessage = assert_true only accept constant for 2nd argument
-mysql> select assert_true(0, "wrong");
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.8)[INVALID_ARGUMENT][E33] wrong
-mysql> select assert_true(null, "wrong");
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.8)[INVALID_ARGUMENT][E33] wrong
+```
+CASE expression
+    WHEN condition1 THEN result1
+    [WHEN condition2 THEN result2]
+    ...
+    [WHEN conditionN THEN resultN]
+    [ELSE result]
+END
 ```
 
-### Keywords
+OR
 
-    ```
-    ASSERT_TRUE, ASSERT, TRUE
-    ```
+```
+CASE WHEN condition1 THEN result1
+    [WHEN condition2 THEN result2]
+    ...
+    [WHEN conditionN THEN resultN]
+    [ELSE result]
+END
+```
+
+Compare the expression with multiple possible values, and return the corresponding results when matching
+
+### example
+
+```
+mysql> select user_id, case user_id when 1 then 'user_id = 1' when 2 then 'user_id = 2' else 'user_id not exist' end test_case from test;
++---------+-------------+
+| user_id | test_case   |
++---------+-------------+
+| 1       | user_id = 1 |
+| 2       | user_id = 2 |
++---------+-------------+
+ 
+mysql> select user_id, case when user_id = 1 then 'user_id = 1' when user_id = 2 then 'user_id = 2' else 'user_id not exist' end test_case from test;
++---------+-------------+
+| user_id | test_case   |
++---------+-------------+
+| 1       | user_id = 1 |
+| 2       | user_id = 2 |
++---------+-------------+
+```
+
+### keywords
+
+CASE
