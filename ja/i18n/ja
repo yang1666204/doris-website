@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CATALOGS", "language": "en" }
+{ "title": "SHOW-CHARSET", "language": "en" }
 ---
 
 <!--
@@ -21,62 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CATALOGS
-
-### Name
-
-SHOW CATALOGS
+## SHOW-CHARSET
 
 ### Description
 
-This statement is used for view created catalogs
+The "SHOW CHARACTER" command is used to display the available character sets in the current database management system,
+along with some associated properties for each character set. These properties may include the name of the character set,
+the default collation, and the maximum byte length, among others. By running the "SHOW CHARACTER" command, you can view the list of supported character sets in the system along with their detailed information.
 
-Syntax:
+The "SHOW CHARACTER" command returns the following fields:
 
-```sql
-SHOW CATALOGS [LIKE]
-```
-
-illustrate:
-
-1. LIKE: Fuzzy query can be performed according to the catalog name
-
-Return result:
-
-- CatalogId: Unique ID of the catalog
-- CatalogName: Catalog name. where "internal" is the default built-in catalog, which cannot be modified.
-- Type: Catalog type.
-- IsCurrent: Show yes on the line of current using catalog.
+Charset: Character set
+Description: Description
+Default Collation: Default collation name
+Maxlen: Maximum byte length.
 
 ### Example
 
-1. View the data catalogs that have been created currently
+```sql
+mysql> show charset;
 
-   ```sql
-   SHOW CATALOGS;
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-    | CatalogId | CatalogName | Type     | IsCurrent | CreateTime              | LastUpdateTime      | Comment                |
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-    |    130100 | hive        | hms      |           | 2023-12-25 16:11:41.687 | 2023-12-25 20:43:18 | NULL                   |
-    |         0 | internal    | internal | yes       | UNRECORDED              | NULL                | Doris internal catalog |
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-   ```
+| Charset   | Description     | Default collation | Maxlen |
+|-----------|-----------------|-------------------|--------|
+| utf8mb4   | UTF-8 Unicode   | utf8mb4_0900_bin  | 4      |
 
-2. Fuzzy query by catalog name
-
-   ```sql
-   SHOW CATALOGS LIKE 'hi%';
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-    | CatalogId | CatalogName | Type     | IsCurrent | CreateTime              | LastUpdateTime      | Comment                |
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-    |    130100 | hive        | hms      |           | 2023-12-25 16:11:41.687 | 2023-12-25 20:43:18 | NULL                   |
-    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
-       ```
-   ```
+```
 
 ### Keywords
 
-SHOW, CATALOG, CATALOGS
+    ```
+    SHOW, CHARSET
+    ```
 
 ### Best Practice
 
