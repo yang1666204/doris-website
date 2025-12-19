@@ -1,5 +1,5 @@
 ---
-{ "title": "REGEXP", "language": "en" }
+{ "title": "REPEAT", "language": "en" }
 ---
 
 <!-- 
@@ -21,47 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## regexp
+## repeat
 
-### description
+### Description
 
-#### syntax
+#### Syntax
 
-`BOOLEAN regexp(VARCHAR str, VARCHAR pattern)`
+`VARCHAR repeat (VARCHAR str, INT count)`
 
-Perform regular matching on the string str, return true if it matches, and return false if it doesn't match. pattern is a regular expression.
-
-Character set matching requires the use of Unicode standard character classes. For example, to match Chinese, use `\p{Han}`.
+Repeat the str of the string count times, return empty string when count is less than 1, return NULL when str, count is any NULL
 
 ### example
 
-```sql
---- Find all data starting with 'billie' in the k1 field
-mysql> select k1 from test where k1 regexp '^billie';
-+--------------------+
-| k1                 |
-+--------------------+
-| billie eillish     |
-+--------------------+
+```
+mysql> SELECT repeat("a", 3);
++----------------+
+| repeat('a', 3) |
++----------------+
+| aaa            |
++----------------+
 
---- Find all data ending with 'ok' in the k1 field:
-mysql> select k1 from test where k1 regexp 'ok$';
-+----------+
-| k1       |
-+----------+
-| It's ok  |
-+----------+
-
-mysql> select regexp('这是一段中文This is a passage in English 1234567', '\\p{Han}');
-+-----------------------------------------------------------------------------+
-| ('这是一段中文This is a passage in English 1234567' regexp '\p{Han}')       |
-+-----------------------------------------------------------------------------+
-|                                                                           1 |
-+-----------------------------------------------------------------------------+
+mysql> SELECT repeat("a", -1);
++-----------------+
+| repeat('a', -1) |
++-----------------+
+|                 |
++-----------------+
 ```
 
 ### keywords
 
     ```
-    REGEXP
+    REPEAT
     ```
