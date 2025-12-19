@@ -1,5 +1,5 @@
 ---
-{ "title": "LTRIM_IN", "language": "en" }
+{ "title": "MASK_FIRST_N", "language": "en" }
 ---
 
 <!-- 
@@ -21,32 +21,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## mask_first_n
 
-## Syntax
+### description
 
-`VARCHAR ltrim_in(VARCHAR str[, VARCHAR rhs])`
+#### syntax
 
-When there is no rhs parameter, remove the spaces that appear consecutively in the parameter str starting from the left part; when there is an rhs parameter, search and remove any characters in the rhs character set at the left end of the string (regardless of order)
+`VARCHAR mask_first_n(VARCHAR str[, INT n])`
 
-## Examples
+Returns a masked version of str with the first n values masked. Upper case letters are converted to "X", lower case letters are converted to "x" and numbers are converted to "n". For example, mask_first_n("1234-5678-8765-4321", 4) results in nnnn-5678-8765-4321.
 
-```sql
-mysql> SELECT ltrim_in('   ab d') str;
-+------+
-| str  |
-+------+
-| ab d |
-+------+
+### example
 
-mysql> SELECT ltrim_in('ababccaab','ab') str;
-+-------+
-| str   |
-+-------+
-| ccaab |
-+-------+
+```
+// table test
++-----------+
+| name      |
++-----------+
+| abc123EFG |
+| NULL      |
+| 456AbCdEf |
++-----------+
+
+mysql> select mask_first_n(name, 5) from test;
++-------------------------+
+| mask_first_n(`name`, 5) |
++-------------------------+
+| xxxnn3EFG               |
+| NULL                    |
+| nnnXxCdEf               |
++-------------------------+
 ```
 
-## Keywords
+### keywords
 
-LTRIM_IN
+    ```
+    mask_first_n
+    ```
