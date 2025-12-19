@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_OR_COUNT", "language": "en" }
+{ "title": "BITMAP_OR", "language": "en" }
 ---
 
 <!-- 
@@ -21,58 +21,71 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_or_count
+## bitmap_or
 
 ### description
 
 #### Syntax
 
-`BigIntVal bitmap_or_count(BITMAP lhs, BITMAP rhs)`
+`BITMAP BITMAP_OR(BITMAP lhs, BITMAP rhs, ...)`
 
-Calculates the union of two or more input bitmaps and returns the number of union sets.
+Compute union of two or more input bitmaps, returns the new bitmap.
 
 ### example
 
 ```
-MySQL> select bitmap_or_count(bitmap_from_string('1,2,3'),bitmap_empty());
-+--------------------------------------------------------------+
-| bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_empty()) |
-+--------------------------------------------------------------+
-|                                                            3 |
-+--------------------------------------------------------------+
+mysql> select bitmap_count(bitmap_or(to_bitmap(1), to_bitmap(1))) cnt;
++------+
+| cnt  |
++------+
+|    1 |
++------+
 
+mysql> select bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(1))) ;
++---------------------------------------------------------+
+| bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(1))) |
++---------------------------------------------------------+
+| 1                                                       |
++---------------------------------------------------------+
 
-MySQL> select bitmap_or_count(bitmap_from_string('1,2,3'),bitmap_from_string('1,2,3'));
-+---------------------------------------------------------------------------+
-| bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('1,2,3')) |
-+---------------------------------------------------------------------------+
-|                                                                         3 |
-+---------------------------------------------------------------------------+
+mysql> select bitmap_count(bitmap_or(to_bitmap(1), to_bitmap(2))) cnt;
++------+
+| cnt  |
++------+
+|    2 |
++------+
 
-MySQL> select bitmap_or_count(bitmap_from_string('1,2,3'),bitmap_from_string('3,4,5'));
-+---------------------------------------------------------------------------+
-| bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5')) |
-+---------------------------------------------------------------------------+
-|                                                                         5 |
-+---------------------------------------------------------------------------+
+mysql> select bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2)));
++---------------------------------------------------------+
+| bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2))) |
++---------------------------------------------------------+
+| 1,2                                                     |
++---------------------------------------------------------+
 
-MySQL> select bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5'), to_bitmap(100), bitmap_empty());
-+-----------------------------------------------------------------------------------------------------------+
-| bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5'), to_bitmap(100), bitmap_empty()) |
-+-----------------------------------------------------------------------------------------------------------+
-|                                                                                                         6 |
-+-----------------------------------------------------------------------------------------------------------+
+mysql> select bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2), to_bitmap(10), to_bitmap(0), NULL));
++--------------------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2), to_bitmap(10), to_bitmap(0), NULL)) |
++--------------------------------------------------------------------------------------------+
+| 0,1,2,10                                                                                   |
++--------------------------------------------------------------------------------------------+
 
-MySQL> select bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5'), to_bitmap(100), NULL);
-+-------------------------------------------------------------------------------------------------+
-| bitmap_or_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5'), to_bitmap(100), NULL) |
-+-------------------------------------------------------------------------------------------------+
-|                                                                                            NULL |
-+-------------------------------------------------------------------------------------------------+
+mysql> select bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2),to_bitmap(10),to_bitmap(0),bitmap_empty()));
++------------------------------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2), to_bitmap(10), to_bitmap(0), bitmap_empty())) |
++------------------------------------------------------------------------------------------------------+
+| 0,1,2,10                                                                                             |
++------------------------------------------------------------------------------------------------------+
+
+mysql> select bitmap_to_string(bitmap_or(to_bitmap(10), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'))) ;
++--------------------------------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_or(to_bitmap(10), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'))) |
++--------------------------------------------------------------------------------------------------------+
+| 1,2,3,4,5,10                                                                                           |
++--------------------------------------------------------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_OR_COUNT,BITMAP
+    BITMAP_OR,BITMAP
     ```
