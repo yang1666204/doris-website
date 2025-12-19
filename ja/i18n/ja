@@ -1,5 +1,5 @@
 ---
-{ "title": "HDFS", "language": "en" }
+{ "title": "HUDI_META", "language": "en" }
 ---
 
 <!--
@@ -21,150 +21,74 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## HDFS
+## Description
 
-### Name
+hudi_meta table-valued-function(tvf), using for read hudi metadata, operation history, timeline of table, instant state etc.
 
-hdfs
-
-### Description
-
-HDFS table-valued-function(tvf), allows users to read and access file contents on S3-compatible object storage, just like accessing relational table. Currently supports `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc` file format.
-
-#### syntax
+## Syntax
 
 ```sql
-hdfs(
-  "uri" = "..",
-  "fs.defaultFS" = "...",
-  "hadoop.username" = "...",
-  "format" = "csv",
-  "keyn" = "valuen" 
+hudi_meta(
+  "table" = "ctl.db.tbl", 
+  "query_type" = "timeline"
   ...
   );
 ```
 
 **parameter description**
 
-Related parameters for accessing hdfs:
+Each parameter in hudi_meta tvf is a pair of `"key"="value"`.
 
-- `uri`: (required) hdfs uri. If the uri path does not exist or the files are empty files, hdfs tvf will return an empty result set.
-- `fs.defaultFS`: (required)
-- `hadoop.username`: (required) Can be any string, but cannot be empty.
-- `hadoop.security.authentication`: (optional)
-- `hadoop.username`: (optional)
-- `hadoop.kerberos.principal`: (optional)
-- `hadoop.kerberos.keytab`: (optional)
-- `dfs.client.read.shortcircuit`: (optional)
-- `dfs.domain.socket.path`: (optional)
+Related parameters:
 
-Related parameters for accessing HDFS in HA mode:
+- `table`： (required) Use hudi table name the format `catlog.database.table`.
+- `query_type`： (required) The type of hudi metadata. Only `timeline` is currently supported.
 
-- `dfs.nameservices`: (optional)
-- `dfs.ha.namenodes.your-nameservices`: (optional)
-- `dfs.namenode.rpc-address.your-nameservices.your-namenode`: (optional)
-- `dfs.client.failover.proxy.provider.your-nameservices`: (optional)
+## Example
 
-File format parameters:
-
-- `format`: (required) Currently support `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc/avro`
-
-- `column_separator`: (optional) default `\t`.
-
-- `line_delimiter`: (optional) default `\n`.
-
-- `compress_type`: (optional) Currently support `UNKNOWN/PLAIN/GZ/LZO/BZ2/LZ4FRAME/DEFLATE/SNAPPYBLOCK`. Default value is `UNKNOWN`, it will automatically infer the type based on the suffix of `uri`.
-
-  The following 6 parameters are used for loading in json format. For specific usage methods, please refer to: [Json Load](../../../data-operate/import/import-way/load-json-format.md)
-
-- `read_json_by_line`: (optional) default `"true"`
-
-- `strip_outer_array`: (optional) default `"false"`
-
-- `json_root`: (optional) default `""`
-
-- `json_paths`: (optional) default `""`
-
-- `num_as_string`: (optional) default `false`
-
-- `fuzzy_parse`: (optional) default `false`
-
-  The following 2 parameters are used for loading in csv format:
-
-- `trim_double_quotes`: Boolean type (optional), the default value is `false`. True means that the outermost double quotes of each field in the csv file are trimmed.
-
-- `skip_lines`: Integer type (optional), the default value is 0. It will skip some lines in the head of csv file. It will be disabled when the format is `csv_with_names` or `csv_with_names_and_types`.
-
-other kinds of parameters:
-
-- `path_partition_keys`: (optional) Specifies the column names carried in the file path. For example, if the file path is /path/to/city=beijing/date="2023-07-09", you should fill in `path_partition_keys="city,date"`. It will automatically read the corresponding column names and values from the path during load process.
-- `resource`：（optional）Specify the resource name. Hdfs Tvf can use the existing Hdfs resource to directly access Hdfs. You can refer to the method for creating an Hdfs resource: [CREATE-RESOURCE](../../sql-statements/Data-Definition-Statements/Create/CREATE-RESOURCE.md). This property is supported starting from version 2.1.4.
-
-:::tip Tip
-To directly query a TVF or create a VIEW based on that TVF, you need to have usage permission for that resource. To query a VIEW created based on TVF, you only need select permission for that VIEW.
-:::
-
-### Examples
-
-Read and access csv format files on hdfs storage.
+Read and access the hudi tabular metadata for timeline.
 
 ```sql
-MySQL [(none)]> select * from hdfs(
-            "uri" = "hdfs://127.0.0.1:842/user/doris/csv_format_test/student.csv",
-            "fs.defaultFS" = "hdfs://127.0.0.1:8424",
-            "hadoop.username" = "doris",
-            "format" = "csv");
-+------+---------+------+
-| c1   | c2      | c3   |
-+------+---------+------+
-| 1    | alice   | 18   |
-| 2    | bob     | 20   |
-| 3    | jack    | 24   |
-| 4    | jackson | 19   |
-| 5    | liming  | 18   |
-+------+---------+------+
-```
+select * from hudi_meta("table" = "ctl.db.tbl", "query_type" = "timeline");
 
-Read and access csv format files on hdfs storage in HA mode.
-
-```sql
-MySQL [(none)]> select * from hdfs(
-            "uri" = "hdfs://127.0.0.1:842/user/doris/csv_format_test/student.csv",
-            "fs.defaultFS" = "hdfs://127.0.0.1:8424",
-            "hadoop.username" = "doris",
-            "format" = "csv",
-            "dfs.nameservices" = "my_hdfs",
-            "dfs.ha.namenodes.my_hdfs" = "nn1,nn2",
-            "dfs.namenode.rpc-address.my_hdfs.nn1" = "nanmenode01:8020",
-            "dfs.namenode.rpc-address.my_hdfs.nn2" = "nanmenode02:8020",
-            "dfs.client.failover.proxy.provider.my_hdfs" = "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider");
-+------+---------+------+
-| c1   | c2      | c3   |
-+------+---------+------+
-| 1    | alice   | 18   |
-| 2    | bob     | 20   |
-| 3    | jack    | 24   |
-| 4    | jackson | 19   |
-| 5    | liming  | 18   |
-+------+---------+------+
 ```
 
 Can be used with `desc function` :
 
 ```sql
-MySQL [(none)]> desc function hdfs(
-            "uri" = "hdfs://127.0.0.1:8424/user/doris/csv_format_test/student_with_names.csv",
-            "fs.defaultFS" = "hdfs://127.0.0.1:8424",
-            "hadoop.username" = "doris",
-            "format" = "csv_with_names");
+desc function hudi_meta("table" = "ctl.db.tbl", "query_type" = "timeline");
 ```
 
-### Keywords
+## Keywords
 
     ```
-    hdfs, table-valued-function, tvf
+    hudi_meta, table-valued-function, tvf
     ```
 
-### Best Practice
+## Best Practice
 
-For more detailed usage of HDFS tvf, please refer to [S3](./s3.md) tvf, The only difference between them is the way of accessing the storage system.
+Inspect the hudi table timeline :
+
+```sql
+select * from hudi_meta("table" = "hudi_ctl.test_db.test_tbl", "query_type" = "timeline");
++-------------------+--------+--------------------------+-----------+-----------------------+
+| timestamp         | action | file_name                | state     | state_transition_time |
++-------------------+--------+--------------------------+-----------+-----------------------+
+| 20240724195843565 | commit | 20240724195843565.commit | COMPLETED | 20240724195844269     |
+| 20240724195845718 | commit | 20240724195845718.commit | COMPLETED | 20240724195846653     |
+| 20240724195848377 | commit | 20240724195848377.commit | COMPLETED | 20240724195849337     |
+| 20240724195850799 | commit | 20240724195850799.commit | COMPLETED | 20240724195851676     |
++-------------------+--------+--------------------------+-----------+-----------------------+
+```
+
+Filtered by timestamp :
+
+```sql
+select * from hudi_meta("table" = "hudi_ctl.test_db.test_tbl", "query_type" = "timeline") 
+where timestamp = 20240724195843565;
++-------------------+--------+--------------------------+-----------+-----------------------+
+| timestamp         | action | file_name                | state     | state_transition_time |
++-------------------+--------+--------------------------+-----------+-----------------------+
+| 20240724195843565 | commit | 20240724195843565.commit | COMPLETED | 20240724195844269     |
++-------------------+--------+--------------------------+-----------+-----------------------+
+```
