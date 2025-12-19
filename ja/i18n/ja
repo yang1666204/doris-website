@@ -1,5 +1,5 @@
 ---
-{ "title": "Deploying on AWS", "language": "en" }
+{ "title": "Access Cluster", "language": "en" }
 ---
 
 <!-- 
@@ -10,9 +10,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,103 +19,123 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-To facilitate a quick experience of Doris on AWS, we have provided a CloudFormation template (CFT) that allows for rapid cluster launch and operation. With this template, you can automatically configure AWS resources and launch a Doris cluster with minimal configuration required.
+Kubernetes provides the use of Service as VIP (Virtual IP) and load balancer. There are three external exposure modes for Service: ClusterIP, NodePort, and LoadBalancer.
 
-Alternatively, you can also purchase AWS resources independently and deploy the cluster manually using standard methods.
+## ClusterIP
 
-:::tip
+Doris provides the ClusterIP access mode by default on Kubernetes. The ClusterIP access mode provides an internal IP address within the Kubernetes cluster to expose services through this internal IP. With the ClusterIP mode, services can only be accessed within the cluster.
 
-Currently, such deployment is not supported in the compute-storage decoupled mode.
+### Step 1: Obtain the Service
 
-:::
+After deploying the cluster, you can view the services exposed by the Doris Operator using the following command:
 
-## What's AWS CloudFormation?
+```shell
+kubectl -n doris get svc
+```
 
-CloudFormation enables users to create a "stack of resources" in just one step. Resources refer to the items created by users, such as EC2 instances, VPCs, subnets, and more. A group of such resources is referred to as a stack. Users can write a template that easily allows them to create a resource stack according to their preferences in a single step. This is faster, more repeatable, and offers better consistency compared to manual creation and configuration. Additionally, templates can be placed into source code for version control, enabling their use for any purpose whenever needed.
+The returned result is as follows:
 
-## What's Doris on AWS CloudFormation?
+```shell
+NAME                              TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)                               AGE
+doriscluster-sample-be-internal   ClusterIP   None          <none>        9050/TCP                              9m
+doriscluster-sample-be-service    ClusterIP   10.1.68.128   <none>        9060/TCP,8040/TCP,9050/TCP,8060/TCP   9m
+doriscluster-sample-fe-internal   ClusterIP   None          <none>        9030/TCP                              14m
+doriscluster-sample-fe-service    ClusterIP   10.1.118.16   <none>        8030/TCP,9020/TCP,9030/TCP,9010/TCP   14m
+```
 
-Currently, Doris provides the Doris CloudFormation Template, which allows users to quickly create a cluster of the relevant Doris version on AWS by directly using this template, enabling them to experience the latest Doris features.
+In the above results, there are two types of services for FE and BE, with suffixes of "internal" and "service" respectively:
 
-:::caution
+- The services with the "internal" suffix can only be used for internal communication within Doris, such as heartbeat, data exchange, and other operations, and are not for external use.
+- The services with the "service" suffix can be used by users.
 
-\*\*Note: \*\* The template for building Doris clusters based on CloudFormation currently only supports the regions of us-east-1, us-west-1, and us-west-2. Doris on AWS CloudFormation is primarily intended for testing or experiencing purposes, and should not be used in production environments.
-:::
+### Step 2: Access Doris
 
-## Precautions for Use
+You can create a pod containing the mysql client in the current Kubernetes cluster using the following command:
 
-- Determine the VPC and Subnet that will be deployed.
+```shell
+kubectl run mysql-client --image=mysql:5.7 -it --rm --restart=Never --namespace=doris -- /bin/bash
+```
 
-- Determine the key pair that will be used to log into the nodes.
+From within the container in the cluster, you can access the Doris cluster using the service name with the "service" suffix that is exposed externally:
 
-- A VPC Endpoint Interface for S3 will be established during deployment.
+```shell
+mysql -uroot -P9030 -hdoriscluster-sample-fe-service
+```
 
-## Start Deployment
+## NodePort
 
-**1. On the AWS console, navigate to CloudFormation and click on "Create stack".**
+According to the DorisCluster access configuration section, after [configuring the access mode to use NodePort](install-config-cluster.md#nodeport), you can access FE using the MySQL protocol in root password-free mode. The steps are as follows:
 
-![Start Deployment](/images/start-deployment.jpeg)
+### Step 1: Obtain the service
 
-Select the "Amazon S3 URL Template source" option, and fill in the "Amazon S3 URL" field with the following template link:
+After deploying the cluster, you can view the services exposed by the Doris Operator using the following command:
 
-https://sdb-cloud-third-party.s3.amazonaws.com/doris-cf/cloudformation_doris.template.yaml
+```shell
+kubectl get service
+```
 
-**2. Configure the specific parameters of the template**
+The returned result is as follows:
 
-![Configure the specific parameter](/images/configure-specific-parameters-1.jpeg)
+```shell
+NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                                                       AGE
+kubernetes                        ClusterIP   10.152.183.1     <none>        443/TCP                                                       169d
+doriscluster-sample-fe-internal   ClusterIP   None             <none>        9030/TCP                                                      2d
+doriscluster-sample-fe-service    NodePort    10.152.183.58    <none>        8030:31041/TCP,9020:30783/TCP,9030:31545/TCP,9010:31610/TCP   2d
+doriscluster-sample-be-internal   ClusterIP   None             <none>        9050/TCP                                                      2d
+doriscluster-sample-be-service    NodePort    10.152.183.244   <none>        9060:30940/TCP,8040:32713/TCP,9050:30621/TCP,8060:30926/TCP   2d
+```
 
-![Configure the specific parameter](/images/configure-specific-parameters-2.jpeg)
+### Step 2: Access Doris
 
-![Configure the specific parameter](/images/configure-specific-parameters-3.jpeg)
+To access Doris via NodePort, you need to know the Node IP and the mapped port. You can retrieve the node IPs using:
 
-The main parameters are described as follows:
+```shell
+  kubectl get nodes -owide
+```
 
-- **VPC ID**: The VPC where the deployment will be performed.
+Example output::
 
-- **Subnet ID**: The subnet where the deployment will be deployed.
+```shell
+NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE          KERNEL-VERSION          CONTAINER-RUNTIME
+r60    Ready    control-plane   14d   v1.28.2   192.168.88.60   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r61    Ready    <none>          14d   v1.28.2   192.168.88.61   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r62    Ready    <none>          14d   v1.28.2   192.168.88.62   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r63    Ready    <none>          14d   v1.28.2   192.168.88.63   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+```
 
-- **Key pair name**: The public/private key pairs used to connect to the deployed BE and FE nodes.
+You can then use the IP address of any node (e.g., 192.168.88.61, 192.168.88.62, or 192.168.88.63) along with the mapped port to access Doris. For example, using node 192.168.88.62 and port 31545:
 
-- **Version of Doris**: The version of Doris to be deployed, such as 2.1.0, 2.0.6, etc.
+```shell
+  mysql -h 192.168.88.62 -P 31545 -uroot
+```
 
-- **Number of Doris FE**: The number of FE nodes. The template defaults to selecting only 1 FE.
+## LoadBalancer
 
-- **Fe instance type**: The node type of FE, and the default value can be used.
+According to the DorisCluster access configuration section, on a public cloud platform, after [configuring the access mode to use LoadBalancer](install-config-cluster.md#loadbalancer), you can access FE using the MySQL protocol in root password-free mode. The steps are as follows:
 
-- **Number of Doris Be**: The number of BE nodes, which can be 1 or 3.
+### Step 1: Obtain the service
 
-- **Be instance type**: The node type of BE, and the default value can be used.
+After deploying the cluster, you can view the services exposed by the Doris Operator using the following command:
 
-- **Meta data dir**: The metadata directory of the FE node, and the default value can be used.
+```shell
+kubectl get service
+```
 
-- **Sys log level:** Sets the level of system logs, and the default value of "info" can be used.
+The returned result is as follows:
 
-- **Volume type of Be nodes:** The volume type of EBS mounted on BE nodes. Each node is mounted with one disk by default. The default value can be used.
+```shell
+NAME                              TYPE           CLUSTER-IP       EXTERNAL-IP                                                                     PORT(S)                                                       AGE
+kubernetes                        ClusterIP      10.152.183.1     <none>                                                                          443/TCP                                                       169d
+doriscluster-sample-fe-internal   ClusterIP      None             <none>                                                                          9030/TCP                                                      2d
+doriscluster-sample-fe-service    LoadBalancer   10.152.183.58    ac4828493dgrftb884g67wg4tb68gyut-1137856348.us-east-1.elb.amazonaws.com         8030:31041/TCP,9020:30783/TCP,9030:31545/TCP,9010:31610/TCP   2d
+doriscluster-sample-be-internal   ClusterIP      None             <none>                                                                          9050/TCP                                                      2d
+doriscluster-sample-be-service    LoadBalancer   10.152.183.244   ac4828493dgrftb884g67wg4tb68gyut-1137823345.us-east-1.elb.amazonaws.com         9060:30940/TCP,8040:32713/TCP,9050:30621/TCP,8060:30926/TCP   2d
+```
 
-- **Volume size of Be nodes**: The size of EBS mounted on BE nodes, measured in GB. The default value can be used.
+### Step 2: Access Doris
 
-## How to Connect to the Database
+To access Doris through the LoadBalancer, use the external IP (provided in the EXTERNAL-IP field) and the corresponding port. For example, using the `mysql` command:
 
-**1. The display after successful deployment is as follows:**
-
-![How to Connect to the Database](/images/how-to-connect-to-the-database.jpeg)
-
-**2. Next, find the connection address for FE as follows. In this example, you can view the address as 172.16.0.97 from the FE Outputs.**
-
-![find the connection address for FE ](/images/find-connection-address-for-fe-1.jpeg)
-
-![find the connection address for FE ](/images/find-connection-address-for-fe-2.jpeg)
-
-![find the connection address for FE ](/images/find-connection-address-for-fe-3.jpeg)
-
-**3. To connect to the deployed Doris Cluster, here are some default values after deploying Doris using CloudFormation:**
-
-- **FE IP**: Obtain the IP address of FE following the steps in the previous section.
-
-- **FE MySQL protocol port:** 9030
-
-- **FE HTTP protocol port**: 8030
-
-- **Default root password**: empty
-
-- **Default admin password:** empty
+```shell
+mysql -h ac4828493dgrftb884g67wg4tb68gyut-1137856348.us-east-1.elb.amazonaws.com -P 31545 -uroot
+```
