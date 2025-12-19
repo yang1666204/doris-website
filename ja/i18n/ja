@@ -1,5 +1,5 @@
 ---
-{ "title": "Common Issues", "language": "en" }
+{ "title": "Data Distribution Concept", "language": "en" }
 ---
 
 <!--
@@ -21,32 +21,100 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-1. Incomplete syntax error prompts may occur in longer table creation statements. Here are some possible syntax errors for manual troubleshooting:
+In Doris, the core of **data distribution** is to efficiently map the rows of data written to the table onto various **data shards (Tablets)** in the underlying storage through reasonable partitioning and bucketing strategies. Through data distribution strategies, Doris can fully utilize the storage and computing capabilities of multiple nodes, thereby supporting efficient storage and querying of large-scale data.
 
-   - Syntax structure errors. Please carefully read [HELP CREATE TABLE](../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-TABLE)  and check the relevant syntax structure.
-   - Reserved words. When user-defined names encounter reserved words, they need to be enclosed in backticks \`\`. It is recommended to use this symbol for all custom names.
-   - Chinese characters or full-width characters. Non-UTF8 encoded Chinese characters or hidden full-width characters (spaces, punctuation, etc.) can cause syntax errors. It is recommended to use a text editor that displays invisible characters for inspection.
+---
 
-2. Failed to create partition [xxx]. Timeout
+## Overview of Data Distribution
 
-   Doris creates tables sequentially based on partition granularity. When a partition fails to create, this error may occur. Even if partitions are not used, when there is a problem with table creation, `Failed to create partition` may still be reported because, as mentioned earlier, Doris creates an unmodifiable default partition for tables without specified partitions.
+### Data Writing
 
-   When encountering this error, it is usually because the BE encountered a problem when creating data tablets. You can troubleshoot by following these steps:
+When writing data, Doris first allocates the rows of data to the corresponding partitions based on the table's partitioning strategy. Then, according to the bucketing strategy, the rows of data are further mapped to specific shards within the partition, determining the storage location of the data rows.
 
-   - In the fe.log, search for the `Failed to create partition` log entry at the corresponding timestamp. In this log entry, you may find a series of number pairs similar to `{10001-10010}`. The first number in the pair represents the Backend ID, and the second number represents the Tablet ID. For example, this number pair indicates that the creation of Tablet ID 10010 on Backend ID 10001 failed.
-   - Go to the be.INFO log of the corresponding Backend and search for Tablet ID-related logs within the corresponding time period to find error messages.
-   - Here are some common tablet creation failure errors, including but not limited to:
-     - The BE did not receive the relevant task. In this case, you cannot find Tablet ID-related logs in be.INFO or the BE reports success but actually fails. For these issues, please refer to the [Installation and Deployment](../../install/cluster-deployment/standard-deployment) section to check the connectivity between FE and BE.
-     - Pre-allocated memory failure. This may be because the byte length of a row in the table exceeds 100KB.
-     - `Too many open files`. The number of open file handles exceeds the Linux system limit. You need to modify the handle limit of the Linux system.
+### Query Execution
 
-- If there is a timeout when creating data tablets, you can also extend the timeout by setting `tablet_create_timeout_second=xxx` and `max_create_table_timeout_second=xxx` in the fe.conf file. By default, `tablet_create_timeout_second` is set to 1 second, and `max_create_table_timeout_second` is set to 60 seconds. The overall timeout is calculated as `min(tablet_create_timeout_second * replication_num, max_create_table_timeout_second)`. For specific parameter settings, please refer to the [FE Configuration](../../admin-manual/config/fe-config) section.
+During query execution, Doris's optimizer will trim data based on partitioning and bucketing strategies to maximize the reduction of the scanning range. In cases involving JOIN or aggregation queries, data transfer across nodes (Shuffle) may occur. Reasonable partitioning and bucketing design can reduce Shuffle and fully utilize **Colocate Join** to optimize query performance.
 
-3. The table creation command does not return results for a long time.
+---
 
-- Doris's table creation command is a synchronous command. The timeout for this command is currently set simply as (tablet num \* replication num) seconds. If many data tablets are created and some of them fail to create, it may result in a long wait before returning an error.
-- Under normal circumstances, the table creation statement should return within a few seconds or tens of seconds. If it exceeds one minute, it is recommended to cancel the operation directly and check the relevant errors in the FE or BE logs.
+## Node and Storage Architecture
 
-## More Help
+### Node Types
 
-For more detailed information on data partitioning, you can refer to the [CREATE TABLE](../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-TABLE) command manual or enter `HELP CREATE TABLE;` in the MySQL client to get more help information.
+A Doris cluster consists of the following two types of nodes:
+
+- **FE Node (Frontend)**: Manages cluster metadata (such as tables and shards) and is responsible for SQL parsing and execution planning.
+- **BE Node (Backend)**: Stores data and is responsible for executing computational tasks. The results from BE are aggregated and returned to FE, which then returns them to the user.
+
+### Data Shard (Tablet)
+
+The data stored in the BE node is divided into shards, with each shard being the smallest unit of data management in Doris and the basic unit for data movement and replication.
+
+---
+
+## Partitioning Strategy
+
+Partitioning is the first layer of logical division for data organization, used to divide the data in the table into smaller subsets. Doris provides the following two **partition types** and three **partition modes**:
+
+### Partition Types
+
+- **Range Partitioning**: Allocates data rows to corresponding partitions based on the value range of the partition column.
+- **List Partitioning**: Allocates data rows to corresponding partitions based on specific values of the partition column.
+
+### Partition Modes
+
+- **Manual Partitioning**: Users manually create partitions (e.g., specified during table creation or added via `ALTER` statements).
+- **Dynamic Partitioning**: The system automatically creates partitions based on time scheduling rules, but does not create partitions on demand when writing data.
+- **Automatic Partitioning**: The system automatically creates corresponding partitions as needed during data writing, but care should be taken to avoid generating too many partitions with dirty data.
+
+---
+
+## Bucketing Strategy
+
+Bucketing is the second layer of logical division for data organization, used to further divide data rows into smaller units within a partition. Doris supports the following two bucketing methods:
+
+- **Hash Bucketing**: Distributes data rows evenly across shards by calculating the `crc32` hash value of the bucketing column and taking the modulus of the number of buckets.
+- **Random Bucketing**: Randomly allocates data rows to shards. When using Random bucketing, the `load_to_single_tablet` option can be used to optimize the quick writing of small-scale data.
+
+---
+
+## Data Distribution Optimization
+
+### Colocate Join
+
+For large tables that frequently require JOIN or aggregation queries, the **Colocate** strategy can be enabled to place data with the same bucketing column values on the same physical node, reducing data transfer across nodes and significantly improving query performance.
+
+### Partition Pruning
+
+During queries, Doris can prune irrelevant partitions through filtering conditions, thereby reducing the data scanning range and lowering I/O costs.
+
+### Bucketing Parallelism
+
+During queries, a reasonable number of buckets can fully utilize the computational and I/O resources of the machines.
+
+---
+
+## Data Distribution Goals
+
+1. **Uniform Data Distribution**
+   Ensure that data is evenly distributed across all BE nodes to avoid data skew that could overload certain nodes, thereby improving overall system performance.
+
+2. **Optimize Query Performance**
+   Reasonable partition pruning can significantly reduce the amount of data scanned, a reasonable number of buckets can enhance computational parallelism, and effective use of COLOCATE can lower Shuffle costs, improving JOIN and aggregation query efficiency.
+
+3. **Flexible Data Management**
+   - Time-based partitioning to store cold data (HDD) and hot data (SSD).
+   - Regularly delete historical partitions to free up storage space.
+
+4. **Control Metadata Scale**
+   The metadata for each shard is stored in both FE and BE, so it is necessary to reasonably control the number of shards. The empirical recommendation is:
+   - For every 10 million shards, FE requires at least 100GB of memory.
+   - The number of shards handled by a single BE should be less than 20,000.
+
+5. **Optimize Write Throughput**
+   - The number of buckets should be reasonably controlled (recommended < 128) to avoid degrading write performance.
+   - The number of partitions written at one time should be appropriate (recommended to write a small number of partitions at a time).
+
+---
+
+By carefully designing and managing partitioning and bucketing strategies, Doris can efficiently support the storage and query processing of large-scale data, meeting various complex business needs.
