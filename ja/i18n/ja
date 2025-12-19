@@ -1,5 +1,5 @@
 ---
-{ "title": "TRIM_IN", "language": "en" }
+{ "title": "UCASE", "language": "en" }
 ---
 
 <!-- 
@@ -21,32 +21,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## ucase
 
-## Syntax
+### description
 
-`VARCHAR trim_in(VARCHAR str[, VARCHAR rhs])`
+#### Syntax
 
-When there is no rhs parameter, remove the spaces that appear consecutively at the right and left beginning of the parameter str; when there is an rhs parameter, search and remove any characters in the rhs character set at both ends of the string (regardless of order)
+`VARCHAR ucase(VARCHAR str)`
 
-## Examples
+Convert all strings in parameters to uppercase. Another alias for this function is [upper](./upper.md).
 
-```sql
-mysql> SELECT trim_in('   ab d   ') str;
-+------+
-| str  |
-+------+
-| ab d |
-+------+
+### keywords
 
-mysql> SELECT trim_in('ababccaab','ab') str;
-+------+
-| str  |
-+------+
-| cc   |
-+------+
-```
-
-## Keywords
-
-TRIM_IN
+    ```
+    UCASE
+    ```
