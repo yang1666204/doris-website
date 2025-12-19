@@ -1,5 +1,5 @@
 ---
-{ "title": "VARCHAR", "language": "en" }
+{ "title": "ANY_VALUE", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## VARCHAR
+## ANY_VALUE
 
-### Description
+ANY_VALUE
 
-VARCHAR(M)
-A variable length string, M represents the byte length of a variable length string. The range of M is 1-65533.
+### description
 
-Note: Variable length strings are stored in UTF-8 encoding, so usually English characters occupies 1 byte, and Chinese characters occupies 3 bytes.
+#### Syntax
+
+`ANY_VALUE(expr)`
+
+If there is a non NULL value in expr, any non NULL value is returned; otherwise, NULL is returned.
+
+Alias function: `ANY(expr)`
+
+### example
+
+```
+mysql> select id, any_value(name) from cost2 group by id;
++------+-------------------+
+| id   | any_value(`name`) |
++------+-------------------+
+|    3 | jack              |
+|    2 | jack              |
++------+-------------------+
+```
 
 ### keywords
 
-VARCHAR
+ANY_VALUE, ANY
