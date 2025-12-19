@@ -1,8 +1,5 @@
 ---
-{
-  "title": "ALTER-ASYNC-MATERIALIZED-VIEW",
-  "language": "en"
-}
+{ "title": "ALTER-CATALOG", "language": "en" }
 ---
 
 <!--
@@ -24,85 +21,74 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-ASYNC-MATERIALIZED-VIEW
+## ALTER-CATALOG
 
 ### Name
 
-ALTER ASYNC MATERIALIZED VIEW
+ALTER CATALOG
 
 ### Description
 
-This statement is used to modify asynchronous materialized views.
+This statement is used to set properties of the specified catalog. (administrator only)
 
-#### syntax
+1. Rename the catalog
 
 ```sql
-ALTER MATERIALIZED VIEW mvName=multipartIdentifier ((RENAME newName=identifier)
-       | (REFRESH (refreshMethod | refreshTrigger | refreshMethod refreshTrigger))
-       | REPLACE WITH MATERIALIZED VIEW newName=identifier propertyClause?
-       | (SET  LEFT_PAREN fileProperties=propertyItemList RIGHT_PAREN))
+ALTER CATALOG catalog_name RENAME new_catalog_name;
 ```
 
-#### illustrate
+illustrate:
 
-##### RENAME
+- The builtin catalog `internal` cannot be renamed
+- Only the one who has at least Alter privilege can rename a catalog
+- After renaming the catalog, use the REVOKE and GRANT commands to modify the appropriate user permissions
 
-Used to change the name of the materialized view
-
-For example, changing the name of mv1 to mv2
+2. Modify / add properties for the catalog
 
 ```sql
-ALTER MATERIALIZED VIEW mv1 rename mv2;
+ALTER CATALOG catalog_name SET PROPERTIES ('key1' = 'value1' [, 'key' = 'value2']); 
 ```
 
-##### refreshMethod
+Update values of specified keys. If a key does not exist in the catalog properties, it will be added.
 
-Same as [creating asynchronous materialized views](../Create/CREATE-ASYNC-MATERIALIZED-VIEW.md)
+illustrate:
 
-##### refreshTrigger
+- property `type` cannot be modified.
+- properties of builtin catalog `internal` cannot be modified.
 
-Same as [creating asynchronous materialized views](../Create/CREATE-ASYNC-MATERIALIZED-VIEW.md)
-
-##### SET
-
-Modify properties unique to materialized views
-
-For example, modifying the grace_period of mv1 to 3000ms
+3. Modify comment for the catalog
 
 ```sql
-ALTER MATERIALIZED VIEW mv1 set("grace_period"="3000");
+ALTER CATALOG catalog_name MODIFY COMMENT "new catalog comment";
 ```
 
-##### REPLACE
+illustrate：
+
+- The builtin catalog `internal` cannot be modified
+
+### Example
+
+1. rename catalog ctlg_hive to hive
 
 ```sql
-ALTER MATERIALIZED VIEW [db.]mv1 REPLACE WITH MATERIALIZED VIEW mv2
-[PROPERTIES('swap' = 'true')];
+ALTER CATALOG ctlg_hive RENAME hive;
 ```
 
-Replacing atoms with two materialized views
-
-swap default is TRUE
-
-- If the swap parameter is set to TRUE, it is equivalent to renaming the materialized view mv1 to mv2, and renaming mv2 to mv1 at the same time
-- If the swap parameter is set to FALSE, it is equivalent to renaming mv2 to mv1 and deleting the original mv1
-
-For example, if you want to swap the names of mv1 and mv2
+3. modify property `hive.metastore.uris` of catalog hive
 
 ```sql
-ALTER MATERIALIZED VIEW db1.mv1 REPLACE WITH MATERIALIZED VIEW mv2;
+ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083');
 ```
 
-For example, if you want to rename mv2 to mv1 and delete the original mv1
+4. modify comment of catalog hive
 
 ```sql
-ALTER MATERIALIZED VIEW db1.mv1 REPLACE WITH MATERIALIZED VIEW mv2
-PROPERTIES('swap' = 'false');
+ALTER CATALOG hive MODIFY COMMENT "new catalog comment";
 ```
 
 ### Keywords
 
-    ```
-    ALTER, ASYNC, MATERIALIZED, VIEW
-    ```
+ALTER,CATALOG,RENAME,PROPERTY
+
+### Best Practice
 
