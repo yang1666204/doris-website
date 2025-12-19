@@ -1,5 +1,5 @@
 ---
-{ "title": "IFNULL", "language": "en" }
+{ "title": "NULLIF", "language": "en" }
 ---
 
 <!-- 
@@ -21,34 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ifnull
+## nullif
 
 ### description
 
 #### Syntax
 
-`ifnull(expr1, expr2)`
+`nullif(expr1, expr2)`
 
-If the value of expr1 is not null, expr1 is returned, otherwise expr2 is returned
+If the two parameters are equal, null is returned. Otherwise, the value of the first parameter is returned. It has the same effect as the following `case when`
+
+```
+CASE
+     WHEN expr1 = expr2 THEN NULL
+     ELSE expr1
+END
+```
 
 ### example
 
 ```
-mysql> select ifnull(1,0);
+mysql> select nullif(1,1);
 +--------------+
-| ifnull(1, 0) |
+| nullif(1, 1) |
++--------------+
+|         NULL |
++--------------+
+
+mysql> select nullif(1,0);
++--------------+
+| nullif(1, 0) |
 +--------------+
 |            1 |
 +--------------+
-
-mysql> select ifnull(null,10);
-+------------------+
-| ifnull(NULL, 10) |
-+------------------+
-|               10 |
-+------------------+
 ```
 
 ### keywords
 
-IFNULL
+NULLIF
