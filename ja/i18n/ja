@@ -1,5 +1,5 @@
 ---
-{ "title": "SET-DEFAULT-STORAGE-VAULT", "language": "en" }
+{ "title": "SET-VARIABLE", "language": "en" }
 ---
 
 <!--
@@ -21,32 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## SET-VARIABLE
 
-This statement is used to set the default storage vault in Doris. The default storage vault is used to store data for internal or system tables. If the default storage vault is not set, Doris will not function properly. Once the default storage vault is set, it cannot be removed.
+### Name
 
-## Syntax
+SET VARIABLE
+
+### Description
+
+This statement is mainly used to modify Doris system variables. These system variables can be modified at the global and session level, and some can also be modified dynamically. You can also view these system variables with `SHOW VARIABLE`.
+
+grammar:
 
 ```sql
-SET vault_name DEFAULT STORAGE VAULT
+SET variable_assignment [, variable_assignment] ...
 ```
+
+illustrate:
+
+1. variable_assignment:
+   user_var_name = expr
+   \| [GLOBAL | SESSION] system_var_name = expr
 
 > Note:
 >
-> 1. Only ADMIN users can set the default storage vault.
+> 1. Only ADMIN users can set variables to take effect globally
+> 2. The globally effective variable affects the current session and new sessions thereafter, but does not affect other sessions that currently exist.
 
-## Example
+### Example
 
-1. Set the storage vault named 's3_vault' as the default storage vault.
+1. Set the time zone to Dongba District
 
-   ```sql
-   SET s3_vault AS DEFAULT STORAGE VAULT;
+   ```
+   SET time_zone = "Asia/Shanghai";
    ```
 
-## Related Commands
+2. Set the global execution memory size
 
-## Keywords
+   ```
+   SET GLOBAL exec_mem_limit = 137438953472
+   ```
+
+### Keywords
 
     ```
-    SET, DEFAULT, STORAGE, VAULT
+    SET, VARIABLE
     ```
+
