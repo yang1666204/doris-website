@@ -1,5 +1,5 @@
 ---
-{ "title": "Config Action", "language": "en" }
+{ "title": "Connection Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,27 +21,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Config Action
+# Connection Action
 
 ## Request
 
-```
-GET /rest/v1/config/fe/
-```
+`GET /api/connection`
 
 ## Description
 
-Config Action is used to obtain current FE configuration information.
+Given a connection id, return the query id that is currently being executed for this connection or the last execution completed.
+
+The connection id can be viewed through the id column in the MySQL command `show processlist;`.
 
 ## Path parameters
 
-None
+无
 
 ## Query parameters
 
-- `conf_item`
+- `connection_id`
 
-  Optional parameters. Return specified item in FE configuration.
+  Specified connection id
 
 ## Request body
 
@@ -51,32 +51,29 @@ None
 
 ```
 {
-	"msg": "success",
+	"msg": "OK",
 	"code": 0,
 	"data": {
-		"column_names": ["Name", "Value"],
-		"rows": [{
-			"Value": "DAY",
-			"Name": "sys_log_roll_interval"
-		}, {
-			"Value": "23",
-			"Name": "consistency_check_start_time"
-		}, {
-			"Value": "4096",
-			"Name": "max_mysql_service_task_threads_num"
-		}, {
-			"Value": "1000",
-			"Name": "max_unfinished_load_job"
-		}, {
-			"Value": "100",
-			"Name": "max_routine_load_job_num"
-		}, {
-			"Value": "SYNC",
-			"Name": "master_sync_policy"
-		}]
+		"query_id": "b52513ce3f0841ca-9cb4a96a268f2dba"
 	},
 	"count": 0
 }
 ```
 
-The returned result is the same as `System Action`. Is a description of the table.
+## Examples
+
+1. Get the query id of the specified connection id
+
+    ```
+    GET /api/connection?connection_id=101
+    
+    Response:
+    {
+    	"msg": "OK",
+    	"code": 0,
+    	"data": {
+    		"query_id": "b52513ce3f0841ca-9cb4a96a268f2dba"
+    	},
+    	"count": 0
+    }
+    ```
