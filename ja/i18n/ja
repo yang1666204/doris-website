@@ -1,5 +1,5 @@
 ---
-{ "title": "ADMIN-SET-REPLICA-VERSION", "language": "en" }
+{ "title": "ADMIN-SET-TABLE-STATUS", "language": "en" }
 ---
 
 <!--
@@ -21,65 +21,60 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ADMIN-SET-REPLICA-VERSION
+## ADMIN-SET-TABLE-STATUS
 
 ### Name
 
-ADMIN SET REPLICA VERSION
+ADMIN SET TABLE STATUS
 
 ### Description
 
-This statement is used to set the version, maximum success version, and maximum failure version of the specified replica.
+This statement is used to set the state of the specified table. Only supports OLAP tables.
 
-This command is currently only used to manually repair the replica version when the program is abnormal, so that the replica can recover from the abnormal state.
+This command is currently only used to manually set the OLAP table state to the specified state, allowing some jobs that are stuck by the table state to continue running.
 
 grammar:
 
 ```sql
-ADMIN SET REPLICA VERSION
+ADMIN SET TABLE table_name STATUS
         PROPERTIES ("key" = "value", ...);
 ```
 
 The following properties are currently supported:
 
-1. `tablet_id`: Required. Specify a Tablet Id.
-2. `backend_id`: Required. Specify Backend Id.
-3. `version`: Optional. Set the replica version.
-4. `last_success_version`: Optional. Set the replica max success version.
-5. `last_failed_version`: Optional. Set the replica max failed version.
+1. "state"：Required. Specifying a target state then the state of the OLAP table will change to this state.
 
-If the specified replica does not exist, it will be ignored.
+> The current target states include:
+>
+> 1. NORMAL
+> 2. ROLLUP
+> 3. SCHEMA_CHANGE
+> 4. BACKUP
+> 5. RESTORE
+> 6. WAITING_STABLE
+>
+> If the current state of the table is already the specified state, it will be ignored.
 
-> Note:
->
-> Modifying these values ​​may cause subsequent data reading and writing failures, resulting in data inconsistency. Please operate with caution!
->
-> Record the original value before modifying it. After the modification is completed, verify the read and write of the table. If the read and write fail, please restore the original value! But recovery may fail!
->
-> It is strictly prohibited to operate the tablet that is writing data!
+**Note: This command is generally only used for emergency fault repair, please proceed with caution.**
 
 ### Example
 
-1. Clear the replica failed version of tablet 10003 on BE 10001.
-
-       ```sql
-       
-       ```
-
-ADMIN SET REPLICA VERSION PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "last_failed_version" = "-1");```
-```
-
-2. Set the replica status of tablet 10003 on BE 10001 to ok.
+1. Set the state of table tbl1 to NORMAL.
 
 ```sql
-ADMIN SET REPLICA VERSION PROPERTIES("tablet_id" = "10003", "backend_id" = "10001", "version" = "1004");
+admin set table tbl1 status properties("state" = "NORMAL");
+```
+
+2. Set the state of table tbl2 to SCHEMA_CHANGE
+
+```sql
+admin set table test_set_table_status status properties("state" = "SCHEMA_CHANGE");
 ```
 
 ### Keywords
 
     ```
-    ADMIN, SET, REPLICA, VERSION
+    ADMIN, SET, TABLE, STATUS
     ```
 
 ### Best Practice
-
