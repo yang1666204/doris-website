@@ -1,5 +1,5 @@
 ---
-{ "title": "WEEK", "language": "en" }
+{ "title": "WEEKDAY", "language": "en" }
 ---
 
 <!-- 
@@ -21,52 +21,50 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## week
+## weekday
 
 ### Description
 
 #### Syntax
 
-`INT WEEK(DATE date[, INT mode])`
+`INT WEEKDAY (DATETIME date)`
 
-Returns the week number for date.The value of the mode argument defaults to 0.
-The following table describes how the mode argument works.
-
-| Mode | First day of week | Range | Week 1 is the first week …    |
-| :--- | :---------------- | :---- | :---------------------------- |
-| 0    | Sunday            | 0-53  | with a Sunday in this year    |
-| 1    | Monday            | 0-53  | with 4 or more days this year |
-| 2    | Sunday            | 1-53  | with a Sunday in this year    |
-| 3    | Monday            | 1-53  | with 4 or more days this year |
-| 4    | Sunday            | 0-53  | with 4 or more days this year |
-| 5    | Monday            | 0-53  | with a Monday in this year    |
-| 6    | Sunday            | 1-53  | with 4 or more days this year |
-| 7    | Monday            | 1-53  | with a Monday in this year    |
+The WEEKDAY function returns the index value of the working day of the date, that is, 0 on Monday, 1 on Tuesday, and 6 on Sunday.
 
 The parameter is Date or Datetime type
+
+Notice the difference between WEEKDAY and DAYOFWEEK:
+
+```
+          +-----+-----+-----+-----+-----+-----+-----+
+          | Sun | Mon | Tues| Wed | Thur| Fri | Sat |
+          +-----+-----+-----+-----+-----+-----+-----+
+  weekday |  6  |  0  |  1  |  2  |  3  |  4  |  5  |
+          +-----+-----+-----+-----+-----+-----+-----+
+dayofweek |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
+          +-----+-----+-----+-----+-----+-----+-----+
+```
 
 ### example
 
 ```
-mysql> select week('2020-1-1');
-+------------------+
-| week('2020-1-1') |
-+------------------+
-|                0 |
-+------------------+
-```
+mysql> select weekday('2019-06-25');
++--------------------------------+
+| weekday('2019-06-25 00:00:00') |
++--------------------------------+
+|                              1 |
++--------------------------------+
 
-```
-mysql> select week('2020-7-1',1);
-+---------------------+
-| week('2020-7-1', 1) |
-+---------------------+
-|                  27 |
-+---------------------+
+mysql> select weekday(cast(20190625 as date)); 
++---------------------------------+
+| weekday(CAST(20190625 AS DATE)) |
++---------------------------------+
+|                               1 |
++---------------------------------+
 ```
 
 ### keywords
 
     ```
-    WEEK
+    WEEKDAY
     ```
