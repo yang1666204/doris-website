@@ -1,5 +1,5 @@
 ---
-{ "title": "DataX Doriswriter", "language": "en" }
+{ "title": "DBT Doris Adapter", "language": "en" }
 ---
 
 <!--
@@ -21,334 +21,484 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DataX Doriswriter
+# DBT Doris Adapter
 
-The [DataX](https://github.com/alibaba/DataX) Doriswriter plugin supports synchronizing data from various data sources, such as MySQL, Oracle, and SQL Server, into Doris using the Stream Load method.
+[DBT(Data Build Tool)](https://docs.getdbt.com/docs/introduction) is a component that focuses on doing T (Transform) in ELT (extraction, loading, transformation) - the "transformation data" link
+The `dbt-doris` adapter is developed based on `dbt-core` 1.5.0 and relies on the `mysql-connector-python` driver to convert data to doris.
 
-:::info Note
-This plugin needs to be used together with the DataX service.
-DataX supports multiple data sources. For more details, see here.
-:::
+git: https://github.com/apache/doris/tree/master/extension/dbt-doris
 
-## Usage
+## version
 
-### Directly Download the DataX Installation Package
+| doris                                    | python                                                                 | dbt-core                                 |
+| ---------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| > =1.2.5 | > =3.8,<=3.10 | > =1.5.0 |
 
-DataX provides an official installation package that already includes DataX, which can be downloaded and used directly. For more details, refer to [here](https://github.com/alibaba/DataX?tab=readme-ov-file#download-datax%E4%B8%8B%E8%BD%BD%E5%9C%B0%E5%9D%80).
+## dbt-doris adapter Instructions
 
-### Compile the DorisWriter Plugin Manually
+### dbt-doris adapter install
 
-Download the [source code](https://github.com/apache/doris/tree/master/extension/DataX) for the DorisWriter plugin.
+use pip install:
 
-1. Run `init-env.sh`
-2. Modify code of doriswriter in `DataX/doriswriter` if you need.
-3. Build doriswriter
-
-   > Build doriswriter along:
-
-        ```
-         `mvn clean install -pl plugin-rdbms-util,doriswriter -DskipTests`
-        ```
-
-   > If you need to compile the entire DataX project, please refer to [here](https://github.com/alibaba/DataX/blob/master/userGuid.md#quick-start)
-
-   > Compilation error
-
-        ```
-         If you encounter the following compilation errors:
-        
-         ```
-         Could not find artifact com.alibaba.datax:datax-all:pom:0.0.1-SNAPSHOT ...
-         ```
-        
-         You can try the following solutions:
-        
-         1. Download [alibaba-datax-maven-m2-20210928.tar.gz](https://doris-thirdparty-repo.bj.bcebos.com/thirdparty/alibaba-datax-maven-m2-20210928.tar.gz)
-         2. After decompression, copy the resulting `alibaba/datax/` directory to `.m2/repository/com/alibaba/` corresponding to the maven used, and try to compile again. 
-        ```
-
-### Datax DorisWriter parameter introduction:
-
-- **jdbcUrl**
-
-  - Description: Doris's JDBC connection string, the user executes preSql or postSQL.
-  - Mandatory: Yes
-  - Default: None
-
-- **loadUrl**
-
-  - Description: As a connection target for Stream Load. The format is "ip:port". Where IP is the FE node IP, port is the http_port of the FE node. You can fill in more than one, separated by commas in English: `,`, doriswriter will visit in a polling manner.
-  - Mandatory: Yes
-  - Default: None
-
-- **username**
-
-  - Description: The username to access the Doris database
-  - Mandatory: Yes
-  - Default: None
-
-- **password**
-
-  - Description: Password to access Doris database
-  - Mandatory: No
-  - Default: empty
-
-- **connection.selectedDatabase**
-  - Description: The name of the Doris database that needs to be written.
-  - Mandatory: Yes
-  - Default: None
-
-- **connection. table**
-  - Description: The name of the Doris table that needs to be written.
-    - Mandatory: Yes
-    - Default: None
-
-- **flushInterval**
-  - Description: The time interval at which data is written in batches. If this time interval is set too small, it will cause Doris write blocking problem, error code -235, and if you set this time interval too small, `maxBatchRows` and `batchSize` parameters are set too large, then it may not be able to reach you The data size set by this will also be imported.
-  - Mandatory: No
-  - Default: 30000 (ms)
-
-- **column**
-  - Description: The fields that the destination table needs to write data into, these fields will be used as the field names of the generated Json data. Fields are separated by commas. For example: "column": ["id","name","age"].
-  - Mandatory: Yes
-  - Default: No
-
-- **preSql**
-
-  - Description: Before writing data to the destination table, the standard statement here will be executed first.
-  - Mandatory: No
-  - Default: None
-
-- **postSql**
-
-  - Description: After writing data to the destination table, the standard statement here will be executed.
-  - Mandatory: No
-  - Default: None
-
-- **maxBatchRows**
-  - Description: The maximum number of rows for each batch of imported data. Together with **batchSize**, it controls the number of imported record rows per batch. When each batch of data reaches one of the two thresholds, the data of this batch will start to be imported.
-  - Mandatory: No
-  - Default: 500000
-
-- **batchSize**
-  - Description: The maximum amount of data imported in each batch. Works with **maxBatchRows** to control the number of imports per batch. When each batch of data reaches one of the two thresholds, the data of this batch will start to be imported.
-  - Mandatory: No
-  - Default: 94371840
-
-- **maxRetries**
-
-  - Description: The number of retries after each batch of failed data imports.
-  - Mandatory: No
-  - Default: 3
-
-- **labelPrefix**
-
-  - Description: The label prefix for each batch of imported tasks. The final label will have `labelPrefix + UUID` to form a globally unique label to ensure that data will not be imported repeatedly
-  - Mandatory: No
-  - Default: `datax_doris_writer_`
-
-- **loadProps**
-
-  - Description: The request parameter of StreamLoad. For details, refer to the StreamLoad introduction page. [Stream load - Apache Doris](https://doris.apache.org/docs/data-operate/import/stream-load-manual)
-
-    This includes the imported data format: format, etc. The imported data format defaults to csv, which supports JSON. For details, please refer to the type conversion section below, or refer to the official information of Stream load above.
-
-  - Mandatory: No
-
-  - Default: None
-
-### Example
-
-#### 1. Stream reads the data and imports it to Doris
-
-For instructions on using the doriswriter plug-in, please refer to [here](https://github.com/apache/incubator-doris/blob/master/extension/DataX/doriswriter/doc/doriswriter.md).
-
-#### 2.Mysql reads the data and imports it to Doris
-
-1.Mysql table structure
-
-```sql
-CREATE TABLE `t_test`(
- `id`bigint(30) NOT NULL,
- `order_code` varchar(30) DEFAULT NULL COMMENT '',
- `line_code` varchar(30) DEFAULT NULL COMMENT '',
- `remark` varchar(30) DEFAULT NULL COMMENT '',
- `unit_no` varchar(30) DEFAULT NULL COMMENT '',
- `unit_name` varchar(30) DEFAULT NULL COMMENT '',
- `price` decimal(12,2) DEFAULT NULL COMMENT '',
- PRIMARY KEY(`id`) USING BTREE
-)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC COMMENT='';
+```shell
+pip install dbt-doris
 ```
 
-2.Doris table structure
+check version:
 
-```sql
-CREATE TABLE `ods_t_test` (
- `id`bigint(30) NOT NULL,
- `order_code` varchar(30) DEFAULT NULL COMMENT '',
- `line_code` varchar(30) DEFAULT NULL COMMENT '',
- `remark` varchar(30) DEFAULT NULL COMMENT '',
- `unit_no` varchar(30) DEFAULT NULL COMMENT '',
- `unit_name` varchar(30) DEFAULT NULL COMMENT '',
- `price` decimal(12,2) DEFAULT NULL COMMENT ''
-）ENGINE=OLAP
-UNIQUE KEY(id`, `order_code`)
-DISTRIBUTED BY HASH(`order_code`) BUCKETS 1
-PROPERTIES (
-"replication_allocation" = "tag.location.default: 3",
-"in_memory" = "false",
-"storage_format" = "V2"
-);
+```shell
+dbt --version
 ```
 
-3.Create datax script
+if command not found: dbt:
 
-my_import.json
+```shell
+ln -s /usr/local/python3/bin/dbt /usr/bin/dbt
+```
 
-```json
-{
-    "job": {
-        "content": [
-            {
-                "reader": {
-                    "name": "mysqlreader",
-                    "parameter": {
-                        "column": ["id","order_code","line_code","remark","unit_no","unit_name","price"],
-                        "connection": [
-                            {
-                                "jdbcUrl": ["jdbc:mysql://localhost:3306/demo"],
-                                "table": ["employees_1"]
-                            }
-                        ],
-                        "username": "root",
-                        "password": "xxxxx",
-                        "where": ""
-                    }
-                },
-                "writer": {
-                    "name": "doriswriter",
-                    "parameter": {
-                        "loadUrl": ["127.0.0.1:8030"],
-                        "column": ["id","order_code","line_code","remark","unit_no","unit_name","price"],
-                        "username": "root",
-                        "password": "xxxxxx",
-                        "postSql": ["select count(1) from all_employees_info"],
-                        "preSql": [],
-                        "flushInterval":30000,
-                        "connection": [
-                          {
-                            "jdbcUrl": "jdbc:mysql://127.0.0.1:9030/demo",
-                            "selectedDatabase": "demo",
-                            "table": ["all_employees_info"]
-                          }
-                        ],
-                        "loadProps": {
-                            "format": "json",
-                            "strip_outer_array":"true",
-                            "line_delimiter": "\\x02"
-                        }
-                    }
-                }
-            }
-        ],
-        "setting": {
-            "speed": {
-                "channel": "1"
-            }
-        }
+### dbt-doris adapter project init
+
+```shell
+dbt init 
+```
+
+Users need to prepare the following information to init dbt project
+
+| name     | default | meaning                                                                                                                                                      |
+| -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| project  |         | project name                                                                                                                                                 |
+| database |         | Enter the corresponding number to select the adapter                                                                                                         |
+| host     |         | doris host                                                                                                                                                   |
+| port     | 9030    | doris MySQL Protocol Port                                                                                                                                    |
+| schema   |         | In dbt-doris, it is equivalent to database, Database name                                                                                                    |
+| username |         | doris username                                                                                                                                               |
+| password |         | doris password                                                                                                                                               |
+| threads  | 1       | Parallelism in dbt-doris (setting a parallelism that does not match the cluster capability will increase the risk of dbt running failure) |
+
+### dbt-doris adapter run
+
+For dbt run documentation, please refer to [here](https://docs.getdbt.com/docs/get-started/run-your-dbt-projects).
+Go to the project directory and execute the default dbt model:
+
+```shell
+dbt run 
+```
+
+model：`my_first_dbt_model`和`my_second_dbt_model`
+
+They are materialized `table` and `view` respectively.
+then login to doris to view the data results and table creation statements of `my_first_dbt_model` and `my_second_dbt_model`.
+
+### dbt-doris adapter Materialization
+
+dbt-doris Materialization support three:
+
+1. view
+2. table
+3. incremental
+
+#### View
+
+Using `view` as the materialization, Models will be rebuilt as views each time they are run through the create view as statement. (By default, the materialization method of dbt is view)
+
+```
+Advantages: No extra data is stored, and views on top of the source data will always contain the latest records.
+Disadvantages: View queries that perform large transformations or are nested on top of other views are slow.
+Recommendation: Usually start with the view of the model and only change to another materialization if there are performance issues. Views are best suited for models that do not undergo major transformations, such as renaming, column changes.
+```
+
+config：
+
+```yaml
+models:
+  <resource-path>:
+    +materialized: view
+```
+
+Or write in the model file
+
+```jinja
+{{ config(materialized = "view") }}
+```
+
+#### Table
+
+When using the `table` materialization mode, your model is rebuilt as a table at each run with a `create table as select` statement.
+For the tablet materialization of dbt, dbt-doris uses the following steps to ensure the atomicity of data changes:
+
+1. first create a temporary table: `create table this_table_temp as {{ model sql}}`.
+2. Determine whether `this_table` does not exist, that is, it is created for the first time, execute `rename`, and change the temporary table to the final table.
+3. if already exists, then `alter table this_table REPLACE WITH TABLE this_table_temp PROPERTIES('swap' = 'False')`，This operation can exchange the table name and delete the `this_table_temp` temporary table,[this](../sql-manual/sql-statements/table-and-view/table/ALTER-TABLE-REPLACE.md) guarantees the atomicity of this operation through the transaction mechanism of the Doris.
+
+```
+Advantages: table query speed will be faster than view.
+Disadvantages: The table takes a long time to build or rebuild, additional data will be stored, and incremental data synchronization cannot be performed.
+Recommendation: It is recommended to use the table materialization method for models queried by BI tools or models with slow operations such as downstream queries and conversions.
+```
+
+config:
+
+```yaml
+models:
+  <resource-path>:
+    +materialized: table
+    +duplicate_key: [ <column-name>, ... ],
+    +replication_num: int,
+    +partition_by: [ <column-name>, ... ],
+    +partition_type: <engine-type>,
+    +partition_by_init: [<pertition-init>, ... ]
+    +distributed_by: [ <column-name>, ... ],
+    +buckets: int | 'auto',
+    +properties: {<key>:<value>,...}
+```
+
+Or write in the model file:
+
+```jinja
+{{ config(
+    materialized = "table",
+    duplicate_key = [ "<column-name>", ... ],
+    replication_num = "<int>"
+    partition_by = [ "<column-name>", ... ],
+    partition_type = "<engine-type>",
+    partition_by_init = ["<pertition-init>", ... ]
+    distributed_by = [ "<column-name>", ... ],
+    buckets = "<int>" | "auto",
+    properties = {"<key>":"<value>",...}
+      ...
+    ]
+) }}
+```
+
+The details of the above configuration items are as follows:
+
+| item                | description                                                                                                   | Required? |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | --------- |
+| `materialized`      | The materialized form of the table (Doris Duplicate table)                                 | Required  |
+| `duplicate_key`     | Doris Duplicate key                                                                                           | Optional  |
+| `replication_num`   | Number of table replicas                                                                                      | Optional  |
+| `partition_by`      | Table partition column                                                                                        | Optional  |
+| `partition_type`    | Table partition type, `range` or `list`.(default: `RANGE`) | Optional  |
+| `partition_by_init` | Initialized table partitions                                                                                  | Optional  |
+| `distributed_by`    | Table distributed column                                                                                      | Optional  |
+| `buckets`           | Bucket size                                                                                                   | Optional  |
+| `properties`        | Doris table properties                                                                                        | Optional  |
+
+#### Incremental
+
+Based on the incremental model results of the last run of dbt, records are incrementally inserted or updated into the table.
+There are two ways to realize the increment of doris. `incremental_strategy` has two incremental strategies:
+
+- `insert_overwrite`: Depends on the doris `unique` model. If there is an incremental requirement, specify the materialization as incremental when initializing the data of the model, and aggregate by specifying the aggregation column to achieve incremental data coverage.
+- `append`: Depends on the doris `duplicate` model, it only appends incremental data and does not involve modifying any historical data. So no need to specify unique_key.
+
+```
+Advantages: Significantly reduces build time by only converting new records.
+Disadvantages: incremental mode requires additional configuration, which is an advanced usage of dbt, and requires the support of complex scenarios and the adaptation of corresponding components.
+Recommendation: The incremental model is best for event-based scenarios or when dbt runs become too slow
+```
+
+config:
+
+```yaml
+models:
+  <resource-path>:
+    +materialized: incremental
+    +incremental_strategy: <strategy>
+    +unique_key: [ <column-name>, ... ],
+    +replication_num: int,
+    +partition_by: [ <column-name>, ... ],
+    +partition_type: <engine-type>,
+    +partition_by_init: [<pertition-init>, ... ]
+    +distributed_by: [ <column-name>, ... ],
+    +buckets: int | 'auto',
+    +properties: {<key>:<value>,...}
+```
+
+Or write in the model file:
+
+```jinja
+{{ config(
+    materialized = "incremental",
+    incremental_strategy = "<strategy>"
+    unique_key = [ "<column-name>", ... ],
+    replication_num = "<int>"
+    partition_by = [ "<column-name>", ... ],
+    partition_type = "<engine-type>",
+    partition_by_init = ["<pertition-init>", ... ]
+    distributed_by = [ "<column-name>", ... ],
+    buckets = "<int>" | "auto",
+    properties = {"<key>":"<value>",...}
+      ...
+    ]
+) }}
+```
+
+The details of the above configuration items are as follows:
+
+| item                   | description                                                                                                   | Required? |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- | --------- |
+| `materialized`         | The materialized form of the table (Doris Duplicate/Unique table)                          | Required  |
+| `incremental_strategy` | Incremental_strategy                                                                     | Optional  |
+| `unique_key`           | Doris Unique key                                                                                              | Optional  |
+| `replication_num`      | Number of table replicas                                                                                      | Optional  |
+| `partition_by`         | Table partition column                                                                                        | Optional  |
+| `partition_type`       | Table partition type, `range` or `list`.(default: `RANGE`) | Optional  |
+| `partition_by_init`    | Initialized table partitions                                                                                  | Optional  |
+| `distributed_by`       | Table distributed column                                                                                      | Optional  |
+| `buckets`              | Bucket size                                                                                                   | Optional  |
+| `properties`           | Doris table properties                                                                                        | Optional  |
+
+### dbt-doris adapter seed
+
+[`seed`](https://docs.getdbt.com/faqs/seeds/build-one-seed) is a functional module used to load data files such as csv. It is a way to load files into the library and participate in model building, but there are the following precautions:
+
+1. Seeds should not be used to load raw data (for example, large CSV exports from a production database).
+2. Since seeds are version controlled, they are best suited to files that contain business-specific logic, for example a list of country codes or user IDs of employees.
+3. Loading CSVs using dbt's seed functionality is not performant for large files. Consider using `streamload` to load these CSVs into doris.
+
+Users can see the seeds directory under the dbt project directory, upload the csv file and seed configuration file in it and run
+
+```shell
+ dbt seed --select seed_name
+```
+
+Common seed configuration file writing method supports the definition of column types:
+
+```yaml
+seeds:
+  seed_name: 
+    config: 
+      schema: demo_seed 
+      full_refresh: true
+      replication_num: 1
+      column_types:
+        id: bigint
+        phone: varchar(32)
+        ip: varchar(15)
+        name: varchar(20)
+        cost: DecimalV3(19,10)
+```
+
+## Usage Examples
+
+### View Model Sample Reference
+
+```sql
+{{ config(materialized='view') }}
+
+select
+    u.user_id,
+    max(o.create_time) as create_time,
+    sum (o.cost) as balance
+from {{ ref('sell_order') }} as o
+left join {{ ref('sell_user') }} as u
+on u.account_id=o.account_id
+group by u.user_id
+order by u.user_id
+```
+
+### Table Model Sample Reference
+
+```sql
+{{ config(materialized='table') }}
+
+select
+    u.user_id,
+    max(o.create_time) as create_time,
+    sum (o.cost) as balance
+from {{ ref('sell_order') }} as o
+left join {{ ref('sell_user') }} as u
+on u.account_id=o.account_id
+group by u.user_id
+order by u.user_id
+```
+
+### Incremental model sample reference (duplicate mode)
+
+Create a table in duplicate mode, without data aggregation, and without specifying unique_key
+
+```sql
+{{ config(
+    materialized='incremental', 
+    replication_num=1
+) }}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
+
+select * from source_data
+```
+
+### Incremental model sample reference (unique mode)
+
+Create a table in unique mode, data aggregation, unique_key must be specified
+
+```sql
+{{ config(
+materialized='incremental', 
+unique_key=['account_id','create_time']
+) }}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
+
+select * from source_data
+```
+
+### Incremental model full refresh sample reference
+
+```sql
+{{ config(
+    materialized='incremental', 
+    full_refresh = true
+)}}
+
+select * from
+ {{ source('dbt_source', 'sell_user') }}
+```
+
+### Example of setting bucketing rules
+
+Here buckets can be filled with auto or a positive integer, representing automatic bucketing and setting a fixed number of buckets respectively.
+
+```sql
+{{ config(
+    materialized='incremental', 
+    unique_key=['account_id',"create_time"], 
+    distributed_by=['account_id'], 
+    buckets='auto' 
+) }}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order') }}
+)
+
+select
+    *
+    from source_data
+
+{% if is_incremental() %}
+    where
+    create_time > (select max(create_time) from {{this}})
+{% endif %}
+```
+
+### Setting the number of replicas example reference
+
+```sql
+{{ config(
+    materialized='table', 
+    replication_num=1
+)}}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
+
+select * from source_data
+```
+
+### Dynamic partition sample reference
+
+```sql
+{{ config(
+    materialized='incremental', 
+    partition_by = 'create_time',
+    partition_type = 'range', 
+        -- The properties here are the properties in the create table statement, which contains the configuration related to dynamic partitioning    
+    properties = {
+        "dynamic_partition.time_unit":"DAY",
+        "dynamic_partition.end":"8",
+        "dynamic_partition.prefix":"p",
+        "dynamic_partition.buckets":"4",
+        "dynamic_partition.create_history_partition":"true",
+        "dynamic_partition.history_partition_num":"3"
     }
-}
+) }}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
+
+select
+    *
+    from source_data
+
+{% if is_incremental() %}
+    where    
+    create_time = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+{% endif %}
 ```
 
-> Remark:
->
-> ```json
-> "loadProps": {
->   "format": "json",
->   "strip_outer_array": "true",
->   "line_delimiter": "\\x02"
-> }
-> ```
->
-> 1. Here we use JSON format to import data
-> 2. `line_delimiter` defaults to a newline character, which may conflict with the value in the data, we can use some special characters or invisible characters to avoid import errors
-> 3. strip_outer_array : Represents multiple rows of data in a batch of imported data. Doris will expand the array when parsing, and then parse each Object in it as a row of data in turn.
-> 4. For more parameters of Stream load, please refer to [Stream load - Apache Doris](../data-operate/import/import-way/stream-load-manual)
-> 5. If it is in CSV format, we can use it like this
->
-> ```json
-> "loadProps": {
->    "format": "csv",
->    "column_separator": "\\x01",
->    "line_delimiter": "\\x02"
-> }
-> ```
->
-> **CSV format should pay special attention to row and column separators to avoid conflicts with special characters in the data. Hidden characters are recommended here. The default column separator is: \t, row separator: \n**
+### Conventional partition sample reference
 
-4.Execute the datax task, refer to the specific [datax official website](https://github.com/alibaba/DataX/blob/master/userGuid.md)
+```sql
+{{ config(
+    materialized='incremental', 
+    partition_by = 'create_time',
+    partition_type = 'range',  
+        -- partition_by_init here refers to the historical partitions for creating partition tables. The historical partitions of the current doris version need to be manually specified.    
+    partition_by_init = [
+        "PARTITION `p20240601` VALUES [(\"2024-06-01\"),  (\"2024-06-02\"))",
+        "PARTITION `p20240602` VALUES [(\"2024-06-02\"),  (\"2024-06-03\"))"
+    ]
+ )}}
 
-```
-python bin/datax.py my_import.json
-```
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
 
-After execution, we can see the following information
+select
+    *
+    from source_data
 
-```
-2022-11-16 14:28:54.012 [job-0] INFO  JobContainer - jobContainer starts to do prepare ...
-2022-11-16 14:28:54.012 [job-0] INFO  JobContainer - DataX Reader.Job [mysqlreader] do prepare work .
-2022-11-16 14:28:54.013 [job-0] INFO  JobContainer - DataX Writer.Job [doriswriter] do prepare work .
-2022-11-16 14:28:54.020 [job-0] INFO  JobContainer - jobContainer starts to do split ...
-2022-11-16 14:28:54.020 [job-0] INFO  JobContainer - Job set Channel-Number to 1 channels.
-2022-11-16 14:28:54.023 [job-0] INFO  JobContainer - DataX Reader.Job [mysqlreader] splits to [1] tasks.
-2022-11-16 14:28:54.023 [job-0] INFO  JobContainer - DataX Writer.Job [doriswriter] splits to [1] tasks.
-2022-11-16 14:28:54.033 [job-0] INFO  JobContainer - jobContainer starts to do schedule ...
-2022-11-16 14:28:54.036 [job-0] INFO  JobContainer - Scheduler starts [1] taskGroups.
-2022-11-16 14:28:54.037 [job-0] INFO  JobContainer - Running by standalone Mode.
-2022-11-16 14:28:54.041 [taskGroup-0] INFO  TaskGroupContainer - taskGroupId=[0] start [1] channels for [1] tasks.
-2022-11-16 14:28:54.043 [taskGroup-0] INFO  Channel - Channel set byte_speed_limit to -1, No bps activated.
-2022-11-16 14:28:54.043 [taskGroup-0] INFO  Channel - Channel set record_speed_limit to -1, No tps activated.
-2022-11-16 14:28:54.049 [taskGroup-0] INFO  TaskGroupContainer - taskGroup[0] taskId[0] attemptCount[1] is started
-2022-11-16 14:28:54.052 [0-0-0-reader] INFO  CommonRdbmsReader$Task - Begin to read record by Sql: [select taskid,projectid,taskflowid,templateid,template_name,status_task from dwd_universal_tb_task 
-] jdbcUrl:[jdbc:mysql://localhost:3306/demo?yearIsDateType=false&zeroDateTimeBehavior=convertToNull&tinyInt1isBit=false&rewriteBatchedStatements=true].
-Wed Nov 16 14:28:54 GMT+08:00 2022 WARN: Establishing SSL connection without server's identity verification is not recommended. According to MySQL 5.5.45+, 5.6.26+ and 5.7.6+ requirements SSL connection must be established by default if explicit option isn't set. For compliance with existing applications not using SSL the verifyServerCertificate property is set to 'false'. You need either to explicitly disable SSL by setting useSSL=false, or set useSSL=true and provide truststore for server certificate verification.
-2022-11-16 14:28:54.071 [0-0-0-reader] INFO  CommonRdbmsReader$Task - Finished read record by Sql: [select taskid,projectid,taskflowid,templateid,template_name,status_task from dwd_universal_tb_task 
-] jdbcUrl:[jdbc:mysql://localhost:3306/demo?yearIsDateType=false&zeroDateTimeBehavior=convertToNull&tinyInt1isBit=false&rewriteBatchedStatements=true].
-2022-11-16 14:28:54.104 [Thread-1] INFO  DorisStreamLoadObserver - Start to join batch data: rows[2] bytes[438] label[datax_doris_writer_c4e08cb9-c157-4689-932f-db34acc45b6f].
-2022-11-16 14:28:54.104 [Thread-1] INFO  DorisStreamLoadObserver - Executing stream load to: 'http://127.0.0.1:8030/api/demo/dwd_universal_tb_task/_stream_load', size: '441'
-2022-11-16 14:28:54.224 [Thread-1] INFO  DorisStreamLoadObserver - StreamLoad response :{"Status":"Success","BeginTxnTimeMs":0,"Message":"OK","NumberUnselectedRows":0,"CommitAndPublishTimeMs":17,"Label":"datax_doris_writer_c4e08cb9-c157-4689-932f-db34acc45b6f","LoadBytes":441,"StreamLoadPutTimeMs":1,"NumberTotalRows":2,"WriteDataTimeMs":11,"TxnId":217056,"LoadTimeMs":31,"TwoPhaseCommit":"false","ReadDataTimeMs":0,"NumberLoadedRows":2,"NumberFilteredRows":0}
-2022-11-16 14:28:54.225 [Thread-1] INFO  DorisWriterManager - Async stream load finished: label[datax_doris_writer_c4e08cb9-c157-4689-932f-db34acc45b6f].
-2022-11-16 14:28:54.249 [taskGroup-0] INFO  TaskGroupContainer - taskGroup[0] taskId[0] is successed, used[201]ms
-2022-11-16 14:28:54.250 [taskGroup-0] INFO  TaskGroupContainer - taskGroup[0] completed it's tasks.
-2022-11-16 14:29:04.048 [job-0] INFO  StandAloneJobContainerCommunicator - Total 2 records, 214 bytes | Speed 21B/s, 0 records/s | Error 0 records, 0 bytes |  All Task WaitWriterTime 0.000s |  All Task WaitReaderTime 0.000s | Percentage 100.00%
-2022-11-16 14:29:04.049 [job-0] INFO  AbstractScheduler - Scheduler accomplished all tasks.
-2022-11-16 14:29:04.049 [job-0] INFO  JobContainer - DataX Writer.Job [doriswriter] do post work.
-Wed Nov 16 14:29:04 GMT+08:00 2022 WARN: Establishing SSL connection without server's identity verification is not recommended. According to MySQL 5.5.45+, 5.6.26+ and 5.7.6+ requirements SSL connection must be established by default if explicit option isn't set. For compliance with existing applications not using SSL the verifyServerCertificate property is set to 'false'. You need either to explicitly disable SSL by setting useSSL=false, or set useSSL=true and provide truststore for server certificate verification.
-2022-11-16 14:29:04.187 [job-0] INFO  DorisWriter$Job - Start to execute preSqls:[select count(1) from dwd_universal_tb_task]. context info:jdbc:mysql://172.16.0.13:9030/demo.
-2022-11-16 14:29:04.204 [job-0] INFO  JobContainer - DataX Reader.Job [mysqlreader] do post work.
-2022-11-16 14:29:04.204 [job-0] INFO  JobContainer - DataX jobId [0] completed successfully.
-2022-11-16 14:29:04.204 [job-0] INFO  HookInvoker - No hook invoked, because base dir not exists or is a file: /data/datax/hook
-2022-11-16 14:29:04.205 [job-0] INFO  JobContainer - 
-         [total cpu info] => 
-                averageCpu                     | maxDeltaCpu                    | minDeltaCpu                    
-                -1.00%                         | -1.00%                         | -1.00%
-                        
+{% if is_incremental() %}
+    where
+    -- If the my_date variable is provided, use this path (via the dbt run --vars '{"my_date": "\"2024-06-03\""}' command). If the my_date variable is not provided (directly using dbt run), use the day before the current date. For the incremental selection here, it is recommended to directly use doris's CURDATE() function, which is also a common path in production environments.
+    create_time = {{ var('my_date' , 'DATE_SUB(CURDATE(), INTERVAL 1 DAY)') }} 
 
-         [total gc info] => 
-                 NAME                 | totalGCCount       | maxDeltaGCCount    | minDeltaGCCount    | totalGCTime        | maxDeltaGCTime     | minDeltaGCTime     
-                 PS MarkSweep         | 1                  | 1                  | 1                  | 0.017s             | 0.017s             | 0.017s             
-                 PS Scavenge          | 1                  | 1                  | 1                  | 0.007s             | 0.007s             | 0.007s             
-
-2022-11-16 14:29:04.205 [job-0] INFO  JobContainer - PerfTrace not enable!
-2022-11-16 14:29:04.206 [job-0] INFO  StandAloneJobContainerCommunicator - Total 2 records, 214 bytes | Speed 21B/s, 0 records/s | Error 0 records, 0 bytes |  All Task WaitWriterTime 0.000s |  All Task WaitReaderTime 0.000s | Percentage 100.00%
-2022-11-16 14:29:04.206 [job-0] INFO  JobContainer - 
-Task Start Time                        : 2022-11-16 14:28:53
-Task End Time                          : 2022-11-16 14:29:04
-Total Task Duration                    : 10s
-Average Task Throughput                : 21B/s
-Record Write Speed                     : 0rec/s
-Total Records Read                     : 2
-Total Read/Write Failures              : 0
-
+{% endif %}
 ```
 
+### Batch date setting parameter sample reference
+
+```sql
+{{ config(
+    materialized='incremental', 
+    partition_by = 'create_time',
+    partition_type = 'range',
+    ...
+)}}
+
+with source_data as (
+    select
+        *
+    from {{ ref('sell_order2') }}
+)
+
+select
+    *
+    from source_data
+
+{% if is_incremental() %}
+    where
+    -- If the my_date variable is provided, use this path (via the dbt run --vars '{"my_date": "\"2024-06-03\""}' command). If the my_date variable is not provided (directly using dbt run), use the day before the current date. For the incremental selection here, it is recommended to directly use doris's CURDATE() function, which is also a common path in production environments.
+    create_time = {{ var('my_date' , 'DATE_SUB(CURDATE(), INTERVAL 1 DAY)') }} 
+
+{% endif %}
+```
