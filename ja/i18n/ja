@@ -1,5 +1,5 @@
 ---
-{ "title": "BIN", "language": "en" }
+{ "title": "CBRT", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bin
+## cbrt
 
 ### description
 
 #### Syntax
 
-`STRING bin(BIGINT x)`
-Convert the decimal number `x` to binary.
+`DOUBLE cbrt(DOUBLE x)`
+Returns the cube root of x.
 
 ### example
 
 ```
-mysql> select bin(0);
-+--------+
-| bin(0) |
-+--------+
-| 0      |
-+--------+
-mysql> select bin(10);
-+---------+
-| bin(10) |
-+---------+
-| 1010    |
-+---------+
-mysql> select bin(-3);
-+------------------------------------------------------------------+
-| bin(-3)                                                          |
-+------------------------------------------------------------------+
-| 1111111111111111111111111111111111111111111111111111111111111101 |
-+------------------------------------------------------------------+
+mysql> select cbrt(8);
++-----------+
+| cbrt(8.0) |
++-----------+
+|         2 |
++-----------+
+mysql> select cbrt(2.0);
++--------------------+
+| cbrt(2.0)          |
++--------------------+
+| 1.2599210498948734 |
++--------------------+
+mysql> select cbrt(-1000.0);
++---------------+
+| cbrt(-1000.0) |
++---------------+
+|           -10 |
++---------------+
 ```
 
 ### keywords
 
  ```
- BIN
+ CBRT
  ```
