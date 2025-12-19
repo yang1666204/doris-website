@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_CONTAINS", "language": "en" }
+{ "title": "BITMAP_COUNT", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_contains
+## bitmap_count
 
 ### description
 
 #### Syntax
 
-`BOOLEAN BITMAP_CONTAINS(BITMAP bitmap, BIGINT input)`
+`BITMAP BITMAP_COUNT(BITMAP lhs)`
 
-Calculates whether the input value is in the Bitmap column and returns a Boolean value.
+Returns the number of input bitmaps.
 
 ### example
 
 ```
-mysql> select bitmap_contains(to_bitmap(1),2) cnt;
-+------+
-| cnt  |
-+------+
-|    0 |
-+------+
-
-mysql> select bitmap_contains(to_bitmap(1),1) cnt;
+mysql> select bitmap_count(to_bitmap(1)) cnt;
 +------+
 | cnt  |
 +------+
 |    1 |
 +------+
+
+mysql> select bitmap_count(bitmap_and(to_bitmap(1), to_bitmap(1))) cnt;
++------+
+| cnt  |
++------+
+|    1 |
++------+
+
 ```
 
 ### keywords
 
     ```
-    BITMAP_CONTAINS,BITMAP
+    BITMAP_COUNT
     ```
