@@ -1,5 +1,5 @@
 ---
-{ "title": "HUDI_META", "language": "en" }
+{ "title": "ICEBERG_META", "language": "en" }
 ---
 
 <!--
@@ -21,74 +21,79 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## iceberg_meta
 
-hudi_meta table-valued-function(tvf), using for read hudi metadata, operation history, timeline of table, instant state etc.
+### Name
 
-## Syntax
+iceberg_meta
+
+### description
+
+iceberg_meta table-valued-function(tvf), Use for read iceberg metadata, operation history, snapshots of table, file metadata etc.
+
+#### syntax
 
 ```sql
-hudi_meta(
+iceberg_meta(
   "table" = "ctl.db.tbl", 
-  "query_type" = "timeline"
+  "query_type" = "snapshots"
   ...
   );
 ```
 
 **parameter description**
 
-Each parameter in hudi_meta tvf is a pair of `"key"="value"`.
+Each parameter in iceberg_meta tvf is a pair of `"key"="value"`.
 
 Related parameters:
 
-- `table`： (required) Use hudi table name the format `catlog.database.table`.
-- `query_type`： (required) The type of hudi metadata. Only `timeline` is currently supported.
+- `table`： (required) Use iceberg table name the format `catlog.database.table`.
+- `query_type`： (required) The type of iceberg metadata. Only `snapshots` is currently supported.
 
-## Example
+### Example
 
-Read and access the hudi tabular metadata for timeline.
+Read and access the iceberg tabular metadata for snapshots.
 
 ```sql
-select * from hudi_meta("table" = "ctl.db.tbl", "query_type" = "timeline");
+select * from iceberg_meta("table" = "ctl.db.tbl", "query_type" = "snapshots");
 
 ```
 
 Can be used with `desc function` :
 
 ```sql
-desc function hudi_meta("table" = "ctl.db.tbl", "query_type" = "timeline");
+desc function iceberg_meta("table" = "ctl.db.tbl", "query_type" = "snapshots");
 ```
 
-## Keywords
+### Keywords
 
     ```
-    hudi_meta, table-valued-function, tvf
+    iceberg_meta, table-valued-function, tvf
     ```
 
-## Best Practice
+### Best Prac
 
-Inspect the hudi table timeline :
+Inspect the iceberg table snapshots :
 
 ```sql
-select * from hudi_meta("table" = "hudi_ctl.test_db.test_tbl", "query_type" = "timeline");
-+-------------------+--------+--------------------------+-----------+-----------------------+
-| timestamp         | action | file_name                | state     | state_transition_time |
-+-------------------+--------+--------------------------+-----------+-----------------------+
-| 20240724195843565 | commit | 20240724195843565.commit | COMPLETED | 20240724195844269     |
-| 20240724195845718 | commit | 20240724195845718.commit | COMPLETED | 20240724195846653     |
-| 20240724195848377 | commit | 20240724195848377.commit | COMPLETED | 20240724195849337     |
-| 20240724195850799 | commit | 20240724195850799.commit | COMPLETED | 20240724195851676     |
-+-------------------+--------+--------------------------+-----------+-----------------------+
+select * from iceberg_meta("table" = "iceberg_ctl.test_db.test_tbl", "query_type" = "snapshots");
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
+|      committed_at      |  snapshot_id   |   parent_id   | operation |   manifest_list   |            summary           |
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
+|  2022-09-20 11:14:29   |  64123452344   |       -1      |  append   | hdfs:/path/to/m1  | {"flink.job-id":"xxm1", ...} |
+|  2022-09-21 10:36:35   |  98865735822   |  64123452344  | overwrite | hdfs:/path/to/m2  | {"flink.job-id":"xxm2", ...} |
+|  2022-09-21 21:44:11   |  51232845315   |  98865735822  | overwrite | hdfs:/path/to/m3  | {"flink.job-id":"xxm3", ...} |
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
 ```
 
-Filtered by timestamp :
+Filtered by snapshot_id :
 
 ```sql
-select * from hudi_meta("table" = "hudi_ctl.test_db.test_tbl", "query_type" = "timeline") 
-where timestamp = 20240724195843565;
-+-------------------+--------+--------------------------+-----------+-----------------------+
-| timestamp         | action | file_name                | state     | state_transition_time |
-+-------------------+--------+--------------------------+-----------+-----------------------+
-| 20240724195843565 | commit | 20240724195843565.commit | COMPLETED | 20240724195844269     |
-+-------------------+--------+--------------------------+-----------+-----------------------+
+select * from iceberg_meta("table" = "iceberg_ctl.test_db.test_tbl", "query_type" = "snapshots") 
+where snapshot_id = 98865735822;
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
+|      committed_at      |  snapshot_id   |   parent_id   | operation |   manifest_list   |            summary           |
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
+|  2022-09-21 10:36:35   |  98865735822   |  64123452344  | overwrite | hdfs:/path/to/m2  | {"flink.job-id":"xxm2", ...} |
++------------------------+----------------+---------------+-----------+-------------------+------------------------------+
 ```
