@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-GRANTS", "language": "en" }
+{ "title": "SHOW-INDEX", "language": "en" }
 ---
 
 <!--
@@ -21,52 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-GRANTS
+## SHOW-INDEX
 
 ### Name
 
-SHOW GRANTS
+SHOW INDEX
 
 ### Description
 
-This statement is used to view user permissions.
+This statement is used to display information about indexes in a table.
 
 grammar:
 
-```sql
-SHOW [ALL] GRANTS [FOR user_identity];
+```SQL
+SHOW INDEX[ES] FROM [db_name.]table_name [FROM database];
+or
+SHOW KEY[S] FROM [db_name.]table_name [FROM database];
 ```
-
-illustrate:
-
-1. SHOW ALL GRANTS can view the permissions of all users.
-2. If user_identity is specified, view the permissions of the specified user. And the user_identity must be created by the CREATE USER command.
-3. If user_identity is not specified, view the permissions of the current user.
 
 ### Example
 
-1. View all user permission information
+1. Display the lower index of the specified table_name
 
-    ```sql
-    SHOW ALL GRANTS;
-    ```
-
-2. View the permissions of the specified user
-
-    ```sql
-    SHOW GRANTS FOR jack@'%';
-    ```
-
-3. View the permissions of the current user
-
-    ```sql
-    SHOW GRANTS;
-    ```
+     ```SQL
+      SHOW INDEX FROM example_db.table_name;
+     ```
 
 ### Keywords
 
     ```
-    SHOW, GRANTS
+    SHOW, INDEX
     ```
 
 ### Best Practice
