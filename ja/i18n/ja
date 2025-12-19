@@ -1,5 +1,5 @@
 ---
-{ "title": "IF", "language": "en" }
+{ "title": "IFNULL", "language": "en" }
 ---
 
 <!-- 
@@ -21,30 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## if
+## ifnull
 
 ### description
 
 #### Syntax
 
-`if(boolean condition, type valueTrue, type valueFalseOrNull)`
+`ifnull(expr1, expr2)`
 
-Returns valueTrue when condition is true, returns valueFalseOrNull otherwise.
-
-The return type is the type of the result of the valueTrue/valueFalseOrNull expression
+If the value of expr1 is not null, expr1 is returned, otherwise expr2 is returned
 
 ### example
 
 ```
-mysql> select  user_id, if(user_id = 1, "true", "false") test_if from test;
-+---------+---------+
-| user_id | test_if |
-+---------+---------+
-| 1       | true    |
-| 2       | false   |
-+---------+---------+
+mysql> select ifnull(1,0);
++--------------+
+| ifnull(1, 0) |
++--------------+
+|            1 |
++--------------+
+
+mysql> select ifnull(null,10);
++------------------+
+| ifnull(NULL, 10) |
++------------------+
+|               10 |
++------------------+
 ```
 
 ### keywords
 
-IF
+IFNULL
