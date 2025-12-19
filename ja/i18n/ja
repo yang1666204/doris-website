@@ -1,5 +1,5 @@
 ---
-{ "title": "NOT LIKE", "language": "en" }
+{ "title": "HEX", "language": "en" }
 ---
 
 <!-- 
@@ -21,68 +21,67 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## not like
+## hex
 
 ### description
 
-#### syntax
+#### Syntax
 
-`BOOLEAN not like(VARCHAR str, VARCHAR pattern)`
+`VARCHAR hex(VARCHAR str)`
 
-Perform fuzzy matching on the string str, return false if it matches, and return true if it doesn't match.
+`VARCHAR hex(BIGINT num)`
 
-like match/fuzzy match, will be used in combination with % and _.
+If the input parameter is a number, the string representation of the hexadecimal value is returned;
 
-the percent sign ('%') represents zero, one, or more characters.
-
-the underscore ('_') represents a single character.
-
-```
-'a'   // Precise matching, the same effect as `=`
-'%a'  // data ending with a
-'a%'  // data starting with a
-'%a%' // data containing a
-'_a_' // three digits and the middle letter is a
-'_a'  // two digits and the ending letter is a
-'a_'  // two digits and the initial letter is a
-'a__b'  // four digits, starting letter is a and ending letter is b
-```
+If the input parameter is a string, each character will be converted into two hexadecimal characters, and all the characters after the conversion will be spliced into a string for output
 
 ### example
 
 ```
-// table test
-+-------+
-| k1    |
-+-------+
-| b     |
-| bb    |
-| bab   |
-| a     |
-+-------+
+input string
 
-// Return data that does not contain a in the k1 string
-mysql> select k1 from test where k1 not like '%a%';
-+-------+
-| k1    |
-+-------+
-| b     |
-| bb    |
-+-------+
+mysql> select hex('1');
++----------+
+| hex('1') |
++----------+
+| 31       |
++----------+
 
-// Return the data that is not equal to a in the k1 string
-mysql> select k1 from test where k1 not like 'a';
-+-------+
-| k1    |
-+-------+
-| b     |
-| bb    |
-| bab   |
-+-------+
+mysql> select hex('@');
++----------+
+| hex('@') |
++----------+
+| 40       |
++----------+
+
+mysql> select hex('12');
++-----------+
+| hex('12') |
++-----------+
+| 3132      |
++-----------+
+```
+
+```
+intput num
+
+mysql> select hex(12);
++---------+
+| hex(12) |
++---------+
+| C       |
++---------+
+
+mysql> select hex(-1);
++------------------+
+| hex(-1)          |
++------------------+
+| FFFFFFFFFFFFFFFF |
++------------------+
 ```
 
 ### keywords
 
     ```
-    LIKE, NOT, NOT LIKE
+    HEX
     ```
