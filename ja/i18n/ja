@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CONFIG", "language": "en" }
+{ "title": "SHOW-REPLICA-DISTRIBUTION", "language": "en" }
 ---
 
 <!--
@@ -21,80 +21,44 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CONFIG
+## SHOW-REPLICA-DISTRIBUTION
 
 ### Name
 
-SHOW CONFIG
+SHOW REPLICA DISTRIBUTION
 
 ### Description
 
-This statement is used to display the configuration of the current cluster.
+This statement is used to display the distribution status of a table or partition replica
 
 grammar:
 
 ```sql
-SHOW (FRONTEND|BACKEND)  CONFIG [LIKE "pattern"];
+SHOW REPLICA DISTRIBUTION FROM [db_name.]tbl_name [PARTITION (p1, ...)];
 ```
 
-The columns in the results of showing FE configuration have the following meanings:
+illustrate:
 
-1. Key: Configuration item name
-2. Value: Configuration item value
-3. Type: Configuration item type
-4. IsMutable: Whether it can be set by ADMIN SET CONFIG command
-5. MasterOnly: Is it only applicable to Master FE
-6. Comment: Configuration item description
-
-The columns in the results of showing BE configuration have the following meanings:
-
-1. BackendId: ID of a backend
-2. Host: Host of a backend
-3. Key: Configuration item name
-4. Value: Configuration item value
-5. Type: Configuration item type
-6. IsMutable: Whether it can be modified
+1. The Graph column in the result shows the replica distribution ratio in the form of a graph
 
 ### Example
 
-1. View the configuration of the current FE node
-
-   ```sql
-   SHOW FRONTEND CONFIG;
-   ```
-
-2. Use the like predicate to search the configuration of the current Fe node
-
-   ```
-   mysql> SHOW FRONTEND CONFIG LIKE '%check_java_version%';
-   +--------------------+-------+---------+---------- -+------------+---------+
-   | Key | Value | Type | IsMutable | MasterOnly | Comment |
-   +--------------------+-------+---------+---------- -+------------+---------+
-   | check_java_version | true | boolean | false | false | |
-   +--------------------+-------+---------+---------- -+------------+---------+
-   1 row in set (0.01 sec)
-   ```
-
-3. View the configuration for a specific BE using the backend ID `10001`
+1. View the replica distribution of the table
 
     ```sql
-    SHOW BACKEND CONFIG FROM 10001;
+    SHOW REPLICA DISTRIBUTION FROM tbl1;
     ```
 
-4. View the configuration useing both a pattern and a backend ID
-    ```
-    mysql> SHOW BACKEND CONFIG LIKE "be_port" FROM 10001;
-    +-----------+---------------+---------+-------+---------+-----------+
-    | BackendId | Host          | Key     | Value | Type    | IsMutable |
-    +-----------+---------------+---------+-------+---------+-----------+
-    | 10001     | xx.xx.xxx.xxx | be_port | 9060  | int32_t | false     |
-    +-----------+---------------+---------+-------+---------+-----------+
-    ```
+2. View the replica distribution of the partitions of the table
+
+      ```sql
+      SHOW REPLICA DISTRIBUTION FROM db1.tbl1 PARTITION(p1, p2);
+      ```
 
 ### Keywords
 
     ```
-    SHOW, CONFIG
+    ADMIN, SHOW, REPLICA, DISTRIBUTION
     ```
 
 ### Best Practice
