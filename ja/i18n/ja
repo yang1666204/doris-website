@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.8", "language": "en" }
+{ "title": "Release 2.0.9", "language": "en" }
 ---
 
 <!--
@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Thanks to our community users and developers, about 65 improvements and bug fixes have been made in Doris 2.0.8 version.
+Thanks to our community users and developers, about 68 improvements and bug fixes have been made in Doris 2.0.9 version.
 
 - **Quick Download** : [https://doris.apache.org/download/](https://doris.apache.org/download/)
 
@@ -29,39 +29,42 @@ Thanks to our community users and developers, about 65 improvements and bug fixe
 
 ## 1 Behavior change
 
-The `ADMIN SHOW` statement can not be executed with high version of MySQL 8.x jdbc driver. So rename these statement, remove the `ADMIN` keywords.
-
-- https://github.com/apache/doris/pull/29492
-
-```sql
-ADMIN SHOW CONFIG -> SHOW CONFIG
-ADMIN SHOW REPLICA -> SHOW REPLICA
-ADMIN DIAGNOSE TABLET -> SHOW TABLET DIAGNOSIS
-ADMIN SHOW TABLET -> SHOW TABLET
-```
+NA
 
 ## 2 New features
 
-N/A
+- Support predicate apprear both on key and value mv column
+
+- Support mv with `bitmap_union(bitmap_from_array())`
+
+- Add a FE config to force replicate allocation for OLAP tables in the cluster
+
+- Support date literal support timezone in new optimizer Nereids
+
+- Support slop in fulltext search `match_phrase` to specify word distence
+
+- Show index id in `SHOW PROC INDEXES`
 
 ## 3 Improvement and optimizations
 
-- Make Inverted Index work with TopN opt in Nereids
+- Sdd a secondary argument in `first_value` / `last_value` to ignore NULL values
 
-- Limit the max string length to 1024 while collecting column stats to control BE memory usage
+- the offset params in `LEAD`/ `LAG` function could use 0
 
-- JDBC Catalog close when JDBC client is not empty
+- Adjust priority of materialized view match rule
 
-- Accept all Iceberg database and do not check the name format of database
+- TopN opt reads only limit number of records for better performance
 
-- Refresh external table's rowcount async to avoid cache miss and unstable query plan
+- Add profile for delete_bitmap get_agg function
 
-- Simplify the isSplitable method of hive external table to avoid too many hadoop metrics
+- Refine the Meta cache to get better performance
 
-See the complete list of improvements and bug fixes on [GitHub](https://github.com/apache/doris/compare/2.0.7...2.0.8) .
+- Add FE config `autobucket_max_buckets`
 
-## 4 Credits
+See the complete list of improvements and bug fixes on [GitHub](https://github.com/apache/doris/compare/2.0.8...2.0.9) .
+
+## Big Thanks
 
 Thanks all who contribute to this release:
 
-924060929,  AcKing-Sam, amorynan, AshinGau, BePPPower, BiteTheDDDDt, ByteYue, cambyzju,  dongsilun, eldenmoon, feiniaofeiafei, gnehil, Jibing-Li, liaoxin01, luwei16,  morningman, morrySnow, mrhhsg, Mryange, nextdreamblue, platoneko,  starocean999, SWJTU-ZhangLei, wuwenchi, xiaokang, xinyiZzz, Yukang-Lian,  Yulei-Yang, zclllyybb, zddr, zhangstar333, zhiqiang-hhhh, ziyanTOP, zy-kkk,  zzzxl1993
+adonis0147, airborne12, amorynan, AshinGau, BePPPower, BiteTheDDDDt, CalvinKirs, cambyzju, csun5285, eldenmoon, englefly, feiniaofeiafei, HHoflittlefish777, htyoung, hust-hhb, jackwener, Jibing-Li, kaijchen, kylinmac, liaoxin01, luwei16, morningman, mrhhsg, qidaye, starocean999, SWJTU-ZhangLei, w41ter, xiaokang, xiedeyantu, xy720, zclllyybb, zhangstar333, zhannngchen, zy-kkk, zzzxl1993
