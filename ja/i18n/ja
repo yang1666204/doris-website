@@ -1,5 +1,5 @@
 ---
-{ "title": "minute_floor", "language": "en" }
+{ "title": "MINUTES_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,43 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## minute_floor
+## minutes_add
 
 ### description
 
 #### Syntax
 
-```sql
-DATETIME MINUTE_FLOOR(DATETIME datetime)
-DATETIME MINUTE_FLOOR(DATETIME datetime, DATETIME origin)
-DATETIME MINUTE_FLOOR(DATETIME datetime, INT period)
-DATETIME MINUTE_FLOOR(DATETIME datetime, INT period, DATETIME origin)
-```
+`DATETIME MINUTES_ADD(DATETIME date, INT minutes)`
 
-Convert the date to the nearest rounding down time of the specified time interval period.
+Add specified minutes from date time or date
 
-- datetime: a valid date expression.
-- period: specifies how many minutes each cycle consists of.
-- origin: starting from 0001-01-01T00:00:00.
+The parameter date can be DATETIME or DATE, and the return type is DATETIME.
 
 ### example
 
 ```
-mysql> select minute_floor("2023-07-13 22:28:18", 5);
-+---------------------------------------------------------------+
-| minute_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+---------------------------------------------------------------+
-| 2023-07-13 22:25:00                                           |
-+---------------------------------------------------------------+
-1 row in set (0.06 sec)
+mysql> select minutes_add("2020-02-02", 1);
++---------------------------------------+
+| minutes_add('2020-02-02 00:00:00', 1) |
++---------------------------------------+
+| 2020-02-02 00:01:00                   |
++---------------------------------------+
 ```
 
 ### keywords
 
     ```
-    MINUTE_FLOOR, MINUTE, FLOOR
+    MINUTES_ADD
     ```
-
-### Best Practice
-
-See also [date_floor](./date_floor)
