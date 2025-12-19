@@ -1,5 +1,5 @@
 ---
-{ "title": "Amazon S3", "language": "en" }
+{ "title": "Azure Storage", "language": "en" }
 ---
 
 <!-- 
@@ -21,10 +21,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Doris provides two ways to load files from AWS S3:
+Doris provides two ways to load files from Azure Storage:
 
-- Use S3 Load to load S3 files into Doris, which is an asynchronous load method.
-- Use TVF to load S3 files into Doris, which is a synchronous load method.
+- Use S3 Load to load Azure Storage files into Doris, which is an asynchronous load method.
+- Use TVF to load Azure Storage files into Doris, which is a synchronous load method.
 
 ## load with S3 Load
 
@@ -32,7 +32,7 @@ Use S3 Load to import files on object storage. For detailed steps, please refer 
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on S3 and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Azure Storage and its content is as follows:
 
 ```
 1,Emily,25
@@ -61,6 +61,13 @@ DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 
 ### Step 3: Load data using S3 Load
 
+:::caution Caution
+Azure Storage requires HTTPS transmission by default, with the corresponding storage account configuration being `Secure transfer required: Enabled`.
+To access Azure Storage properly, you need to set `s3_client_http_scheme = https` in Doris's `be.conf`.
+
+The `s3.region` setting for Azure S3 properties can be omitted.
+:::
+
 ```sql
 LOAD LABEL s3_load_2022_04_01
 (
@@ -72,9 +79,9 @@ LOAD LABEL s3_load_2022_04_01
 )
 WITH S3
 (
-    "provider" = "S3",
-    "s3.endpoint" = "s3.us-west-2.amazonaws.com",  
-    "s3.region" = "us-west-2",
+    "provider" = "AZURE",
+    "s3.endpoint" = "StorageAccountA.blob.core.windows.net",  
+    "s3.region" = "westus3",
     "s3.access_key" = "<your-ak>",
     "s3.secret_key" = "<your-sk>"
 )
@@ -115,7 +122,7 @@ mysql> select * from test_s3load;
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on S3 and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Azure Storage and its content is as follows:
 
 ```
 1,Emily,25
@@ -144,14 +151,22 @@ DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 
 ### Step 3: Load data using TVF
 
+:::caution Caution
+Azure Storage requires HTTPS transmission by default, with the corresponding storage account configuration being `Secure transfer required: Enabled`.
+To access Azure Storage properly, you need to set `s3_client_http_scheme = https` in Doris's `be.conf`.
+
+The `s3.region` setting for Azure S3 properties can be omitted.
+:::
+
 ```sql
 INSERT INTO test_s3load
 SELECT * FROM S3
 (
     "uri" = "s3://your_bucket_name/s3load_example.csv",
     "format" = "csv",
-    "s3.endpoint" = "s3.us-west-2.amazonaws.com",
-    "s3.region" = "us-west-2",
+    "provider" = "AZURE",
+    "s3.endpoint" = "StorageAccountA.blob.core.windows.net",
+    "s3.region" = "westus3",
     "s3.access_key" = "<your-ak>",
     "s3.secret_key" = "<your-sk>",
     "column_separator" = ",",
