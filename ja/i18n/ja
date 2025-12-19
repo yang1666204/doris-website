@@ -1,5 +1,5 @@
 ---
-{ "title": "MAP_KEYS", "language": "en" }
+{ "title": "MAP_VALUES", "language": "en" }
 ---
 
 <!-- 
@@ -25,30 +25,30 @@ under the License.
 
 #### Syntax
 
-`ARRAY<K> map_keys(Map<K, V> map)`
+`ARRAY<K> map_values(Map<K, V> map)`
 
-Extracts the keys of a given `map` into an `ARRAY` of the corresponding type.
+Extracts the value of a given `map` into an `ARRAY` of the corresponding type.
 
 ### Example
 
 ```sql
-mysql> select map_keys(map(1, "100", 0.1, 2));
-+-------------------------------------------------------------------------------------------------+
-| map_keys(map(cast(1 as DECIMALV3(2, 1)), '100', cast(0.1 as DECIMALV3(2, 1)), cast(2 as TEXT))) |
-+-------------------------------------------------------------------------------------------------+
-| [1.0, 0.1]                                                                                      |
-+-------------------------------------------------------------------------------------------------+
-1 row in set (0.15 sec)
-
-mysql> select map_keys(map());
-+-----------------+
-| map_keys(map()) |
-+-----------------+
-| []              |
-+-----------------+
+mysql> select map_values(map(1, "100", 0.1, 2));
++---------------------------------------------------------------------------------------------------+
+| map_values(map(cast(1 as DECIMALV3(2, 1)), '100', cast(0.1 as DECIMALV3(2, 1)), cast(2 as TEXT))) |
++---------------------------------------------------------------------------------------------------+
+| ["100", "2"]                                                                                      |
++---------------------------------------------------------------------------------------------------+
 1 row in set (0.12 sec)
+
+mysql> select map_values(map());
++-------------------+
+| map_values(map()) |
++-------------------+
+| []                |
++-------------------+
+1 row in set (0.11 sec)
 ```
 
 ### Keywords
 
-MAP, KEYS, MAP_KEYS
+MAP, VALUES, MAP_VALUES
