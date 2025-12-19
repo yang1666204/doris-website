@@ -1,5 +1,5 @@
 ---
-{ "title": "year_floor", "language": "en" }
+{ "title": "YEARS_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,43 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## year_floor
+## years_add
 
 ### description
 
 #### Syntax
 
-```sql
-DATETIME YEAR_FLOOR(DATETIME datetime)
-DATETIME YEAR_FLOOR(DATETIME datetime, DATETIME origin)
-DATETIME YEAR_FLOOR(DATETIME datetime, INT period)
-DATETIME YEAR_FLOOR(DATETIME datetime, INT period, DATETIME origin)
-```
+`DATETIME YEARS_ADD(DATETIME date, INT years)`
 
-Convert the date to the nearest rounding down time of the specified time interval period.
+ADD a specified number of years from a datetime or date
 
-- datetime: a valid date expression.
-- period: specifies how many years each cycle consists of.
-- origin: starting from 0001-01-01T00:00:00.
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select year_floor("2023-07-13 22:28:18", 5);
-+-------------------------------------------------------------+
-| year_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+-------------------------------------------------------------+
-| 2020-01-01 00:00:00                                         |
-+-------------------------------------------------------------+
-1 row in set (0.11 sec)
+mysql> select years_add("2020-01-31 02:02:02", 1);
++-------------------------------------+
+| years_add('2020-01-31 02:02:02', 1) |
++-------------------------------------+
+| 2021-01-31 02:02:02                 |
++-------------------------------------+
 ```
 
 ### keywords
 
     ```
-    YEAR_FLOOR, YEAR, FLOOR
+    YEARS_ADD
     ```
-
-### Best Practice
-
-See also [date_floor](./date_floor)
