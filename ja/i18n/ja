@@ -1,5 +1,5 @@
 ---
-{ "title": "Restore", "language": "en" }
+{ "title": "Configuration Instructions", "language": "en" }
 ---
 
 <!--
@@ -21,129 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Prerequisites
+This document provides the configurations that need to be adjusted or paid attention to when using CCR.
 
-1. Ensure you have **administrator** privileges to perform the restore operation.
-2. Ensure you have an existing **Repository** to store the backup. If not, follow the steps to create a Repository and perform a [backup](backup.md).
-3. Ensure you have a valid **backup** snapshot available for restoration.
+## FE Configuration
 
-## 1) Get the Backup Timestamp of the Snapshot
+Configured in `fe.conf`, for example, `restore_reset_index_id = true`.
 
-The following SQL statement can be used to view existing backups in the Repository named `example_repo`.
+| **Name**                                  | **Description**                                                                                                                                                                                                                                                                                                                                                | **Default Value** | **Version**                                                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| `restore_reset_index_id`                  | If inverted index or bitmap index is used in the synchronized table, it should be set to `false`.                                                                                                                                                                                                                                              | false             | Starting from 2.1.8 and 3.0.4. |
+| `ignore_backup_tmp_partitions`            | To avoid synchronization interruption caused by upstream creating `tmp partition`, it should be set to `true`.                                                                                                                                                                                                                                 | false             | Starting from 2.1.8 and 3.0.4. |
+| `max_backup_restore_job_num_per_db`       | Limit on the number of backup/restore jobs per DB in memory, it is recommended to set it to 2.                                                                                                                                                                                                                                                 | 10                | All versions.                                                                                  |
+| `label_num_threshold`                     | Controls the number of TXN Labels to prevent transaction recovery from being too fast; too large may occupy more memory, too small may cause data duplication in exceptional situations, the default value is sufficient in most cases.                                                                                                        | 2000              | Starting from 2.1.                                                             |
+| `restore_job_compressed_serialization`    | It is recommended to configure as true when the number of tablets exceeds 100,000.<br /> Before downgrading, turn off the configuration and ensure FE completes a checkpoint.<br /> When upgrading from 2.1 to 3.0, at least upgrade to 3.0.3. | false             | Starting from 2.1.8 and 3.0.3. |
+| `backup_job_compressed_serialization`     | It is recommended to configure as true when the number of tablets exceeds 100,000.<br /> Before downgrading, turn off the configuration and ensure FE completes a checkpoint.<br /> When upgrading from 2.1 to 3.0, at least upgrade to 3.0.3. | false             | Starting from 2.1.8 and 3.0.3. |
+| `backup_job_default_timeout_ms`           | Timeout for backup/restore jobs, both source and target cluster FE need to be configured.                                                                                                                                                                                                                                                      | None              | Set according to requirements                                                                                  |
+| `enable_restore_snapshot_rpc_compression` | Enable snapshot info compression to reduce RPC message size, it is recommended to set it to true.                                                                                                                                                                                                                                              | true              | Starting from 2.1.8 and 3.0.3. |
 
-   ```sql
-   mysql> SHOW SNAPSHOT ON example_repo;
-   +-----------------+---------------------+--------+
-   | Snapshot            | Timestamp              | Status   |
-   +-----------------+---------------------+--------+
-   | exampledb_20241225 | 2022-04-08-15-52-29 | OK     |
-   +-----------------+---------------------+--------+
-   1 row in set (0.15 sec)
-   ```
+## BE
 
-## 2. Restore from Snapshot
+Configured in `be.conf`, for example, `thrift_max_message_size = 2000000000`.
 
-### Option 1: Restore Snapshot to Current Database
+| **Name**                  | **Description**                                                                                                                                            | **Default Value** | **Version**                                      |              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------ | ------------ |
+| `thrift_max_message_size` | BE thrift server single RPC packet limit, it is recommended to set to 2000000000 when the number of tablets involved in CCR jobs is large. | 100MB             | All versions                                     |              |
+| `be_thrift_max_pkg_bytes` | BE Thrift RPC message package size limit.                                                                                                  | 20MB              | Specific to 2.0. | All versions |
+| `max_download_speed_kbps` | Download speed limit for each download worker in downstream BE, default is 50MB/s per thread.                                              | 50MB/s            | All versions                                     |              |
+| `download_worker_count`   | Number of threads for download jobs, set according to network card, disk, and load.                                                        | 1                 | All versions                                     |              |
 
-The following SQL statement restores the snapshot labeled `restore_label1` with the timestamp `2022-04-08-15-52-29` from the Repository named `example_repo` to the current database.
+## Table Attributes
 
-```sql
-RESTORE SNAPSHOT `restore_label1`
-FROM `example_repo`
-PROPERTIES
-(
-    "backup_timestamp"="2022-04-08-15-52-29"
-);
-```
+Set in `Create Table` or `Alter Table`.
 
-### Option 2: Restore Snapshot to Specified Database
-
-The following SQL statement restores the snapshot labeled `restore_label1` with the timestamp `2022-04-08-15-52-29` from the Repository named `example_repo` to a database named `destdb`.
-
-```sql
-RESTORE SNAPSHOT destdb.`restore_label1`
-FROM `example_repo`
-PROPERTIES
-(
-    "backup_timestamp"="2022-04-08-15-52-29"
-);
-```
-
-### Option 3: Restore a Single Table from Snapshot
-
-Restore the table `backup_tbl` from the snapshot in `example_repo` to the current database, with the snapshot labeled `restore_label1` and timestamp `2022-04-08-15-52-29`.
-
-```sql
-RESTORE SNAPSHOT `restore_label1`
-FROM `example_repo`
-ON ( `backup_tbl` )
-PROPERTIES
-(
-    "backup_timestamp"="2022-04-08-15-52-29"
-);
-```
-
-### Option 4: Restore Partitions and Tables from Snapshot
-
-Restore partitions p1 and p2 of the table `backup_tbl`, as well as the table `backup_tbl2` to the current database `example_db1`, renaming it to `new_tbl`, from the backup snapshot `snapshot_2`, with the snapshot label timestamp `"2018-05-04-17-11-01"`.
-
-   ```sql
-   RESTORE SNAPSHOT `restore_label1`
-   FROM `example_repo`
-   ON
-   (
-       `backup_tbl` PARTITION (`p1`, `p2`),
-       `backup_tbl2` AS `new_tbl`
-   )
-   PROPERTIES
-   (
-       "backup_timestamp"="2022-04-08-15-55-43"
-   );
-   ```
-
-## 3. Check the Execution Status of the Restore Job
-
-        ```sql
-
-mysql> SHOW RESTORE\G;
-\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\* 1. row \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
-JobId: 17891851
-Label: snapshot_label1
-Timestamp: 2022-04-08-15-52-29
-DbName: default_cluster:example_db1
-State: FINISHED
-AllowLoad: false
-ReplicationNum: 3
-RestoreObjs: {
-"name": "snapshot_label1",
-"database": "example_db",
-"backup_time": 1649404349050,
-"content": "ALL",
-"olap_table_list": [
-{
-"name": "backup_tbl",
-"partition_names": [
-"p1",
-"p2"
-]
-}
-],
-"view_list": [],
-"odbc_table_list": [],
-"odbc_resource_list": []
-}
-CreateTime: 2022-04-08 15:59:01
-MetaPreparedTime: 2022-04-08 15:59:02
-SnapshotFinishedTime: 2022-04-08 15:59:05
-DownloadFinishedTime: 2022-04-08 15:59:12
-FinishedTime: 2022-04-08 15:59:18
-UnfinishedTasks:
-Progress:
-TaskErrMsg:
-Status: [OK]
-Timeout: 86400
-1 row in set (0.01 sec)
-
-   ```
-   
-   ```
+| **Name**             | **Description**                                                                          | **Default Value**                                                                                                                                  | **Version**  |
+| -------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `binlog.max_bytes`   | Maximum memory usage for binlog, it is recommended to keep at least 4GB. | Unlimited                                                                                                                                          | All versions |
+| `binlog.ttl_seconds` | Retention time for binlog.                                               | Unlimited before 2.0.5, starting from 2.0.5 it is 1 day (86400) | All versions |
