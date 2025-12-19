@@ -1,5 +1,5 @@
 ---
-{ "title": "user", "language": "en" }
+{ "title": "Overview", "language": "zh-CN" }
 ---
 
 <!--
@@ -21,48 +21,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Overview
+Apache Doris cluster has multiple built-in system databases to store metadata information about the Doris system itself.
 
-View all user information.
+### information_schema
 
-## Database
+All tables under the `information_schema` database are virtual tables and do not have physical entities. These system tables contain metadata about the Doris cluster and all its database objects, including databases, tables, columns, permissions, etc. They also include functional status information like Workload Group, Task, etc.
 
-`mysql`
+There is an `information_schema` database under each Catalog, containing metadata only for the corresponding Catalog's databases and tables.
 
-## Table Information
+All tables in the `information_schema` database are read-only, and users cannot modify, drop, or create tables in this database.
 
-| Column Name                                                                                                           | Type                              | Description                                                         |
-| --------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
-| host                                                                                                                  | character(255) | The host from which the user is allowed to connect. |
-| user                                                                                                                  | char(32)       | Username.                                           |
-| node_priv                                                                                        | char(1)        | Whether the user has Node privileges.               |
-| admin_priv                                                                                       | char(1)        | Whether the user has Admin privileges.              |
-| grant_priv                                                                                       | char(1)        | Whether the user has Grant privileges.              |
-| select_priv                                                                                      | char(1)        | Whether the user has Select privileges.             |
-| load_priv                                                                                        | char(1)        | Whether the user has Load privileges.               |
-| alter_priv                                                                                       | char(1)        | Whether the user has Alter privileges.              |
-| create_priv                                                                                      | char(1)        | Whether the user has Create privileges.             |
-| drop_priv                                                                                        | char(1)        | Whether the user has Drop privileges.               |
-| usage_priv                                                                                       | char(1)        | Whether the user has Usage privileges.              |
-| show_view_priv                                                              | char(1)        | Whether the user has Show View privileges.          |
-| cluster_usage_priv                                                          | char(1)        | Whether the user has Cluster usage privileges.      |
-| stage_usage_priv                                                            | char(1)        | Whether the user has Stage usage privileges.        |
-| ssl_type                                                                                         | char(9)        | Always empty, for MySQL compatibility only.         |
-| ssl_cipher                                                                                       | varchar(65533) | Always empty, for MySQL compatibility only.         |
-| x509_issuer                                                                                      | varchar(65533) | Always empty, for MySQL compatibility only.         |
-| x509_subject                                                                                     | varchar(65533) | Always empty, for MySQL compatibility only.         |
-| max_questions                                                                                    | bigint                            | Always 0, for MySQL compatibility only.             |
-| max_updates                                                                                      | bigint                            | Always 0, for MySQL compatibility only.             |
-| max_connections                                                                                  | bigint                            | Always 0, for MySQL compatibility only.             |
-| max_user_connections                                                        | bigint                            | The maximum number of allowed connections.          |
-| plugin                                                                                                                | char(64)       | Always empty, for MySQL compatibility only.         |
-| authentication_string                                                                            | varchar(65533) | Always empty, for MySQL compatibility only.         |
-| password_policy.expiration_seconds                          | varchar(32)    | Password expiration time.                           |
-| password_policy.password_creation_time | varchar(32)    | Password creation time.                             |
-| password_policy.history_num                                 | varchar(32)    | Number of historical passwords.                     |
-| password_policy.history_passwords                           | varchar(65533) | Historical passwords.                               |
-| password_policy.num_failed_login       | varchar(32)    | Allowed number of consecutive login failures.       |
-| password_policy.password_lock_seconds  | varchar(32)    | Password lock time after triggering lock.           |
-| password_policy.failed_login_counter   | varchar(32)    | Login failure count.                                |
-| password_policy.lock_time                                   | varchar(32)    |                                                                     |
+By default, all users have read permissions for all tables in this database, but the query results will vary based on the user's actual permission. For example, if User A only has permissions for `db1.table1`, querying the `information_schema.tables` table will only return information related to `db1.table1`.
 
+### mysql
+
+All tables under the `mysql` database are virtual tables and do not have physical entities. These system tables contain information such as permissions and are mainly used for MySQL ecosystem compatibility.
+
+There is a `mysql` database under each Catalog, but the content of tables is identical.
+
+All tables in the `mysql` database are read-only, and users cannot modify, delete, or create tables in this database.
+
+### __internal_schema
+
+All tables under the `__internal_schema` database are actual tables in Doris, stored similarly to user-created data tables. When a Doris cluster is created, all system tables under this database are automatically created.
+
+By default, common users have read-only permissions for tables in this database. However, once granted, they can modify, delete, or create tables under this database.
