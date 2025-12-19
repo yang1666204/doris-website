@@ -1,5 +1,5 @@
 ---
-{ "title": "STDDEV_SAMP", "language": "en" }
+{ "title": "STDDEV,STDDEV_POP", "language": "en" }
 ---
 
 <!-- 
@@ -21,27 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## STDDEV_SAMP
+## STDDEV,STDDEV_POP
 
 ### Description
 
 #### Syntax
 
-`STDDEV SAMP (expr)`
+`stddev (expl)`
 
-Returns the sample standard deviation of the expr expression
+Returns the standard deviation of the expr expression
 
 ### example
 
 ```
-MySQL > select stddev_samp(scan_rows) from log_statis group by datetime;
-+--------------------------+
-| stddev_samp(`scan_rows`) |
-+--------------------------+
-|        2.372044195280762 |
-+--------------------------+
+MySQL > select stddev(scan_rows) from log_statis group by datetime;
++---------------------+
+| stddev(`scan_rows`) |
++---------------------+
+|  2.3736656687790934 |
++---------------------+
+
+MySQL > select stddev_pop(scan_rows) from log_statis group by datetime;
++-------------------------+
+| stddev_pop(`scan_rows`) |
++-------------------------+
+|      2.3722760595994914 |
++-------------------------+
 ```
 
 ### keywords
 
-STDDEV SAMP,STDDEV,SAMP
+STDDEV,STDDEV_POP,POP
