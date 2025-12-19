@@ -1,5 +1,5 @@
 ---
-{ "title": "month_ceil", "language": "en" }
+{ "title": "month_floor", "language": "en" }
 ---
 
 <!-- 
@@ -21,20 +21,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## month_ceil
+## month_floor
 
 ### description
 
 #### Syntax
 
 ```sql
-DATETIME MONTH_CEIL(DATETIME datetime)
-DATETIME MONTH_CEIL(DATETIME datetime, DATETIME origin)
-DATETIME MONTH_CEIL(DATETIME datetime, INT period)
-DATETIME MONTH_CEIL(DATETIME datetime, INT period, DATETIME origin)
+DATETIME MONTH_FLOOR(DATETIME datetime)
+DATETIME MONTH_FLOOR(DATETIME datetime, DATETIME origin)
+DATETIME MONTH_FLOOR(DATETIME datetime, INT period)
+DATETIME MONTH_FLOOR(DATETIME datetime, INT period, DATETIME origin)
 ```
 
-Convert the date to the nearest rounding up time of the specified time interval period.
+Convert the date to the nearest rounding down time of the specified time interval period.
 
 - datetime: a valid date expression.
 - period: specifies how many months each cycle consists of.
@@ -43,21 +43,21 @@ Convert the date to the nearest rounding up time of the specified time interval 
 ### example
 
 ```
-mysql> select month_ceil("2023-07-13 22:28:18", 5);
-+-------------------------------------------------------------+
-| month_ceil(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
-+-------------------------------------------------------------+
-| 2023-10-01 00:00:00                                         |
-+-------------------------------------------------------------+
-1 row in set (0.02 sec)
+mysql> select month_floor("2023-07-13 22:28:18", 5);
++--------------------------------------------------------------+
+| month_floor(cast('2023-07-13 22:28:18' as DATETIMEV2(0)), 5) |
++--------------------------------------------------------------+
+| 2023-05-01 00:00:00                                          |
++--------------------------------------------------------------+
+1 row in set (0.12 sec)
 ```
 
 ### keywords
 
     ```
-    MONTH_CEIL, MONTH, CEIL
+    MONTH_FLOOR, MONTH, FLOOR
     ```
 
 ### Best Practice
 
-See also [date_ceil](./date_ceil)
+See also [date_floor](./date_floor)
