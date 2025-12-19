@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAY_REMOVE", "language": "en" }
+{ "title": "ARRAY_REVERSE_SORT", "language": "en" }
 ---
 
 <!-- 
@@ -19,71 +19,51 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_remove
+## array_reverse_sort
 
-array_remove
+array_reverse_sort
 
 ### description
 
 #### Syntax
 
-`ARRAY<T> array_remove(ARRAY<T> arr, T val)`
+`ARRAY<T> array_reverse_sort(ARRAY<T> arr)`
 
-Remove all elements that equal to element from array.
+Return the array which has been sorted in descending order. Return NULL for NULL input.
+If the element of array is NULL, it will be placed in the last of the sorted array.
 
 ### example
 
-```
-mysql> select array_remove(['test', NULL, 'value'], 'value');
-+-----------------------------------------------------+
-| array_remove(ARRAY('test', NULL, 'value'), 'value') |
-+-----------------------------------------------------+
-| [test, NULL]                                        |
-+-----------------------------------------------------+
+```mysql> select k1, k2, array_reverse_sort(k2) from array_test;
++------+-----------------------------+-----------------------------+
+| k1   | k2                          | array_reverse_sort(`k2`)    |
++------+-----------------------------+-----------------------------+
+|  1   | [1, 2, 3, 4, 5]             | [5, 4, 3, 2, 1]             |
+|  2   | [6, 7, 8]                   | [8, 7, 6]                   |
+|  3   | []                          | []                          |
+|  4   | NULL                        | NULL                        |
+|  5   | [1, 2, 3, 4, 5, 4, 3, 2, 1] | [5, 4, 4, 3, 3, 2, 2, 1, 1] |
+|  6   | [1, 2, 3, NULL]             | [3, 2, 1, NULL]             |
+|  7   | [1, 2, 3, NULL, NULL]       | [3, 2, 1, NULL, NULL]       |
+|  8   | [1, 1, 2, NULL, NULL]       | [2, 1, 1, NULL, NULL]       |
+|  9   | [1, NULL, 1, 2, NULL, NULL] | [2, 1, 1, NULL, NULL, NULL] |
++------+-----------------------------+-----------------------------+
 
-mysql> select k1, k2, array_remove(k2, 1) from array_type_table_1;
-+------+--------------------+-----------------------+
-| k1   | k2                 | array_remove(`k2`, 1) |
-+------+--------------------+-----------------------+
-|    1 | [1, 2, 3]          | [2, 3]                |
-|    2 | [1, 3]             | [3]                   |
-|    3 | NULL               | NULL                  |
-|    4 | [1, 3]             | [3]                   |
-|    5 | [NULL, 1, NULL, 2] | [NULL, NULL, 2]       |
-+------+--------------------+-----------------------+
-
-mysql> select k1, k2, array_remove(k2, k1) from array_type_table_1;
-+------+--------------------+--------------------------+
-| k1   | k2                 | array_remove(`k2`, `k1`) |
-+------+--------------------+--------------------------+
-|    1 | [1, 2, 3]          | [2, 3]                   |
-|    2 | [1, 3]             | [1, 3]                   |
-|    3 | NULL               | NULL                     |
-|    4 | [1, 3]             | [1, 3]                   |
-|    5 | [NULL, 1, NULL, 2] | [NULL, 1, NULL, 2]       |
-+------+--------------------+--------------------------+
-
-mysql> select k1, k2, array_remove(k2, date('2022-10-10')) from array_type_table_date;
-+------+--------------------------+-------------------------------------------------+
-| k1   | k2                       | array_remove(`k2`, date('2022-10-10 00:00:00')) |
-+------+--------------------------+-------------------------------------------------+
-|    1 | [2021-10-10, 2022-10-10] | [2021-10-10]                                    |
-|    2 | [NULL, 2022-05-14]       | [NULL, 2022-05-14]                              |
-+------+--------------------------+-------------------------------------------------+
-
-mysql> select k1, k2, array_remove(k2, k1) from array_type_table_nullable;
-+------+-----------+--------------------------+
-| k1   | k2        | array_remove(`k2`, `k1`) |
-+------+-----------+--------------------------+
-| NULL | [1, 2, 3] | NULL                     |
-|    1 | NULL      | NULL                     |
-| NULL | [NULL, 1] | NULL                     |
-|    1 | [NULL, 1] | [NULL]                   |
-+------+-----------+--------------------------+
-
+mysql> select k1, k2, array_reverse_sort(k2) from array_test01;
++------+------------------------------------------+------------------------------------------+
+| k1   | k2                                       | array_reverse_sort(`k2`)                 |
++------+------------------------------------------+------------------------------------------+
+|  1   | ['a', 'b', 'c', 'd', 'e']                | ['e', 'd', 'c', 'b', 'a']                |
+|  2   | ['f', 'g', 'h']                          | ['h', 'g', 'f']                          |
+|  3   | ['']                                     | ['']                                     |
+|  3   | [NULL]                                   | [NULL]                                   |
+|  5   | ['a', 'b', 'c', 'd', 'e', 'a', 'b', 'c'] | ['e', 'd', 'c', 'c', 'b', 'b', 'a', 'a'] |
+|  6   | NULL                                     | NULL                                     |
+|  7   | ['a', 'b', NULL]                         | ['b', 'a', NULL]                         |
+|  8   | ['a', 'b', NULL, NULL]                   | ['b', 'a', NULL, NULL]                  |
++------+------------------------------------------+------------------------------------------+
 ```
 
 ### keywords
 
-ARRAY,REMOVE,ARRAY_REMOVE
-
+ARRAY, SORT, REVERSE, ARRAY_SORT, ARRAY_REVERSE_SORT
