@@ -1,5 +1,5 @@
 ---
-{ "title": "table_privileges", "language": "zh-CN" }
+{ "title": "table_properties", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-View the authorization information of the table.
+Used to view attribute information of tables (including internal and external tables).
 
 ## Database
 
@@ -31,11 +31,10 @@ View the authorization information of the table.
 
 ## Table Information
 
-| Column Name                         | Type                            | Description                                    |
-| ----------------------------------- | ------------------------------- | ---------------------------------------------- |
-| GRANTEE                             | varchar(81)  | The authorized user                            |
-| TABLE_CATALOG  | varchar(512) | The name of the Catalog                        |
-| TABLE_SCHEMA   | varchar(64)  | The name of the Database                       |
-| TABLE_NAME     | varchar(64)  | The name of the Table                          |
-| PRIVILEGE_TYPE | varchar(64)  | The type of privilege                          |
-| IS_GRANTABLE   | varchar(3)   | Whether the privilege can be granted to others |
+| Column Name                         | Type                           | Description                             |
+| ----------------------------------- | ------------------------------ | --------------------------------------- |
+| TABLE_CATALOG  | varchar(64) | The Catalog to which the table belongs  |
+| TABLE_SCHEMA   | varchar(64) | The Database to which the table belongs |
+| TABLE_NAME     | varchar(64) | The name of the table                   |
+| PROPERTY_NAME  | string                         | The name of the property                |
+| PROPERTY_VALUE | string                         | The value of the property               |
