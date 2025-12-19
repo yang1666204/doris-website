@@ -1,5 +1,5 @@
 ---
-{ "title": "Query Schema Action", "language": "en" }
+{ "title": "Query Stats Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,84 +21,73 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Query Schema Action
-
 ## Request
 
 ```
-POST /api/query_schema/<ns_name>/<db_name>
+View  
+get api/query_stats/<catalog_name>  
+get api/query_stats/<catalog_name>/<db_name>  
+get api/query_stats/<catalog_name>/<db_name>/<tbl_name>  
+  
+Clear  
+delete api/query_stats/<catalog_name>/<db_name>  
+delete api/query_stats/<catalog_name>/<db_name>/<tbl_name>
 ```
 
 ## Description
 
-The Query Schema Action can return the table creation statement for the given SQL-related table. Can be used to test some query scenarios locally.
-
-The API was released in version 1.2.
+Get or delete the statistics information of the specified catalog database or table, if it is a doris catalog, you can use default_cluster
 
 ## Path parameters
 
-- `<db_name>`
+- `<catalog_name>`
+  specified catalog name
 
-  Specify the database name. This database will be considered as the default database for the current session, and will be used if the table name in SQL does not qualify the database name.
+-
+
+- `<db_name>`
+  specified database name
+
+- `<tbl_name>`
+  specified table name
 
 ## Query parameters
 
-None
+- `summary`
+  if true, only return summary information, otherwise return all the detailed statistics information of the table, only used in get
 
 ## Request body
 
 ```
-text/plain
+GET /api/query_stats/default_cluster/test_query_db/baseall?summary=false
+{
+    "msg": "success",
+    "code": 0,
+    "data": {
+        "summary": {
+            "query": 2
+        },
+        "detail": {
+            "baseall": {
+                "summary": {
+                    "query": 2
+                }
+            }
+        }
+    },
+    "count": 0
+}
 
-sql
 ```
-
-- "sql" field is the SQL string.
 
 ## Response
 
-- Return value
-
-    ```
-    CREATE TABLE `tbl1` (
-      `k1` int(11) NULL,
-      `k2` int(11) NULL
-    ) ENGINE=OLAP
-    DUPLICATE KEY(`k1`, `k2`)
-    COMMENT 'OLAP'
-    DISTRIBUTED BY HASH(`k1`) BUCKETS 3
-    PROPERTIES (
-    "replication_allocation" = "tag.location.default: 1",
-    "in_memory" = "false",
-    "storage_format" = "V2",
-    "disable_auto_compaction" = "false"
-    );
-    
-    CREATE TABLE `tbl2` (
-      `k1` int(11) NULL,
-      `k2` int(11) NULL
-    ) ENGINE=OLAP
-    DUPLICATE KEY(`k1`, `k2`)
-    COMMENT 'OLAP'
-    DISTRIBUTED BY HASH(`k1`) BUCKETS 3
-    PROPERTIES (
-    "replication_allocation" = "tag.location.default: 1",
-    "in_memory" = "false",
-    "storage_format" = "V2",
-    "disable_auto_compaction" = "false"
-    );
-    ```
+- return statistics information
 
 ## Example
 
-1. Write the SQL in local file 1.sql
+2. use curl
 
     ```
-    select tbl1.k2 from tbl1 join tbl2 on tbl1.k1 = tbl2.k1;
-    ```
-
-2. Use curl to get the table creation statement.
-
-    ```
-    curl -X POST -H 'Content-Type: text/plain'  -uroot: http://127.0.0.1:8030/api/query_schema/internal/db1 -d@1.sql
+    curl --location -u root: 'http://127.0.0.1:8030/api/query_stats/default_cluster/test_query_db/baseall?summary=false'
     ```
