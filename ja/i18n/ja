@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-PARTITION-ID", "language": "en" }
+{ "title": "SHOW-PARTITIONS", "language": "en" }
 ---
 
 <!--
@@ -21,34 +21,62 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-PARTITION-ID
+## SHOW-PARTITIONS
 
 ### Name
 
-SHOW PARTITION ID
+SHOW PARTITIONS
 
 ### Description
 
-This statement is used to find the corresponding database name, table name, partition name according to the partition id (only for administrators)
+This statement is used to display partition information for tables in Internal catalog or Hive Catalog
 
 grammar:
 
-```sql
-SHOW PARTITION [partition_id]
+```SQL
+  SHOW [TEMPORARY] PARTITIONS FROM [db_name.]table_name [WHERE] [ORDER BY] [LIMIT];
 ```
+
+illustrate:
+
+When used in Internal catalog:
+
+1. Support the filtering of PartitionId, PartitionName, State, Buckets, ReplicationNum, LastConsistencyCheckTime and other columns
+2. TEMPORARY specifies to list temporary partitions
+
+when used in Hive Catalog:
+Will return all partitions' name. Support multilevel partition table
 
 ### Example
 
-1. Find the corresponding database name, table name, partition name according to the partition id
+1. Display all non-temporary partition information of the specified table under the specified db
 
-    ```sql
-    SHOW PARTITION 10002;
+```SQL
+  SHOW PARTITIONS FROM example_db.table_name;
+```
+
+2. Display all temporary partition information of the specified table under the specified db
+
+    ```SQL
+    SHOW TEMPORARY PARTITIONS FROM example_db.table_name;
+    ```
+
+3. Display the information of the specified non-temporary partition of the specified table under the specified db
+
+    ```SQL
+     SHOW PARTITIONS FROM example_db.table_name WHERE PartitionName = "p1";
+    ```
+
+4. Display the latest non-temporary partition information of the specified table under the specified db
+
+    ```SQL
+    SHOW PARTITIONS FROM example_db.table_name ORDER BY PartitionId DESC LIMIT 1;
     ```
 
 ### Keywords
 
     ```
-    SHOW, PARTITION, ID
+    SHOW, PARTITIONS
     ```
 
 ### Best Practice
