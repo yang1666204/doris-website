@@ -1,5 +1,5 @@
 ---
-{ "title": "MAX", "language": "en" }
+{ "title": "MIN_BY", "language": "en" }
 ---
 
 <!-- 
@@ -21,27 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## MAX
+## MIN_BY
 
 ### description
 
 #### Syntax
 
-`MAX(expr)`
+`MIN_BY(expr1, expr2)`
 
-Returns the maximum value of an expr expression
+Returns the value of an expr1 associated with the minimum value of expr2 in a group.
 
 ### example
 
 ```
-MySQL > select max(scan_rows) from log_statis group by datetime;
-+------------------+
-| max(`scan_rows`) |
-+------------------+
-|          4671587 |
-+------------------+
+MySQL > select * from tbl;
++------+------+------+------+
+| k1   | k2   | k3   | k4   |
++------+------+------+------+
+|    0 | 3    | 2    |  100 |
+|    1 | 2    | 3    |    4 |
+|    4 | 3    | 2    |    1 |
+|    3 | 4    | 2    |    1 |
++------+------+------+------+
+
+MySQL > select min_by(k1, k4) from tbl;
++--------------------+
+| min_by(`k1`, `k4`) |
++--------------------+
+|                  4 |
++--------------------+ 
 ```
 
 ### keywords
 
-MAX
+MIN_BY
