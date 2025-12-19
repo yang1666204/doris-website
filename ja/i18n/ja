@@ -1,5 +1,5 @@
 ---
-{ "title": "FROM_SECOND", "language": "en" }
+{ "title": "FROM_UNIXTIME", "language": "en" }
 ---
 
 <!-- 
@@ -21,54 +21,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## from_second
+## from_unixtime
 
 ### description
 
 #### syntax
 
-`DATETIME FROM_SECOND(BIGINT unix_timestamp)`
-`DATETIME FROM_MILLISECOND(BIGINT unix_timestamp)`
-`DATETIME FROM_MICROSECOND(BIGINT unix_timestamp)`
+`DATETIME FROM UNIXTIME (BIGINT unix timestamp [, VARCHAR string format]`
 
-Converts a timestamp to its DATETIME represent, with argument as an integer and returned as a DATETIME type. Returns `NULL` if `unix_timestamp < 0` or if the function result is greater than `9999-12-31 23:59:59.999999`.
+Convert the UNIX timestamp to the corresponding time format of bits, and the format returned is specified by `string_format`
+
+Input is an big integer and return is a string type
+
+Support `date_format`'s format, and default is `%Y-%m-%d %H:%i:%s`
+
+The current supported range for `unix_timestamp` is `[0, 32536771199]`. `unix_timestamp` values that fall outside of this range will be returned as NULL
 
 ### example
 
 ```
-mysql> set time_zone='Asia/Shanghai';
-
-mysql> select from_second(-1);
+mysql> select from_unixtime(1196440219);
 +---------------------------+
-| from_second(-1)           |
+| from_unixtime(1196440219) |
 +---------------------------+
-| NULL                      |
+| 2007-12-01 00:30:19       |
 +---------------------------+
 
-mysql> select from_millisecond(12345678);
-+----------------------------+
-| from_millisecond(12345678) |
-+----------------------------+
-| 1970-01-01 11:25:45.678    |
-+----------------------------+
+mysql> select from_unixtime(1196440219, '%Y-%m-%d');
++-----------------------------------------+
+| from_unixtime(1196440219, '%Y-%m-%d')   |
++-----------------------------------------+
+| 2007-12-01                              |
++-----------------------------------------+
 
-mysql> select from_microsecond(253402271999999999);
-+--------------------------------------+
-| from_microsecond(253402271999999999) |
-+--------------------------------------+
-| 9999-12-31 23:59:59.999999           |
-+--------------------------------------+
+mysql> select from_unixtime(1196440219, '%Y-%m-%d %H:%i:%s');
++--------------------------------------------------+
+|From unixtime (1196440219,'%Y-%m-%d %H:%i:%s')    |
++--------------------------------------------------+
+| 2007-12-01 00:30:19                              |
++--------------------------------------------------+
+```
 
-mysql> select from_microsecond(253402272000000000);
-+--------------------------------------+
-| from_microsecond(253402272000000000) |
-+--------------------------------------+
-| NULL                                 |
-+--------------------------------------+
+For timestamps that exceed the range, you can use the "from_second" function.
+`DATETIME FROM_SECOND(BIGINT unix_timestamp)`
+
+```
+mysql> select from_second(21474836470);
++--------------------------+
+| from_second(21474836470) |
++--------------------------+
+| 2650-07-06 16:21:10      |
++--------------------------+
 ```
 
 ### keywords
 
     ```
-    FROM_SECOND,FROM,SECOND,MILLISECOND,MICROSECOND
+    FROM_UNIXTIME,FROM,UNIXTIME
     ```
