@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_IPV4_OR_DEFAULT", "language": "en" }
+{ "title": "TO_IPV4_OR_NULL", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## TO_IPV4_OR_DEFAULT
+## TO_IPV4_OR_NULL
 
-TO_IPV4_OR_DEFAULT
+TO_IPV4_OR_NULL
 
 ### Description
 
 #### Syntax
 
-`IPV4 TO_IPV4_OR_DEFAULT(STRING ipv4_str)`
+`IPV4 TO_IPV4_OR_NULL(STRING ipv4_str)`
 
-Same as to_ipv4, but if the IPv4 address has an invalid format, it returns 0.0.0.0 (0 as IPv4).
+Same as to_ipv4, but if the IPv4 address has an invalid format, it returns NULL.
 
 #### Notice
 
-`If input is NULL, return 0.0.0.0 (0 as IPv4).`
+`If input is NULL, return NULL.`
 
 ### Example
 
 ```sql
-mysql> select to_ipv4_or_default('.');
-+-------------------------+
-| to_ipv4_or_default('.') |
-+-------------------------+
-| 0.0.0.0                 |
-+-------------------------+
+mysql> select to_ipv4_or_null('.');
++----------------------+
+| to_ipv4_or_null('.') |
++----------------------+
+| NULL                 |
++----------------------+
 
-mysql> select to_ipv4_or_default(NULL);
-+--------------------------+
-| to_ipv4_or_default(NULL) |
-+--------------------------+
-| 0.0.0.0                  |
-+--------------------------+
+mysql> select to_ipv4_or_null(NULL);
++-----------------------+
+| to_ipv4_or_null(NULL) |
++-----------------------+
+| NULL                  |
++-----------------------+
 ```
 
 ### Keywords
 
-TO_IPV4_OR_DEFAULT, IP
+TO_IPV4_OR_NULL, IP
