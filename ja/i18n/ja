@@ -1,5 +1,5 @@
 ---
-{ "title": "COUNT", "language": "en" }
+{ "title": "COVAR_SAMP", "language": "en" }
 ---
 
 <!-- 
@@ -21,41 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## COUNT
+## COVAR_SAMP
 
 ### Description
 
 #### Syntax
 
-`COUNT([DISTINCT] expr)`
+` double covar_samp(x, y)`
 
-Number of rows used to return the required rows
+Calculate the sample covariance between x and y.
 
 ### example
 
 ```
-MySQL > select count(*) from log_statis group by datetime;
-+----------+
-| count(*) |
-+----------+
-| 28515903 |
-+----------+
+mysql> select covar_samp(x,y) from baseall;
++---------------------+
+| covar_samp(x, y)    |
++---------------------+
+| 0.89442719099991586 |
++---------------------+
+1 row in set (0.21 sec)
 
-MySQL > select count(datetime) from log_statis group by datetime;
-+-------------------+
-| count(`datetime`) |
-+-------------------+
-|         28521682  |
-+-------------------+
-
-MySQL > select count(distinct datetime) from log_statis group by datetime;
-+-------------------------------+
-| count(DISTINCT `datetime`)    |
-+-------------------------------+
-|                       71045   |
-+-------------------------------+
 ```
 
 ### keywords
 
-COUNT
+COVAR_SAMP
