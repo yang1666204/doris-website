@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.12", "language": "en" }
+{ "title": "Release 2.0.13", "language": "en" }
 ---
 
 <!--
@@ -21,32 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Thanks to our community developers and users for their contributions. Doris version 2.0.12 will bring 99 improvements and bug fixes.
+Thanks to our community users and developers, about 112 improvements and bug fixes have been made in Doris 2.0.13 version
 
-**Quick Download:** https://doris.apache.org/download/
-
-**GitHub Release:** https://github.com/apache/doris/releases
+[Quick Download](https://doris.apache.org/download/)
 
 ## Behavior changes
 
-- No longer set the default table comment to the table type. Instead, set it to be empty by default, for example, change COMMENT 'OLAP' to COMMENT ' '.  This new behavior is more friendly for BI software that relies on table comments. [#35855](https://github.com/apache/doris/pull/35855)
+SQL input is treated as multiple statements only when the `CLIENT_MULTI_STATEMENTS` setting is enabled on the client side, enhancing compatibility with MySQL. [#36759](https://github.com/apache/doris/pull/36759)
 
-- Change the type of the `@@autocommit` variable from `BOOLEAN` to `BIGINT` to prevent errors from certain MySQL clients (such as .NET MySQL.Data). [#33282](https://github.com/apache/doris/pull/33282)
+## New features
+
+- A new BE configuration `allow_zero_date` has been added, allowing dates with all zeros. When set to `false`, `0000-00-00` is parsed as `NULL`, and when set to `true`, it is parsed as `0000-01-01`. The default value is `false` to maintain consistency with previous behavior. [#34961](https://github.com/apache/doris/pull/34961)
+
+- `LogicalWindow` and `LogicalPartitionTopN` support multi-field predicate pushdown to improve performance. [#36828](https://github.com/apache/doris/pull/36828)
+
+- The ES Catalog now maps ES `nested` or `object` types to Doris `JSON` types. [#37101](https://github.com/apache/doris/pull/37101)
 
 ## Improvements
 
-- Remove the `disable_nested_complex_type` parameter and allow the creation of nested `ARRAY`, `MAP`, and `STRUCT` types by default. [#36255](https://github.com/apache/doris/pull/36255)
+- Queries with `LIMIT` end reading data earlier to reduce resource consumption and improve performance. [#36535](https://github.com/apache/doris/pull/36535)
 
-- The HMS catalog supports the `SHOW CREATE DATABASE` command. [#28145](https://github.com/apache/doris/pull/28145)
+- Special JSON data with empty keys is now supported. [#36762](https://github.com/apache/doris/pull/36762)
 
-- Add more inverted index metrics to the query profile. [#36545](https://github.com/apache/doris/pull/36545)
+- Stability and usability of routine load have been improved, including load balancing, automatic recovery, exception handling, and more user-friendly error messages. [#36450](https://github.com/apache/doris/pull/36450) [#35376](https://github.com/apache/doris/pull/35376) [#35266](https://github.com/apache/doris/pull/35266) [ #33372](https://github.com/apache/doris/pull/33372) [#32282](https://github.com/apache/doris/pull/32282) [#32046](https://github.com/apache/doris/pull/32046) [#32021](https://github.com/apache/doris/pull/32021) [#31846](https://github.com/apache/doris/pull/31846) [#31273](https://github.com/apache/doris/pull/31273)
 
-- Cross-Cluster Replication (CCR) supports inverted indices. [#31743](https://github.com/apache/doris/pull/31743)
+- BE load balancing selection of hard disk strategy and speed optimization. [#36826](https://github.com/apache/doris/pull/36826) [#36795](https://github.com/apache/doris/pull/36795) [#36509](https://github.com/apache/doris/pull/36509)
 
-You can access the full list through the GitHub [link](https://github.com/apache/doris/compare/2.0.11...2.0.12) , with the key features and improvements highlighted below.
+- Stability and usability of the JDBC catalog have been improved, including encryption, thread pool connection count configuration, and more user-friendly error messages. [#36940](https://github.com/apache/doris/pull/36940) [#36720](https://github.com/apache/doris/pull/36720) [#30880](https://github.com/apache/doris/pull/30880) [#35692](https://github.com/apache/doris/pull/35692)
+
+You can access the full list through the GitHub [link](https://github.com/apache/doris/compare/2.0.12...2.0.13) , with the key features and improvements highlighted below.
 
 ## Credits
 
-Thanks all who contribute to this release:
+Thanks to all who contributed to this release:
 
-@airborne12, D14@amorynan, D14@BiteTheDDDDt, D14@cambyzju, D14@caoliang-web, D14@dataroaring, D14@eldenmoon, D14@feiniaofeiafei, D14@felixwluo, D14@gavinchou, D14@HappenLee, D14@hello-stephen, D14@jacktengg, D14@Jibing-Li, D14@Johnnyssc, D14@liaoxin01, D14@LiBinfeng-01, D14@luwei16, D14@mongo360, D14@morningman, D14@morrySnow, D14@mrhhsg, D14@Mryange, D14@mymeiyi, D14@qidaye, D14@qzsee, D14@starocean999, D14@w41ter, D14@wangbo, D14@wsjz, D14@wuwenchi, D14@xiaokang, D14@XuPengfei-1020, D14@xy720, D14@yongjinhou, D14@yujun777, D14@Yukang-Lian, D14@Yulei-Yang, D14@zclllyybb, D14@zddr, D14@zhannngchen, D14@zhiqiang-hhhh, D14@zy-kkk, D14@zzzxl1993
+@Gabriel39, @Jibing-Li, @Johnnyssc, @Lchangliang, @LiBinfeng-01, @SWJTU-ZhangLei, @Thearas, @Yukang-Lian, @Yulei-Yang, @airborne12, @amorynan, @bobhan1, @cambyzju, @csun5285, @dataroaring, @deardeng, @eldenmoon, @englefly, @feiniaofeiafei, @hello-stephen, @jacktengg, @kaijchen, @liutang123, @luwei16, @morningman, @morrySnow, @mrhhsg, @mymeiyi, @platoneko, @qidaye, @sollhui, @starocean999, @w41ter, @xiaokang, @xy720, @yujun777, @zclllyybb, @zddr
