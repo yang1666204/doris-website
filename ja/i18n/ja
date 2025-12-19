@@ -1,5 +1,5 @@
 ---
-{ "title": "Overview", "language": "en" }
+{ "title": "Performance", "language": "en" }
 ---
 
 <!--
@@ -21,72 +21,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Overview
+The performance data in this document is based on the default configuration. If you are facing high network latency or high throughput write scenarios, you can refer to the [Operation Manual](manual.md) for optimization.
 
-CCR (Cross Cluster Replication) is a cross-cluster data synchronization mechanism that synchronizes data changes from the source cluster to the target cluster at the database or table level. It is mainly used to enhance the data availability of online services, isolate read and write loads, and build a dual-site, three-center architecture. CCR currently does not support the separation of computing and storage modes.
+## Test Dataset
 
-### Applicable Scenarios
+- **Dataset**: TPC-H 1T
 
-CCR is suitable for the following common scenarios:
+## Test Cluster Configuration
 
-- **Disaster Recovery Backup**: Backing up enterprise data to another cluster and data center to ensure data recovery in case of business interruption or data loss. Industries such as finance, healthcare, and e-commerce typically require this high SLA disaster recovery backup.
+| Configuration Item | Upstream Configuration                      | Downstream Configuration                    |
+| ------------------ | ------------------------------------------- | ------------------------------------------- |
+| FE                 | 2 cores 16 GB                               | 2 cores 16 GB                               |
+| BE                 | 3 nodes, 16 cores 64 GB, 3\*500 GB per node | 3 nodes, 16 cores 64 GB, 3\*500 GB per node |
 
-- **Read-Write Separation**: By separating data query operations from write operations, the mutual impact between reads and writes is reduced, enhancing service stability. In scenarios with high concurrency or heavy write pressure, adopting read-write separation can effectively distribute the load and improve database performance and stability.
+---
 
-- **Data Centralization**: The headquarters of a group needs to manage and analyze data from branch offices located in different regions to avoid management chaos and decision-making errors caused by data inconsistency, thereby improving group management efficiency and decision quality.
+## Incremental Synchronization Performance Test
 
-- **Isolated Upgrades**: When upgrading system clusters, using CCR allows for validation and testing in the new cluster, avoiding rollback difficulties caused by version compatibility issues. Users can gradually upgrade each cluster while ensuring data consistency.
+### Test Steps
 
-- **Cluster Migration**: When relocating a Doris cluster or replacing equipment, using CCR can synchronize data from the old cluster to the new cluster, ensuring data consistency during the migration process.
+1. Create the database and tables for TPC-H 1T in the upstream cluster.
+2. Create a synchronization job for the TPC-H 1T database.
+3. Wait for the TPC-H 1T data import to complete and record the completion time.
+4. Wait for the downstream data synchronization to complete and record the completion time.
 
-### Job Categories
+### Test Conclusion
 
-CCR supports two types of jobs:
+Incremental synchronization time difference: 33 seconds
 
-- **Database-Level jobs**: Synchronize data for the entire database.
-- **Table-Level jobs**: Only synchronize data for specified tables. Note that table-level synchronization does not support renaming or replacing tables. Each database in Doris can only run one snapshot job at a time, so full synchronization jobs for table-level synchronization need to be queued.
+---
 
-## Principles and Architecture
+## Full Synchronization Performance Test
 
-### Terminology
+### Test Steps
 
-- **Source Cluster**: The cluster where the data source resides, usually the cluster where business data is written.
-- **Target Cluster**: The target cluster for cross-cluster synchronization.
-- **binlog**: The change log of the source cluster, which includes schema and data changes.
-- **Syncer**: A lightweight process responsible for synchronizing data.
-- **Upstream**: Refers to the upstream database in database-level jobs and the upstream table in table-level jobs.
-- **Downstream**: Refers to the downstream database in database-level jobs and the downstream table in table-level jobs.
+1. Create the library and table information for TPC-H 1T in the upstream cluster and complete the data import, recording the completion time.
+2. Create a synchronization job for the TPC-H 1T database.
+3. Wait for the downstream data synchronization to complete and record the completion time.
 
-### Architecture Description
+### Test Conclusion
 
-![CCR Architecture Description](/images/ccr-architecture-description.png)
+Full synchronization time difference: 6 minutes 1 second
 
-CCR mainly relies on a lightweight process: `Syncer`. The `Syncer` is responsible for obtaining binlogs from the source cluster and applying metadata to the target cluster, notifying the target cluster to pull data from the source cluster, thus achieving full synchronization and incremental synchronization.
+---
 
-### Principles
+## Flink Synchronization Performance Test
 
-1. **Full Synchronization**:
-   - CCR jobs will first perform full synchronization, copying the upstream data completely to the downstream.
+### Test Steps
 
-2. **Incremental Synchronization**:
-   - After full synchronization is complete, CCR jobs will continue with incremental synchronization to maintain data consistency between upstream and downstream.
+1. Use Flink to import 100,000,000 records in the upstream.
+2. Create a synchronization job for the library and table.
+3. Observe the difference between the downstream synchronization completion time and the upstream import completion time at each stage (e.g., 1,000,000 records, 2,000,000 records, etc.).
+4. Record the last import completion time in the upstream.
+5. Record the downstream synchronization completion time.
 
-3. **Restarting Full Synchronization**:
-   - When encountering DDL operations that do not support incremental synchronization, CCR jobs will restart full synchronization. For specific DDL operations that do not support incremental synchronization, please refer to [Feature Details](./feature.md).
-   - If the upstream binlog is interrupted due to expiration or other reasons, incremental synchronization will stop and restart full synchronization.
+### Test Conclusion
 
-4. **Restarting Full Synchronization**:
-   - During full synchronization, incremental synchronization will be paused.
-   - After full synchronization is complete, the downstream data table will undergo atomic replacement to ensure data consistency.
-   - After full synchronization is complete, incremental synchronization will resume.
+The **lag time** at each stage is maintained within `5 seconds`.
 
-### Synchronization Methods
-
-CCR supports four synchronization methods:
-
-| Synchronization Method | Principle                                                                                                                                                                                 | Trigger Timing                                                                                                                                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Full Sync**          | The upstream performs a full backup, and the downstream performs a restore. DB-level jobs trigger DB backups, and table-level jobs trigger table backups. | First synchronization or triggered by specific operations. For trigger conditions, please refer to [Feature Details](./feature.md). |
-| **Partial Sync**       | The upstream performs table or partition-level backups, and the downstream performs table or partition-level restores.                                                    | Triggered by specific operations, for trigger conditions, please refer to [Feature Details](./feature.md).                                          |
-| **TXN**                | Incremental data synchronization, starting synchronization after the upstream commits.                                                                                    | Triggered by specific operations, for trigger conditions, please refer to [Feature Details](./feature.md).                                          |
-| **SQL**                | Replaying upstream SQL operations on the downstream.                                                                                                                      | Triggered by specific operations, for trigger conditions, please refer to [Feature Details](./feature.md).                                          |
