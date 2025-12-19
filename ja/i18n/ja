@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_SUBSET_LIMIT", "language": "en" }
+{ "title": "BITMAP_TO_ARRAY", "language": "en" }
 ---
 
 <!-- 
@@ -10,9 +10,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,38 +19,52 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_subset_limit
+## bitmap_to_array
 
-### Description
+### description
 
 #### Syntax
 
-`BITMAP BITMAP_SUBSET_LIMIT(BITMAP src, BIGINT range_start, BIGINT cardinality_limit)`
+`ARRAY_BIGINT bitmap_to_array(BITMAP input)`
 
-Create subset of the BITMAP, begin with range from range_start, limit by cardinality_limit
-range_start: start value for the range
-cardinality_limit: subset upper limit
+Convert a input BITMAP to Array.
+If input is null, return null.
 
 ### example
 
 ```
-mysql> select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 0, 3)) value;
-+-----------+
-| value     |
-+-----------+
-| 1,2,3 |
-+-----------+
+mysql> select bitmap_to_array(null);
++------------------------+
+| bitmap_to_array(NULL)  |
++------------------------+
+| NULL                   |
++------------------------+
 
-mysql> select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 4, 3)) value;
-+-------+
-| value |
-+-------+
-| 4,5     |
-+-------+
+mysql> select bitmap_to_array(bitmap_empty());
++---------------------------------+
+| bitmap_to_array(bitmap_empty()) |
++---------------------------------+
+| []                              |
++---------------------------------+
+
+mysql> select bitmap_to_array(to_bitmap(1));
++-------------------------------+
+| bitmap_to_array(to_bitmap(1)) |
++-------------------------------+
+| [1]                           |
++-------------------------------+
+
+mysql> select bitmap_to_array(bitmap_from_string('1,2,3,4,5'));
++--------------------------------------------------+
+| bitmap_to_array(bitmap_from_string('1,2,3,4,5')) |
++--------------------------------------------------+
+| [1, 2, 3, 4, 5]                                  |
++--------------------------------------------------
+
 ```
 
 ### keywords
 
     ```
-    BITMAP_SUBSET_LIMIT,BITMAP_SUBSET,BITMAP
+    BITMAP_TO_ARRAY,BITMAP
     ```
