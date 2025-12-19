@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-TYPECAST", "language": "en" }
+{ "title": "SHOW-VARIABLES", "language": "en" }
 ---
 
 <!--
@@ -21,49 +21,54 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-TYPECAST
+## SHOW-VARIABLES
 
 ### Name
 
-SHOW TYPECAST
+SHOW VARIABLES
 
 ### Description
 
-View all type cast under the database. If the user specifies a database, then view the corresponding database, otherwise directly query the database where the current session is located
+This statement is used to display Doris system variables, which can be queried by conditions
 
-Requires `SHOW` permission on this database
-
-grammar
+grammar:
 
 ```sql
-SHOW TYPE_CAST [IN|FROM db]
+SHOW [GLOBAL | SESSION] VARIABLES
+     [LIKE 'pattern' | WHERE expr]
 ```
 
-Parameters
+illustrate:
 
-> `db`: database name to query
+- show variables is mainly used to view the values of system variables.
+- Executing the SHOW VARIABLES command does not require any privileges, it only requires being able to connect to the server.
+- Use the like statement to match with variable_name.
+- The % percent wildcard can be used anywhere in the matching pattern
 
 ### Example
 
-```sql
-mysql> show type_cast in testDb\G
-**************************** 1. row ******************** ******
-Origin Type: TIMEV2
-  Cast Type: TIMEV2
-**************************** 2. row ******************** ******
-Origin Type: TIMEV2
-  Cast Type: TIMEV2
-**************************** 3. row ******************** ******
-Origin Type: TIMEV2
-  Cast Type: TIMEV2
+1. The default here is to match the Variable_name, here is the exact match
 
-3 rows in set (0.00 sec)
-```
+    ```sql
+    show variables like 'max_connections';
+    ```
+
+2. Matching through the percent sign (%) wildcard can match multiple items
+
+    ```sql
+    show variables like '%connec%';
+    ```
+
+3. Use the Where clause for matching queries
+
+    ```sql
+    show variables where variable_name = 'version';
+    ```
 
 ### Keywords
 
     ```
-    SHOW, TYPECAST
+    SHOW, VARIABLES
     ```
 
 ### Best Practice
