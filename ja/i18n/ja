@@ -1,5 +1,5 @@
 ---
-{ "title": "QUOTE", "language": "en" }
+{ "title": "random_bytes", "language": "en" }
 ---
 
 <!-- 
@@ -21,29 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## quote
+## random_bytes
 
 ### description
 
+The `random_bytes` function generates a sequence of random bytes.
+
 #### Syntax
 
-`VARCHAR quote(VARCHAR str)`
+```sql
+VARCHAR random_bytes(INT len)
+```
 
-Output all the strings in the argument as is and wrap them with ''
+### Parameters
+
+- len: The `random_bytes` function takes a single argument, which specifies the length of the generated random byte sequence.
 
 ### example
 
-```sql
-mysql> select quote('hello world!\\t');
-+-------------------------+
-| quote('hello world!\t') |
-+-------------------------+
-| 'hello world!\t'        |
-+-------------------------+
+```
+mysql> select random_bytes(7);
++------------------------------------------------+
+| random_bytes(7) |
++------------------------------------------------+
+| 0x53edd97401fb6d                               |
++------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    QUOTE
+    RANDOM BYTES
     ```
