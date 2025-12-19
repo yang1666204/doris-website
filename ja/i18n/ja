@@ -1,5 +1,5 @@
 ---
-{ "title": "Developing Plugins", "language": "en" }
+{ "title": "Small File Manager", "language": "en" }
 ---
 
 <!-- 
@@ -21,291 +21,109 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Doris Plugin Framework
+# File Manager
 
-## Introduction
+Some functions in Doris require some user-defined files. For example, public keys, key files, certificate files and so on are used to access external data sources. The File Manager provides a function that allows users to upload these files in advance and save them in Doris system, which can then be referenced or accessed in other commands.
 
-Doris plugin framework supports install/uninstall custom plugins at runtime without restart the Doris service. Users can extend Doris's functionality by developing their own plugins.
+## Noun Interpretation
 
-For example, the audit plugin worked after a request execution, it can obtain information related to a request (access user, request IP, SQL, etc...) and write the information into the specified table.
+- BDBJE: Oracle Berkeley DB Java Edition. Distributed embedded database for persistent metadata in FE.
+- SmallFileMgr: File Manager. Responsible for creating and maintaining user files.
 
-Differences from UDF:
+## Basic concepts
 
-- UDF is a function used for data calculation when SQL is executed. Plugin is additional function that is used to extend Doris with customized function, such as support different storage engines and different import ways, and plugin doesn't participate in data calculation when executing SQL.
-- The execution cycle of UDF is limited to a SQL execution. The execution cycle of plugin may be the same as the Doris process.
-- The usage scene is different. If you need to support special data algorithms when executing SQL, then UDF is recommended, if you need to run custom functions on Doris, or start a background thread to do tasks, then the use of plugin is recommended.
+Files are files created and saved by users in Doris.
 
-Currently the plugin framework only supports audit plugins.
+A file is located by `database`, `catalog`, `file_name`. At the same time, each file also has a globally unique ID (file_id), which serves as the identification in the system.
 
-> Note:
-> Doris plugin framework is an experimental feature, currently only supports FE plugin, and is closed by default, can be opened by FE configuration `plugin_enable = true`.
+File creation and deletion can only be performed by users with `admin` privileges. A file belongs to a database. Users who have access to a database (queries, imports, modifications, etc.) can use the files created under the database.
 
-## Plugin
+## Specific operation
 
-A FE Plugin can be a **.zip package** or a **directory**, which contains at least two parts: the `plugin.properties` and `.jar` files. The `plugin.properties` file is used to describe the plugin information.
+File management has three main commands: `CREATE FILE`, `SHOW FILE` and `DROP FILE`, creating, viewing and deleting files respectively. The specific syntax of these three commands can be viewed by connecting to Doris and executing `HELP cmd;`.
 
-The file structure of a Plugin looks like this:
+### CREATE FILE
 
-```
-# plugin .zip
-auditodemo.zip:
-    -plugin.properties
-    -auditdemo.jar
-    -xxx.config
-    -data/
-    -test_data/
+This statement is used to create and upload a file to the Doris cluster. For details, see [CREATE FILE](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-FILE.md).
 
-# plugin local directory
-auditodemo/:
-    -plugin.properties
-    -auditdemo.jar
-    -xxx.config
-    -data/
-    -test_data/
-```
+Examples:
 
-`plugin.properties` example:
+```sql
+1. Create file ca.pem , classified as kafka
 
-```
-### required:
-#
-# the plugin name
-name = audit_plugin_demo
-#
-# the plugin type
-type = AUDIT
-#
-# simple summary of the plugin
-description = just for test
-#
-# Doris's version, like: 0.11.0
-version = 0.11.0
+    CREATE FILE "ca.pem"
+    PROPERTIES
+    (
+        "url" = "https://test.bj.bcebos.com/kafka-key/ca.pem",
+        "catalog" = "kafka"
+    );
 
-### FE-Plugin optional:
-#
-# version of java the code is built against
-# use the command "java -version" value, like 1.8.0, 9.0.1, 13.0.4
-java.version = 1.8.31
-#
-# the name of the class to load, fully-qualified.
-classname = AuditPluginDemo
+2. Create a file client.key, classified as my_catalog
 
-### BE-Plugin optional:
-# the name of the so to load
-soName = example.so
+    CREATE FILE "client.key"
+    IN my_database
+    PROPERTIES
+    (
+        "url" = "https://test.bj.bcebos.com/kafka-key/client.key",
+        "catalog" = "my_catalog",
+        "md5" = "b5bb901bf10f99205b39a46ac3557dd9"
+    );
 ```
 
-## Write A Plugin
+### SHOW FILE
 
-The development environment of the FE plugin depends on the development environment of Doris. So please make sure Doris's compilation and development environment works normally.
+This statement can view the files that have been created successfully. For details, see [SHOW FILE](../sql-manual/sql-statements/Data-Definition-Statements/Drop/DROP-FILE.md).
 
-`fe_plugins` is the parent module of the fe plugins. It can uniformly manage the third-party library information that the plugin depends on. Adding a plugin can add a submodule implementation under `fe_plugins`.
+Examples:
 
-### Create module
+```sql
+1. View uploaded files in database my_database
 
-We can add a submodule in the `fe_plugins` directory to implement Plugin and create a project:
-
-```
-mvn archetype: generate -DarchetypeCatalog = internal -DgroupId = org.apache -DartifactId = doris-fe-test -DinteractiveMode = false
+    SHOW FILE FROM my_database;
 ```
 
-The command produces a new mvn project, and a new submodule is automatically added to `fe_plugins/pom.xml`:
+### DROP FILE
 
-```
-    .....
-    <groupId>org.apache</groupId>
-    <artifactId>doris-fe-plugins</artifactId>
-    <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
-    <modules>
-        <module>auditdemo</module>
-        # new plugin module
-        <module>doris-fe-test</module>
-    </modules>
-    .....
+This statement can view and delete an already created file. For specific operations, see [DROP FILE](../sql-manual/sql-statements/Data-Definition-Statements/Drop/DROP-FILE.md).
+
+Examples:
+
+```sql
+1. delete file ca.pem
+
+    DROP FILE "ca.pem" properties("catalog" = "kafka");
 ```
 
-The new plugin project file structure is as follows:
+## Implementation details
 
-```
--doris-fe-test/
--pom.xml
--src/
-    ---- main/java/org/apache/
-    ------- App.java # mvn auto generate, ignore
-    ---- test/java/org/apache
-```
+### Create and delete files
 
-We will add an assembly folder under main to store `plugin.properties` and `zip.xml`. After completion, the file structure is as follows:
+When the user executes the `CREATE FILE` command, FE downloads the file from a given URL. The contents of the file are stored in FE memory directly in the form of Base64 encoding. At the same time, the file content and meta-information related to the file will be persisted in BDBJE. All created files, their meta-information and file content reside in FE memory. If the FE goes down and restarts, meta information and file content will also be loaded into memory from the BDBJE. When a file is deleted, the relevant information is deleted directly from FE memory and persistent information is deleted from BDBJE.
 
-```
--doris-fe-test/
--pom.xml
--src/
----- main/
------- assembly/
--------- plugin.properties
--------- zip.xml
------- java/org/apache/
---------App.java # mvn auto generate, ignore
----- test/java/org/apache
-```
+### Use of documents
 
-### Add zip.xml
+If the FE side needs to use the created file, SmallFileMgr will directly save the data in FE memory as a local file, store it in the specified directory, and return the local file path for use.
 
-`zip.xml`, used to describe the content of the final package of the plugin (.jar file, plugin.properties):
+If the BE side needs to use the created file, BE will download the file content to the specified directory on BE through FE's HTTP interface `api/get_small_file` for use. At the same time, BE also records the information of the files that have been downloaded in memory. When BE requests a file, it first checks whether the local file exists and verifies it. If the validation passes, the local file path is returned directly. If the validation fails, the local file is deleted and downloaded from FE again. When BE restarts, local files are preloaded into memory.
 
-```
-<assembly>
-    <id>plugin</id>
-    <formats>
-        <format>zip</format>
-    </formats>
-    <!-IMPORTANT: must be false->
-    <includeBaseDirectory>false</includeBaseDirectory>
-    <fileSets>
-        <fileSet>
-            <directory>target</directory>
-            <includes>
-                <include>*.jar</include>
-            </ ncludes>
-            <outputDirectory>/</outputDirectory>
-        </fileSet>
+## Use restrictions
 
-        <fileSet>
-            <directory>src/main/assembly</directory>
-            <includes>
-                <include>plugin.properties</include>
-            </includes>
-            <outputDirectory>/</outputDirectory>
-        </fileSet>
-    </fileSets>
-</assembly>
-```
+Because the file meta-information and content are stored in FE memory. So by default, only files with size less than 1MB can be uploaded. And the total number of files is limited to 100. The configuration items described in the next section can be modified.
 
-### Update pom.xml
+## Relevant configuration
 
-Then we need to update `pom.xml`, add doris-fe dependency, and modify maven packaging way:
+1. FE configuration
 
-```
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <groupId>org.apache</groupId>
-        <artifactId>doris-fe-plugins</artifactId>
-        <version>1.0-SNAPSHOT</version>
-    </parent>
-    <modelVersion>4.0.0</modelVersion>
+- `Small_file_dir`: The path used to store uploaded files, defaulting to the `small_files/` directory of the FE runtime directory.
+- `max_small_file_size_bytes`: A single file size limit in bytes. The default is 1MB. File creation larger than this configuration will be rejected.
+- `max_small_file_number`: The total number of files supported by a Doris cluster. The default is 100. When the number of files created exceeds this value, subsequent creation will be rejected.
 
-    <artifactId>auditloader</artifactId>
-    <packaging>jar</packaging>
+  > If you need to upload more files or increase the size limit of a single file, you can modify the `max_small_file_size_bytes` and `max_small_file_number` parameters by using the `ADMIN SET CONFIG` command. However, the increase in the number and size of files will lead to an increase in FE memory usage.
 
-    <dependencies>
-        <!-- doris-fe dependencies -->
-        <dependency>
-            <groupId>org.apache</groupId>
-            <artifactId>doris-fe</artifactId>
-        </dependency>
+2. BE configuration
 
-        <!-- other dependencies -->
-        <dependency>
-            ...
-        </dependency>
-    </dependencies>
+- `Small_file_dir`: The path used to store files downloaded from FE by default is in the `lib/small_files/` directory of the BE runtime directory.
 
+## More Help
 
-    <build>
-        <finalName>auditloader</finalName>
-        <plugins>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.4.1</version>
-                <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <descriptors>
-                        <descriptor>src/main/assembly/zip.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-
-</project>
-```
-
-### Implement plugin
-
-Then we can implement Plugin according to the needs. Plugins need to implement the `Plugin` interface. For details, please refer to the `auditdemo` plugin sample code that comes with Doris.
-
-### Compile
-
-Before compiling the plugin, you must first execute `sh build.sh --fe` of Doris to complete the compilation of Doris FE.
-
-Finally, execute `sh build_plugin.sh` in the ${DORIS_HOME} path and you will find the `your_plugin_name.zip` file in `fe_plugins/output`
-
-Or you can execute `sh build_plugin.sh --plugin your_plugin_name` to only build your plugin.
-
-### Other way
-
-The easiest way, you can implement your plugin by modifying the example `auditdemo`
-
-## Deploy
-
-Doris's plugin can be deployed in three ways:
-
-- Http or Https .zip, like `http://xxx.xxxxxx.com/data/plugin.zip`, Doris will download this .zip file. At the same time, the value of md5sum needs to be set in properties, or an md5 file with the same name as the `.zip` file needs to be placed, such as `http://xxx.xxxxxx.com/data/my_plugin.zip.md5`. The content is the MD5 value of the .zip file.
-- Local .zip, like `/home/work/data/plugin.zip`. If the plug-in is only used for FE, it needs to be deployed in the same directory of all FE nodes. Otherwise, it needs to be deployed on all FE and BE nodes.
-- Local directory, like `/home/work/data/plugin`, .zip decompressed folder. If the plug-in is only used for FE, it needs to be deployed in the same directory of all FE nodes. Otherwise, it needs to be deployed on all FE and BE nodes.
-
-Note: Need to ensure that the plugin .zip file is available in the life cycle of doris!
-
-## Install and Uninstall
-
-Install and uninstall the plugin through the install/uninstall statements. More details, see `HELP INSTALL PLUGIN;` `HELP UNINSTALL PLUGIN;` `HELP SHOW PLUGINS;`
-
-```
-mysql> install plugin from "/home/users/doris/auditloader.zip";
-Query OK, 0 rows affected (0.09 sec)
-
-mysql> show plugins\G
-*************************** 1. row ***************************
-       Name: auditloader
-       Type: AUDIT
-Description: load audit log to olap load, and user can view the statistic of queries
-    Version: 0.12.0
-JavaVersion: 1.8.31
-  ClassName: AuditLoaderPlugin
-     SoName: NULL
-    Sources: /home/users/doris/auditloader.zip
-     Status: INSTALLED
- Properties: {}
-*************************** 2. row ***************************
-       Name: AuditLogBuilder
-       Type: AUDIT
-Description: builtin audit logger
-    Version: 0.12.0
-JavaVersion: 1.8.31
-  ClassName: org.apache.doris.qe.AuditLogBuilder
-     SoName: NULL
-    Sources: Builtin
-     Status: INSTALLED
- Properties: {}   
-2 rows in set (0.00 sec)
-
-mysql> uninstall plugin auditloader;
-Query OK, 0 rows affected (0.05 sec)
-
-mysql> show plugins;
-Empty set (0.00 sec)
-```
+For more detailed syntax and best practices used by the file manager, see [CREATE FILE](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-FILE.md), [DROP FILE](../sql-manual/sql-statements/Data-Definition-Statements/Drop/DROP-FILE.md) and [SHOW FILE](../sql-manual/sql-statements/Show-Statements/SHOW-FILE.md) command manual, you can also enter `HELP CREATE FILE`, `HELP DROP FILE` and `HELP SHOW FILE` in the MySql client command line to get more help information.
