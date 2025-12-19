@@ -1,5 +1,5 @@
 ---
-{ "title": "HLL", "language": "en" }
+{ "title": "JSON", "language": "en" }
 ---
 
 <!-- 
@@ -21,68 +21,126 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-HLL is used for approximate deduplication and performs better than Count Distinct when dealing with large data volumes. The load of HLL needs to be combined with functions like hll_hash. For more documentation, refer to [HLL](../../../sql-manual/sql-data-types/aggregate/HLL.md).
+The JSON data type stores JSON data efficiently in a binary format and allows access to its internal fields through JSON functions.
 
-## Usage Example
+By default, it supports up to 1048576 bytes (1MB), and can be increased up to 2147483643 bytes (2GB). This can be adjusted via the string_type_length_soft_limit_bytes configuration.
 
-### Step 1: Prepare Data
+Compared to storing JSON strings in a regular STRING type, the JSON type has two main advantages:
 
-Create the following CSV file: test_hll.csv
+JSON format validation during data insertion.
+More efficient binary storage format, enabling faster access to JSON internal fields using functions like json_extract, compared to get_json_xx functions.
+Note: In version 1.2.x, the JSON type was named JSONB. To maintain compatibility with MySQL, it was renamed to JSON starting from version 2.0.0. Older tables can still use the previous name.
 
-```sql
-1001|koga
-1002|nijg
-1003|lojn
-1004|lofn
-1005|jfin
-1006|kon
-1007|nhga
-1008|nfubg
-1009|huang
-1010|buag
+## CSV format import
+
+### Step 1: Prepare the data
+
+Create the following csv file: `test_json.csv`
+The separator is `|` instead of comma to distinguish it from the comma in json.
+
+```
+1|{"name": "tom", "age": 35}
+2|{"name": null, "age": 28}
+3|{"name": "micheal", "age": null}
+4|{"name": null, "age": null}
+5|null
 ```
 
-### Step 2: Create Table in Database
+### Step 2: Create a table in the database
 
 ```sql
-CREATE TABLE testdb.test_hll(
-    typ_id           BIGINT          NULL   COMMENT "ID",
-    typ_name         VARCHAR(10)     NULL   COMMENT "NAME",
-    pv               hll hll_union   NOT NULL   COMMENT "hll"
+CREATE TABLE json_test (
+    id          INT     NOT NULL,
+    c_json      JSON    NULL
 )
-AGGREGATE KEY(typ_id,typ_name)
-DISTRIBUTED BY HASH(typ_id) BUCKETS 10;
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES (
+    "replication_allocation" = "tag.location.default: 1"
+);
 ```
 
-### Step 3: Load Data
+### Step 3: Load data
 
-```sql
-curl --location-trusted -u <doris_user>:<doris_password> \
-    -H "column_separator:|" \
-    -H "columns:typ_id,typ_name,pv=hll_hash(typ_id)" \
-    -T test_hll.csv \
-    -XPUT http://<fe_ip>:<fe_http_port>/api/testdb/test_hll/_stream_load
+```bash
+curl --location-trusted \
+        -u "root":"" \
+        -H "column_separator:|" \
+        -H "columns: id, c_json" \
+        -T "test_json.csv" \
+        http://localhost:8040/api/testdb/json_test/_stream_load
 ```
 
-### Step 4: Check Loaded Data
-
-Use hll_cardinality to query:
+### Step 4: Check the imported data
 
 ```sql
-mysql> select typ_id,typ_name,hll_cardinality(pv) from testdb.test_hll;
-+--------+----------+---------------------+
-| typ_id | typ_name | hll_cardinality(pv) |
-+--------+----------+---------------------+
-|   1010 | buag     |                   1 |
-|   1002 | nijg     |                   1 |
-|   1001 | koga     |                   1 |
-|   1008 | nfubg    |                   1 |
-|   1005 | jfin     |                   1 |
-|   1009 | huang    |                   1 |
-|   1004 | lofn     |                   1 |
-|   1007 | nhga     |                   1 |
-|   1003 | lojn     |                   1 |
-|   1006 | kon      |                   1 |
-+--------+----------+---------------------+
-10 rows in set (0.06 sec)
+SELECT * FROM json_test;
++------+-------------------------------+
+| id   | c_json                        |
++------+-------------------------------+
+|    1 | {"name":"tom","age":35}       |
+|    2 | {"name":null,"age":28}        |
+|    3 | {"name":"micheal","age":null} |
+|    4 | {"name":null,"age":null}      |
+|    5 | null                          |
++------+-------------------------------+
+5 rows in set (0.01 sec)
+```
+
+## JSON format import
+
+### Step 1: Prepare the data
+
+Create the following JSON file, `test_json.json`
+
+```json
+[
+    {"id": 1, "c_json": {"name": "tom", "age": 35}},
+    {"id": 2, "c_json": {"name": null, "age": 28}},
+    {"id": 3, "c_json": {"name": "micheal", "age": null}},
+    {"id": 4, "c_json": {"name": null, "age": null}},
+    {"id": 5, "c_json": null}
+]
+```
+
+### Step 2: Create a table in the database
+
+```sql
+CREATE TABLE json_test (
+    id          INT     NOT NULL,
+    c_json      JSON    NULL
+)
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES (
+    "replication_allocation" = "tag.location.default: 1"
+);
+```
+
+### Step 3: Load data
+
+```bash
+curl --location-trusted \
+        -u "root":"" \
+        -H "format:json" \
+        -H "columns: id, c_json" \
+        -H "strip_outer_array:true" \
+        -T "test_json.json" \
+        http://localhost:8040/api/testdb/json_test/_stream_load
+```
+
+### Step 4: Check the imported data
+
+```sql
+mysql> SELECT * FROM json_test;
++------+-------------------------------+
+| id   | c_json                        |
++------+-------------------------------+
+|    1 | {"name":"tom","age":35}       |
+|    2 | {"name":null,"age":28}        |
+|    3 | {"name":"micheal","age":null} |
+|    4 | {"name":null,"age":null}      |
+|    5 | NULL                          |
++------+-------------------------------+
+5 rows in set (0.01 sec)
 ```
