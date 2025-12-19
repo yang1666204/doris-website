@@ -1,8 +1,8 @@
 ---
-{ "title": "Runtime Filter", "language": "en" }
+{ "title": "Statistics", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,411 +21,488 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Runtime Filter mainly consists of two types: Join Runtime Filter and TopN Runtime Filter. This article will provide a detailed introduction to the working principles, usage guidelines, and tuning methods of these two types of Runtime Filters.
+Starting from version 2.0, Doris integrated Cost-Based Optimization (CBO) capabilities into its optimizer. Statistics are the cornerstone of CBO, and their accuracy directly determines the accuracy of cost estimation, which is crucial for selecting the optimal execution plan. This document serves as a guide to statistical usage for unreleased dev version, focusing on the collection and management methods, relevant configuration options, and frequently asked questions.
 
-## Join Runtime Filter
+## Collection of Statistics
 
-Join Runtime Filter (hereinafter referred to as JRF) is an optimization technique that dynamically generates filters at the Join node based on runtime data, leveraging the Join condition. This technique not only reduces the size of the Join Probe but also effectively minimizes data I/O and network transmission.
+Doris enables the automatic sampling collection of internal tables by default. Therefore, in most cases, users don't need to pay attention to the collection of statistical information. Doris collects statistics at the column level for each table. The information collected includes:
 
-### Principles
+| Info of Statistics                                      | Description                              |
+| ------------------------------------------------------- | ---------------------------------------- |
+| row_count                          | Total number of rows                     |
+| data_size                          | Total data size of the column            |
+| avg_size_byte | Average data size per row for the column |
+| ndv                                                     | Number of distinct values                |
+| min                                                     | Minimum value                            |
+| max                                                     | Maximum value                            |
+| null_count                         | Number of null values                    |
 
-Let's illustrate the working principle of JRF using a Join operation similar to that found in the TPC-H Schema.
+Currently, the system only supports collecting statistics for columns of basic data types, including BOOLEAN, TINYINT, SMALLINT, INT, BIGINT, LARGEINT, FLOAT, DOUBLE, DATE, DATETIME, STRING, VARCHAR, TEXT, among others.
 
-Assume there are two tables in the database:
+Columns of complex types, such as JSONB, VARIANT, MAP, STRUCT, ARRAY, HLL, BITMAP, TIME, TIMEV2, are skipped.
 
-- Orders Table: Contains 100 million rows of data, recording order keys (`o_orderkey`), customer keys (`o_custkey`), and other order information.
+Statistics can be collected manually or automatically, and the results are stored in the `internal.__internal_schema.column_statistics` table. The following sections detail these two collection methods.
 
-- Customer Table: Contains 100,000 rows of data, recording customer keys (`c_custkey`), customer nations (`c_nation`), and other customer information. This table records customers from 25 countries, with approximately 4,000 customers per country.
+### Manual Collection
 
-To count the number of orders from customers in China, the query statement would be:
+Doris allows users to manually trigger the collection and update of statistics by submitting an ANALYZE statement.
 
-```sql
-select count(*)
-from orders join customer on o_custkey = c_custkey
-where c_nation = "china"
-```
-
-The main component of the execution plan for this query is a Join, as illustrated below:
-
-![Join Runtime Filter](/images/join-runtime-filter-1.jpg)
-
-Without JRF: The Scan node scans the orders table, reading 100 million rows of data. The Join node then performs a Hash Probe on these 100 million rows to generate the Join result.
-
-**1. Optimization**
-
-The filter condition `c_nation = 'china'` filters out all non-Chinese customers, so only a portion (approximately 1/25) of the customer table is involved in the Join. Given the subsequent Join condition `o_custkey = c_custkey`, we need to focus on the `c_custkey` values selected in the filtered result. Let's denote the filtered `c_custkey` values as set A. In the following text, we use set A specifically to refer to the `c_custkey` set participating in the Join.
-
-If set A is pushed down to the orders table as an IN condition, the Scan node for the orders table can filter the orders accordingly. This is similar to adding a filter condition `o_custkey IN (c001, c003)`.
-
-Based on this optimization concept, SQL can be optimized to:
+**1. Syntax**
 
 ```sql
-select count(*)
-from orders join customer on o_custkey = c_custkey
-where c_nation = "china" and o_custkey in (c001, c003)
+ANALYZE < TABLE table_name > | < DATABASE db_name > 
+    [ (column_name [, ...]) ]
+    [ [ WITH SYNC ] [ WITH SAMPLE PERCENT | ROWS ] ];
 ```
 
-The optimized execution plan is illustrated below:
+Parameters Explanation:
 
-![join-runtime-filter-2](/images/join-runtime-filter-2.jpg)
+- `table_name`: Specifies the target table for which statistics will be collected.
 
-By adding a filter condition on the orders table, the actual number of orders participating in the Join is reduced from 100 million to 400,000, significantly improving query speed.
+- `column_name`: Specifies the target columns for which statistics will be collected. These columns must exist in `table_name`, and multiple column names are separated by commas. If no column names are specified, statistics will be collected for all columns in the table.
 
-**2. Implementation**
+- `sync`: Optional parameter to collect statistics synchronously. If specified, the result will be returned after collection is complete; if not specified, the operation will be performed asynchronously, and a JOB ID will be returned, which can be used to check the status of the collection task.
 
-While the optimization described above is significant, the optimizer does not know the actual `c_custkey` values selected (set A) and thus cannot statically generate a fixed in-predicate filter operator during the optimization phase.
+- `sample percent | rows`: Optional parameter for sampling during statistics collection. Allows specifying a sampling percentage or number of rows. If `WITH SAMPLE` is not specified, a full table scan will be performed. For large tables (e.g., over 5 GiB), sampling is generally recommended from a cluster resource utilization perspective. To ensure the accuracy of statistics, it is recommended to sample at least 4 million rows.
 
-In practical applications, we collect the right-side data at the Join node, generate set A at runtime, and push down set A to the Scan node of the orders table. We typically denote this JRF as: `RF(c_custkey -> [o_custkey])`.
+**2. Examples**
 
-As Doris is a distributed database, JRF requires an additional merging step to cater to distributed scenarios. Assuming the Join in the example is a Shuffle Join, multiple instances of this Join handle individual shards of the orders and customer tables. Consequently, each Join instance only obtains a portion of set A.
-
-In the current version of Doris, we select a node to serve as the Runtime Filter Manager. Each Join instance generates a Partial JRF based on the `c_custkey` values in its shard and sends it to the Manager. The Manager collects all Partial JRFs, merges them into a Global JRF, and then sends the Global JRF to all Scan instances of the orders table.
-
-The process of generating the Global JRF is illustrated below:
-
-![Global JRF](/images/global-JRF.jpg)
-
-### Filter Types
-
-There are various data structures that can be employed to implement JRF (Join Runtime Filter), each with varying efficiencies in generation, merging, transmission, and application, making them suitable for different scenarios.
-
-**1. In Filter**
-
-The simplest approach to implementing JRF is through the use of an In Filter. Taking the previous example, when using an In Filter, the execution engine generates a predicate `o_custkey in (...list of elements in Set A...)` on the left table. This In filter condition can then be applied to filter the orders table. When the number of elements in Set A is small, the In Filter is efficient.
-
-However, using an In Filter becomes problematic when the number of elements in Set A is large:
-
-1. Firstly, the cost of generating an In Filter is high, especially when JRF merging is required. Values collected from Join nodes corresponding to different data partitions may contain duplicates. For instance, if `c_custkey` is not the primary key of the table, values like `c001` and `c003` could appear multiple times, necessitating a time-consuming deduplication process.
-
-2. Secondly, when Set A contains many elements, the cost of transmitting data between the Join node and the Scan node of the orders table is significant.
-
-3. Lastly, executing the In predicate at the Scan node of the orders table also takes time.
-
-Considering these factors, we introduce the Bloom Filter.
-
-**2. Bloom Filter**
-
-For those unfamiliar with Bloom Filters, they can be thought of as a set of superimposed hash tables. Using a Bloom Filter (or hash table) for filtering leverages the following property:
-
-- A hash table T is generated based on Set A. If an element is not in hash table T, it can be definitively concluded that the element is not in Set A. However, the reverse is not true.
-
-  Therefore, if an `o_orderkey` is filtered out by the Bloom Filter, it can be concluded that there is no matching `c_custkey` on the right side of the Join. Nevertheless, due to hash collisions, some `o_custkey`s may pass through the Bloom Filter even if there is no matching `c_custkey`.
-
-  While a Bloom Filter cannot achieve precise filtering, it still provides a certain level of filtering effectiveness.
-
-- The number of buckets in the hash table determines the accuracy of filtering. The larger the number of buckets, the larger and more accurate the Filter becomes, but at the cost of increased computational overhead in generation, transmission, and usage.
-
-  Therefore, the size of the Bloom Filter must strike a balance between filtering effectiveness and usage costs. To this end, we have set a configurable range for the Bloom Filter's size, defined by `RUNTIME_BLOOM_FILTER_MIN_SIZE` and `RUNTIME_BLOOM_FILTER_MAX_SIZE`.
-
-**3. Min/Max Filter**
-
-Apart from the Bloom Filter, the Min-Max Filter can also be used for approximate filtering. If the data column is ordered, the Min-Max Filter can achieve excellent filtering results. Additionally, the costs of generating, merging, and using a Min-Max Filter are significantly lower than those of an In Filter or Bloom Filter.
-
-For non-equi Joins, both In Filters and Bloom Filters become ineffective, but the Min-Max Filter can still function. Suppose we modify the query from the previous example to:
+Collect statistics for all columns in the `lineitem` table:
 
 ```sql
-select count(*)
-from orders join customer on o_custkey > c_custkey
-where c_name = "China"
+ANALYZE TABLE lineitem;
 ```
 
-In this case, we can select the maximum filtered `c_custkey`, denote it as n, and pass it to the Scan node of the orders table. The Scan node will then only output rows where `o_custkey > n`.
-
-### Viewing Join Runtime Filter
-
-To see which JRFs (Join Runtime Filters) have been generated for a specific query, you can use the `explain`, `explain shape plan`, or `explain physical plan` commands.
-
-Using the TPC-H Schema as an example, we will detail how to view JRFs using these three commands.
+Collect statistics for all columns in all tables in the `tpch100` database:
 
 ```sql
-select count(*) from orders join customer on o_custkey=c_custkey;
+ANALYZE DATABASE tpch100;
 ```
 
-**1. Explain**
-
-In traditional Explain output, JRF information is typically displayed in Join and Scan nodes, as shown in the following example:
+Collect statistics for the `l_orderkey` and `l_linenumber` columns in the `lineitem` table by sampling 100,000 rows (note: the correct syntax should be used `WITH SAMPLE ROWS` or `WITH SAMPLE PERCENT`):
 
 ```sql
-4: VHASH JOIN(258)  
-| join op: INNER JOIN(PARTITIONED)[]  
-|  equal join conjunct: (o_custkey[#10] = c_custkey[#0])  
-|  runtime filters: RF000[bloom] <- c_custkey[#0] (150000000/134217728/16777216)  
-|  cardinality=1,500,000,000  
-|  vec output tuple id: 3  
-|  output tuple id: 3  
-|  vIntermediate tuple ids: 2  
-|  hash output slot ids: 10  
-|  final projections: o_custkey[#17]  
-|  final project output tuple id: 3  
-|  distribute expr lists: o_custkey[#10]
-|  distribute expr lists: c_custkey[#0]  
-|  
-|---1: VEXCHANGE  
-|      offset: 0  
-|      distribute expr lists: c_custkey[#0]   
-3: VEXCHANGE  
-|  offset: 0  
-|  distribute expr lists:  
-  
-PLAN FRAGMENT 2  
-| PARTITION: HASH_PARTITIONED: o_orderkey[#8]  
-| HAS_COLO_PLAN_NODE: false  
-| STREAM DATA SINK  
-|   EXCHANGE ID: 03  
-|   HASH_PARTITIONED: o_custkey[#10]  
-  
-2: VOlapScanNode(242)  
-|  TABLE: regression_test_nereids_tpch_shape_sf1000_p0.orders(orders)  
-|  PREAGGREGATION: ON  
-|  runtime filters: RF000[bloom] -> o_custkey[#10]  
-|  partitions=1/1 (orders)  
-|  tablets=96/96, tabletList=54990,54992,54994 ...  
-|  cardinality=0, avgRowSize=0.0, numNodes=1  
-|  pushAggOp=NONE
+ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000;
 ```
 
-- Join Side: `runtime filters: RF000[bloom] <- c_custkey[#0] (150000000/134217728/16777216)`
+### Automatic Collection
 
-  This indicates that a Bloom Filter with ID 000 has been generated, using `c_custkey` as input to create the JRF. The three numbers following are related to Bloom Filter size calculations and can be ignored for now.
-
-- Scan Side: `runtime filters: RF000[bloom] -> o_custkey[#10]`
-
-  This indicates that JRF 000 will be applied to the Scan node of the orders table, filtering the `o_custkey` field.
-
-**2. Explain Shape Plan**
-
-In the Explain Plan series, we'll use Shape Plan as an example to show how to view JRFs.
+Automatic collection is supported from version 2.0.3 onwards and is enabled by default throughout the day. Users can control the feature's activation or deactivation by setting the `ENABLE_AUTO_ANALYZE` variable:
 
 ```sql
-mysql> explain shape plan select count(*) from orders join customer on o_custkey=c_custkey where c_nationkey=5;  
-+--------------------------------------------------------------------------------------------------------------------------+
-Explain String(Nereids Planner)                                                                                            ｜
-+--------------------------------------------------------------------------------------------------------------------------+
-PhysicalResultSink                                                                                                         ｜  
---hashAgg[GLOBAL]                                                                                                          ｜  
-----PhysicalDistribute[DistributionSpecGather]                                                                             ｜   
-------hashAgg[LOCAL]                                                                                                       ｜ 
---------PhysicalProject                                                                                                    ｜
-----------hashJoin[INNER_JOIN shuffle]                                                                                     ｜
-------------hashCondition=((orders.o_custkey=customer.c_custkey)) otherCondition=() buildRFs:RF0 c_custkey->[o_custkey]    ｜  
---------------PhysicalProject                                                                                              ｜  
-----------------Physical0lapScan[orders] apply RFs: RF0                                                                    ｜
---------------PhysicalProject                                                                                              ｜ 
-----------------filter((customer.c_nationkey=5))                                                                           ｜ 
-------------------Physical0lapScan[customer]                                                                               ｜
-+--------------------------------------------------------------------------------------------------------------------------+
-11 rows in set (0.02 sec)
+SET GLOBAL ENABLE_AUTO_ANALYZE = TRUE; // Enable automatic collection  
+SET GLOBAL ENABLE_AUTO_ANALYZE = FALSE; // Disable automatic collection
 ```
 
-As shown above:
+When enabled, a background thread periodically scans all tables in the `InternalCatalog` within the cluster. For tables requiring statistics collection, the system automatically creates and executes collection jobs without manual intervention.
 
-- Join Side: `build RFs: RF0 c_custkey -> [o_custkey]` indicates that JRF 0 is generated using `c_custkey` data and applied to `o_custkey`.
+To avoid excessive resource usage for collection wide tables' statistics, tables with more than 300 columns are not automatically collected by default. Users can adjust this threshold by modifying the session variable `auto_analyze_table_width_threshold`:
 
-- Scan Side: `PhysicalOlapScan[orders] apply RFs: RF0` indicates that orders table is filtered by JRF 0.
+```sql
+SET GLOBAL auto_analyze_table_width_threshold = 350;
+```
 
-**3. Profile**
+The default polling interval for automatic collection is 5 minutes (adjustable via the `auto_check_statistics_in_minutes` configuration in `fe.conf`). The first iteration starts 5 minutes after cluster startup. After all tables requiring collection are processed, the background thread sleeps for 5 minutes before starting the next iteration. Therefore, there is no guarantee that a table will have its statistics collected within 5 minutes, as the time to iterate through all tables can vary based on the number and size of tables.
 
-During actual execution, BE outputs JRF usage details to the Profile (requires `set enable_profile=true`). Using the same SQL query as an example, we can view JRF execution details in the Profile.
+When a table is polled, the system first determines if statistical collection is required. If so, a collection job is created and executed; otherwise, the table is skipped. Statistics collection is required if:
 
-- Join Side
+1. The table has columns without statistics.
+
+2. The table's health is below the threshold (default 90, adjustable via `table_stats_health_threshold`). Health indicates the percentage of data that has remained unchanged since the last statistics collection: 100 indicates no change; 0 indicates all changes; a health below 90 indicates significant deviation in current statistics, necessitating re-collection.
+
+To reduce background job overhead and improve collection speed, automatic collection uses sampling by default, sampling 4,194,304 (`2^22`) rows. Users can adjust the sampling size by modifying `huge_table_default_sample_rows` for more accurate data distribution information.
+
+To prevent automatic collection jobs from interfering with business operations, users can specify the execution window for automatic collection based on their requirements by setting `auto_analyze_start_time` and `auto_analyze_end_time`:
+
+```sql
+SET GLOBAL auto_analyze_start_time = "03:00:00"; // Set the start time to 3 AM  
+SET GLOBAL auto_analyze_end_time = "14:00:00"; // Set the end time to 2 PM
+```
+
+### External Table Collection
+
+External tables typically include Hive, Iceberg, JDBC, and other types.
+
+- Manual Collection: Hive, Iceberg, and JDBC tables support manual statistics collection. Hive tables support both full and sampled collection, while Iceberg and JDBC tables only support full collection. Other external table types do not support manual collection.
+
+- Automatic Collection: Currently, only Hive tables are supported.
+
+External Catalogs do not participate in automatic collection by default because they often contain large amounts of historical data, which could consume excessive resources during automatic collection. However, you can enable or disable automatic collection for an external Catalog by setting its properties:
+
+```sql
+ALTER CATALOG external_catalog SET PROPERTIES ('enable.auto.analyze'='true'); // Enable automatic collection  
+ALTER CATALOG external_catalog SET PROPERTIES ('enable.auto.analyze'='false'); // Disable automatic collection
+```
+
+External tables do not have the concept of health. When automatic collection is enabled for a Catalog, the system defaults to collecting statistics for an external table only once every 24 hours to avoid frequent collection. You can adjust the minimum collection interval for external tables using the `external_table_auto_analyze_interval_in_millis` variable.
+
+By default, external tables do not collect statistics, but for Hive and Iceberg tables, the system attempts to obtain row count information through the Hive Metastore and Iceberg API.
+
+**1. For Hive Tables:**
+
+Doris first attempts to retrieve `numRows` or `totalSize` information from the Hive table's Parameters:
+
+- If `numRows` is found, its value is used as the table's row count.
+
+- If `numRows` is not found but `totalSize` is available, the row count is estimated based on the table's schema and `totalSize`.
+
+- If `totalSize` is also unavailable, by default, the system will estimate the number of rows based on the file size corresponding to the Hive table and its Schema. If there are concerns that obtaining the file size may consume excessive resources, this function can be disabled by setting the following variables.
 
   ```sql
-  HASH_JOIN_SINK_OPERATOR  (id=3  ,  nereids_id=367):(ExecTime:  703.905us)
-        -  JoinType:  INNER_JOIN
-        。。。
-        -  BuildRows:  617
-        。。。
-        -  RuntimeFilterComputeTime:  70.741us
-        -  RuntimeFilterInitTime:  10.882us
+  SET GLOBAL enable_get_row_count_from_file_list = FALSE
   ```
 
-  This is the Build side Profile for the Join. In this example, generating the JRF took 70.741us with 617 rows of input data. The JRF size and type are shown on the Scan side.
+**2. For Iceberg Tables:**
 
-- Scan Side
+Doris calls the Iceberg snapshot API to retrieve `total-records` and `total-position-deletes` information to calculate the table's row count.
 
-  ```sql
-  OLAP_SCAN_OPERATOR  (id=2.  nereids_id=351.  table  name  =  orders(orders)):(ExecTime:  13.32ms)
-              -  RuntimeFilters:  :  RuntimeFilter:  (id  =  0,  type  =  bloomfilter,  need_local_merge:  false,  is_broadcast:  true,  build_bf_cardinality:  false,  
-              。。。
-              -  RuntimeFilterInfo:  
-                  -  filter  id  =  0  filtered:  714.761K  (714761)
-                  -  filter  id  =  0  input:  747.862K  (747862)
-              。。。
-              -  WaitForRuntimeFilter:  6.317ms
-            RuntimeFilter:  (id  =  0,  type  =  bloomfilter):
-                  -  Info:  [IsPushDown  =  true,  RuntimeFilterState  =  READY,  HasRemoteTarget  =  false,  HasLocalTarget  =  true,  Ignored  =  false]
-                  -  RealRuntimeFilterType:  bloomfilter
-                  -  BloomFilterSize:  1024
-  ```
+**3. For Paimon Tables:**
 
-  Note:
+Doris calls Paimon's scan API to obtain the number of rows contained in each Split and calculate the row count of the table by summing up the rows of the Splits.
 
-  1. Lines 5-6 show the input rows and the number of filtered rows. A higher number of filtered rows indicates better JRF effectiveness.
+**4. For JDBC Tables:**
 
-  2. Line 10, `IsPushDown = true`, indicates that JRF computation has been pushed down to the storage layer, which can help reduce IO through delayed materialization.
+Doris sends SQL of reading table statistics to remote database to get table row count. This can only be achieved when the remote database has collected the row count information of the table. Currently, Doris supports retrieving the row count of tables in MySQL, Oracle, Postgresql and SQLServer.
 
-  3. Line 10, `RuntimeFilterState = READY`, indicates whether the Scan node has applied the JRF. Since JRF uses a try-best mechanism, if JRF generation takes too long, the Scan node may start scanning data after a waiting period, potentially outputting unfiltered data.
+**5. For Other External Tables:**
 
-  4. Line 12, `BloomFilterSize: 1024`, shows the size of the Bloom Filter in bytes.
+Automatic row count acquisition and estimation are currently not supported.
 
-### Tuning
-
-For Join Runtime Filter tuning, in most cases, the function is adaptive, and users do not need to manually tune it. However, there are a few adjustments that can be made to optimize performance.
-
-**1. Enable or Disable JRF**
-
-The session variable `runtime_filter_mode` controls whether JRFs are generated.
-
-- To enable JRF: `set runtime_filter_mode = GLOBAL`
-
-- To disable JRF: `set runtime_filter_mode = OFF`
-
-**2. Set JRF Type**
-
-The session variable `runtime_filter_type` controls the type of JRFs, including:
-
-- `IN(1)`
-
-- `BLOOM(2)`
-
-- `MIN_MAX(4)`
-
-- `IN_OR_BLOOM(8)`
-
-The `IN_OR_BLOOM` Filter allows BE to adaptively choose between generating an `IN` Filter or a `BLOOM` Filter based on the actual number of rows of data.
-
-Multiple JRF types can be generated for a single Join condition by setting `runtime_filter_type` to the sum of the corresponding enumeration values.
-
-For example:
-
-- To generate both a `BLOOM` Filter and a `MIN_MAX` Filter for each Join condition: `set runtime_filter_type = 6`
-
-- In version 2.1, the default value of `runtime_filter_type` is 12, which generates both a `MIN_MAX` Filter and an `IN_OR_BLOOM` Filter.
-
-The integers in parentheses represent the enumeration values for Runtime Filter Types.
-
-**3. Set Wait Time**
-
-As mentioned earlier, JRF uses a Try-best mechanism, where Scan nodes wait for JRFs before starting. Doris calculates the wait time based on runtime conditions. However, in some cases, the calculated wait time may not be sufficient, resulting in JRFs not being fully effective, and the Scan nodes may output more rows than expected. As discussed in the Profile section, if `RuntimeFilterState = false` in the Scan node's Profile, users can manually set a longer wait time.
-
-The session variable `runtime_filter_wait_time_ms` controls the wait time for Scan nodes to wait for JRFs. The default value is 1000 milliseconds.
-
-**4. Pruning JRF**
-
-In some cases, JRFs may not provide filtering benefits. For example, if the `orders` and `customer` tables have a primary-foreign key relationship, but there are no filtering conditions on the `customer` table, the input to the JRF would be all `custkeys`, allowing all rows in the `orders` table to pass through the JRF. The optimizer prunes ineffective JRFs based on column statistics.
-
-The session variable `enable_runtime_filter_prune = true/false` controls whether pruning is performed. The default value is `true`.
-
-## TopN Runtime Filter
-
-### Principles
-
-In Doris, data is processed in a block-streaming manner. Therefore, when an SQL statement includes a `topN` operator, Doris does not compute all results but instead generates a dynamic filter to pre-filter the data early on.
-
-Consider the following SQL statement as an example:
+Users can view the estimated row count for external tables using the following command (see `Viewing Table Statistics Overview` for more detail):
 
 ```sql
-select o_orderkey from orders order by o_orderdate limit 5;
+SHOW table stats table_name;
 ```
 
-The execution plan for this SQL statement is illustrated below:
+- If `row_count` displays as `-1`, row count information could not be obtained or the table is empty.
+
+## Statistics Job Management
+
+### Viewing Statistics Jobs
+
+Use `SHOW ANALYZE` to view information about statistics collection jobs. Currently, the system retains information for only 20,000 historical jobs. Note that only information for asynchronous jobs can be viewed using this command; synchronous jobs (using `WITH SYNC`) do not retain historical job information.
+
+**1. Syntax**:
 
 ```sql
-mysql> explain select o_orderkey from orders order by o_orderdate limit 5;
-+-----------------------------------------------------+
-| Explain String(Nereids Planner)                     |
-+-----------------------------------------------------+
-| PLAN FRAGMENT 0                                     |
-|   OUTPUT EXPRS:                                     |
-|     o_orderkey[#11]                                 |
-|   PARTITION: UNPARTITIONED                          |
-|                                                     |
-|   HAS_COLO_PLAN_NODE: false                         |
-|                                                     |
-|   VRESULT SINK                                      |
-|      MYSQL_PROTOCAL                                 |
-|                                                     |
-|   2:VMERGING-EXCHANGE                               |
-|      offset: 0                                      |
-|      limit: 5                                       |
-|      final projections: o_orderkey[#9]              |
-|      final project output tuple id: 2               |
-|      distribute expr lists:                         |
-|                                                     |
-| PLAN FRAGMENT 1                                     |
-|                                                     |
-|   PARTITION: HASH_PARTITIONED: O_ORDERKEY[#0]       |
-|                                                     |
-|   HAS_COLO_PLAN_NODE: false                         |
-|                                                     |
-|   STREAM DATA SINK                                  |
-|     EXCHANGE ID: 02                                 |
-|     UNPARTITIONED                                   |
-|                                                     |
-|   1:VTOP-N(119)                                     |
-|   |  order by: o_orderdate[#10] ASC                 |
-|   |  TOPN OPT                                       |
-|   |  offset: 0                                      |
-|   |  limit: 5                                       |
-|   |  distribute expr lists: O_ORDERKEY[#0]          |
-|   |                                                 |
-|   0:VOlapScanNode(113)                              |
-|      TABLE: tpch.orders(orders), PREAGGREGATION: ON |
-|      TOPN OPT:1                                     |
-|      partitions=1/1 (orders)                        |
-|      tablets=3/3, tabletList=135112,135114,135116   |
-|      cardinality=150000, avgRowSize=0.0, numNodes=1 |
-|      pushAggOp=NONE                                 |
-+-----------------------------------------------------+
-41 rows in set (0.06 sec)
+SHOW [AUTO] ANALYZE < table_name | job_id >
+    [ WHERE STATE = < "PENDING" | "RUNNING" | "FINISHED" | "FAILED" > ];
 ```
 
-Without a `topn filter`, the scan node would sequentially read each data block from the `orders` table and pass them to the TopN node. The TopN node maintains the current top 5 rows from the `orders` table through heap sorting.
+- `AUTO`: Displays information about historical automatic collection jobs. If unspecified, displays information about manual `ANALYZE` historical jobs.
 
-Since a data block typically contains around 1024 rows, the TopN node can identify the 5th ranked row within the first data block after processing it.
+- `table_name`: Table name, specifying which allows you to view statistics job information for that table. Can be in the form `db_name.table_name`. If unspecified, returns information about all statistics jobs.
 
-Assuming this `o_orderdate` is `1995-01-01`, the scan node can then use `1995-01-01` as a filter condition when outputting the second data block, eliminating the need to send rows with `o_orderdate` greater than `1995-01-01` to the TopN node for further processing.
+- `job_id`: Statistics job ID, obtained when executing an asynchronous `ANALYZE` collection. If unspecified, the command returns information about all statistics jobs.
 
-This threshold is dynamically updated. For instance, if the TopN node discovers a smaller `o_orderdate` when processing the second filtered data block, it updates the threshold to the fifth-ranked `o_orderdate` among the first two data blocks.
+**2. Output**:
 
-### Viewing TopN Runtime Filter
+Includes the following columns:
 
-Using the Explain command, we can inspect the TopN Runtime Filter planned by the optimizer.
+| Column Name                        | Description                                                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| job_id        | Statistics job ID                                                                                                          |
+| catalog_name  | Catalog name                                                                                                               |
+| db_name       | Database name                                                                                                              |
+| tbl_name      | Table name                                                                                                                 |
+| col_name      | List of column names (index_name:column_name) |
+| job_type      | Job type                                                                                                                   |
+| analysis_type | Statistics type                                                                                                            |
+| message                            | Job information                                                                                                            |
+| state                              | Job state                                                                                                                  |
+| progress                           | Job progress                                                                                                               |
+| schedule_type | Scheduling type                                                                                                            |
+| start_time    | Job start time                                                                                                             |
+| end_time      | Job end time                                                                                                               |
+
+**3. Example:**
 
 ```sql
-1:VTOP-N(119)
-| order by: o_orderdate[#10] ASC  
-| TOPN OPT  
-| offset: 0
-| limit: 5  
-| distribute expr lists: O_ORDERKEY[#0]  
-|
- 
-0:VLapScanNode[113]  
-    TABLE: regression_test_nereids_tpch_p0.(orders), PREAGGREGATION: ON  
-    TOPN OPT: 1  
-    partitions=1/1 (orders)  
-    tablets=3/3, tabletList=135112,135114,135116  
-    cardinality=150000, avgRowSize=0.0, numNodes=1  
-    pushAggOp: NONE
+mysql show analyze 245073\G;
+*************************** 1. row ***************************
+              job_id: 93021
+        catalog_name: internal
+             db_name: tpch
+            tbl_name: region
+            col_name: [region:r_regionkey,region:r_comment,region:r_name]
+            job_type: MANUAL
+       analysis_type: FUNDAMENTALS
+             message: 
+               state: FINISHED
+            progress: 3 Finished  |  0 Failed  |  0 In Progress  |  3 Total
+       schedule_type: ONCE
+          start_time: 2024-07-11 15:15:00
+            end_time: 2024-07-11 15:15:33
 ```
 
-As shown in the example above:
+### Viewing Statistics Tasks
 
-1. The TopN node displays `TOPN OPT`, indicating that this TopN node generates a TopN Runtime Filter.
+Each collection job can contain one or more tasks, with each task corresponding to the collection of a single column. Users can view the completion status of statistics collection for each column using the following command.
 
-2. The Scan node indicates which TopN node generates the TopN Runtime Filter it uses. For instance, in the example, line 11 indicates that the Scan node for the `orders` table will use the Runtime Filter generated by TopN node 1, shown as `TOPN OPT: 1` in the plan.
-
-As a distributed database, Doris considers the physical machines where TopN and Scan nodes actually run. Due to the high cost of cross-BE communication, BEs adaptively decide whether and to what extent to use TopN Runtime Filters. Currently, we have implemented BE-level TopN Runtime Filters, where TopN and Scan reside on the same BE. This is because updating TopN Runtime Filter thresholds only requires inter-thread communication, which is relatively inexpensive.
-
-### Tuning
-
-The session variable `topn_filter_ratio` controls whether to generate a TopN Runtime Filter.
-
-The fewer rows specified in the SQL's `limit` clause, the stronger the filtering effect of the TopN Runtime Filter. Therefore, by default, Doris enables the generation of corresponding TopN Runtime Filters only when the `limit` number is less than half of the data in the table.
-
-For example, setting `set topn_filter_ratio=0` would prevent the generation of a TopN Runtime Filter for the following query:
+**1. Syntax:**
 
 ```sql
-select o_orderkey from orders order by o_orderdate limit 20;
+SHOW ANALYZE TASK STATUS [job_id]
 ```
+
+**2. Example:**
+
+```sql
+mysql> show analyze task status 93021;
++---------+-------------+------------+---------+------------------------+-----------------+----------+
+| task_id | col_name    | index_name | message | last_state_change_time | time_cost_in_ms | state    |
++---------+-------------+------------+---------+------------------------+-----------------+----------+
+| 93022   | r_regionkey | region     |         | 2024-07-11 15:15:33    | 32883           | FINISHED |
+| 93023   | r_comment   | region     |         | 2024-07-11 15:15:33    | 32883           | FINISHED |
+| 93024   | r_name      | region     |         | 2024-07-11 15:15:33    | 32883           | FINISHED |
++---------+-------------+------------+---------+------------------------+-----------------+----------+
+```
+
+### Viewing Statistics
+
+Users can view collected column statistics using the `SHOW COLUMN STATS` command.
+
+**1. Syntax:**
+
+```sql
+SHOW COLUMN [cached] STATS table_name [ (column_name [, ...]) ];
+```
+
+Where:
+
+- `cached`: Displays statistics currently cached in the FE memory.
+
+- `table_name`: Target table for which statistics were collected, can be in the form `db_name.table_name`.
+
+- `column_name`: Specified target column, must exist in `table_name`, multiple column names separated by commas. If unspecified, displays information for all columns.
+
+**2. Example:**
+
+```sql
+mysql> show column stats region (r_regionkey)\G
+*************************** 1. row ***************************
+  column_name: r_regionkey
+   index_name: region
+        count: 5.0
+          ndv: 5.0
+     num_null: 0.0
+    data_size: 20.0
+avg_size_byte: 4.0
+          min: 0
+          max: 4
+       method: FULL
+         type: FUNDAMENTALS
+      trigger: MANUAL
+  query_times: 0
+ updated_time: 2024-07-11 15:15:33
+1 row in set (0.36 sec)
+```
+
+### Viewing Table Statistics Overview
+
+Use `SHOW TABLE STATS` to view an overview of table statistics collection.
+
+**1. Syntax:**
+
+```sql
+SHOW TABLE STATS table_name;
+```
+
+Where: `table_name`: Target table name, can be in the form `db_name.table_name`.
+
+**2. Output:**
+
+Includes the following columns:
+
+| Column Name                        | Description                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| updated_rows  | Number of rows updated in the table since the last ANALYZE                                            |
+| query_times   | Reserved column, for recording the number of queries on the table in future versions                  |
+| row_count     | Number of rows in the table (may not reflect the exact count at command execution) |
+| updated_time  | Time of the last statistics update                                                                    |
+| columns                            | Columns for which statistics have been collected                                                      |
+| trigger                            | Method by which statistics were triggered                                                             |
+| new_partition | Whether there are new partitions with first-time data imports                                         |
+| user_inject   | Whether statistics were manually injected by the user                                                 |
+
+**3. Example:**
+
+```sql
+mysql> show column stats region (r_regionkey)\G
+*************************** 1. row ***************************
+  column_name: r_regionkey
+   index_name: region
+        count: 5.0
+          ndv: 5.0
+     num_null: 0.0
+    data_size: 20.0
+avg_size_byte: 4.0
+          min: 0
+          max: 4
+       method: FULL
+         type: FUNDAMENTALS
+      trigger: MANUAL
+  query_times: 0
+ updated_time: 2024-07-11 15:15:33
+1 row in set (0.36 sec)
+```
+
+### Killing Statistics Jobs
+
+Use `KILL ANALYZE` to terminate a currently running asynchronous statistics job.
+
+**1. Syntax:**
+
+```sql
+KILL ANALYZE job_id;
+```
+
+Where: `job_id`: The ID of the statistics job. This is the value returned when executing an asynchronous statistics collection with `ANALYZE` or obtained using the `SHOW ANALYZE` statement.
+
+**2. Example:**
+
+Terminate the statistics job with ID 52357.
+
+```sql
+mysql> KILL ANALYZE 52357;
+```
+
+### Deleting Statistics
+
+If a Catalog, Database, or Table is deleted, users do not need to manually delete its statistics as the background process will periodically clean up this information.
+
+However, for tables that still exist, the system does not automatically clear their statistics. In this case, users need to manually delete them using the following syntax:
+
+```sql
+DROP STATS table_name
+```
+
+## Session Variables and Configuration Options
+
+### Session Variables
+
+| Session Variable                                                                                                                                                  | Description                                                                                                                                                                                                                                                           | Default Value                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| auto_analyze_start_time                                                                            | Start time for automatic statistics collection                                                                                                                                                                                                                        | 0:00:00                                                |
+| auto_analyze_end_time                                                                              | End time for automatic statistics collection                                                                                                                                                                                                                          | 23:59:59                                               |
+| enable_auto_analyze                                                                                                     | Whether to enable automatic collection functionality                                                                                                                                                                                                                  | TRUE                                                                                   |
+| huge_table_default_sample_rows                                                | Number of rows to sample for large tables                                                                                                                                                                                                                             | 4194304                                                                                |
+| table_stats_health_threshold                                                                       | Value range 0-100, indicating the percentage of data updated since the last statistics collection (100 - table_stats_health_threshold)% at which statistics are considered outdated | 90                                                                                     |
+| auto_analyze_table_width_threshold                                            | Controls the maximum table width for automatic statistics collection, tables exceeding this column count do not participate in automatic statistics collection                                                                                                        | 300                                                                                    |
+| enable_get_row_count_from_file_list | Whether to estimate row counts for Hive tables based on file sizes                                                                                                                                                                                                    | FALSE (TRUE by default after 2.1.5) |
+
+### FE Configuration
+
+:::info Note
+
+The following FE configuration options typically do not require special attention.
+
+:::
+
+| FE Configuration Option                                                                                                                    | Description                                                                 | Default Value                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | -------------------------------------------- |
+| analyze_record_limit                                                                             | Controls the number of persistent rows for statistics job execution records | 20000                                        |
+| stats_cache_size                                                                                 | Number of statistics entries cached on the FE side                          | 500000                                       |
+| statistics_simultaneously_running_task_num             | Number of asynchronous statistics jobs that can run simultaneously          | 3                                            |
+| statistics_sql_mem_limit_in_bytes | Controls the amount of BE memory each statistics SQL can occupy             | 2L \* 1024 \* 1024 (2GiB) |
+
+## FAQs
+
+### Q1: How can I check if statistics have been collected for a table and if the content is correct?
+
+First, execute `show column stats table_name` to see if there are any statistical outputs.
+
+Next, execute `show column cached stats table_name` to check if the statistics for the table are loaded into the cache.
+
+```sql
+mysql> show column stats test_table\G
+Empty set (0.02 sec)
+
+mysql> show column cached stats test_table\G
+Empty set (0.00 sec)
+```
+
+The empty result indicates that there are currently no statistics for the `test_table`. If statistics exist, the result will be similar to the following:
+
+```sql
+mysql> show column cached stats mvTestDup;
++-------------+------------+-------+------+----------+-----------+---------------+------+------+--------+--------------+---------+-------------+---------------------+
+| column_name | index_name | count | ndv  | num_null | data_size | avg_size_byte | min  | max  | method | type         | trigger | query_times | updated_time        |
++-------------+------------+-------+------+----------+-----------+---------------+------+------+--------+--------------+---------+-------------+---------------------+
+| key1        | mvTestDup  | 6.0   | 4.0  | 0.0      | 48.0      | 8.0           | 1    | 1001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
+| key2        | mvTestDup  | 6.0   | 4.0  | 0.0      | 48.0      | 8.0           | 2    | 2001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
+| value2      | mvTestDup  | 6.0   | 4.0  | 0.0      | 24.0      | 4.0           | 4    | 4001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
+| value1      | mvTestDup  | 6.0   | 4.0  | 0.0      | 24.0      | 4.0           | 3    | 3001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
+| mv_key1     | mv1        | 6.0   | 4.0  | 0.0      | 48.0      | 8.0           | 1    | 1001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
+| value3      | mvTestDup  | 6.0   | 4.0  | 0.0      | 24.0      | 4.0           | 5    | 5001 | FULL   | FUNDAMENTALS | MANUAL  | 0           | 2024-07-22 10:53:25 |
++-------------+------------+-------+------+----------+-----------+---------------+------+------+--------+--------------+---------+-------------+---------------------+
+6 rows in set (0.00 sec)
+```
+
+If statistics exist, you can manually execute SQL queries to verify their accuracy.
+
+```sql
+Select count(1), ndv(col1), min(col1), max(col1) from table
+```
+
+If the errors in `count` and `ndv` are within an order of magnitude, the accuracy is generally acceptable.
+
+### Q2: Why are statistics not being automatically collected for a table?
+
+First, check if automatic collection is enabled:
+
+```sql
+Show variables like "enable_auto_analyze";  // If false, set it to true:  
+
+Set global enable_auto_analyze = true
+```
+
+If it's already true, check the number of columns in the table. If it exceeds the `auto_analyze_table_width_threshold`, the table will not participate in automatic collection. Modify this value to be greater than the current number of columns in the table:
+
+```sql
+Show variables like "auto_analyze_table_width_threshold"  
+
+// If the value is less than the width of the table, you can modify it:
+
+Set global auto_analyze_table_width_threshold=350
+```
+
+If the number of columns does not exceed the threshold, execute `show auto analyze` to check if there are other collection tasks running (in the running state). Since automatic collection is executed serially by a single thread, the execution cycle may be long as it polls all databases and tables.
+
+### Q3: Why are statistics not available for some columns?
+
+Currently, the system only supports collecting statistics for columns of basic data types. For complex types such as JSONV, VARIANT, MAP, STRUCT, ARRAY, HLL, BITMAP, TIME, and TIMEV2, the system skips them.
+
+### Q4: Error: "Stats table not available, please make sure your cluster status is normal"
+
+This error typically indicates that the internal statistics table is in an unhealthy state.
+
+First, check if all BEs (Backend) in the cluster are in a normal state and ensure they are all functioning correctly.
+
+Next, execute the following statement to retrieve all `tabletId`s (first column of the output):
+
+```sql
+show tablets from internal.__internal_schema.column_statistics;
+```
+
+Then, check each tablet's status using its `tablet_id`:
+
+```sql
+ADMIN DIAGNOSE TABLET tablet_id
+```
+
+If any tablets are found to be abnormal, repair them first before re-collecting statistics.
+
+### Q5: How can I address the issue of untimely statistics collection?
+
+The interval for automatic collection is uncertain and depends on the number and size of tables in the system. In urgent cases, manually execute an `analyze` operation on the table.
+
+If automatic collection is not triggered after importing large amounts of data, consider adjusting the `table_stats_health_threshold` parameter. Its default value is 90, meaning that automatic collection is triggered when more than 10% (100 - 90) of the table's data changes. You can increase this value, for example, to 95, so that statistics are recollected when more than 5% of the table's data changes.
+
+### Q6: How can I address excessive resource usage during automatic collection?
+
+Automatic collection uses sampling and does not require full table scans, and the tasks are executed serially by a single thread. Usually, system resource usage is manageable and does not impact normal query tasks.
+
+For some special tables, such as those with many partitions or large individual tablets, memory usage may be higher.
+
+It is recommended to plan the number of tablets reasonably when creating tables to avoid creating oversized tablets. If the tablet structure is not easily adjustable, consider enabling automatic collection or manually collecting statistics for large tables during off-peak hours to avoid impacting business operations. In the Doris 3.x series, we will optimize for such scenarios.
