@@ -1,8 +1,8 @@
 ---
-{ "title": "NGRAM_SEARCH", "language": "en" }
+{ "title": "NOT_NULL_OR_EMPTY", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,48 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## not_null_or_empty
 
-Calculate the N-gram similarity between `text` and `pattern`. The similarity ranges from 0 to 1, where a higher similarity indicates greater similarity between the two strings.
+### description
 
-Both `pattern` and `gram_num` must be constants. If the length of either `text` or `pattern` is less than `gram_num`, return 0.
+#### Syntax
 
-N-gram similarity is a method for calculating text similarity based on N-grams. An N-gram is a set of continuous N characters or words extracted from a text string. For example, for the string "text" with N=2 (bigram), the bigrams are: {"te", "ex", "xt"}.
+`BOOLEAN NOT_NULL_OR_EMPTY (VARCHAR str)`
 
-The N-gram similarity is calculated as:
+It returns false if the string is an empty string or NULL. Otherwise it returns true.
 
-2 \* |Intersection| / (|text set| + |pattern set|)
+### example
 
-where |text set| and |pattern set| are the N-grams of `text` and `pattern`, and `Intersection` is the intersection of the two sets.
+```
+MySQL [(none)]> select not_null_or_empty(null);
++-------------------------+
+| not_null_or_empty(NULL) |
++-------------------------+
+|                       0 |
++-------------------------+
 
-Note that, by definition, a similarity of 1 does not necessarily mean the two strings are identical.
+MySQL [(none)]> select not_null_or_empty("");
++-----------------------+
+| not_null_or_empty('') |
++-----------------------+
+|                     0 |
++-----------------------+
 
-Only supports ASCII encoding.
-
-## Syntax
-
-`DOUBLE ngram_search(VARCHAR text,VARCHAR pattern,INT gram_num)`
-
-## Example
-
-```sql
-mysql> select ngram_search('123456789' , '12345' , 3);
-+---------------------------------------+
-| ngram_search('123456789', '12345', 3) |
-+---------------------------------------+
-|                                   0.6 |
-+---------------------------------------+
-
-mysql> select ngram_search("abababab","babababa",2);
-+-----------------------------------------+
-| ngram_search('abababab', 'babababa', 2) |
-+-----------------------------------------+
-|                                       1 |
-+-----------------------------------------+
+MySQL [(none)]> select not_null_or_empty("a");
++------------------------+
+| not_null_or_empty('a') |
++------------------------+
+|                      1 |
++------------------------+
 ```
 
-## keywords
+### keywords
 
     ```
-    NGRAM_SEARCH,NGRAM,SEARCH
+    NOT_NULL_OR_EMPTY
     ```
