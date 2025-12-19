@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_COUNT", "language": "en" }
+{ "title": "BITMAP_EMPTY", "language": "en" }
 ---
 
 <!-- 
@@ -21,37 +21,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_count
+## bitmap_empty
 
 ### description
 
 #### Syntax
 
-`BITMAP BITMAP_COUNT(BITMAP lhs)`
+`BITMAP BITMAP_EMPTY()`
 
-Returns the number of input bitmaps.
+Return an empty bitmap. Mainly be used to supply default value for bitmap column when loading, e.g.,
+
+```
+cat data | curl --location-trusted -u user:passwd -T - -H "columns: dt,page,v1,v2=bitmap_empty()"   http://host:8410/api/test/testDb/_stream_load
+```
 
 ### example
 
 ```
-mysql> select bitmap_count(to_bitmap(1)) cnt;
-+------+
-| cnt  |
-+------+
-|    1 |
-+------+
+mysql> select bitmap_count(bitmap_empty());
++------------------------------+
+| bitmap_count(bitmap_empty()) |
++------------------------------+
+|                            0 |
++------------------------------+
 
-mysql> select bitmap_count(bitmap_and(to_bitmap(1), to_bitmap(1))) cnt;
-+------+
-| cnt  |
-+------+
-|    1 |
-+------+
-
+mysql> select bitmap_to_string(bitmap_empty());
++----------------------------------+
+| bitmap_to_string(bitmap_empty()) |
++----------------------------------+
+|                                  |
++----------------------------------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_COUNT
+    BITMAP_EMPTY,BITMAP
     ```
