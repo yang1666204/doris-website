@@ -1,5 +1,5 @@
 ---
-{ "title": "MAX_BY", "language": "en" }
+{ "title": "MAX", "language": "en" }
 ---
 
 <!-- 
@@ -21,37 +21,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## MAX_BY
+## MAX
 
 ### description
 
 #### Syntax
 
-`MAX_BY(expr1, expr2)`
+`MAX(expr)`
 
-Returns the value of an expr1 associated with the maximum value of expr2 in a group.
+Returns the maximum value of an expr expression
 
 ### example
 
 ```
-MySQL > select * from tbl;
-+------+------+------+------+
-| k1   | k2   | k3   | k4   |
-+------+------+------+------+
-|    0 | 3    | 2    |  100 |
-|    1 | 2    | 3    |    4 |
-|    4 | 3    | 2    |    1 |
-|    3 | 4    | 2    |    1 |
-+------+------+------+------+
-
-MySQL > select max_by(k1, k4) from tbl;
-+--------------------+
-| max_by(`k1`, `k4`) |
-+--------------------+
-|                  0 |
-+--------------------+ 
+MySQL > select max(scan_rows) from log_statis group by datetime;
++------------------+
+| max(`scan_rows`) |
++------------------+
+|          4671587 |
++------------------+
 ```
 
 ### keywords
 
-MAX_BY
+MAX
