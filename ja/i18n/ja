@@ -1,5 +1,5 @@
 ---
-{ "title": "POW", "language": "en" }
+{ "title": "RADIANS", "language": "en" }
 ---
 
 <!-- 
@@ -19,46 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## pow
+## radians
 
 ### description
 
-Returns the value of the first argument raised to the power of the second argument.
-
-:::tip
-The other aliases for this function are `power`, `fpow` and `dpow`.
-:::
-
 #### Syntax
 
-`DOUBLE pow(DOUBLE a, DOUBLE b)`
-Returns `a` raised to the `b` power.
+`DOUBLE radians(DOUBLE x)`
+Returns the value of `x` in radians, converted from degrees to radians.
 
 ### example
 
 ```
-mysql> select pow(2,0);
-+---------------+
-| pow(2.0, 0.0) |
-+---------------+
-|             1 |
-+---------------+
-mysql> select pow(2,3);
-+---------------+
-| pow(2.0, 3.0) |
-+---------------+
-|             8 |
-+---------------+
-mysql> select pow(3,2.4);
+mysql> select radians(0);
++--------------+
+| radians(0.0) |
++--------------+
+|            0 |
++--------------+
+mysql> select radians(30);
++---------------------+
+| radians(30.0)       |
++---------------------+
+| 0.52359877559829882 |
++---------------------+
+mysql> select radians(90);
 +--------------------+
-| pow(3.0, 2.4)      |
+| radians(90.0)      |
 +--------------------+
-| 13.966610165238235 |
+| 1.5707963267948966 |
 +--------------------+
 ```
 
 ### keywords
 
  ```
- POW, POWER, FPOW, DPOW
+ RADIANS
  ```
