@@ -1,5 +1,5 @@
 ---
-{ "title": "CHAR_LENGTH", "language": "en" }
+{ "title": "CHAR", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,49 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## char_length
+## function char
 
-### Description
+### description
 
 #### Syntax
 
-INT char_length(VARCHAR str)
+`VARCHAR char(INT,..., [USING charset_name])`
 
-Returns the length of the string, and the number of characters returned for multi-byte characters. For example, five two-byte width words return a length of 5, only utf8 encoding is support at the current version. `character_length` is the alias for this function.
+Interprets each argument as an integer and returns a string consisting of the characters given by the code values of those integers. `NULL` values are skipped.
+
+If the result string is illegal for the given character set, the result from `CHAR()` becomes `NULL`.
+
+Arguments larger than `255` are converted into multiple result bytes. For example, `char(15049882)` is equivalent to `char(229, 164, 154)`.
+
+Currently only `utf8` is supported for `charset_name`.
 
 ### example
 
 ```
-mysql> select char_length("abc");
-+--------------------+
-| char_length('abc') |
-+--------------------+
-|                  3 |
-+--------------------+
+mysql> select char(68, 111, 114, 105, 115);
++--------------------------------------+
+| char('utf8', 68, 111, 114, 105, 115) |
++--------------------------------------+
+| Doris                                |
++--------------------------------------+
 
-mysql> select char_length("中国");
-+------------------- ---+
-| char_length('中国')   |
-+-----------------------+
-|                     2 |
-+-----------------------+
+mysql> select char(15049882, 15179199, 14989469);
++--------------------------------------------+
+| char('utf8', 15049882, 15179199, 14989469) |
++--------------------------------------------+
+| 多睿丝                                     |
++--------------------------------------------+
+
+mysql> select char(255);
++-------------------+
+| char('utf8', 255) |
++-------------------+
+| NULL              |
++-------------------+
 ```
 
 ### keywords
 
     ```
-    CHAR_LENGTH, CHARACTER_LENGTH
+    CHAR
     ```
