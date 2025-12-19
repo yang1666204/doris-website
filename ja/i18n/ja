@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-INDEX", "language": "en" }
+{ "title": "SHOW-LAST-INSERT", "language": "en" }
 ---
 
 <!--
@@ -21,36 +21,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-INDEX
+## SHOW-LAST-INSERT
 
 ### Name
 
-SHOW INDEX
+SHOW LAST INSERT
 
 ### Description
 
-This statement is used to display information about indexes in a table.
+This syntax is used to view the result of the latest insert operation in the current session connection
 
 grammar:
 
-```SQL
-SHOW INDEX[ES] FROM [db_name.]table_name [FROM database];
-or
-SHOW KEY[S] FROM [db_name.]table_name [FROM database];
+```sql
+SHOW LAST INSERT
 ```
 
+Example of returned result:
+
+```
+     TransactionId: 64067
+             Label: insert_ba8f33aea9544866-8ed77e2844d0cc9b
+          Database: default_cluster:db1
+             Table: t1
+TransactionStatus: VISIBLE
+        LoadedRows: 2
+      FilteredRows: 0
+```
+
+illustrate:
+
+- TransactionId: transaction id
+- Label: the label corresponding to the insert task
+- Database: the database corresponding to insert
+- Table: the table corresponding to insert
+- TransactionStatus: transaction status
+  - PREPARE: preparation stage
+  - PRECOMMITTED: Pre-commit stage
+  - COMMITTED: The transaction succeeded, but the data was not visible
+  - VISIBLE: The transaction succeeded and the data is visible
+  - ABORTED: Transaction failed
+- LoadedRows: Number of imported rows
+- FilteredRows: The number of rows being filtered
+
 ### Example
-
-1. Display the lower index of the specified table_name
-
-     ```SQL
-      SHOW INDEX FROM example_db.table_name;
-     ```
 
 ### Keywords
 
     ```
-    SHOW, INDEX
+    SHOW, LASR ,INSERT
     ```
 
 ### Best Practice
