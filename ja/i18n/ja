@@ -1,5 +1,5 @@
 ---
-{ "title": "POSITIVE", "language": "en" }
+{ "title": "POW", "language": "en" }
 ---
 
 <!-- 
@@ -19,39 +19,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## positive
+## pow
 
 ### description
 
+Returns the value of the first argument raised to the power of the second argument.
+
+:::tip
+The other aliases for this function are `power`, `fpow` and `dpow`.
+:::
+
 #### Syntax
 
-```sql
-BIGINT positive(BIGINT x)
-DOUBLE positive(DOUBLE x)
-DECIMAL positive(DECIMAL x)
-```
-
-Return `x`.
+`DOUBLE pow(DOUBLE a, DOUBLE b)`
+Returns `a` raised to the `b` power.
 
 ### example
 
 ```
-mysql> SELECT positive(-10);
+mysql> select pow(2,0);
 +---------------+
-| positive(-10) |
+| pow(2.0, 0.0) |
 +---------------+
-|           -10 |
+|             1 |
 +---------------+
-mysql> SELECT positive(12);
-+--------------+
-| positive(12) |
-+--------------+
-|           12 |
-+--------------+
+mysql> select pow(2,3);
++---------------+
+| pow(2.0, 3.0) |
++---------------+
+|             8 |
++---------------+
+mysql> select pow(3,2.4);
++--------------------+
+| pow(3.0, 2.4)      |
++--------------------+
+| 13.966610165238235 |
++--------------------+
 ```
 
 ### keywords
 
  ```
- POSITIVE
+ POW, POWER, FPOW, DPOW
  ```
