@@ -1,5 +1,8 @@
 ---
-{ "title": "Check Stub Cache", "language": "en" }
+{
+  "title": "Check All Tablet Segment Lost",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -21,29 +24,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# CHECK Stub Cache
+# Check All Tablet Segment Lost
 
 ## Request
 
-`GET /api/check_rpc_channel/{host_to_check}/{remot_brpc_port}/{payload_size}`
+`GET /api/check_tablet_segment_lost?repair={bool}`
 
 ## Description
 
-Check whether the connection cache is available
+There may be some exceptions that cause segment to be lost on BE node. However, the metadata shows that the tablet is normal. This abnormal replica is not detected by FE and cannot be automatically repaired. When query comes, exception information is thrown that `failed to initialize storage reader`. The function of this interface is to check all tablets on the current BE node that have lost segment.
 
-## Path parameters
+## Query parameters
 
-- `host_to_check`
-
-  Host to check
-
-- `remot_brpc_port`
-
-  Remote brpc port
-
-- `payload_size`
-
-  Load size, unit: B, value range 1~1024000.
+- `repair`
+  - `true`: tablets with lost segment will be set to SHUTDOWN status and treated as bad replica, which can be detected and repaired by FE.
+  - `false`: all tablets with missing segment are returned and nothing is done.
 
 ## Request body
 
@@ -52,12 +47,20 @@ None
 ## Response
 
     ````
+    The return is all tablets on the current BE node that have lost segment:
+    
     ```
     {
-        "msg":"success",
-        "code":0,
-        "data": "open brpc connection to {host_to_check}:{remot_brpc_port} success.",
-        "count":0
+        status: "Success",
+        msg: "Succeed to check all tablet segment",
+        num: 3,
+        bad_tablets: [
+            11190,
+            11210,
+            11216
+        ],
+        set_bad: true,
+        host: "172.3.0.101"
     }
     ```
     ````
@@ -66,7 +69,7 @@ None
 
     ````
     ```
-    curl http://127.0.0.1:8040/api/check_rpc_channel/127.0.0.1/8060/1024000
+    curl http://127.0.0.1:8040/api/check_tablet_segment_lost?repair=false
     ```
     ````
 
