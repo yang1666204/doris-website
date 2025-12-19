@@ -1,5 +1,5 @@
 ---
-{ "title": "l2_distance", "language": "en" }
+{ "title": "AES_DECRYPT", "language": "en" }
 ---
 
 <!-- 
@@ -19,37 +19,59 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## l2_distance
+### Description
 
-### description
+AES decryption function. This function behaves like the `AES_DECRYPT` function in MySQL. By default, it uses the `AES_128_ECB` algorithm with `PKCS7` padding mode.
 
-#### Syntax
+### Syntax
 
 ```sql
-DOUBLE l2_distance(ARRAY<T> array1, ARRAY<T> array2)
+VARCHAR AES_DECRYPT(VARCHAR str, VARCHAR key_str [, VARCHAR init_vector [, VARCHAR encryption_mode]])
 ```
 
-Calculates the distance between two points (the values of the vectors are the coordinates) in Euclidean space.
-Return NULL if input array is NULL or any element of array is NULL.
+### Parameters
 
-#### Notice
+- `str` is the text to be decrypted;
+- `key_str` is the key. Note that this key is not a hexadecimal encoding, but a string representation of the encoded key. For example, for 128-bit key encryption, `key_str` should be 16-length. If the key is not long enough, use **zero padding** to make it up. If it is longer than that, the final key is found using a cyclic xor method. For example, if the 128-bit key used by the algorithm finally is `key`, then `key[i] = key_str[i] ^ key_str[i+128] ^ key_str[i+256] ^ ...`
+- `init_vector` is the initial vector to be used in the algorithm, this is only valid for some algorithms, if not specified then Doris will use the built-in value;
+- `encryption_mode` is the encryption algorithm, optionally available in variable.
 
-- nested type of input array support: TINYINT, SMALLINT, INT, BIGINT, LARGEINT, FLOAT, DOUBLE
-- input array1 and array2 should have the same element size
+### Example
 
-### example
-
-```
-sql> SELECT l2_distance([1, 2], [2, 3]);
-+---------------------------------------+
-| l2_distance(ARRAY(1, 2), ARRAY(2, 3)) |
-+---------------------------------------+
-|                    1.4142135623730951 |
-+---------------------------------------+
+```sql
+set block_encryption_mode='';
+select aes_decrypt(from_base64('wr2JEDVXzL9+2XtRhgIloA=='),'F3229A0B371ED2D9441B830D21A390C3');
 ```
 
-### keywords
+```
++--------------------------------------------------------------------------------+
+| aes_decrypt(from_base64('wr2JEDVXzL9+2XtRhgIloA=='), '***', '', 'AES_128_ECB') |
++--------------------------------------------------------------------------------+
+| text                                                                           |
++--------------------------------------------------------------------------------+
+```
 
- ```
- L2_DISTANCE,DISTANCE,L2,ARRAY
- ```
+```sql
+set block_encryption_mode="AES_256_CBC";
+select aes_decrypt(from_base64('3dym0E7/+1zbrLIaBVNHSw=='),'F3229A0B371ED2D9441B830D21A390C3');
+```
+
+```
++--------------------------------------------------------------------------------+
+| aes_decrypt(from_base64('3dym0E7/+1zbrLIaBVNHSw=='), '***', '', 'AES_256_CBC') |
++--------------------------------------------------------------------------------+
+| text                                                                           |
++--------------------------------------------------------------------------------+
+```
+
+```sql
+select AES_DECRYPT(FROM_BASE64('tsmK1HzbpnEdR2//WhO+MA=='),'F3229A0B371ED2D9441B830D21A390C3', '0123456789');
+```
+
+```
++------------------------------------------------------------------------------------------+
+| aes_decrypt(from_base64('tsmK1HzbpnEdR2//WhO+MA=='), '***', '0123456789', 'AES_256_CBC') |
++------------------------------------------------------------------------------------------+
+| text                                                                                     |
++------------------------------------------------------------------------------------------+
+```
