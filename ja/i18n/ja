@@ -1,5 +1,5 @@
 ---
-{ "title": "Reset Stub Cache", "language": "en" }
+{ "title": "Make Snapshot", "language": "en" }
 ---
 
 <!-- 
@@ -21,21 +21,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Reset Stub Cache
+# Make Snapshot
 
 ## Request
 
-`GET /api/reset_rpc_channel/{endpoints}`
+`GET /api/snapshot?tablet_id={int}&schema_hash={int}"`
 
 ## Description
 
-Reset the connection cache of brpc
+Make snapshot of a tablet
 
-## Path parameters
+## Query parameters
 
-- `endpoints`
-  - `all`: clear all caches
-  - `host1:port1,host2:port2`: clear cache of the specified target
+- `tablet_id`
+  ID of the tablet
+
+- `schema_hash`
+  Schema hash
 
 ## Request body
 
@@ -45,12 +47,7 @@ None
 
     ````
     ```
-    {
-        "msg":"success",
-        "code":0,
-        "data": "no cached channel.",
-        "count":0
-    }
+    /path/to/snapshot
     ```
     ````
 
@@ -58,11 +55,8 @@ None
 
     ````
     ```
-    curl http://127.0.0.1:8040/api/reset_rpc_channel/all
-    ```
+    curl "http://127.0.0.1:8040/api/snapshot?tablet_id=123456&schema_hash=1111111"
     
-    ```
-    curl http://127.0.0.1:8040/api/reset_rpc_channel/1.1.1.1:8080,2.2.2.2:8080
     ```
     ````
 
