@@ -1,8 +1,5 @@
 ---
-{
-  "title": "CANCEL-MATERIALIZED-VIEW-TASK",
-  "language": "en"
-}
+{ "title": "CLEAN-QUERY-STATS", "language": "en" }
 ---
 
 <!--
@@ -24,34 +21,52 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CANCEL-MATERIALIZED-VIEW-TASK
+## CLEAN-QUERY-STATS
 
 ### Name
 
-CANCEL MATERIALIZED VIEW TASK
+CLEAN QUERY STATS
 
 ### Description
 
-This statement is used to cancel the task of materialized views
+This statement is used to clear query statistics
 
-syntax:
+grammar：
 
 ```sql
-CANCEL MATERIALIZED VIEW TASK taskId=INTEGER_VALUE ON mvName=multipartIdentifier
+CLEAN [ALL| DATABASE | TABLE] QUERY STATS [[FOR db_name]|[FROM|IN] table_name]];
 ```
+
+Remarks：
+
+1. If ALL is specified, all query statistics are cleared, including database and table, admin privilege is needed
+2. If DATABASE is specified, the query statistics of the specified database are cleared, alter privilege for this database is needed
+3. If TABLE is specified, the query statistics of the specified table are cleared, alter privilege for this table is needed
 
 ### Example
 
-1. Cancel the task with id 1 in materialized view mv1
+1. Clear all statistics
+
+2.  ```sql
+    clean all query stats;
+    ```
+
+3. Clear the specified database statistics
 
     ```sql
-    CANCEL MATERIALIZED VIEW TASK 1 on mv1;
+    clean database query stats for test_query_db;
+    ```
+
+4. Clear the specified table statistics
+
+    ```sql
+    clean table query stats from test_query_db.baseall;
     ```
 
 ### Keywords
 
     ```
-    CANCEL, MATERIALIZED, VIEW, TASK
+    CLEAN, QUERY, STATS
     ```
 
 ### Best Practice
