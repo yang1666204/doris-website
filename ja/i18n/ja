@@ -1,8 +1,8 @@
 ---
-{ "title": "ARRAY_FIRST", "language": "en" }
+{ "title": "ARRAY_INTERSECT", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,49 +21,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_first
+## array_intersect
 
-array_first
+array_intersect
 
 ### description
 
-Returns the first element in the array for which func(arr1[i]) returns something other than 0.
-
 #### Syntax
 
-```
-T array_first(lambda, ARRAY<T>)
-```
+`ARRAY<T> array_intersect(ARRAY<T> array1, ARRAY<T> array2)`
 
-Use a lambda bool expression and an array as the input parameters, the lambda expression is used to evaluate the internal data of other input ARRAY parameters.
+Returns an array of the elements in the intersection of array1 and array2, without duplicates. If the input parameter is null, null is returned.
 
 ### example
 
 ```
-mysql> select array_first(x->x>2, [1,2,3,0]) ;
-+------------------------------------------------------------------------------------------------+
-| array_first(array_filter(ARRAY(1, 2, 3, 0), array_map([x] -> x(0) > 2, ARRAY(1, 2, 3, 0))), -1) |
-+------------------------------------------------------------------------------------------------+
-|                                                                                              3 |
-+------------------------------------------------------------------------------------------------+
+mysql> select k1,k2,k3,array_intersect(k2,k3) from array_type_table;
++------+-----------------+--------------+-----------------------------+
+| k1   | k2              | k3           | array_intersect(`k2`, `k3`) |
++------+-----------------+--------------+-----------------------------+
+|    1 | [1, 2, 3]       | [2, 4, 5]    | [2]                         |
+|    2 | [2, 3]          | [1, 5]       | []                          |
+|    3 | [1, 1, 1]       | [2, 2, 2]    | []                          |
++------+-----------------+--------------+-----------------------------+
 
+mysql> select k1,k2,k3,array_intersect(k2,k3) from array_type_table_nullable;
++------+-----------------+--------------+-----------------------------+
+| k1   | k2              | k3           | array_intersect(`k2`, `k3`) |
++------+-----------------+--------------+-----------------------------+
+|    1 | [1, NULL, 3]    | [1, 3, 5]    | [1, 3]                      |
+|    2 | [NULL, NULL, 2] | [2, NULL, 4] | [NULL, 2]                   |
+|    3 | NULL            | [1, 2, 3]    | NULL                        |
++------+-----------------+--------------+-----------------------------+
 
-mysql> select array_first(x->x>4, [1,2,3,0]) ; 
-+------------------------------------------------------------------------------------------------+
-| array_first(array_filter(ARRAY(1, 2, 3, 0), array_map([x] -> x(0) > 4, ARRAY(1, 2, 3, 0))), -1) |
-+------------------------------------------------------------------------------------------------+
-|                                                                                           NULL |
-+------------------------------------------------------------------------------------------------+
+mysql> select k1,k2,k3,array_intersect(k2,k3) from array_type_table_varchar;
++------+----------------------------+----------------------------------+-----------------------------+
+| k1   | k2                         | k3                               | array_intersect(`k2`, `k3`) |
++------+----------------------------+----------------------------------+-----------------------------+
+|    1 | ['hello', 'world', 'c++']  | ['I', 'am', 'c++']               | ['c++']                     |
+|    2 | ['a1', 'equals', 'b1']     | ['a2', 'equals', 'b2']           | ['equals']                  |
+|    3 | ['hasnull', NULL, 'value'] | ['nohasnull', 'nonull', 'value'] | [NULL, 'value']             |
+|    3 | ['hasnull', NULL, 'value'] | ['hasnull', NULL, 'value']       | ['hasnull', 'value']        |
++------+----------------------------+----------------------------------+-----------------------------+
 
+mysql> select k1,k2,k3,array_intersect(k2,k3) from array_type_table_decimal;
++------+------------------+-------------------+-----------------------------+
+| k1   | k2               | k3                | array_intersect(`k2`, `k3`) |
++------+------------------+-------------------+-----------------------------+
+|    1 | [1.1, 2.1, 3.44] | [2.1, 3.4, 5.4]   | [2.1]                       |
+|    2 | [NULL, 2, 5]     | [NULL, NULL, 5.4] | [NULL]                      |
+|    3 | [1, NULL, 2, 5]  | [1, 3.1, 5.4]     | [1]                         |
++------+------------------+-------------------+-----------------------------+
 
-mysql> select array_first(x->x>1, [1,2,3,0]) ;
-+---------------------------------------------------------------------------------------------+
-| array_first(array_filter(ARRAY(1, 2, 3, 0), array_map([x] -> x > 1, ARRAY(1, 2, 3, 0))), 1) |
-+---------------------------------------------------------------------------------------------+
-|                                                                                           2 |
-+---------------------------------------------------------------------------------------------+
 ```
 
 ### keywords
 
-ARRAY, LAST, array_first
+ARRAY,INTERSECT,ARRAY_INTERSECT
+
