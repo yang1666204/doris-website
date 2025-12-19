@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-ANALYZE", "language": "en" }
+{ "title": "SHOW-BACKENDS", "language": "en" }
 ---
 
 <!--
@@ -21,86 +21,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-ANALYZE
+## SHOW-BACKENDS
 
 ### Name
 
-SHOW ANALYZE
+SHOW BACKENDS
 
 ### Description
 
-Use `SHOW ANALYZE` to view information about statistics collection jobs.
-
-Syntax:
-
-```SQL
-SHOW [AUTO] ANALYZE < table_name | job_id >
-    [ WHERE [ STATE = [ "PENDING" | "RUNNING" | "FINISHED" | "FAILED" ] ] ];
-```
-
-- AUTO: Show historical information for automatic collection jobs only. Note that, by default, the status of only the last 20,000 completed automatic collection jobs is retained.
-- table_name: Table name, specify to view statistics job information for that table. It can be in the format `db_name.table_name`. When not specified, it returns information for all statistics jobs.
-- job_id: Job ID for statistics collection, obtained when executing `ANALYZE`. When not specified, this command returns information for all statistics jobs.
-
-Output:
-
-| Column Name            | Description         |
-| :--------------------- | :------------------ |
-| `job_id`               | Job ID              |
-| `catalog_name`         | Catalog Name        |
-| `db_name`              | Database Name       |
-| `tbl_name`             | Table Name          |
-| `col_name`             | Column Name List    |
-| `job_type`             | Job Type            |
-| `analysis_type`        | Analysis Type       |
-| `message`              | Job Information     |
-| `last_exec_time_in_ms` | Last Execution Time |
-| `state`                | Job Status          |
-| `schedule_type`        | Scheduling Method   |
-
-Here's an example:
+This statement is used to view the BE nodes in the cluster
 
 ```sql
-mysql> show analyze 245073\G;
-*************************** 1. row ***************************
-              job_id: 245073
-        catalog_name: internal
-             db_name: default_cluster:tpch
-            tbl_name: lineitem
-            col_name: [l_returnflag,l_receiptdate,l_tax,l_shipmode,l_suppkey,l_shipdate,l_commitdate,l_partkey,l_orderkey,l_quantity,l_linestatus,l_comment,l_extendedprice,l_linenumber,l_discount,l_shipinstruct]
-            job_type: MANUAL
-       analysis_type: FUNDAMENTALS
-             message: 
-last_exec_time_in_ms: 2023-11-07 11:00:52
-               state: FINISHED
-            progress: 16 Finished  |  0 Failed  |  0 In Progress  |  16 Total
-       schedule_type: ONCE
+ SHOW BACKENDS;
 ```
 
-<br/>
+illustrate:
 
-Each collection job can contain one or more tasks, with each task corresponding to the collection of a column. Users can use the following command to view the completion status of statistics collection for each column.
+        ```
+            1. LastStartTime indicates the last BE start time.
+            2. LastHeartbeat indicates the last heartbeat.
+            3. Alive indicates whether the node is alive or not.
+            4. If SystemDecommissioned is true, it means that the node is being safely decommissioned.
+            5. If ClusterDecommissioned is true, it means that the node is going offline in the current cluster.
+            6. TabletNum represents the number of shards on the node.
+            7. DataUsedCapacity Indicates the space occupied by the actual user data.
+            8. AvailCapacity Indicates the available space on the disk.
+            9. TotalCapacity represents the total disk space. TotalCapacity = AvailCapacity + DataUsedCapacity + other non-user data files occupy space.
+           10. UsedPct Indicates the percentage of disk used.
+           11. ErrMsg is used to display the error message when the heartbeat fails.
+           12. Status is used to display some status information of BE in JSON format, including the time information of the last time BE reported its tablet.
+           13. HeartbeatFailureCounter: The current number of heartbeats that have failed consecutively. If the number exceeds the `max_backend_heartbeat_failure_tolerance_count` configuration, the isAlive will be set to false.
+           14. NodeRole is used to display the role of Backend node. Now there are two roles: mix and computation. Mix node represent the origin Backend node and computation Node represent the compute only node.
+        ```
 
-Syntax:
-
-```sql
-SHOW ANALYZE TASK STATUS [job_id]
-```
-
-Here's an example:
-
-```
-mysql> show analyze task status 20038 ;
-+---------+----------+---------+----------------------+----------+
-| task_id | col_name | message | last_exec_time_in_ms | state    |
-+---------+----------+---------+----------------------+----------+
-| 20039   | col4     |         | 2023-06-01 17:22:15  | FINISHED |
-| 20040   | col2     |         | 2023-06-01 17:22:15  | FINISHED |
-| 20041   | col3     |         | 2023-06-01 17:22:15  | FINISHED |
-| 20042   | col1     |         | 2023-06-01 17:22:15  | FINISHED |
-+---------+----------+---------+----------------------+----------+
-```
+### Example
 
 ### Keywords
 
-SHOW, ANALYZE
+    ```
+    SHOW, BACKENDS
+    ```
+
+### Best Practice
+
