@@ -1,5 +1,8 @@
 ---
-{ "title": "ADMIN-SET-CONFIG", "language": "en" }
+{
+  "title": "ADMIN-SET-PARTITION-VERSION",
+  "language": "en"
+}
 ---
 
 <!--
@@ -21,41 +24,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ADMIN-SET-CONFIG
+## ADMIN-SET-PARTITION-VERSION
 
 ### Name
 
-ADMIN SET CONFIG
+ADMIN SET PARTITION VERSION
 
 ### Description
 
-This statement is used to set the configuration items of the cluster (currently only supports setting FE configuration items).
+This statement is used to set the version of the specified partition.
 
-The configurable items can be viewed using the `SHOW FRONTEND CONFIG;` command.
+In certain cases, the version of the partition in the metadata may not be consistent with the version of the actual replica. This command can manually set the version of the partition in the metadata.
 
-Syntax:
+grammar:
 
 ```sql
-ADMIN SET FRONTEND CONFIG ("key" = "value") [ALL];
--- or
-ADMIN SET ALL FRONTENDS CONFIG ("key" = "value");
+ADMIN SET TABLE table_name PARTITION VERSION
+        PROPERTIES ("key" = "value", ...);
 ```
 
-:::tip Explanation
+The following properties are currently supported:
 
-- Starting from versions 2.0.11 and 2.1.5, the `ALL` keyword is supported. When using the `ALL` keyword, the configuration parameters will be applied to all FEs (except for the `master_only` parameter).
-- This syntax does not persistently modify the configuration. After an FE restarts, the modified configuration becomes invalid. To persist the changes, the configuration items need to be synchronously added in fe.conf.
-  :::
+1. "partition_id": Required. Specify a Partition Id.
+2. "visible_version": Required. Specify Version.
+
+> Note:
+>
+> It is necessary to first confirm the version of the actual replica on the Be before set the version of the partition. This command is generally only used for emergency troubleshooting, please proceed with caution.
 
 ### Example
 
-1. Set `disable_balance` to true
+1. Set the version of partition 1769152 to 100.
 
-   `ADMIN SET FRONTEND CONFIG ("disable_balance" = "true");`
+```sql
+ADMIN SET TABLE tbl1 PARTITION VERSION PROPERTIES("partition_id" = "1769152", "visible_version" = "100");
+```
 
 ### Keywords
 
-ADMIN, SET, CONFIG
+    ```
+    ADMIN, SET, PARTITION, VERSION
+    ```
 
 ### Best Practice
-
