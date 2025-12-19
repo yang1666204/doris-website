@@ -1,5 +1,5 @@
 ---
-{ "title": "LEAST", "language": "en" }
+{ "title": "LN", "language": "en" }
 ---
 
 <!-- 
@@ -19,49 +19,44 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## least
+## ln
 
 ### description
 
 #### Syntax
 
-`least(col_a, col_b, …, col_n)`
+`DOUBLE ln(DOUBLE x)`
+Returns the natural logarithm of `x` to base `e`.
 
-`column` supports the following types: `TINYINT` `SMALLINT` `INT` `BIGINT` `LARGEINT` `FLOAT` `DOUBLE` `STRING` `DATETIME` `DECIMAL`
-
-Compare the size of `n columns` and return the smallest among them. If there is `NULL` in `column`, return `NULL`.
+:::tip
+Another alias for this function is `dlog1`.
+:::
 
 ### example
 
 ```
-mysql> select least(-1, 0, 5, 8);
+mysql> select ln(1);
++---------+
+| ln(1.0) |
++---------+
+|       0 |
++---------+
+mysql> select ln(e());
++---------+
+| ln(e()) |
++---------+
+|       1 |
++---------+
+mysql> select ln(10);
 +--------------------+
-| least(-1, 0, 5, 8) |
+| ln(10.0)           |
 +--------------------+
-|                 -1 |
+| 2.3025850929940459 |
 +--------------------+
-mysql> select least(-1, 0, 5, NULL);
-+-----------------------+
-| least(-1, 0, 5, NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
-mysql> select least(6.3, 4.29, 7.6876);
-+--------------------------+
-| least(6.3, 4.29, 7.6876) |
-+--------------------------+
-|                     4.29 |
-+--------------------------+
-mysql> select least("2022-02-26 20:02:11","2020-01-23 20:02:11","2020-06-22 20:02:11");
-+----------------------------------------------------------------------------+
-| least('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11') |
-+----------------------------------------------------------------------------+
-| 2020-01-23 20:02:11                                                        |
-+----------------------------------------------------------------------------+
 ```
 
 ### keywords
 
  ```
- LEAST
+ LN, DLOG1
  ```
