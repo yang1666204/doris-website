@@ -1,5 +1,5 @@
 ---
-{ "title": "ELT", "language": "en" }
+{ "title": "ENDS_WITH", "language": "en" }
 ---
 
 <!-- 
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,47 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## elt
+## ends_with
 
 ### Description
 
 #### Syntax
 
-`VARCHAR elt(INT, VARCHAR,...)`
+`BOOLEAN ENDS_WITH(VARCHAR str, VARCHAR suffix)`
 
-Returns the string at specified index. Returns NULL if there is no string at specified index.
+It returns true if the string ends with the specified suffix, otherwise it returns false.
+If any parameter is NULL, it returns NULL.
 
 ### example
 
 ```
-mysql> select elt(1, 'aaa', 'bbb');
-+----------------------+
-| elt(1, 'aaa', 'bbb') |
-+----------------------+
-| aaa                  |
-+----------------------+
-mysql> select elt(2, 'aaa', 'bbb');
-+-----------------------+
-| elt(2, 'aaa', 'bbb')  |
-+-----------------------+
-| bbb                   |
-+-----------------------+
-mysql> select elt(0, 'aaa', 'bbb');
-+----------------------+
-| elt(0, 'aaa', 'bbb') |
-+----------------------+
-| NULL                 |
-+----------------------+
-mysql> select elt(2, 'aaa', 'bbb');
-+-----------------------+
-| elt(3, 'aaa', 'bbb')  |
-+-----------------------+
-| NULL                  |
-+-----------------------+
+mysql> select ends_with("Hello doris", "doris");
++-----------------------------------+
+| ends_with('Hello doris', 'doris') |
++-----------------------------------+
+|                                 1 | 
++-----------------------------------+
+
+mysql> select ends_with("Hello doris", "Hello");
++-----------------------------------+
+| ends_with('Hello doris', 'Hello') |
++-----------------------------------+
+|                                 0 | 
++-----------------------------------+
 ```
 
 ### keywords
 
     ```
-    ELT
+    ENDS_WITH
     ```
