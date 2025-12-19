@@ -1,5 +1,5 @@
 ---
-{ "title": "WEEKS_ADD", "language": "en" }
+{ "title": "WEEKS_DIFF", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## weeks_add
+## weeks_diff
 
 ### description
 
 #### Syntax
 
-`DATETIME WEEKS_ADD(DATETIME date, INT weeks)`
+`INT weeks_diff(DATETIME enddate, DATETIME startdate)`
 
-ADD a specified number of weeks from a datetime or date
-
-The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
+The difference between the start time and the end time is weeks
 
 ### example
 
 ```
-mysql> select weeks_add("2020-02-02 02:02:02", 1);
-+-------------------------------------+
-| weeks_add('2020-02-02 02:02:02', 1) |
-+-------------------------------------+
-| 2020-02-09 02:02:02                 |
-+-------------------------------------+
+mysql> select weeks_diff('2020-12-25','2020-10-25');
++----------------------------------------------------------+
+| weeks_diff('2020-12-25 00:00:00', '2020-10-25 00:00:00') |
++----------------------------------------------------------+
+|                                                        8 |
++----------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    WEEKS_ADD
+    weeks_diff
     ```
