@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-FILE", "language": "en" }
+{ "title": "SHOW-FRONTENDS-DISKS", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,48 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-FILE
+## SHOW-FRONTENDS-DISKS
 
 ### Name
 
-SHOW FILE
+SHOW FRONTENDS DISKS
 
 ### Description
 
-This statement is used to display a file created in a database
+This statement is used to view FE nodes's important paths' disk information, such as meta, log, audit-log and temp dir.
 
 grammar:
 
 ```sql
-SHOW FILE [FROM database];
+SHOW FRONTENDS DISKS;
 ```
 
 illustrate:
 
-```text
-FileId: file ID, globally unique
-DbName: the name of the database to which it belongs
-Catalog: Custom Category
-FileName: file name
-FileSize: file size, in bytes
-MD5: MD5 of the file
-```
+1. Name indicates the name of the FE node in bdbje.
+2. Host indicates the ip of the FE node.
+3. DirType indicates the type of dir type, such as meta, log, audit-log temp and deploy dir.
+4. Dir indicates the dir path of FE node dir in which type.
+5. FileSystem indicates the dir path in which file system on the linux operation system.
+6. Capacity indicates total capacity of the filesystem.
+7. Used indicates the size of the filesystem already used.
+8. Available indicates the size of the filesystem remained.
+9. UseRate indicates File system usage capacity ratio.
+10. MountOn indicates the mount dir of the filesystem.
 
 ### Example
 
-1. View the uploaded files in the database my_database
-
-     ```sql
-     SHOW FILE FROM my_database;
-     ```
+`mysql> show frontends disks; 
++-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+ | Name                                    | Host        | DirType   | Dir                             | Filesystem | Capacity | Used | Available | UseRate | MountOn    |
++-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+ | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | meta      | /home/disk/output/fe/doris-meta | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | log       | /home/disk/output/fe/log        | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | audit-log | /home/disk/output/fe/log        | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | temp      | /home/disk/output/fe/temp_dir   | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk | | fe_a1daac68_5ec0_477c_b5e8_f90a33cdc1bb | 10.xx.xx.90 | deploy    | /home/disk/output/fe            | /dev/sdf1  | 7T       | 2T   | 4T        | 36%     | /home/disk |
++-----------------------------------------+-------------+-----------+---------------------------------+------------+----------+------+-----------+---------+------------+
+5 rows in set (0.00 sec)`
 
 ### Keywords
 
-     ```
-      SHOW, FILE
-     ```
+    ```
+    SHOW, FRONTENDS
+    ```
 
 ### Best Practice
+
