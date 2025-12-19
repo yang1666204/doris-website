@@ -1,5 +1,5 @@
 ---
-{ "title": "Kettle Doris Plugin", "language": "en" }
+{ "title": "Kyuubi", "language": "en" }
 ---
 
 <!--
@@ -21,62 +21,91 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Kettle Doris Plugin
+# Use Kyuubi with Doris
 
-[Kettle](https://pentaho.com/) Doris Plugin is used to write data from other data sources to Doris through Stream Load in Kettle.
+## Introduction
 
-This plug-in uses the Stream Load function of Doris to import data. It needs to be used in conjunction with the Kettle service.
+[Apache Kyuubi](https://kyuubi.apache.org/) is a distributed and multi-tenant gateway to provide serverless SQL on Data
+Warehouses and Lakehouses.
+Apache Kyuubi is providing varied protocols like Thrift, Trino, MySQL etc., to the engines including Spark, Flink, Hive,
+JDBC, etc.
+Doris could be connected as JDBC data source with Doris dialect supported in Apache Kyuubi.
+Apache Kyuubi also provides a series of useful features including HA, service discovery,
+unified authentication, engine lifecycle management, etc.
 
-## About Kettle
+## Usage
 
-Kettle is an open source ETL (Extract, Transform, Load) tool, first developed by Pentaho, Kettle is one of the core components of the Pentaho product suite, mainly used for data integration and data processing, and can easily complete the tasks of extracting data from various sources, cleaning and transforming data, and loading it into the target system.
+### Download Apache Kyuubi
 
-For more information, please refer to: `https://pentaho.com/`
+Download Apache Kyuubi from <https://kyuubi.apache.org/zh/releases.html>
 
-## User Manual
+Get Apache Kyuubi 1.6.0 or above and extract it to folder.
 
-### Download Kettle and install
+### Config Doris as Kyuubi data source
 
-Kettle download address: https://pentaho.com/download/#download-pentaho
-After downloading, unzip it and run spoon.sh to start kettle
-You can also compile it yourself, refer to the [Compilation Chapter](https://github.com/pentaho/pentaho-kettle?tab=readme-ov-file#how-to-build)
+- Update Kyuubi configurations in `$KYUUBI_HOME/conf/kyuubi-defaults.conf`
 
-### Compile Kettle Doris Plugin
-
-```shell
-cd doris/extension/kettle
-mvn clean package -DskipTests
+```properties
+kyuubi.engine.type=jdbc
+kyuubi.engine.jdbc.type=doris
+kyuubi.engine.jdbc.driver.class=com.mysql.cj.jdbc.Driver
+kyuubi.engine.jdbc.connection.url=jdbc:mysql://xxx:xxx
+kyuubi.engine.jdbc.connection.user=***
+kyuubi.engine.jdbc.connection.password=***
 ```
 
-After compiling, unzip the plug-in package and copy it to the plugins directory of kettle
+| Configuration                                                                                          | Description                                                   |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| kyuubi.engine.type                                                     | Engine Type, specify to `jdbc`                                |
+| kyuubi.engine.jdbc.type                                | JDBC service type, specify to `doris`                         |
+| kyuubi.engine.jdbc.driver.class        | JDBC driver class name, specify to `com.mysql.cj.jdbc.Driver` |
+| kyuubi.engine.jdbc.connection.url      | JDBC url to Doris FE                                          |
+| kyuubi.engine.jdbc.connection.user     | JDBC username                                                 |
+| kyuubi.engine.jdbc.connection.password | JDBC password                                                 |
+
+- For other configuration in Apache Kyuubi, please refer
+  to [Apache Kyuubi Configuration Docs](https://kyuubi.readthedocs.io/en/master/deployment/settings.html) .
+
+### Add MySQL JDBC Driver
+
+Copy the Mysql JDBC Driver `mysql-connector-j-8.X.X.jar` to `$KYUUBI_HOME/externals/engines/jdbc`.
+
+### Start Kyuubi Server
+
+Run `$KYUUBI_HOME/bin/kyuubi start`.
+After started, port 10009 by default is listened by Kyuubi Server with Thrift protocol.
+
+## Example
+
+The following example shows basic example of querying Doris with Kyuubi with beeline CLI in Thrift protocol.
+
+### Connect to Kyuubi with Beeline
 
 ```shell
-cd assemblies/plugin/target
-unzip doris-stream-loader-plugins-9.4.0.0-343.zip
-cp -r doris-stream-loader ${KETTLE_HOME}/plugins/
-mvn clean package -DskipTests
+$ $KYUUBI_HOME/bin/beeline -u "jdbc:hive2://xxxx:10009/"
 ```
 
-### Build a job
+### Execute Query to Kyuubi
 
-Find Doris Stream Loader in the batch loading in Kettle and build a job
-![create_zh.png](https://raw.githubusercontent.com/apache/doris/refs/heads/master/extension/kettle/images/create.png)
+Execute query statement `select * from demo.expamle_tbl;` with query results returned.
 
-Click Start Running the Job to complete data synchronization
-![running_zh.png](https://raw.githubusercontent.com/apache/doris/refs/heads/master/extension/kettle/images/running.png)
+```shell
+0: jdbc:hive2://xxxx:10009/> select * from demo.example_tbl;  
+  
+2023-03-07 09:29:14.771 INFO org.apache.kyuubi.operation.ExecuteStatement: Processing anonymous's query[bdc59dd0-ceea-4c02-8c3a-23424323f5db]: PENDING_STATE -> RUNNING_STATE, statement:  
+select * from demo.example_tbl  
+2023-03-07 09:29:14.786 INFO org.apache.kyuubi.operation.ExecuteStatement: Query[bdc59dd0-ceea-4c02-8c3a-23424323f5db] in FINISHED_STATE  
+2023-03-07 09:29:14.787 INFO org.apache.kyuubi.operation.ExecuteStatement: Processing anonymous's query[bdc59dd0-ceea-4c02-8c3a-23424323f5db]: RUNNING_STATE -> FINISHED_STATE, time taken: 0.015 seconds  
++----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
+| user_id  |    date     | city  | age  | sex  |    last_visit_date     | cost  | max_dwell_time  | min_dwell_time  |  
++----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
+| 10000    | 2017-10-01  | Beijing | 20   | 0    | 2017-10-01 07:00:00.0  | 70    | 10              | 2               |  
+| 10001    | 2017-10-01  | Beijing | 30   | 1    | 2017-10-01 17:05:45.0  | 4     | 22              | 22              |  
+| 10002    | 2017-10-02  | Shanghai| 20   | 1    | 2017-10-02 12:59:12.0  | 400   | 5               | 5               |  
+| 10003    | 2017-10-02  | Guangzhou| 32   | 0    | 2017-10-02 11:20:00.0  | 60    | 11              | 11              |  
+| 10004    | 2017-10-01  | Shenzhen| 35   | 0    | 2017-10-01 10:00:15.0  | 200   | 3               | 3               |  
+| 10004    | 2017-10-03  | Shenzhen| 35   | 0    | 2017-10-03 10:20:22.0  | 22    | 6               | 6               |  
++----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
+6 rows selected (0.068 seconds)
 
-### Parameter Description
-
-| Key                                        | Default Value                      | Required | Comment                                                                                                                                                                                                            |
-| ------------------------------------------ | ---------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Step name                                  | --                                 | Y        | Step name                                                                                                                                                                                                          |
-| fenodes                                    | --                                 | Y        | Doris FE http address, supports multiple addresses, separated by commas                                                                                                                                            |
-| Database                                   | --                                 | Y        | Doris write database                                                                                                                                                                                               |
-| Target table                               | --                                 | Y        | Doris's write table                                                                                                                                                                                                |
-| Username                                   | --                                 | Y        | Username to access Doris                                                                                                                                                                                           |
-| Password                                   | --                                 | N        | Password to access Doris                                                                                                                                                                                           |
-| Maximum number of rows for a single import | 10000                              | N        | Maximum number of rows for a single import                                                                                                                                                                         |
-| Maximum bytes for a single import          | 10485760 (10MB) | N        | Maximum byte size for a single import                                                                                                                                                                              |
-| Number of import retries                   | 3                                  | N        | Number of retries after import failure                                                                                                                                                                             |
-| StreamLoad properties                      | --                                 | N        | Streamload request header                                                                                                                                                                                          |
-| Delete Mode                                | N                                  | N        | Whether to enable delete mode. By default, Stream Load performs insert operations. After the delete mode is enabled, all Stream Load writes are delete operations. |
+```
