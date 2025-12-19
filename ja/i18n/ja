@@ -1,5 +1,5 @@
 ---
-{ "title": "ALTER-SYSTEM-ADD-FOLLOWER", "language": "en" }
+{ "title": "ALTER-SYSTEM-ADD-OBSERVER", "language": "en" }
 ---
 
 <!--
@@ -21,20 +21,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-SYSTEM-ADD-FOLLOWER
+## ALTER-SYSTEM-ADD-OBSERVER
 
 ### Name
 
-ALTER SYSTEM ADD FOLLOWER
+ALTER SYSTEM ADD OBSERVER
 
 ### Description
 
-This statement is to increase the node of the FOLLOWER role of FRONTEND, (only for administrators!)
+This statement is to increase the node of the OBSERVER role of FRONTEND, (only for administrators!)
 
 grammar:
 
 ```sql
-ALTER SYSTEM ADD FOLLOWER "follower_host:edit_log_port"
+ALTER SYSTEM ADD OBSERVER "follower_host:edit_log_port"
 ```
 
 illustrate:
@@ -44,16 +44,16 @@ illustrate:
 
 ### Example
 
-1. Add a FOLLOWER node
+1. Add an OBSERVER node
 
     ```sql
-    ALTER SYSTEM ADD FOLLOWER "host_ip:9010"
+    ALTER SYSTEM ADD OBSERVER "host_ip:9010"
     ```
 
 ### Keywords
 
     ```
-    ALTER, SYSTEM, ADD, FOLLOWER, ALTER SYSTEM
+    ALTER, SYSTEM, ADD, OBSERVER, ALTER SYSTEM
     ```
 
 ### Best Practice
