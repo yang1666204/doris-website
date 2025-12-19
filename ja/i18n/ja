@@ -1,8 +1,8 @@
 ---
-{ "title": "NULL_OR_EMPTY", "language": "en" }
+{ "title": "OVERLAY", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,43 +21,53 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## null_or_empty
+## overlay
 
-### description
+### Description
 
 #### Syntax
 
-`BOOLEAN NULL_OR_EMPTY (VARCHAR str)`
+`VARCHAR Overlay (VARCHAR str, INT pos, INT len, VARCHAR newstr)`
 
-It returns true if the string is an empty string or NULL. Otherwise it returns false.
+Returns the string str and replaces it with the string newstr, a substring of len characters starting at position pos. If pos is not within the length of the string, the original string is returned. If len is not within the length of the rest of the string, the rest of the string is replaced starting at position pos. If any argument is NULL, NULL is returned.
 
 ### example
 
 ```
-MySQL [(none)]> select null_or_empty(null);
-+---------------------+
-| null_or_empty(NULL) |
-+---------------------+
-|                   1 |
-+---------------------+
-
-MySQL [(none)]> select null_or_empty("");
-+-------------------+
-| null_or_empty('') |
-+-------------------+
-|                 1 |
-+-------------------+
-
-MySQL [(none)]> select null_or_empty("a");
-+--------------------+
-| null_or_empty('a') |
-+--------------------+
-|                  0 |
-+--------------------+
+mysql> select overlay('Quadratic', 3, 4, 'What');
++------------------------------------+
+| overlay('Quadratic', 3, 4, 'What') |
++------------------------------------+
+| QuWhattic                          |
++------------------------------------+
+mysql> select overlay('Quadratic', -1, 4, 'What');
++-------------------------------------+
+| overlay('Quadratic', -1, 4, 'What') |
++-------------------------------------+
+| Quadratic                           |
++-------------------------------------+
+mysql> select overlay('Quadratic', 3, 100, 'What');
++--------------------------------------+
+| overlay('Quadratic', 3, 100, 'What') |
++--------------------------------------+
+| QuWhat                               |
++--------------------------------------+
+mysql> select overlay('Quadratic', 3, -1, 'What');
++-------------------------------------+
+| overlay('Quadratic', 3, -1, 'What') |
++-------------------------------------+
+| QuWhat                              |
++-------------------------------------+
+mysql> select overlay('Quadratic', 0, 100, 'What');
++--------------------------------------+
+| overlay('Quadratic', 0, 100, 'What') |
++--------------------------------------+
+| Quadratic                            |
++--------------------------------------+
 ```
 
 ### keywords
 
     ```
-    NULL_OR_EMPTY
+    OVERLAY
     ```
