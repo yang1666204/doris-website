@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAY_ZIP", "language": "en" }
+{ "title": "ARRAY", "language": "en" }
 ---
 
 <!-- 
@@ -19,34 +19,59 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_zip
+## array()
 
-array_zip
+array()
 
 ### description
 
-Combines all all arrays into a single array. The resulting array contains the corresponding elements of the source arrays grouped into structs in the listed order of arguments.
-
 #### Syntax
 
-`Array<Struct<T1, T2,...>> array_zip(Array<T1>, Array<T2>, ...)`
+`ARRAY<T> array(T, ...)`
 
-#### Returned value
-
-Array with elements from the source arrays grouped into tuples. Data types in the tuple are the same as types of the input arrays and in the same order as arrays are passed.
+construct an array with variadic elements and return it, T could be column or literal
 
 ### example
 
 ```
-mysql> select array_zip(['a', 'b', 'c'], [1, 2, 3]);
-+-------------------------------------------------+
-| array_zip(ARRAY('a', 'b', 'c'), ARRAY(1, 2, 3)) |
-+-------------------------------------------------+
-| [{'a', 1}, {'b', 2}, {'c', 3}]                  |
-+-------------------------------------------------+
-1 row in set (0.01 sec)
+mysql> select array("1", 2, 1.1);
++----------------------+
+| array('1', 2, '1.1') |
++----------------------+
+| ['1', '2', '1.1']    |
++----------------------+
+1 row in set (0.00 sec)
+
+
+mysql> select array(null, 1);
++----------------+
+| array(NULL, 1) |
++----------------+
+| [NULL, 1]      |
++----------------+
+1 row in set (0.00 sec)
+
+mysql> select array(1, 2, 3);
++----------------+
+| array(1, 2, 3) |
++----------------+
+| [1, 2, 3]      |
++----------------+
+1 row in set (0.00 sec)
+
+mysql>  select array(qid, creationDate, null) from nested  limit 4;
++------------------------------------+
+| array(`qid`, `creationDate`, NULL) |
++------------------------------------+
+| [1000038, 20090616074056, NULL]    |
+| [1000069, 20090616075005, NULL]    |
+| [1000130, 20090616080918, NULL]    |
+| [1000145, 20090616081545, NULL]    |
++------------------------------------+
+4 rows in set (0.01 sec)
 ```
 
 ### keywords
 
-ARRAY,ZIP,ARRAY_ZIP
+ARRAY,ARRAY,CONSTRUCTOR
+
