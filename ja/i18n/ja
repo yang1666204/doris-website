@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-FILE", "language": "en" }
+{ "title": "DROP-FUNCTION", "language": "en" }
 ---
 
 <!--
@@ -21,42 +21,45 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-FILE
+## DROP-FUNCTION
 
 ### Name
 
-DROP FILE
+DROP FUNCTION
 
 ### Description
 
-This statement is used to delete an uploaded file.
+Delete a custom function. Function names and parameter types are exactly the same to be deleted.
 
 grammar:
 
 ```sql
-DROP FILE "file_name" [FROM database]
-[properties]
+DROP [GLOBAL] FUNCTION function_name
+     (arg_type [, ...])
 ```
 
-illustrate:
+Parameter Description:
 
-- file_name: file name.
-- database: a db to which the file belongs, if not specified, the db of the current session is used.
-- properties supports the following parameters:
-  - `catalog`: Required. The category the file belongs to.
+- `function_name`: the name of the function to delete
+- `arg_type`: the argument list of the function to delete
 
 ### Example
 
-1. Delete the file ca.pem
+1. Delete a function
 
-     ```sql
-     DROP FILE "ca.pem" properties("catalog" = "kafka");
-     ```
+    ```sql
+    DROP FUNCTION my_add(INT, INT)
+    ```
+2. Delete a global function
+
+    ```sql
+    DROP GLOBAL FUNCTION my_add(INT, INT)
+    ```
 
 ### Keywords
 
      ```
-      DROP, FILE
+      DROP, FUNCTION
      ```
 
 ### Best Practice
