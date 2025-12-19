@@ -1,5 +1,5 @@
 ---
-{ "title": "BIT_SHIFT_LEFT", "language": "en" }
+{ "title": "BIT_SHIFT_RIGHT", "language": "en" }
 ---
 
 <!-- 
@@ -21,57 +21,65 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bit_shift_left
+## bit_shift_right
 
 ### description
 
 #### syntax
 
-`BIT_SHIFT_LEFT(BIGINT x, TINYINT c)`
+`BIT_SHIFT_RIGHT(BIGINT x, TINYINT c)`
 
-Do logical left shift to `BIGINT` type x by c bits, and return result as a `BIGINT`.
-Return zero if `c` is less than 0.
+Return result of logical right shift of `BIGINT` type x by c bits.
 
 ### example
 
 Normal case
 
 ```sql
-select 8 as x, number as c, bit_shift_left(8, number) as bit_shift_left from numbers("number"="5")
+select 1024 as x, number as c, bit_shift_right(1024, number) as bit_shift_right from numbers("number"="5")
 --------------
 
-+------+------+----------------+
-| x    | c    | bit_shift_left |
-+------+------+----------------+
-|    8 |    0 |              8 |
-|    8 |    1 |             16 |
-|    8 |    2 |             32 |
-|    8 |    3 |             64 |
-|    8 |    4 |            128 |
-+------+------+----------------+
-5 rows in set (0.04 sec)
++------+------+-----------------+
+| x    | c    | bit_shift_right |
++------+------+-----------------+
+| 1024 |    0 |            1024 |
+| 1024 |    1 |             512 |
+| 1024 |    2 |             256 |
+| 1024 |    3 |             128 |
+| 1024 |    4 |              64 |
++------+------+-----------------+
+5 rows in set (0.03 sec)
 ```
 
-Left shift result of `9223372036854775807` which is `BIGINT_MAX` by 1 bit will get -2.
+Logical right shift `BIGINT` -1 by 1 bits gets `BIGINT_MAX`
 
 ```sql
-WITH tbl AS (
-  SELECT 9223372036854775807 AS BIGINT_MAX
-)
-SELECT BIGINT_MAX, bit_shift_left(BIGINT_MAX, 1)
-FROM tbl
+select bit_shift_right(-1, 1)
 --------------
 
-+---------------------+-------------------------------+
-| BIGINT_MAX          | bit_shift_left(BIGINT_MAX, 1) |
-+---------------------+-------------------------------+
-| 9223372036854775807 |                            -2 |
-+---------------------+-------------------------------+
-1 row in set (0.05 sec)
++------------------------+
+| bit_shift_right(-1, 1) |
++------------------------+
+|    9223372036854775807 |
++------------------------+
+```
+
+Return zero if `c` is less than 0
+
+```sql
+select bit_shift_right(100, -1)
+--------------
+
++--------------------------+
+| bit_shift_right(100, -1) |
++--------------------------+
+|                        0 |
++--------------------------+
+1 row in set (0.04 sec)
 ```
 
 ### keywords
 
     ```
-    BITSHIFT, BITSHIFTLEFT
+    BITSHIFT, BITSHIFTRIGHT
     ```
