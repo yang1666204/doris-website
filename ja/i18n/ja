@@ -1,5 +1,5 @@
 ---
-{ "title": "COVAR_SAMP", "language": "en" }
+{ "title": "COVAR,COVAR_POP", "language": "en" }
 ---
 
 <!-- 
@@ -21,22 +21,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## COVAR_SAMP
+## COVAR,COVAR_POP
 
 ### Description
 
 #### Syntax
 
-` double covar_samp(x, y)`
+` double covar(x, y)`
 
-Calculate the sample covariance between x and y.
+Calculate the covariance between x and y.
 
 ### example
 
 ```
-mysql> select covar_samp(x,y) from baseall;
+mysql> select covar(x,y) from baseall;
 +---------------------+
-| covar_samp(x, y)    |
+| covar(x, y)         |
 +---------------------+
 | 0.89442719099991586 |
 +---------------------+
@@ -46,4 +46,4 @@ mysql> select covar_samp(x,y) from baseall;
 
 ### keywords
 
-COVAR_SAMP
+COVAR, COVAR_POP
