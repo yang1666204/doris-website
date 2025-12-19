@@ -1,5 +1,5 @@
 ---
-{ "title": "ADMIN-CHECK-TABLET", "language": "en" }
+{ "title": "ADMIN-CLEAN-TRASH", "language": "en" }
 ---
 
 <!--
@@ -21,45 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ADMIN-CHECK-TABLET
+## ADMIN-CLEAN-TRASH
 
 ### Name
 
-ADMIN CHECK TABLET
+ADMIN CLEAN TRASH
 
 ### Description
 
-This statement is used to perform the specified check operation on a set of tablets.
+This statement is used to clean up garbage data in the backend
 
 grammar:
 
 ```sql
-ADMIN CHECK TABLET (tablet_id1, tablet_id2, ...)
-PROPERTIES("type" = "...");
+ADMIN CLEAN TRASH [ON ("BackendHost1:BackendHeartBeatPort1", "BackendHost2:BackendHeartBeatPort2", ...)];
 ```
 
 illustrate:
 
-1. A list of tablet ids must be specified along with the type property in PROPERTIES.
-2. Type only supports:
-
-   - consistency: Check the consistency of the replica of the tablet. This command is an asynchronous command. After sending, Doris will start to execute the consistency check job of the corresponding tablet. The final result will be reflected in the InconsistentTabletNum column in the result of `SHOW PROC "/cluster_health/tablet_health";`.
+1. Use BackendHost:BackendHeartBeatPort to indicate the backend that needs to be cleaned up, and clean up all backends without adding the on limit.
 
 ### Example
 
-1. Perform a replica data consistency check on a specified set of tablets.
+1. Clean up the junk data of all be nodes.
 
-    ```
-    ADMIN CHECK TABLET (10000, 10001) 
-    PROPERTIES("type" = "consistency");
-    ```
+        ```
+         ADMIN CLEAN TRASH;
+        ```
+
+2. Clean up the junk data of '192.168.0.1:9050' and '192.168.0.2:9050'.
+
+        ```
+         ADMIN CLEAN TRASH ON ("192.168.0.1:9050","192.168.0.2:9050");
+        ```
 
 ### Keywords
-
-    ```
-    ADMIN, CHECK, TABLET
-    ```
-
-### Best Practice
-
-
