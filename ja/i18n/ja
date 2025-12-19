@@ -1,8 +1,8 @@
 ---
-{ "title": "ALTER-SQL-BLOCK-RULE", "language": "en" }
+{ "title": "ALTER-POLICY", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,46 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-SQL-BLOCK-RULE
+## ALTER-POLICY
 
 ### Name
 
-ALTER SQL BLOCK RULE
+ALTER STORAGE POLICY
 
 ### Description
 
-Modify SQL blocking rules to allow modification of each item such as sql/sqlHash/partition_num/tablet_num/cardinality/global/enable.
-
-grammar:
+This statement is used to modify an existing cold and hot separation migration strategy. Only root or admin users can modify resources.
 
 ```sql
-ALTER SQL_BLOCK_RULE rule_name
-[PROPERTIES ("key"="value", ...)];
+ALTER STORAGE POLICY  'policy_name'
+PROPERTIES ("key"="value", ...);
 ```
-
-illustrate:
-
-- sql and sqlHash cannot be set at the same time. This means that if a rule sets sql or sqlHash, the other attribute cannot be modified;
-- sql/sqlHash and partition_num/tablet_num/cardinality cannot be set at the same time. For example, if a rule sets partition_num, then sql or sqlHash cannot be modified;
 
 ### Example
 
-1. Modify according to SQL properties
+1. Modify the name to coolown_datetime Cold and hot separation data migration time point:
 
 ```sql
-ALTER SQL_BLOCK_RULE test_rule PROPERTIES("sql"="select \\* from test_table","enable"="true")
+ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES("cooldown_datetime" = "2023-06-08 00:00:00");
 ```
 
-2. If a rule sets partition_num, then sql or sqlHash cannot be modified
+2. Modify the name to coolown_countdown of hot and cold separation data migration of ttl
 
 ```sql
-ALTER SQL_BLOCK_RULE test_rule2 PROPERTIES("partition_num" = "10","tablet_num"="300","enable"="true")
+ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "10000");
+ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "1h");
+ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "3d");
 ```
 
 ### Keywords
 
-```text
-ALTER,SQL_BLOCK_RULE
+```sql
+ALTER, STORAGE, POLICY
 ```
 
 ### Best Practice
