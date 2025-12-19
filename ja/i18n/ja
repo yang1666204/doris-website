@@ -1,8 +1,8 @@
 ---
-{ "title": "JSON_INSERT", "language": "en" }
+{ "title": "JSON_KEYS", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,51 +21,65 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## json_insert
+## Json_keys
 
 ### Description
 
 #### Syntax
 
-`VARCHAR json_insert(VARCHAR json_str, VARCHAR path, VARCHAR val[, VARCHAR path, VARCHAR val] ...)`
+`ARRAY<STRING> json_keys(JSON, [VARCHAR path])`
 
-`json_insert` function inserts data in a JSON and returns the result.Returns NULL if `json_str` or `path` is NULL. Otherwise, an error occurs if the `json_str` argument is not a valid JSON or any path argument is not a valid path expression or contains a \* wildcard.
+Returns the keys from the top-level value of a JSON object as a JSON array, or, if a path argument is given, the top-level keys from the selected path. Returns NULL if any argument is NULL, the json_doc argument is not an object, or path, if given, does not locate an object. An error occurs if the json_doc argument is not a valid JSON document or the path argument is not a valid path expression
 
-The path-value pairs are evaluated left to right.
+> Note:
+>
+> The result array is empty if the selected object is empty. If the top-level value has nested subobjects, the return value does not include keys from those subobjects.
 
-A path-value pair for a nonexisting path in the json adds the value to the json if the path identifies one of these types of values:
+### Example
 
-- A member not present in an existing object. The member is added to the object and associated with the new value.
+```sql
 
-- A position past the end of an existing array. The array is extended with the new value. If the existing value is not an array, it is autowrapped as an array, then extended with the new value.
+mysql> SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}');
++-----------------------------------------------------+
+| json_keys(cast('{"a": 1, "b": {"c": 30}}' as JSON)) |
++-----------------------------------------------------+
+| ["a", "b"]                                          |
++-----------------------------------------------------+
+1 row in set (0.35 sec)
 
-Otherwise, a path-value pair for a nonexisting path in the json is ignored and has no effect.
+mysql> SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.b');
++------------------------------------------------------------+
+| json_keys(cast('{"a": 1, "b": {"c": 30}}' as JSON), '$.b') |
++------------------------------------------------------------+
+| ["c"]                                                      |
++------------------------------------------------------------+
+1 row in set (0.07 sec)
 
-### example
+mysql> SELECT JSON_KEYS('{}');
++-------------------------------+
+| json_keys(cast('{}' as JSON)) |
++-------------------------------+
+| []                            |
++-------------------------------+
+1 row in set (0.07 sec)
 
+mysql> SELECT JSON_KEYS('[1,2]');
++----------------------------------+
+| json_keys(cast('[1,2]' as JSON)) |
++----------------------------------+
+| NULL                             |
++----------------------------------+
+1 row in set (0.07 sec)
+
+mysql> SELECT JSON_KEYS('[]');
++-------------------------------+
+| json_keys(cast('[]' as JSON)) |
++-------------------------------+
+| NULL                          |
++-------------------------------+
+1 row in set (0.07 sec)
 ```
-MySQL> select json_insert(null, null, null);
-+---------------------------------+
-| json_insert(NULL, NULL, 'NULL') |
-+---------------------------------+
-| NULL                            |
-+---------------------------------+
 
-MySQL> select json_insert('{"k": 1}', "$.k", 2);
-+---------------------------------------+
-| json_insert('{\"k\": 1}', '$.k', '2') |
-+---------------------------------------+
-| {"k":1}                               |
-+---------------------------------------+
+### Keywords
 
-MySQL> select json_insert('{"k": 1}', "$.j", 2);
-+---------------------------------------+
-| json_insert('{\"k\": 1}', '$.j', '2') |
-+---------------------------------------+
-| {"k":1,"j":2}                         |
-+---------------------------------------+
-```
-
-### keywords
-
-JSON, json_insert
+json,json_keys
