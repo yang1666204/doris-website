@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-ENCRYPT-KEY", "language": "en" }
+{ "title": "DROP-FILE", "language": "en" }
 ---
 
 <!--
@@ -21,40 +21,42 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-ENCRYPT-KEY
+## DROP-FILE
 
 ### Name
 
-DROP ENCRYPTKEY
+DROP FILE
 
 ### Description
+
+This statement is used to delete an uploaded file.
 
 grammar:
 
 ```sql
-DROP ENCRYPTKEY key_name
+DROP FILE "file_name" [FROM database]
+[properties]
 ```
 
-Parameter Description:
+illustrate:
 
-- `key_name`: The name of the key to delete, can include the name of the database. For example: `db1.my_key`.
-
-Delete a custom key. The name of the key is exactly the same to be deleted.
-
-Executing this command requires the user to have `ADMIN` privileges.
+- file_name: file name.
+- database: a db to which the file belongs, if not specified, the db of the current session is used.
+- properties supports the following parameters:
+  - `catalog`: Required. The category the file belongs to.
 
 ### Example
 
-1. Delete a key
+1. Delete the file ca.pem
 
-    ```sql
-    DROP ENCRYPTKEY my_key;
-    ```
+     ```sql
+     DROP FILE "ca.pem" properties("catalog" = "kafka");
+     ```
 
 ### Keywords
 
      ```
-      DROP, ENCRYPT, KEY
+      DROP, FILE
      ```
 
 ### Best Practice
