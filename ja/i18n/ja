@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_TO_STRING", "language": "en" }
+{ "title": "BITMAP_UNION", "language": "en" }
 ---
 
 <!-- 
@@ -10,7 +10,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,52 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_to_string
+## bitmap_union function
 
 ### description
 
+Aggregate function, used to calculate the grouped bitmap union. Common usage scenarios such as: calculating PV, UV.
+
 #### Syntax
 
-`VARCHAR BITMAP_TO_STRING(BITMAP input)`
+`BITMAP BITMAP_UNION(BITMAP value)`
 
-Convert a input BITMAP to a string. The string is a separated string, contains all set bits in Bitmap.
-If input is null, return null.
+Enter a set of bitmap values, find the union of this set of bitmap values, and return.
 
 ### example
 
 ```
-mysql> select bitmap_to_string(null);
-+------------------------+
-| bitmap_to_string(NULL) |
-+------------------------+
-| NULL                   |
-+------------------------+
+mysql> select page_id, bitmap_union(user_id) from table group by page_id;
+```
 
-mysql> select bitmap_to_string(bitmap_empty());
-+----------------------------------+
-| bitmap_to_string(bitmap_empty()) |
-+----------------------------------+
-|                                  |
-+----------------------------------+
+Combined with the bitmap_count function, the PV data of the web page can be obtained
 
-mysql> select bitmap_to_string(to_bitmap(1));
-+--------------------------------+
-| bitmap_to_string(to_bitmap(1)) |
-+--------------------------------+
-|  1                             |
-+--------------------------------+
+```
+mysql> select page_id, bitmap_count(bitmap_union(user_id)) from table group by page_id;
+```
 
-mysql> select bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2)));
-+---------------------------------------------------------+
-| bitmap_to_string(bitmap_or(to_bitmap(1), to_bitmap(2))) |
-+---------------------------------------------------------+
-|  1,2                                                    |
-+---------------------------------------------------------+
+When the user_id field is int, the above query semantics is equivalent to
 
+```
+mysql> select page_id, count(distinct user_id) from table group by page_id;
 ```
 
 ### keywords
 
     ```
-    BITMAP_TO_STRING,BITMAP
+    BITMAP_UNION, BITMAP
     ```
