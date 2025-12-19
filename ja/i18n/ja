@@ -1,5 +1,5 @@
 ---
-{ "title": "ATAN2", "language": "en" }
+{ "title": "BIN", "language": "en" }
 ---
 
 <!-- 
@@ -19,35 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## atan2
+## bin
 
 ### description
 
 #### Syntax
 
-`DOUBLE atan2(DOUBLE y, DOUBLE x)`
-Returns the arc tangent of 'y' / 'x'.
+`STRING bin(BIGINT x)`
+Convert the decimal number `x` to binary.
 
 ### example
 
 ```
-mysql> select atan2(0.1, 0.2);
-+---------------------+
-| atan2(0.1, 0.2)     |
-+---------------------+
-| 0.46364760900080609 |
-+---------------------+
-
-mysql> select atan2(1.0, 1.0);
-+---------------------+
-| atan2(1.0, 1.0)     |
-+---------------------+
-| 0.78539816339744828 |
-+---------------------+
+mysql> select bin(0);
++--------+
+| bin(0) |
++--------+
+| 0      |
++--------+
+mysql> select bin(10);
++---------+
+| bin(10) |
++---------+
+| 1010    |
++---------+
+mysql> select bin(-3);
++------------------------------------------------------------------+
+| bin(-3)                                                          |
++------------------------------------------------------------------+
+| 1111111111111111111111111111111111111111111111111111111111111101 |
++------------------------------------------------------------------+
 ```
 
 ### keywords
 
  ```
- ATAN2
+ BIN
  ```
