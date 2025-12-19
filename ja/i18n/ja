@@ -1,5 +1,5 @@
 ---
-{ "title": "KURT,KURT_POP,KURTOSIS", "language": "en" }
+{ "title": "LINEAR_HISTOGRAM", "language": "en" }
 ---
 
 <!-- 
@@ -23,55 +23,44 @@ under the License.
 
 ## Description
 
-Returns the [kurtosis](https://en.wikipedia.org/wiki/Kurtosis) of the expr expression.
-The forumula used for this function is `4-th centrol moment / ((variance)^2) - 3`, when variance is zero, `kurtosis` will return `NULL`.
+### Syntax
 
-## Syntax
+`LINEAR_HISTOGRAM(expr, DOUBLE interval[, DOUBLE offset)`
 
-`kurtosis(expr)`
+The linear_histogram function is used to describe the distribution of the data, It uses an "equal width" bucking strategy, and divides the data into buckets according to the value of the data.
 
-## Arguments
+Parameter description:
 
-TinyInt/SmallInt/Integer/BigInt/Float/Double, Decimal will be casted to a float number.
-
-## Return value
-
-`Double`
+- `interval`: Required. The bucket width.
+- `offset`: Optional. Default is 0. It should be in `[0, interval)`.
 
 ## Example
 
-```sql
-create table statistic_test(tag int, val1 double not null, val2 double null) distributed by hash(tag) properties("replication_num"="1")
+```
+mysql> select linear_histogram(a, 2) from histogram_test;
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, cast(2 as DOUBLE))                                                                                                                                                                                                                                                                                                           |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":6,"buckets":[{"lower":0.0,"upper":2.0,"count":2,"acc_count":2},{"lower":2.0,"upper":4.0,"count":4,"acc_count":6},{"lower":4.0,"upper":6.0,"count":4,"acc_count":10},{"lower":6.0,"upper":8.0,"count":4,"acc_count":14},{"lower":8.0,"upper":10.0,"count":4,"acc_count":18},{"lower":10.0,"upper":12.0,"count":2,"acc_count":20}]} |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-insert into statistic_test values (1, -10, -10),(2, -20, NULL),(3, 100, NULL),(4, 100, NULL),(5, 1000,1000);
-
-// NULL is ignored
-select kurt(val1), kurt(val2) from statistic_test
---------------
-
-+-------------------+--------------------+
-| kurt(val1)        | kurt(val2)         |
-+-------------------+--------------------+
-| 0.162124583734851 | -1.3330994719286338 |
-+-------------------+--------------------+
-1 row in set (0.02 sec)
-
-// Each group just has one row, result is NULL
-select kurt(val1), kurt(val2) from statistic_test group by tag
---------------
-
-+------------+------------+
-| kurt(val1) | kurt(val2) |
-+------------+------------+
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-+------------+------------+
-5 rows in set (0.02 sec)
+mysql> select linear_histogram(a, 2, 1) from histogram_test;
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, cast(2 as DOUBLE), cast(1 as DOUBLE))                                                                                                                                                                                                                                   |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":5,"buckets":[{"lower":1.0,"upper":3.0,"count":4,"acc_count":4},{"lower":3.0,"upper":5.0,"count":4,"acc_count":8},{"lower":5.0,"upper":7.0,"count":4,"acc_count":12},{"lower":7.0,"upper":9.0,"count":4,"acc_count":16},{"lower":9.0,"upper":11.0,"count":4,"acc_count":20}]} |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
-## Related Commands
+Field description:
 
-[skew](./skew.md)
+- `num_buckets`: The number of buckets.
+- `buckets`: All buckets.
+  - `lower`: Lower bound of the bucket. (included)
+  - `upper`: Upper bound of the bucket. (not included)
+  - `count`: The number of elements contained in the bucket.
+  - `acc_count`: Accumulated count.
+
+## Keywords
+
+LINEAR_HISTOGRAM
