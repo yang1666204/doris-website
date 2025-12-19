@@ -1,5 +1,5 @@
 ---
-{ "title": "table_constraints", "language": "en" }
+{ "title": "table_options", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-This table is solely for the purpose of maintaining compatibility with MySQL behavior. It is always empty.
+This table is solely used for compatibility with MySQL behavior. It is always empty.
 
 ## Database
 
@@ -31,11 +31,14 @@ This table is solely for the purpose of maintaining compatibility with MySQL beh
 
 ## Table Information
 
-| Column Name                             | Type                            | Description |
-| --------------------------------------- | ------------------------------- | ----------- |
-| CONSTRAINT_CATALOG | varchar(512) |             |
-| CONSTRAINT_SCHEMA  | varchar(64)  |             |
-| CONSTRAINT_NAME    | varchar(64)  |             |
-| TABLE_SCHEMA       | varchar(64)  |             |
-| TABLE_NAME         | varchar(64)  |             |
-| CONSTRAINT_TYPE    | varchar(64)  |             |
+| Column Name                                               | Type                           | Description |
+| --------------------------------------------------------- | ------------------------------ | ----------- |
+| TABLE_CATALOG                        | varchar(64) |             |
+| TABLE_SCHEMA                         | varchar(64) |             |
+| TABLE_NAME                           | varchar(64) |             |
+| TABLE_MODEL                          | text                           |             |
+| TABLE_MODEL_KEY | text                           |             |
+| DISTRIBUTE_KEY                       | text                           |             |
+| DISTRIBUTE_TYPE                      | text                           |             |
+| BUCKETS_NUM                          | int                            |             |
+| PARTITION_NUM                        | int                            |             |
