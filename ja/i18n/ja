@@ -1,8 +1,8 @@
 ---
-{ "title": "Overview", "language": "en" }
+{ "title": "CHAR", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -20,3 +20,14 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+## CHAR
+
+### Description
+
+CHAR(M)
+A fixed-length string, M represents the byte length of a fixed-length string. The range of M is 1-255.
+
+### keywords
+
+CHAR
