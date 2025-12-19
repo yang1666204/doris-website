@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-RESOURCES", "language": "en" }
+{ "title": "SHOW-RESTORE", "language": "en" }
 ---
 
 <!--
@@ -21,69 +21,66 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-RESOURCES
+## SHOW-RESTORE
 
 ### Name
 
-SHOW RESOURCES
+SHOW RESTORE
 
 ### Description
 
-This statement is used to display resources that the user has permission to use. Ordinary users can only display resources with permission, and root or admin users will display all resources.
+This statement is used to view RESTORE tasks
 
 grammar:
 
-```sql
-SHOW RESOURCES
-[
-  WHERE
-  [NAME [ = "your_resource_name" | LIKE "name_matcher"]]
-  [RESOURCETYPE = ["SPARK"]]
-] | [LIKE "pattern"]
-[ORDER BY...]
-[LIMIT limit][OFFSET offset];
+```SQL
+SHOW [BRIEF] RESTORE [FROM DB_NAME]
 ```
 
 illustrate:
+1. Only the most recent RESTORE task is saved in Doris.
+2. The meaning of each column is as follows:
+JobId: Unique job id
+Label: The name of the backup to restore
+Timestamp: The time version of the backup to restore
+DbName: belongs to the database
+State: current stage
+PENDING: The initial state after submitting the job
+SNAPSHOTING: Executing snapshot
+DOWNLOAD: The snapshot is complete, ready to download the snapshot in the repository
+DOWNLOADING: Snapshot downloading
+COMMIT: Snapshot download is complete, ready to take effect
+COMMITING: in effect
+FINISHED: The job was successful
+CANCELLED: Job failed
+AllowLoad: Whether to allow import when restoring (currently not supported)
+ReplicationNum: Specifies the number of replicas to restore
+RestoreJobs: Tables and partitions to restore
+CreateTime: task submission time
+MetaPreparedTime: Metadata preparation completion time
+SnapshotFinishedTime: Snapshot completion time
+DownloadFinishedTime: Snapshot download completion time
+FinishedTime: Job finish time
+UnfinishedTasks: Displays unfinished subtask ids during SNAPSHOTING, DOWNLOADING and COMMITING stages
+Status: If the job fails, display the failure message
+Timeout: Job timeout, in seconds
 
-1. If NAME LIKE is used, it will match Resource whose Name contains name_matcher in RESOURCES
-2. If NAME = is used, it will match the specified Name exactly
-3. If RESOURCETYPE is specified, match the corresponding Resrouce type
-4. You can use ORDER BY to sort on any combination of columns
-5. If LIMIT is specified, limit matching records are displayed. Otherwise show all
-6. If OFFSET is specified, the query results are displayed starting at offset offset. By default the offset is 0.
-7. If using LIKE, the WHERE clause will be ignored.
+        ```
+            2. brief: only show key information of RESTORE tasks, columns RestoreObjs, Progress, TaskErrMsg will not show
+        ```
 
 ### Example
 
-1. Display all resources that the current user has permissions to
+1. View the latest RESTORE task under example_db.
 
    ```sql
-   SHOW RESOURCES;
-   ```
-
-2. Display the specified Resource, the name contains the string "20140102", and display 10 attributes
-
-   ```sql
-   SHOW RESOURCES WHERE NAME LIKE "2014_01_02" LIMIT 10;
-   ```
-
-3. Display the specified Resource, specify the name as "20140102" and sort by KEY in descending order
-
-   ```sql
-   SHOW RESOURCES WHERE NAME = "20140102" ORDER BY `KEY` DESC;
-   ```
-
-4. Using LIKE to match the resource
-
-   ```sql
-   SHOW RESOURCES LIKE "jdbc%";
+   SHOW RESTORE FROM example_db;
    ```
 
 ### Keywords
 
     ```
-    SHOW, RESOURCES
+    SHOW, RESTORE
     ```
 
 ### Best Practice
