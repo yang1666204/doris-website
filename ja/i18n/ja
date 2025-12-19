@@ -1,5 +1,5 @@
 ---
-{ "title": "LIKE", "language": "en" }
+{ "title": "NOT LIKE", "language": "en" }
 ---
 
 <!-- 
@@ -21,15 +21,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## like
+## not like
 
 ### description
 
 #### syntax
 
-`BOOLEAN like(VARCHAR str, VARCHAR pattern)`
+`BOOLEAN not like(VARCHAR str, VARCHAR pattern)`
 
-Perform fuzzy matching on the string str, return true if it matches, and false if it doesn't match.
+Perform fuzzy matching on the string str, return false if it matches, and return true if it doesn't match.
 
 like match/fuzzy match, will be used in combination with % and _.
 
@@ -61,26 +61,28 @@ the underscore ('_') represents a single character.
 | a     |
 +-------+
 
-// Return the data containing a in the k1 string
-mysql> select k1 from test where k1 like '%a%';
+// Return data that does not contain a in the k1 string
+mysql> select k1 from test where k1 not like '%a%';
 +-------+
 | k1    |
 +-------+
-| a     |
-| bab   |
+| b     |
+| bb    |
 +-------+
 
-// Return the data equal to a in the k1 string
-mysql> select k1 from test where k1 like 'a';
+// Return the data that is not equal to a in the k1 string
+mysql> select k1 from test where k1 not like 'a';
 +-------+
 | k1    |
 +-------+
-| a     |
+| b     |
+| bb    |
+| bab   |
 +-------+
 ```
 
 ### keywords
 
     ```
-    LIKE
+    LIKE, NOT, NOT LIKE
     ```
