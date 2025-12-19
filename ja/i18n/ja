@@ -1,5 +1,5 @@
 ---
-{ "title": "PMOD", "language": "en" }
+{ "title": "POSITIVE", "language": "en" }
 ---
 
 <!-- 
@@ -19,40 +19,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## pmod
+## positive
 
 ### description
 
 #### Syntax
 
 ```sql
-BIGINT PMOD(BIGINT x, BIGINT y)
-DOUBLE PMOD(DOUBLE x, DOUBLE y)
+BIGINT positive(BIGINT x)
+DOUBLE positive(DOUBLE x)
+DECIMAL positive(DECIMAL x)
 ```
 
-Returns the positive result of x mod y in the residue systems.
-Formally, return `(x%y+y)%y`.
+Return `x`.
 
 ### example
 
 ```
-MySQL [test]> SELECT PMOD(13,5);
-+-------------+
-| pmod(13, 5) |
-+-------------+
-|           3 |
-+-------------+
-
-MySQL [test]> SELECT PMOD(-13,5);
-+-------------+
-| pmod(-13, 5) |
-+-------------+
-|           2 |
-+-------------+
+mysql> SELECT positive(-10);
++---------------+
+| positive(-10) |
++---------------+
+|           -10 |
++---------------+
+mysql> SELECT positive(12);
++--------------+
+| positive(12) |
++--------------+
+|           12 |
++--------------+
 ```
 
 ### keywords
 
  ```
- PMOD
+ POSITIVE
  ```
