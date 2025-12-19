@@ -1,5 +1,5 @@
 ---
-{ "title": "STDDEV,STDDEV_POP", "language": "en" }
+{ "title": "SUM", "language": "en" }
 ---
 
 <!-- 
@@ -21,34 +21,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## STDDEV,STDDEV_POP
+## SUM
 
 ### Description
 
 #### Syntax
 
-`stddev (expl)`
+`Sum (Expr)`
 
-Returns the standard deviation of the expr expression
+Used to return the sum of all values of the selected field
 
 ### example
 
 ```
-MySQL > select stddev(scan_rows) from log_statis group by datetime;
-+---------------------+
-| stddev(`scan_rows`) |
-+---------------------+
-|  2.3736656687790934 |
-+---------------------+
-
-MySQL > select stddev_pop(scan_rows) from log_statis group by datetime;
-+-------------------------+
-| stddev_pop(`scan_rows`) |
-+-------------------------+
-|      2.3722760595994914 |
-+-------------------------+
+MySQL > select sum(scan_rows) from log_statis group by datetime;
++------------------+
+| sum(`scan_rows`) |
++------------------+
+|       8217360135 |
++------------------+
 ```
 
 ### keywords
 
-STDDEV,STDDEV_POP,POP
+SUM
