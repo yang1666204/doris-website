@@ -1,5 +1,5 @@
 ---
-{ "title": "Modify BE VLOG", "language": "en" }
+{ "title": "Check Stub Cache", "language": "en" }
 ---
 
 <!-- 
@@ -21,21 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# CHECK Stub Cache
+
 ## Request
 
-`POST /api/glog/adjust?module=<module_name>&level=<level_number>`
+`GET /api/check_rpc_channel/{host_to_check}/{remot_brpc_port}/{payload_size}`
 
 ## Description
 
-This function is used to dynamically adjust the VLOG log on the BE side.
+Check whether the connection cache is available
 
-## Query parameters
+## Path parameters
 
-- `module_name`
-  Module to set up VLOG, corresponding to BE without suffix filename
+- `host_to_check`
 
-- `level_number`
-  VLOG level, from 1 to 10. And -1 for off
+  Host to check
+
+- `remot_brpc_port`
+
+  Remote brpc port
+
+- `payload_size`
+
+  Load size, unit: B, value range 1~1024000.
 
 ## Request body
 
@@ -44,10 +52,12 @@ None
 ## Response
 
     ````
-    ```json
+    ```
     {
-        msg: "adjust vlog of xxx from -1 to 10 succeed",
-        code: 0
+        "msg":"success",
+        "code":0,
+        "data": "open brpc connection to {host_to_check}:{remot_brpc_port} success.",
+        "count":0
     }
     ```
     ````
@@ -55,7 +65,8 @@ None
 ## Examples
 
     ````
-    ```bash
-    curl -X POST "http://127.0.0.1:8040/api/glog/adjust?module=vrow_distribution&level=-1"
+    ```
+    curl http://127.0.0.1:8040/api/check_rpc_channel/127.0.0.1/8060/1024000
     ```
     ````
+
