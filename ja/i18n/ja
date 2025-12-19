@@ -1,5 +1,5 @@
 ---
-{ "title": "Performance", "language": "en" }
+{ "title": "Quick Start", "language": "en" }
 ---
 
 <!--
@@ -21,61 +21,76 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The performance data in this document is based on the default configuration. If you are facing high network latency or high throughput write scenarios, you can refer to the [Operation Manual](manual.md) for optimization.
+## 1. Open the binlog configuration for the source and target clusters
 
-## Test Dataset
+Configure the following information in the fe.conf and be.conf of both the source and target clusters:
 
-- **Dataset**: TPC-H 1T
+```sql
+enable_feature_binlog=true
+```
 
-## Test Cluster Configuration
+## 2. Deploy Syncer
 
-| Configuration Item | Upstream Configuration                      | Downstream Configuration                    |
-| ------------------ | ------------------------------------------- | ------------------------------------------- |
-| FE                 | 2 cores 16 GB                               | 2 cores 16 GB                               |
-| BE                 | 3 nodes, 16 cores 64 GB, 3\*500 GB per node | 3 nodes, 16 cores 64 GB, 3\*500 GB per node |
+2.1. Download the latest package from the following link:
 
----
+`https://apache-doris-releases.oss-accelerate.aliyuncs.com/ccr-syncer-2.1.4-x64.tar.xz`
 
-## Incremental Synchronization Performance Test
+2.2. Start and stop Syncer
 
-### Test Steps
+```shell
+# Start
+cd bin && sh start_syncer.sh --daemon
+```
 
-1. Create the database and tables for TPC-H 1T in the upstream cluster.
-2. Create a synchronization job for the TPC-H 1T database.
-3. Wait for the TPC-H 1T data import to complete and record the completion time.
-4. Wait for the downstream data synchronization to complete and record the completion time.
+```shell
+# Stop
+sh stop_syncer.sh
+```
 
-### Test Conclusion
+## Step 3. Open the Binlog for the synchronized database/table in the source cluster
 
-Incremental synchronization time difference: 33 seconds
+```shell
+-- If synchronizing the entire database, execute the following script to enable binlog for all tables in that database
+./enable_db_binlog.sh --host $host --port $port --user $user --password $password --db $db
 
----
+-- If synchronizing a single table, only enable the binlog for that table by executing:
+ALTER TABLE your_table_name ENABLE BINLOG SET ("binlog.enable" = "true");
+```
 
-## Full Synchronization Performance Test
+## Step 4. Initiate a synchronization job to Syncer
 
-### Test Steps
+```shell
+curl -X POST -H "Content-Type: application/json" -d '{
+    "name": "ccr_test",
+    "src": {
+      "host": "localhost",
+      "port": "9030",
+      "thrift_port": "9020",
+      "user": "root",
+      "password": "",
+      "database": "your_db_name",
+      "table": "your_table_name"
+    },
+    "dest": {
+      "host": "localhost",
+      "port": "9030",
+      "thrift_port": "9020",
+      "user": "root",
+      "password": "",
+      "database": "your_db_name",
+      "table": "your_table_name"
+    }
+}' http://127.0.0.1:9190/create_ccr
+```
 
-1. Create the library and table information for TPC-H 1T in the upstream cluster and complete the data import, recording the completion time.
-2. Create a synchronization job for the TPC-H 1T database.
-3. Wait for the downstream data synchronization to complete and record the completion time.
+Explanation of the parameters for the synchronization job:
 
-### Test Conclusion
-
-Full synchronization time difference: 6 minutes 1 second
-
----
-
-## Flink Synchronization Performance Test
-
-### Test Steps
-
-1. Use Flink to import 100,000,000 records in the upstream.
-2. Create a synchronization job for the library and table.
-3. Observe the difference between the downstream synchronization completion time and the upstream import completion time at each stage (e.g., 1,000,000 records, 2,000,000 records, etc.).
-4. Record the last import completion time in the upstream.
-5. Record the downstream synchronization completion time.
-
-### Test Conclusion
-
-The **lag time** at each stage is maintained within `5 seconds`.
-
+```shell
+name: The name of the CCR synchronization job, must be unique
+host, port: Correspond to the host and MySQL (JDBC) port of the cluster Master FE
+user, password: The identity used by Syncer to start transactions and pull data
+database, table:
+If synchronizing at the database level, fill in your_db_name, and leave your_table_name empty
+If synchronizing at the table level, fill in both your_db_name and your_table_name
+The name used to initiate the synchronization job can only be used once
+```
