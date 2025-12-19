@@ -1,5 +1,5 @@
 ---
-{ "title": "TO_BASE64", "language": "en" }
+{ "title": "TOP_LEVEL_DOMAIN", "language": "en" }
 ---
 
 <!-- 
@@ -21,36 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## to_base64
+## Description
 
-### description
+## Syntax
 
-#### Syntax
+`VARCHAR  top_level_domain(VARCHAR url)`
 
-`VARCHAR to_base64(VARCHAR str)`
+Extract the top-level domain from a URL and return it. If the URL is invalid, return an empty string.
 
-Returns the result of Base64 encoding the input string
+## Example
 
-### example
+```sql
+mysql [(none)]>select top_level_domain("www.baidu.com");
++-----------------------------------+
+| top_level_domain('www.baidu.com') |
++-----------------------------------+
+| com                               |
++-----------------------------------+
 
-```
-mysql> select to_base64('1');
-+----------------+
-| to_base64('1') |
-+----------------+
-| MQ==           |
-+----------------+
+mysql [(none)]>select top_level_domain("www.google.com.cn");
++---------------------------------------+
+| top_level_domain('www.google.com.cn') |
++---------------------------------------+
+| cn                                    |
++---------------------------------------+
 
-mysql> select to_base64('234');
-+------------------+
-| to_base64('234') |
-+------------------+
-| MjM0             |
-+------------------+
+mysql [(none)]>select top_level_domain("wwwwwwww");
++------------------------------+
+| top_level_domain('wwwwwwww') |
++------------------------------+
+|                              |
++------------------------------+
 ```
 
 ### keywords
 
-    ```
-    to_base64
-    ```
+top_level_domain
