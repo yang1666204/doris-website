@@ -1,5 +1,5 @@
 ---
-{ "title": "SPLIT_BY_REGEXP", "language": "en" }
+{ "title": "SPLIT_BY_STRING", "language": "en" }
 ---
 
 <!-- 
@@ -19,42 +19,87 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## split_by_regexp
+## split_by_string
 
 ### description
 
 #### Syntax
 
-`ARRAY<STRING> split_by_regexp(STRING str, STRING pattern[, int max_limit])`
+`ARRAY<STRING> split_by_string(STRING s, STRING separator)`
 
-Split the string 'str' based on the input regular expression 'pattern', with the option to retain up to the maximum number 'max_imit'. By default, all strings will be retained, and a split string array will be returned.
+Splits a string into substrings separated by a string. It uses a constant string separator of multiple characters as the separator. If the string separator is empty, it will split the string s into an array of single characters.
 
 #### Arguments
 
-`Str ` - The string that needs to be split Type: `String`
-`Pattern `- Regular expression Type: `String`
-`Max_imit ` - Reserved number, optional parameter Type: `Int`
+`separator` — The separator. Type: `String`
+
+`s` — The string to split. Type: `String`
+
+#### Returned value(s)
+
+Returns an array of selected substrings. Empty substrings may be selected when:
+
+A non-empty separator occurs at the beginning or end of the string;
+
+There are multiple consecutive separators;
+
+The original string s is empty.
+
+Type: `Array(String)`
 
 ### example
 
 ```
-mysql [test_query_qa]>select split_by_regexp('abcde',"");
-+------------------------------+
-| split_by_regexp('abcde', '') |
-+------------------------------+
-| ["a", "b", "c", "d", "e"]    |
-+------------------------------+
-1 row in set (0.02 sec)
+select split_by_string('a1b1c1d','1');
++---------------------------------+
+| split_by_string('a1b1c1d', '1') |
++---------------------------------+
+| ['a', 'b', 'c', 'd']            |
++---------------------------------+
 
-mysql [test_query_qa]>select split_by_regexp('a12bc23de345f',"\\d+");
-+-----------------------------------------+
-| split_by_regexp('a12bc23de345f', '\d+') |
-+-----------------------------------------+
-| ["a", "bc", "de", "f"]                  |
-+-----------------------------------------+
-1 row in set (0.01 sec)
+select split_by_string(',,a,b,c,',',');
++----------------------------------+
+| split_by_string(',,a,b,c,', ',') |
++----------------------------------+
+| ['', '', 'a', 'b', 'c', '']      |
++----------------------------------+
+
+SELECT split_by_string(NULL,',');
++----------------------------+
+| split_by_string(NULL, ',') |
++----------------------------+
+| NULL                       |
++----------------------------+
+
+select split_by_string('a,b,c,abcde',',');
++-------------------------------------+
+| split_by_string('a,b,c,abcde', ',') |
++-------------------------------------+
+| ['a', 'b', 'c', 'abcde']            |
++-------------------------------------+
+
+select split_by_string('1,,2,3,,4,5,,abcde', ',,');
++---------------------------------------------+
+| split_by_string('1,,2,3,,4,5,,abcde', ',,') |
++---------------------------------------------+
+| ['1', '2,3', '4,5', 'abcde']                |
++---------------------------------------------+
+
+select split_by_string(',,,,',',,');
++-------------------------------+
+| split_by_string(',,,,', ',,') |
++-------------------------------+
+| ['', '', '']                  |
++-------------------------------+
+
+select split_by_string(',,a,,b,,c,,',',,');
++--------------------------------------+
+| split_by_string(',,a,,b,,c,,', ',,') |
++--------------------------------------+
+| ['', 'a', 'b', 'c', '']              |
++--------------------------------------+
 ```
 
 ### keywords
 
-SPLIT_BY_REGEXP,SPLIT
+SPLIT_BY_STRING,SPLIT
