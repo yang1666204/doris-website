@@ -1,5 +1,5 @@
 ---
-{ "title": "CREATE-SYNC-JOB", "language": "en" }
+{ "title": "MULTI-LOAD", "language": "en" }
 ---
 
 <!--
@@ -21,138 +21,100 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CREATE-SYNC-JOB
+## MULTI-LOAD
 
 ### Name
 
-CREATE SYNC JOB
+MULTI LOAD
 
 ### Description
 
-The data synchronization (Sync Job) function supports users to submit a resident data synchronization job, and incrementally synchronizes the CDC (Change Data Capture) of the user's data update operation in the Mysql database by reading the Binlog log from the specified remote address. Features.
+Users submit multiple import jobs through the HTTP protocol. Multi Load can ensure the atomic effect of multiple import jobs
 
-Currently, the data synchronization job only supports connecting to Canal, obtaining the parsed Binlog data from the Canal Server and importing it into Doris.
-
-Users can view the data synchronization job status through [SHOW SYNC JOB](../../Show-Statements/SHOW-SYNC-JOB.md).
-
-grammar:
-
-```sql
-CREATE SYNC [db.]job_name
- (
- channel_desc,
- channel_desc
- ...
- )
-binlog_desc
 ```
+Syntax:
+    curl --location-trusted -u user:passwd -XPOST http://host:port/api/{db}/_multi_start?label=xxx
+    curl --location-trusted -u user:passwd -T data.file http://host:port/api/{db}/{table1}/_load?label=xxx\&sub_label=yyy
+    curl --location-trusted -u user:passwd -T data.file http://host:port/api/{db}/{table2}/_load?label=xxx\&sub_label=zzz
+    curl --location-trusted -u user:passwd -XPOST http://host:port/api/{db}/_multi_commit?label=xxx
+    curl --location-trusted -u user:passwd -XPOST http://host:port/api/{db}/_multi_desc?label=xxx
 
-1. `job_name`
+On the basis of 'MINI LOAD', 'MULTI LOAD' can support users to import to multiple tables at the same time. The specific commands are shown above.
+'/api/{db}/_multi_start' starts a multi-table import task
+'/api/{db}/{table}/_load' adds a table to be imported to an import task. The main difference from 'MINI LOAD' is that the 'sub_label' parameter needs to be passed in
+'/api/{db}/_multi_commit' submits the entire multi-table import task, and starts processing in the background
+'/api/{db}/_multi_abort' Abort a multi-table import task
+'/api/{db}/_multi_desc' can display the number of jobs submitted by a multi-table import task
 
-   The synchronization job name is the unique identifier of the job in the current database. Only one job with the same `job_name` can be running.
+Description of the HTTP protocol
+    Authorization Authentication Currently, Doris uses HTTP Basic authorization authentication. So you need to specify the username and password when importing
+                        This method is to pass the password in clear text, since we are currently in an intranet environment. . .
 
-2. `channel_desc`
+    Expect Doris needs to send the http request, it needs to have 'Expect' header information, the content is '100-continue'
+                        why? Because we need to redirect the request, before transmitting the data content,
+                        This can avoid causing multiple transmissions of data, thereby improving efficiency.
 
-   The data channel under the job is used to describe the mapping relationship between the mysql source table and the doris target table.
+    Content-Length Doris needs to send the request with the 'Content-Length' header. If the content sent is greater than
+                        If the 'Content-Length' is less, then Palo thinks that there is a problem with the transmission, and fails to submit the task.
+                        NOTE: If more data is sent than 'Content-Length', then Doris only reads 'Content-Length'
+                        length content and import
 
-   grammar:
+Parameter Description:
+    user: If the user is in the default_cluster, the user is the user_name. Otherwise user_name@cluster_name.
 
-   ```sql
-   FROM mysql_db.src_tbl INTO des_tbl
-   [columns_mapping]
-   ```
+    label: Used to specify the label number imported in this batch, which is used for later job status query, etc.
+                        This parameter is required.
 
-   1. `mysql_db.src_tbl`
+    sub_label: Used to specify the subversion number inside a multi-table import task. For loads imported from multiple tables, this parameter must be passed in.
 
-      Specify the database and source table on the mysql side.
+    columns: used to describe the corresponding column names in the import file.
+                        If it is not passed in, then the order of the columns in the file is considered to be the same as the order in which the table was created.
+                        The specified method is comma-separated, for example: columns=k1,k2,k3,k4
 
-   2. `des_tbl`
+    column_separator: used to specify the separator between columns, the default is '\t'
+                        NOTE: url encoding is required, for example, '\t' needs to be specified as the delimiter,
+                        Then you should pass in 'column_separator=%09'
 
-      Specify the target table on the doris side. Only unique tables are supported, and the batch delete function of the table needs to be enabled (see the 'batch delete function' of help alter table for how to enable it).
+    max_filter_ratio: used to specify the maximum ratio of non-standard data allowed to filter, the default is 0, no filtering is allowed
+                        The custom specification should be as follows: 'max_filter_ratio=0.2', which means 20% error rate is allowed
+                        Passing in has effect when '_multi_start'
 
-   3. `column_mapping`
+NOTE:
+    1. This import method currently completes the import work on one machine, so it is not suitable for import work with a large amount of data.
+    It is recommended that the amount of imported data should not exceed 1GB
 
-      Specifies the mapping relationship between the columns of the mysql source table and the doris target table. If not specified, FE will default the columns of the source table and the target table to one-to-one correspondence in order.
+    2. Currently it is not possible to submit multiple files using `curl -T "{file1, file2}"`, because curl splits them into multiple files
+    The request is sent. Multiple requests cannot share a label number, so it cannot be used.
 
-      The form col_name = expr is not supported for columns.
-
-      Example:
-
-      Suppose the target table column is (k1, k2, v1),
-
-      Change the order of columns k1 and k2
-      (k2, k1, v1)
-
-      Ignore the fourth column of the source data
-      (k2, k1, v1, dummy_column)
-
-3. `binlog_desc`
-
-   Used to describe the remote data source, currently only one canal is supported.
-
-   grammar:
-
-   ```sql
-   FROM BINLOG
-   (
-       "key1" = "value1",
-       "key2" = "value2"
-   )
-   ```
-
-   1. The properties corresponding to the Canal data source, prefixed with `canal.`
-
-      1. canal.server.ip: address of canal server
-      2. canal.server.port: the port of the canal server
-      3. canal.destination: the identity of the instance
-      4. canal.batchSize: The maximum batch size obtained, the default is 8192
-      5. canal.username: username of instance
-      6. canal.password: the password of the instance
-      7. canal.debug: optional, when set to true, the batch and details of each row of data will be printed out
+    3. Supports the use of curl to import data into Doris in a way similar to streaming, but only after the streaming ends Doris
+    The real import behavior will occur, and the amount of data in this way cannot be too large.
+```
 
 ### Example
 
-1. Simply create a data synchronization job named `job1` for `test_tbl` of `test_db`, connect to the local Canal server, corresponding to the Mysql source table `mysql_db1.tbl1`.
+```
+1. Import the data in the local file 'testData1' into the table 'testTbl1' in the database 'testDb', and
+Import the data of 'testData2' into table 'testTbl2' in 'testDb' (user is in defalut_cluster)
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_start?label=123
+    curl --location-trusted -u root -T testData1 http://host:port/api/testDb/testTbl1/_load?label=123\&sub_label=1
+    curl --location-trusted -u root -T testData2 http://host:port/api/testDb/testTbl2/_load?label=123\&sub_label=2
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_commit?label=123
 
-   ```SQL
-   CREATE SYNC `test_db`.`job1`
-   (
-   FROM `mysql_db1`.`tbl1` INTO `test_tbl`
-   )
-   FROM BINLOG
-   (
-   "type" = "canal",
-   "canal.server.ip" = "127.0.0.1",
-   "canal.server.port" = "11111",
-   "canal.destination" = "example",
-   "canal.username" = "",
-   "canal.password" = ""
-   );
-   ```
+2. Abandoned in the middle of multi-table import (user is in defalut_cluster)
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_start?label=123
+    curl --location-trusted -u root -T testData1 http://host:port/api/testDb/testTbl1/_load?label=123\&sub_label=1
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_abort?label=123
 
-2. Create a data synchronization job named `job1` for multiple tables of `test_db`, corresponding to multiple Mysql source tables one-to-one, and explicitly specify the column mapping.
-
-   ```SQL
-   CREATE SYNC `test_db`.`job1`
-   (
-   FROM `mysql_db`.`t1` INTO `test1` (k1, k2, v1) ,
-   FROM `mysql_db`.`t2` INTO `test2` (k3, k4, v2) 
-   )
-   FROM BINLOG
-   (
-   "type" = "canal",
-   "canal.server.ip" = "xx.xxx.xxx.xx",
-   "canal.server.port" = "12111",
-   "canal.destination" = "example",
-   "canal.username" = "username",
-   "canal.password" = "password"
-   );
-   ```
+3. Multi-table import to see how much content has been submitted (the user is in the defalut_cluster)
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_start?label=123
+    curl --location-trusted -u root -T testData1 http://host:port/api/testDb/testTbl1/_load?label=123\&sub_label=1
+    curl --location-trusted -u root -XPOST http://host:port/api/testDb/_multi_desc?label=123
+```
 
 ### Keywords
 
-    ```
-    CREATE, SYNC, JOB
-    ```
+```
+MULTI, MINI, LOAD
+```
 
 ### Best Practice
