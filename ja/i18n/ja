@@ -1,5 +1,5 @@
 ---
-{ "title": "ALTER-TABLE-PARTITION", "language": "en" }
+{ "title": "ALTER-TABLE-PROPERTY", "language": "en" }
 ---
 
 <!--
@@ -21,17 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-TABLE-PARTITION
+## ALTER-TABLE-PROPERTY
 
 ### Name
 
-ALTER TABLE PARTITION
+ALTER TABLE PROPERTY
+
+:::caution
+Differences between Partition Attributes and Table Attributes
+
+- Partition attributes generally focus on the number of buckets (buckets), storage medium (storage_medium), replication num (replication_num), and hot/cold data separation policies (storage_policy).
+  - For existing partitions, you can use ALTER TABLE {tableName} MODIFY PARTITION ({partitionName}) SET ({key}={value}) to modify them, but the number of buckets (buckets) cannot be changed.
+  - For not-created dynamic partitions, you can use ALTER TABLE {tableName} SET (dynamic_partition.{key} = {value}) to modify their attributes.
+  - For not-created auto partitions, you can use ALTER TABLE {tableName} SET ({key} = {value}) to modify their attributes.
+  - If users want to modify partition attributes, they need to modify the attributes of the already created partitions, as well as the attributes of not-created partitions.
+- Aside from the above attributes, all others are at the table level.
+- For the specific attributes, please refer to [create table attributes](../../../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-TABLE.md#properties)
+  :::
 
 ### Description
 
-This statement is used to modify a table with a partition.
+This statement is used to modify the properties of an existing table. This operation is synchronous, and the return of the command indicates the completion of the execution.
 
-This operation is synchronous, and the return of the command indicates the completion of the execution.
+Modify the properties of the table, currently supports modifying the bloom filter column, the colocate_with attribute and the dynamic_partition attribute,  the replication_num and default.replication_num.
 
 grammar:
 
@@ -39,145 +51,246 @@ grammar:
 ALTER TABLE [database.]table alter_clause;
 ```
 
-The alter_clause of partition supports the following modification methods
+The alter_clause of property supports the following modification methods.
 
-1. Add partition
+Note:
 
-grammar:
+Can also be merged into the above schema change operation to modify, see the example below
 
-```sql
-ADD PARTITION [IF NOT EXISTS] partition_name
-partition_desc ["key"="value"]
-[DISTRIBUTED BY HASH (k1[,k2 ...]) [BUCKETS num]]
-```
-
-Notice:
-
-- partition_desc supports the following two ways of writing
-  - VALUES LESS THAN [MAXVALUE|("value1", ...)]
-  - VALUES [("value1", ...), ("value1", ...))
-- The partition is left closed and right open. If the user only specifies the right boundary, the system will automatically determine the left boundary
-- If the bucketing method is not specified, the bucketing method and bucket number used for creating the table would be automatically used
-- If the bucketing method is specified, only the number of buckets can be modified, not the bucketing method or the bucketing column. If the bucketing method is specified but the number of buckets not be specified, the default value `10` will be used for bucket number instead of the number specified when the table is created. If the number of buckets modified, the bucketing method needs to be specified simultaneously.
-- The ["key"="value"] section can set some attributes of the partition, see [CREATE TABLE](../Create/CREATE-TABLE.md)
-- If the user does not explicitly create a partition when creating a table, adding a partition by ALTER is not supported
-- If the user uses list partition then they can add default partition to the table. The default partition will store all data not satisfying prior partition key's constraints.
-  - ALTER TABLE table_name ADD PARTITION partition_name
-
-2. Delete the partition
-
-grammar:
+1. Modify the bloom filter column of the table
 
 ```sql
-DROP PARTITION [IF EXISTS] partition_name [FORCE]
+ALTER TABLE example_db.my_table SET ("bloom_filter_columns"="k1,k2,k3");
 ```
 
-Notice:
-
-- At least one partition must be reserved for tables using partitioning.
-- After executing DROP PARTITION for a period of time, the deleted partition can be recovered through the RECOVER statement. For details, see SQL Manual - Database Management - RECOVER Statement
-- If you execute DROP PARTITION FORCE, the system will not check whether there are unfinished transactions in the partition, the partition will be deleted directly and cannot be recovered, this operation is generally not recommended
-
-3. Modify the partition properties
-
-grammar:
+Can also be incorporated into the schema change operation above (note that the syntax for multiple clauses is slightly different)
 
 ```sql
-MODIFY PARTITION p1|(p1[, p2, ...]) SET ("key" = "value", ...)
+ALTER TABLE example_db.my_table
+DROP COLUMN col2
+PROPERTIES ("bloom_filter_columns"="k1,k2,k3");
 ```
 
-illustrate:
+2. Modify the Colocate property of the table
 
-- Currently supports modifying the following properties of partitions:
-  - storage_medium
-    -storage_cooldown_time
-  - replication_num
-  - in_memory
-- For single-partition tables, partition_name is the same as the table name.
+```sql
+ALTER TABLE example_db.my_table set ("colocate_with" = "t1");
+```
+
+3. Change the bucketing method of the table from Hash Distribution to Random Distribution
+
+```sql
+ALTER TABLE example_db.my_table set ("distribution_type" = "random");
+```
+
+4. Modify the dynamic partition attribute of the table (support adding dynamic partition attribute to the table without dynamic partition attribute)
+
+```sql
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "false");
+```
+
+If you need to add dynamic partition attributes to tables without dynamic partition attributes, you need to specify all dynamic partition attributes
+(Note: adding dynamic partition attributes is not supported for non-partitioned tables)
+
+```sql
+ALTER TABLE example_db.my_table set (
+  "dynamic_partition.enable" = "true", 
+  "dynamic_partition.time_unit" = "DAY", 
+  "dynamic_partition.end" = "3", 
+  "dynamic_partition.prefix" = "p", 
+  "dynamic_partition. buckets" = "32"
+);
+```
+
+5. Modify the in_memory attribute of the table, only can set value 'false'
+
+```sql
+ALTER TABLE example_db.my_table set ("in_memory" = "false");
+```
+
+6. Enable batch delete function
+
+```sql
+ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE";
+```
+
+Note:
+
+- Only support unique tables
+- Batch deletion is supported for old tables, while new tables are already supported when they are created
+
+7. Enable the function of ensuring the import order according to the value of the sequence column
+
+```sql
+ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES (
+  "function_column.sequence_type" = "Date"
+);
+```
+
+Note:
+
+- Only support unique tables
+- The sequence_type is used to specify the type of the sequence column, which can be integral and time type
+- Only the orderliness of newly imported data is supported. Historical data cannot be changed
+
+8. Change the default number of buckets for the table to 50
+
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50;
+```
+
+Note:
+
+- Only support non colocate table with RANGE partition and HASH distribution
+
+9. Modify table comments
+
+```sql
+ALTER TABLE example_db.my_table MODIFY COMMENT "new comment";
+```
+
+10. Modify column comments
+
+```sql
+ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2";
+```
+
+11. Modify the engine type
+
+Only the MySQL type can be changed to the ODBC type. The value of driver is the name of the driver in the odbc.init configuration.
+
+```sql
+ALTER TABLE example_db.mysql_table MODIFY ENGINE TO odbc PROPERTIES("driver" = "MySQL");
+```
+
+12. Modify the number of copies
+
+```sql
+ALTER TABLE example_db.mysql_table SET ("replication_num" = "2");
+ALTER TABLE example_db.mysql_table SET ("default.replication_num" = "2");
+ALTER TABLE example_db.mysql_table SET ("replication_allocation" = "tag.location.default: 1");
+ALTER TABLE example_db.mysql_table SET ("default.replication_allocation" = "tag.location.default: 1");
+```
+
+Note:
+
+1. The property with the default prefix indicates the default replica distribution for the modified table. This modification does not modify the current actual replica distribution of the table, but only affects the replica distribution of newly created partitions on the partitioned table.
+2. For non-partitioned tables, modifying the replica distribution property without the default prefix will modify both the default replica distribution and the actual replica distribution of the table. That is, after the modification, through the `show create table` and `show partitions from tbl` statements, you can see that the replica distribution has been modified.
+   changed.
+3. For partitioned tables, the actual replica distribution of the table is at the partition level, that is, each partition has its own replica distribution, which can be viewed through the `show partitions from tbl` statement. If you want to modify the actual replica distribution, see `ALTER TABLE PARTITION`.
+
+13\. **[Experimental]** turn on `light_schema_change`
+
+For tables that were not created with light_schema_change enabled, you can enable it by using the following statement.
+
+```sql
+ALTER TABLE example_db.mysql_table SET ("light_schema_change" = "true");
+```
 
 ### Example
 
-1. Add partition, existing partition [MIN, 2013-01-01), add partition [2013-01-01, 2014-01-01), use default bucketing method
+1. Modify the bloom filter column of the table
+
+```sql
+ALTER TABLE example_db.my_table SET ("bloom_filter_columns"="k1,k2,k3");
+```
+
+Can also be incorporated into the schema change operation above (note that the syntax for multiple clauses is slightly different)
 
 ```sql
 ALTER TABLE example_db.my_table
-ADD PARTITION p1 VALUES LESS THAN ("2014-01-01");
+DROP COLUMN col2
+PROPERTIES ("bloom_filter_columns"="k1,k2,k3");
 ```
 
-2. Increase the partition and use the new number of buckets
+2. Modify the Colocate property of the table
 
 ```sql
-ALTER TABLE example_db.my_table
-ADD PARTITION p1 VALUES LESS THAN ("2015-01-01")
-DISTRIBUTED BY HASH(k1) BUCKETS 20;
+ALTER TABLE example_db.my_table set ("colocate_with" = "t1");
 ```
 
-3. Increase the partition and use the new number of replicas
+3. Change the bucketing method of the table from Hash Distribution to Random Distribution
 
 ```sql
-ALTER TABLE example_db.my_table
-ADD PARTITION p1 VALUES LESS THAN ("2015-01-01")
-("replication_num"="1");
+ALTER TABLE example_db.my_table set ("distribution_type" = "random");
 ```
 
-4. Modify the number of partition replicas
+4. Modify the dynamic partition attribute of the table (support adding dynamic partition attribute to the table without dynamic partition attribute)
 
 ```sql
-ALTER TABLE example_db.my_table
-MODIFY PARTITION p1 SET("replication_num"="1");
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "false");
 ```
 
-5. Batch modify the specified partition
+If you need to add dynamic partition attributes to tables without dynamic partition attributes, you need to specify all dynamic partition attributes
+(Note: adding dynamic partition attributes is not supported for non-partitioned tables)
 
 ```sql
-ALTER TABLE example_db.my_table
-MODIFY PARTITION (p1, p2, p4) SET("replication_num"="1");
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "true", "dynamic_partition.time_unit" = "DAY", "dynamic_partition.end" = "3", "dynamic_partition.prefix" = "p", "dynamic_partition. buckets" = "32");
 ```
 
-6. Batch modify all partitions
+5. Modify the in_memory attribute of the table, only can set value 'false'
 
 ```sql
-ALTER TABLE example_db.my_table
-MODIFY PARTITION (*) SET("storage_medium"="HDD");
+ALTER TABLE example_db.my_table set ("in_memory" = "false");
 ```
 
-7. Delete partition
+6. Enable batch delete function
 
 ```sql
-ALTER TABLE example_db.my_table
-DROP PARTITION p1;
+ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE";
 ```
 
-8. Batch delete partition
+7. Enable the function of ensuring the import order according to the value of the sequence column
 
 ```sql
-ALTER TABLE example_db.my_table
-DROP PARTITION p1,
-DROP PARTITION p2,
-DROP PARTITION p3;
+ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date");
 ```
 
-9. Add a partition specifying upper and lower bounds
+8. Change the default number of buckets for the table to 50
 
 ```sql
-ALTER TABLE example_db.my_table
-ADD PARTITION p1 VALUES [("2014-01-01"), ("2014-02-01"));
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50;
 ```
 
-10. Add partitions of number type and time type in batches
+9. Modify table comments
 
 ```sql
-ALTER TABLE example_db.my_table ADD PARTITIONS FROM (1) TO (100) INTERVAL 10;
-ALTER TABLE example_db.my_table ADD PARTITIONS FROM ("2023-01-01") TO ("2025-01-01") INTERVAL 1 YEAR;
-ALTER TABLE example_db.my_table ADD PARTITIONS FROM ("2023-01-01") TO ("2025-01-01") INTERVAL 1 MONTH;
-ALTER TABLE example_db.my_table ADD PARTITIONS FROM ("2023-01-01") TO ("2025-01-01") INTERVAL 1 WEEK;
-ALTER TABLE example_db.my_table ADD PARTITIONS FROM ("2023-01-01") TO ("2025-01-01") INTERVAL 1 DAY;
+ALTER TABLE example_db.my_table MODIFY COMMENT "new comment";
 ```
+
+10. Modify column comments
+
+```sql
+ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2";
+```
+
+11. Modify the engine type
+
+```sql
+ALTER TABLE example_db.mysql_table MODIFY ENGINE TO odbc PROPERTIES("driver" = "MySQL");
+```
+
+12. Add a cold and hot separation data migration strategy to the table
+
+```sql
+ ALTER TABLE create_table_not_have_policy set ("storage_policy" = "created_create_table_alter_policy");
+```
+
+NOTE：The table can be successfully added only if it hasn't been associated with a storage policy. A table just can have one storage policy.
+
+13. Add a hot and cold data migration strategy to the partition of the table
+
+```sql
+ALTER TABLE create_table_partition MODIFY PARTITION (*) SET("storage_policy"="created_create_table_partition_alter_policy");
+```
+
+NOTE：The table's partition can be successfully added only if it hasn't been associated with a storage policy. A table just can have one storage policy.
 
 ### Keywords
 
 ```text
-ALTER, TABLE, PARTITION, ALTER TABLE
+ALTER, TABLE, PROPERTY, ALTER TABLE
 ```
 
 ### Best Practice
+
