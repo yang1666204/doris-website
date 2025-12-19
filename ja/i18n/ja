@@ -1,5 +1,5 @@
 ---
-{ "title": "GROUP_BIT_XOR", "language": "en" }
+{ "title": "GROUP_BITMAP_XOR", "language": "en" }
 ---
 
 <!-- 
@@ -21,41 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## GROUP_BIT_XOR
+## GROUP_BITMAP_XOR
 
 ### description
 
 #### Syntax
 
-`expr GROUP_BIT_XOR(expr)`
+`BITMAP GROUP_BITMAP_XOR(expr)`
 
-Perform an xor calculation on expr, and return a new expr.
-All ints are supported
+Perform an xor calculation on expr, and return a new bitmap.
 
 ### example
 
 ```
-mysql> select * from group_bit;
-+-------+
-| value |
-+-------+
-|     3 |
-|     1 |
-|     2 |
-|     4 |
-+-------+
-4 rows in set (0.02 sec)
+mysql>  select page, bitmap_to_string(user_id) from pv_bitmap;
++------+-----------------------------+
+| page | bitmap_to_string(`user_id`) |
++------+-----------------------------+
+| m    | 4,7,8                       |
+| m    | 1,3,6,15                    |
+| m    | 4,7                         |
++------+-----------------------------+
 
-mysql> select group_bit_xor(value) from group_bit;
-+------------------------+
-| group_bit_xor(`value`) |
-+------------------------+
-|                      4 |
-+------------------------+
+mysql> select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
++------+-----------------------------------------------+
+| page | bitmap_to_string(group_bitmap_xor(`user_id`)) |
++------+-----------------------------------------------+
+| m    | 1,3,6,8,15                                    |
++------+-----------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    GROUP_BIT_XOR,BIT
+    GROUP_BITMAP_XOR,BITMAP
     ```
