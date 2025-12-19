@@ -1,5 +1,5 @@
 ---
-{ "title": "GROUP_BITMAP_XOR", "language": "en" }
+{ "title": "GROUP_CONCAT", "language": "en" }
 ---
 
 <!-- 
@@ -21,38 +21,64 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## GROUP_BITMAP_XOR
+## GROUP_CONCAT
 
 ### description
 
 #### Syntax
 
-`BITMAP GROUP_BITMAP_XOR(expr)`
+`VARCHAR GROUP_CONCAT([DISTINCT] VARCHAR str[, VARCHAR sep] [ORDER BY { col_name | expr} [ASC | DESC]])`
 
-Perform an xor calculation on expr, and return a new bitmap.
+This function is an aggregation function similar to sum (), and group_concat links multiple rows of results in the result set to a string. The second parameter, sep, is a connection symbol between strings, which can be omitted. This function usually needs to be used with group by statements.
+
+Support Order By for sorting multi-row results, sorting and aggregation columns can be different.
+
+:::caution
+`group_concat` don't support using `distinct` with `order by` together.
+:::
 
 ### example
 
 ```
-mysql>  select page, bitmap_to_string(user_id) from pv_bitmap;
-+------+-----------------------------+
-| page | bitmap_to_string(`user_id`) |
-+------+-----------------------------+
-| m    | 4,7,8                       |
-| m    | 1,3,6,15                    |
-| m    | 4,7                         |
-+------+-----------------------------+
+mysql> select value from test;
++-------+
+| value |
++-------+
+| a     |
+| b     |
+| c     |
+| c     |
++-------+
 
-mysql> select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
-+------+-----------------------------------------------+
-| page | bitmap_to_string(group_bitmap_xor(`user_id`)) |
-+------+-----------------------------------------------+
-| m    | 1,3,6,8,15                                    |
-+------+-----------------------------------------------+
+mysql> select GROUP_CONCAT(value) from test;
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| a, b, c, c              |
++-----------------------+
+
+mysql> select GROUP_CONCAT(value, " ") from test;
++----------------------------+
+| GROUP_CONCAT(`value`, ' ') |
++----------------------------+
+| a b c c                     |
++----------------------------+
+
+mysql> select GROUP_CONCAT(DISTINCT value) from test;
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| a, b, c               |
++-----------------------+
+
+mysql> select GROUP_CONCAT(value, NULL) from test;
++----------------------------+
+| GROUP_CONCAT(`value`, NULL)|
++----------------------------+
+| NULL                       |
++----------------------------+
 ```
 
 ### keywords
 
-    ```
-    GROUP_BITMAP_XOR,BITMAP
-    ```
+GROUP_CONCAT,GROUP,CONCAT
