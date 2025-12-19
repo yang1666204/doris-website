@@ -1,5 +1,5 @@
 ---
-{ "title": "NULLABLE", "language": "en" }
+{ "title": "SLEEP", "language": "en" }
 ---
 
 <!-- 
@@ -21,37 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## nullable
+## sleep
+
+:::warning Warning
+This function cannot be used in a production environment and will have serious implications.
+:::
 
 ### description
 
-:::tip
-For developer debugging only, do not call this function manually in the production environment.
-:::
-
 #### Syntax
 
-`T nullable(T expr)`
+`BOOLEAN sleep(INT num)`
 
-Converts `expr` to nullable, or to itself if `expr` is already nullable.
+Sleeps the current session for `num` second(s)。
 
 ### example
 
 ```sql
-mysql> select k1, nullable(k1), nullable(1) from test_nullable_functions order by k1;
-+------+--------------+-------------+
-| k1   | nullable(k1) | nullable(1) |
-+------+--------------+-------------+
-| NULL |         NULL |           1 |
-|    1 |            1 |           1 |
-|    2 |            2 |           1 |
-|    3 |            3 |           1 |
-|    4 |            4 |           1 |
-+------+--------------+-------------+
+mysql> select sleep(10);
++-----------+
+| sleep(10) |
++-----------+
+|         1 |
++-----------+
 ```
 
 ### keywords
 
     ```
-    nullable
+    sleep
     ```
