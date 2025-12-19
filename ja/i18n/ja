@@ -1,5 +1,5 @@
 ---
-{ "title": "View Tablet Distribution", "language": "en" }
+{ "title": "View Tablet Info", "language": "en" }
 ---
 
 <!-- 
@@ -21,23 +21,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# View Tablet Distribution
+# View Tablet Info
 
 ## Request
 
-`GET /api/tablets_distribution?group_by={enum}&partition_id={int}`
+`GET /tablets_json?limit={int}`
 
 ## Description
 
-Get the distribution of tablets under each partition between different disks on BE node
+View Tablet Info, including ID and schema hash.
 
 ## Query parameters
 
-- `group_by`
-  only supports `partition`
-
-- `partition_id`
-  ID of the specified partition，Optional with default all partition。
+- `limit`
+  Number of tablets output，Optional with default 1000. Take `all` to output all tablets.
 
 ## Request body
 
@@ -51,33 +48,22 @@ None
         msg: "OK",
         code: 0,
         data: {
-            host: "***",
-            tablets_distribution: [
+            host: "10.38.157.107",
+            tablets: [
                 {
-                    partition_id:***,
-                    disks:[
-                        {
-                            disk_path:"***",
-                            tablets_num:***,
-                            tablets:[
-                                {
-                                    tablet_id:***,
-                                    schema_hash:***,
-                                    tablet_size:***
-                                },
+                    tablet_id: 11119,
+                    schema_hash: 714349777
+                },
     
-                                ...
+                    ...
     
-                            ]
-                        },
-    
-                        ...
-    
-                    ]
+                {
+                    tablet_id: 11063,
+                    schema_hash: 714349777
                 }
             ]
         },
-        count: ***
+        count: 30
     }
     ```
     ````
@@ -86,7 +72,7 @@ None
 
     ````
     ```
-    curl "http://127.0.0.1:8040/api/tablets_distribution?group_by=partition&partition_id=123"
+    curl http://127.0.0.1:8040/api/tablets_json?limit=all
     
     ```
     ````
