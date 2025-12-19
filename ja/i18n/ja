@@ -1,5 +1,5 @@
 ---
-{ "title": "CANCEL-LOAD", "language": "en" }
+{ "title": "CLEAN-LABEL", "language": "en" }
 ---
 
 <!--
@@ -21,58 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CANCEL-LOAD
+## CLEAN-LABEL
 
 ### Name
 
-CANCEL LOAD
+CLEAN LABEL
 
 ### Description
 
-This statement is used to undo an import job for the specified label. Or batch undo import jobs via fuzzy matching
+For manual cleanup of historical load jobs. After cleaning, the Label can be reused.
+
+Syntax:
 
 ```sql
-CANCEL LOAD
-[FROM db_name]
-WHERE [LABEL = "load_label" | LABEL like "label_pattern" | STATE = "PENDING/ETL/LOADING"]
+CLEAN LABEL [label] FROM db;
 ```
-
-Notice: Cancel by State is supported since 1.2.0.
 
 ### Example
 
-1. Cancel the import job whose label is `example_db_test_load_label` on the database example_db
-
-    ```sql
-    CANCEL LOAD
-    FROM example_db
-    WHERE LABEL = "example_db_test_load_label";
-    ```
-
-2. Cancel all import jobs containing example\* on the database example\*db.
-
-    ```sql
-    CANCEL LOAD
-    FROM example_db
-    WHERE LABEL like "example_";
-    ```
-
-3. Cancel all import jobs which state are "LOADING"
+1. Clean label label1 from database db1
 
    ```sql
-   CANCEL LOAD
-   FROM example_db
-   WHERE STATE = "loading";
+   CLEAN LABEL label1 FROM db1;
+   ```
+
+2. Clean all labels from database db1
+
+   ```sql
+   CLEAN LABEL FROM db1;
    ```
 
 ### Keywords
 
-     ```
-      CANCEL, LOAD
-     ```
+    ```
+    CLEAN, LABEL
+    ```
 
 ### Best Practice
-
-1. Only pending import jobs in PENDING, ETL, LOADING state can be canceled.
-2. When performing batch undo, Doris does not guarantee the atomic undo of all corresponding import jobs. That is, it is possible that only some of the import jobs were successfully undone. The user can view the job status through the SHOW LOAD statement and try to execute the CANCEL LOAD statement repeatedly.
 
