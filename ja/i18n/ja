@@ -1,5 +1,5 @@
 ---
-{ "title": "PAUSE-JOB", "language": "en" }
+{ "title": "RESUME-JOB", "language": "en" }
 ---
 
 <!--
@@ -21,32 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## PAUSE-JOB
+## RESUME-JOB
 
 ### Name
 
-PAUSE JOB
+RESUME JOB
 
 ### Description
 
-User suspends a JOB. A stopped job can be resumed with RESUME JOB.
+Used to restart a JOB in PAUSE state. The restarted job will continue to be executed periodically. A JOB in STOP state cannot be resumed.
 
 ```sql
-PAUSE JOB where jobName = 'job_name';
+RESUME JOB WHERE jobName = 'job_name';
 ```
 
 ### Example
 
-1. Pause the job named test1.
+1. Restart the JOB named test1.
 
    ```sql
-   PAUSE JOB where jobName = 'test1';
+   RESUME JOB WHERE jobName = 'test1';
    ```
 
 ### Keywords
 
         ```
-            PAUSE, JOB
+            RESUME, JOB
         ```
 
 ### Best Practice
+
+
+
