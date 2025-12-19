@@ -1,8 +1,5 @@
 ---
-{
-  "title": "Clickhouse SQL Convertor Guide",
-  "language": "en"
-}
+{ "title": "Hive SQL Convertor Guide", "language": "en" }
 ---
 
 <!--
