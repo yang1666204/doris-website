@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 1.2.4", "language": "en" }
+{ "title": "Release 1.2.5", "language": "en" }
 ---
 
 <!--
@@ -21,57 +21,176 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+In version 1.2.5, the Doris team has fixed nearly 210 issues or performance improvements since the release of version 1.2.4. At the same time, version 1.2.5 is also an iterative version of version 1.2.4, which has higher stability. It is recommended that all users upgrade to this version.
+
 # Behavior Changed
 
-- For `DateV2`/`DatetimeV2` and `DecimalV3` type, in the results of `DESCRIBLE` and `SHOW CREATE TABLE` statements, they will no longer be displayed as `DateV2`/`DatetimeV2` or `DecimalV3`, but directly displayed as `Date`/`Datetime` or `Decimal`.
+- The `start_be.sh` script will check that the maximum number of file handles in the system must be greater than or equal to 65536, otherwise the startup will fail.
 
-  - This change is for compatibility with some BI tools. If you want to see the actual type of the column, you can check it with the `DESCRIBE ALL` statement.
+- The BE configuration item `enable_quick_compaction` is set to true by default. The Quick Compaction is enabled by default. This feature is used to optimize the problem of small files in the case of large batch import.
 
-- When querying tables in the `information_schema` database, the meta information(database, table, column, etc.) in the external catalog is no longer returned by default.
-
-  - This change avoids the problem that the `information_schema` database cannot be queried due to the connection problem of some external catalog, so as to solve the problem of using some BI tools with Doris. It can be controlled by the FE configuration  `infodb_support_ext_catalog`, and the default value is `false`, that is, the meta information of external catalog will not be returned.
+- After modifying the dynamic partition attribute of the table, it will no longer take effect immediately, but wait for the next task scheduling of the dynamic partition table to avoid some deadlock problems.
 
 # Improvement
 
-### JDBC Catalog
+- Optimize the use of bthread and pthread to reduce the RPC blocking problem during the query process.
 
-- Supports connecting to Trino/Presto via JDBC Catalog
+- A button to download Profile is added to the Profile page of the FE web UI.
 
-​        Refer to: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#trino](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#trino)
+- Added FE configuration `recover_with_skip_missing_version`, which is used to query to skip the problematic replica under certain failure conditions.
 
-- JDBC Catalog connects to Clickhouse data source and supports Array type mapping
+- The row-level permission function supports external Catalog.
 
-​        Refer to: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#clickhouse](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#clickhouse)
+- Hive Catalog supports automatic refreshing of kerberos tickets on the BE side without manual refreshing.
 
-### Spark Load
+- JDBC Catalog supports tables under the MySQL/ClickHouse system database (`information_schema`).
 
-- Spark Load supports Resource Manager HA related configuration
+# Bug Fixes
 
-​        Refer to: https://github.com/apache/doris/pull/15000
+- Fixed the problem of incorrect query results caused by low-cardinality column optimization
 
-## Bug Fixes
+- Fixed several authentication and compatibility issues accessing HDFS.
 
-- Fixed several connectivity issues with Hive Catalog.
+- Fixed several issues with float/double and decimal types.
 
-- Fixed ClassNotFound issues with Hudi Catalog.
+- Fixed several issues with date/datetimev2 types.
 
-- Optimize the connection pool of JDBC Catalog to avoid too many connections.
+- Fixed several query execution and planning issues.
 
-- Fix the problem that OOM will occur when importing data from another Doris cluster through JDBC Catalog.
+- Fixed several issues with JDBC Catalog.
 
-- Fixed serveral queries and imports planning issues.
+- Fixed several query-related issues with Hive Catalog, and Hive Metastore metadata synchronization issues.
 
-- Fixed several issues with Unique Key Merge-On-Write data model.
+- Fix the problem that the result of `SHOW LOAD PROFILE` statement is incorrect.
 
-- Fix several BDBJE issues and solve the problem of abnormal FE metadata in some cases.
+- Fixed several memory related issues.
 
-- Fix the problem that the `CREATE VIEW` statement does not support Table Valued Function.
+- Fixed several issues with `CREATE TABLE AS SELECT` functionality.
 
-- Fixed several memory statistics issues.
+- Fix the problem that the jsonb type causes BE to crash on CPU that do not support avx2.
 
-- Fixed several issues reading Parquet/ORC format.
+- Fixed several issues with dynamic partitions.
 
-- Fixed several issues with DecimalV3.
+- Fixed several issues with TOPN query optimization.
 
-- Fixed several issues with SHOW QUERY/LOAD PROFILE.
+- Fixed several issues with the Unique Key Merge-on-Write table model.
 
+# Big Thanks
+
+58 contributors participated in the improvement and release of 1.2.5, and thank them for their hard work and dedication:
+
+@adonis0147
+
+@airborne12
+
+@AshinGau
+
+@BePPPower
+
+@BiteTheDDDDt
+
+@caiconghui
+
+@CalvinKirs
+
+@cambyzju
+
+@caoliang-web
+
+@dataroaring
+
+@Doris-Extras
+
+@dujl
+
+@dutyu
+
+@fsilent
+
+@Gabriel39
+
+@gitccl
+
+@gnehil
+
+@GoGoWen
+
+@gongzexin
+
+@HappenLee
+
+@herry2038
+
+@jacktengg
+
+@Jibing-Li
+
+@kaka11chen
+
+@Kikyou1997
+
+@LemonLiTree
+
+@liaoxin01
+
+@LiBinfeng-01
+
+@luwei16
+
+@Moonm3n
+
+@morningman
+
+@mrhhsg
+
+@Mryange
+
+@nextdreamblue
+
+@nsnhuang
+
+@qidaye
+
+@Shoothzj
+
+@sohardforaname
+
+@stalary
+
+@starocean999
+
+@SWJTU-ZhangLei
+
+@wsjz
+
+@xiaokang
+
+@xinyiZzz
+
+@yangzhg
+
+@yiguolei
+
+@yixiutt
+
+@yujun777
+
+@Yulei-Yang
+
+@yuxuan-luo
+
+@zclllyybb
+
+@zddr
+
+@zenoyang
+
+@zhangstar333
+
+@zhannngchen
+
+@zxealous
+
+@zy-kkk
+
+@zzzzzzzs
