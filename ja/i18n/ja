@@ -1,5 +1,5 @@
 ---
-{ "title": "SET-PROPERTY", "language": "en" }
+{ "title": "ALTER-SYSTEM-ADD-BACKEND", "language": "en" }
 ---
 
 <!--
@@ -23,105 +23,58 @@ under the License.
 
 ## Description
 
-Set user attributes, including resources assigned to users, importing clusters, compute groups etc.
+The ADD BACKEND command is used to add one or more backend nodes to a Doris OLAP database cluster. This command allows administrators to specify the host and port of the new backend nodes, along with optional properties that configure their behavior.
 
 ## Syntax
 
 ```sql
-SET PROPERTY [FOR 'user'] 'key' = 'value' [, 'key' = 'value']
+-- Add nodes (add this method if you do not use the multi-tenancy function)
+   ALTER SYSTEM ADD BACKEND "host:heartbeat_port"[,"host:heartbeat_port"...] [PROPERTIES ("key"="value", ...)];
 ```
-
-The user attribute set here is for user, not user_identity. That is, if two users 'jack'@'%' and 'jack'@'192.%' are created through the CREATE USER statement, the SET PROPERTY statement can only be used for the user jack, not 'jack'@'% ' or 'jack'@'192.%'
 
 ## Parameters
 
-### user
+- `host` can be a hostname or an ip address of the backend node while `heartbeat_port` is the heartbeat port of the node
+- `PROPERTIES ("key"="value", ...)`: (Optional) A set of key-value pairs that define additional properties for the backend nodes. These properties can be used to customize the configuration of the backends being added. Available properties include:
 
-The username for which to set attributes. If omitted, the attributes are set for the current user.
-
-### key
-
-The attribute key to set. Available keys include:
-
-- `max_user_connections`: The maximum number of connections.
-- `max_query_instances`: The number of instances that a user can use to execute a query at the same time.
-- `sql_block_rules`: Set SQL block rules. Once set, queries sent by this user will be rejected if they match the rules.
-- `cpu_resource_limit`: Limit the CPU resources for queries. See the introduction to the session variable `cpu_resource_limit` for details. -1 means not set.
-- `exec_mem_limit`: Limit the memory usage of the query. See the introduction to the session variable `exec_mem_limit` for details. -1 means not set.
-- `resource_tags`: Specifies the user's resource tag permissions.
-- `query_timeout`: Specifies the user's query timeout.
-- `default_workload_group`: Specifies the user's default workload group.
-- `default_compute_group`: Specifies the user's default compute group.
-
-Note: If the attributes `cpu_resource_limit` and `exec_mem_limit` are not set, the value in the session variable will be used by default.
-
-### value
-
-The value to set for the specified key.
+  - tag.location: Specifies the resource group where the backend node belongs. For example, PROPERTIES ("tag.location" = "groupb").
+  - tag.compute_group_name: Specifies the resource group where the backend node belongs. For example, PROPERTIES ("tag.compute_group_name" = "groupb").
 
 ## Example
 
-1. Modify the maximum number of user jack connections to 1000
-
-   ```sql
-   SET PROPERTY FOR 'jack' 'max_user_connections' = '1000';
-   ```
-
-2. Modify the number of available instances for user jack's query to 3000
-
-   ```sql
-   SET PROPERTY FOR 'jack' 'max_query_instances' = '3000';
-   ```
-
-3. Modify the sql block rule of user jack
-
-   ```sql
-   SET PROPERTY FOR 'jack' 'sql_block_rules' = 'rule1, rule2';
-   ```
-
-4. Modify the cpu usage limit of user jack
+1. Adding Backends Without Additional Properties
 
     ```sql
-    SET PROPERTY FOR 'jack' 'cpu_resource_limit' = '2';
+    ALTER SYSTEM ADD BACKEND "host1:9050,host2:9050";
     ```
 
-5. Modify the user's resource tag permissions
+   This command adds two backend nodes to the cluster:
+
+   - host1 with port 9050
+   - host2 with port 9050
+
+   No additional properties are specified, so the default settings will apply to these backends.
+
+2. Adding Backends With Resource Group
 
     ```sql
-    SET PROPERTY FOR 'jack' 'resource_tags.location' = 'group_a, group_b';
+    ALTER SYSTEM ADD BACKEND "host3:9050" PROPERTIES ("tag.location" = "groupb");
     ```
 
-6. Modify the user's query memory usage limit, in bytes
+   This command adds a single backend node (host3 with port 9050) to the cluster in resource group `groupb`:
+
+3. Adding Backends With Compute Group
 
     ```sql
-    SET PROPERTY FOR 'jack' 'exec_mem_limit' = '2147483648';
+    ALTER SYSTEM ADD BACKEND "host3:9050" PROPERTIES ("tag.compute_group_name" = "groupb");
     ```
 
-7. Modify the user's query timeout limit, in second
-
-    ```sql
-    SET PROPERTY FOR 'jack' 'query_timeout' = '500';
-    ```
-
-8. Set the default workload group for user 'jack':
-
-   ```sql
-   SET PROPERTY FOR 'jack' 'default_workload_group' = 'group1';
-   ```
-
-9. Set the default compute group for user 'jack':
-
-   ```sql
-   SET PROPERTY FOR 'jack' 'default_compute_group' = 'compute_group1';
-   ```
-
-## Related Commands
-
-- [CREATE USER](./CREATE-USER.md)
-- [SHOW PROPERTY](../Show-Statements/SHOW-PROPERTY.md)
+   This command adds a single backend node (host3 with port 9050) to the cluster in compute group `groupb`:
 
 ## Keywords
 
     ```
-    SET, PROPERTY, COMPUTE GROUP, WORKLOAD GROUP
+    ALTER, SYSTEM, ADD, BACKEND, PROPERTIES
     ```
+
+## Best Practice
