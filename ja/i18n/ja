@@ -1,5 +1,5 @@
 ---
-{ "title": "COSH", "language": "en" }
+{ "title": "DEGREES", "language": "en" }
 ---
 
 <!-- 
@@ -19,35 +19,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## cosh
+## degrees
 
 ### description
 
 #### Syntax
 
-`DOUBLE cosh(DOUBLE x)`
-Returns the hyperbolic cosine of `x`.
+`DOUBLE degrees(DOUBLE x)`
+Returns the degree of `x`, converted from radians to degrees.
 
 ### example
 
 ```
-mysql> select cosh(0);
-+---------+
-| cosh(0) |
-+---------+
-|       1 |
-+---------+
-
-mysql> select cosh(1);
-+---------------------+
-| cosh(1)             |
-+---------------------+
-| 1.5430806348152437  |
-+---------------------+
+mysql> select degrees(0);
++--------------+
+| degrees(0.0) |
++--------------+
+|            0 |
++--------------+
+mysql> select degrees(2);
++--------------------+
+| degrees(2.0)       |
++--------------------+
+| 114.59155902616465 |
++--------------------+
+mysql> select degrees(Pi());
++---------------+
+| degrees(pi()) |
++---------------+
+|           180 |
++---------------+
 ```
 
 ### keywords
 
  ```
- COSH
+ DEGREES
  ```
