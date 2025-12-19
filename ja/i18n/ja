@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CREATE-REPOSITORY", "language": "en" }
+{ "title": "SHOW-CREATE-ROUTINE-LOAD", "language": "en" }
 ---
 
 <!--
@@ -21,38 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CREATE-REPOSITORY
+## SHOW-CREATE-ROUTINE-LOAD
 
 ### Name
 
-SHOW CREATE REPOSITORY
+SHOW CREATE ROUTINE LOAD
 
 ### Description
 
-This statement is used to demonstrate the creation statement of a repository.
+This statement is used to demonstrate the creation statement of a routine import job.
+
+The kafka partition and offset in the result show the currently consumed partition and the corresponding offset to be consumed.
 
 grammar:
 
 ```sql
-SHOW CREATE REPOSITORY for repository_name;
+SHOW [ALL] CREATE ROUTINE LOAD for load_name;
 ```
 
 illustrate:
 
-- `repository_name`: repository name
+1. `ALL`: optional parameter, which means to get all jobs, including historical jobs
+2. `load_name`: routine import job name
 
 ### Example
 
-1. Show the creation statement of the specified repository
+1. Show the creation statement of the specified routine import job under the default db
 
     ```sql
-    SHOW CREATE REPOSITORY for test_repository
+    SHOW CREATE ROUTINE LOAD for test_load
     ```
 
 ### Keywords
 
     ```
-    SHOW, CREATE, REPOSITORY
+    SHOW, CREATE, ROUTINE, LOAD
     ```
 
 ### Best Practice
