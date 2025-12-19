@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-DATABASES", "language": "en" }
+{ "title": "SHOW-DELETE", "language": "en" }
 ---
 
 <!--
@@ -21,88 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-DATABASES
+## SHOW-DELETE
 
 ### Name
 
-SHOW DATABASES
+SHOW DELETE
 
 ### Description
 
-This statement is used to display the currently visible db
+This statement is used to display the historical delete tasks that have been successfully executed
 
 grammar:
 
 ```sql
-SHOW DATABASES [FROM catalog] [filter expr];
+SHOW DELETE [FROM db_name]
 ```
-
-illustrate:
-
-1. `SHOW DATABASES` will get all database names from current catalog.
-2. `SHOW DATABASES FROM catalog` will all database names from the catalog named 'catalog'.
-3. `SHOW DATABASES filter_expr` will get filtered database names from current catalog.
-4. `SHOW DATABASES FROM catalog filter_expr` is not support yet.
 
 ### Example
 
-1. Display all the database names from current catalog.
+1. Display all historical delete tasks of database database
 
-   ```sql
-   SHOW DATABASES;
-   ```
+      ```sql
+      SHOW DELETE FROM database;
+      ```
 
-   ```
+### Keywords
 
-   ```
+    ```
+    SHOW, DELETE
+    ```
 
-+--------------------+
-\| Database           |
-+--------------------+
-\| test               |
-\| information_schema |
-+--------------------+
-
-   ````
-   
-   2. Display all database names from the catalog named 'hms_catalog'.
-   
-   ```sql
-   SHOW DATABASES from hms_catalog;
-   ````
-
-   ```
-   +---------------+
-   | Database      |
-   +---------------+
-   | default       |
-   | tpch          |
-   +---------------+
-   ```
-
-3. Display the filtered database names from current catalog with the expr 'like'.
-
-   ```sql
-   SHOW DATABASES like 'infor%';
-   ```
-
-   ```
-
-   ```
-
-+--------------------+
-\| Database           |
-+--------------------+
-\| information_schema |
-+--------------------+
-
-   ```
-   
-   ### Keywords
-   
-    SHOW, DATABASES
-   
-   ### Best Practice
-   
-   ```
+### Best Practice
 
