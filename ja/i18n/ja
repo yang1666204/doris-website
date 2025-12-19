@@ -1,5 +1,5 @@
 ---
-{ "title": "DAYOFMONTH", "language": "en" }
+{ "title": "DAYOFWEEK", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## dayofmonth
+## dayofweek
 
 ### Description
 
 #### Syntax
 
-`INT DAYOFMONTH (DATETIME date)`
+`INT DAYOFWEEK (DATETIME date)`
 
-Get the day information in the date, and return values range from 1 to 31.
+The DAYOFWEEK function returns the index value of the working day of the date, that is, 1 on Sunday, 2 on Monday, and 7 on Saturday.
 
 The parameter is Date or Datetime type
 
 ### example
 
 ```
-mysql> select dayofmonth('1987-01-31');
+mysql> select dayofweek('2019-06-25');
++----------------------------------+
+| dayofweek('2019-06-25 00:00:00') |
++----------------------------------+
+|                                3 |
++----------------------------------+
+
+mysql> select dayofweek(cast(20190625 as date)); 
 +-----------------------------------+
-| dayofmonth('1987-01-31 00:00:00') |
+| dayofweek(CAST(20190625 AS DATE)) |
 +-----------------------------------+
-|                                31 |
+|                                 3 |
 +-----------------------------------+
 ```
 
 ### keywords
 
     ```
-    DAYOFMONTH
+    DAYOFWEEK
     ```
