@@ -1,10 +1,6 @@
 ---
-
-{
-"title": "SHOW-TABLETS",
-"language": "en"
-}
--
+{ "title": "SHOW-TRANSACTION", "language": "en" }
+---
 
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,62 +21,84 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-TABLETS
+## SHOW-TRANSACTION
 
 ### Name
 
-SHOW TABLETS
+SHOW TRANSACTION
 
 ### Description
 
-This statement is used to list tablets of the specified table (only for administrators)
+This syntax is used to view transaction details for the specified transaction id or label.
 
 grammar:
 
 ```sql
-SHOW TABLETS FROM [database.]table [PARTITIONS(p1,p2)]
-[WHERE where_condition]
-[ORDER BY col_name]
-[LIMIT [offset,] row_count]
+SHOW TRANSACTION
+[FROM db_name]
+WHERE
+[id=transaction_id]
+[label = label_name];
 ```
 
-1. **Syntax Description:**
-
-where_condition could be one of:
+Example of returned result:
 
 ```
-Version = version
-state = "NORMAL|ROLLUP|CLONE|DECOMMISSION"
-BackendId = backend_id
-IndexName = rollup_name
+     TransactionId: 4005
+             Label: insert_8d807d5d-bcdd-46eb-be6d-3fa87aa4952d
+       Coordinator: FE: 10.74.167.16
+ TransactionStatus: VISIBLE
+ LoadJobSourceType: INSERT_STREAMING
+       PrepareTime: 2020-01-09 14:59:07
+        CommitTime: 2020-01-09 14:59:09
+        FinishTime: 2020-01-09 14:59:09
+            Reason:
+ErrorReplicasCount: 0
+        ListenerId: -1
+         TimeoutMs: 300000
 ```
 
-or compound them with operator `AND`.
+- TransactionId: transaction id
+- Label: the label corresponding to the import task
+- Coordinator: The node responsible for transaction coordination
+- TransactionStatus: transaction status
+  - PREPARE: preparation stage
+  - COMMITTED: The transaction succeeded, but the data was not visible
+  - VISIBLE: The transaction succeeded and the data is visible
+  - ABORTED: Transaction failed
+- LoadJobSourceType: Type of import job.
+- PrepareTime: transaction start time
+- CommitTime: The time when the transaction was successfully committed
+- FinishTime: The time when the data is visible
+- Reason: error message
+- ErrorReplicasCount: The number of replicas with errors
+- ListenerId: The id of the related import job
+- TimeoutMs: Transaction timeout, in milliseconds
 
 ### Example
 
-1. list all tablets of the specified table
+1. View the transaction with id 4005:
 
-    ```sql
-    SHOW TABLETS FROM example_db.table_name;
-    ```
+   ```sql
+   SHOW TRANSACTION WHERE ID=4005;
+   ```
 
-2. list all tablets of the specified partitions
+2. In the specified db, view the transaction with id 4005:
 
-    ```sql
-    SHOW TABLETS FROM example_db.table_name PARTITIONS(p1, p2);
-    ```
+   ```sql
+   SHOW TRANSACTION FROM db WHERE ID=4005;
+   ```
 
-3. list all DECOMMISSION tablets on the specified backend
+3. View the transaction whose label is label_name:
 
-    ```sql
-    SHOW TABLETS FROM example_db.table_name WHERE state="DECOMMISSION" AND BackendId=11003;
-    ```
+   ```sql
+   SHOW TRANSACTION WHERE LABEL = 'label_name';
+   ```
 
 ### Keywords
 
     ```
-    SHOW, TABLETS
+    SHOW, TRANSACTION
     ```
 
 ### Best Practice
