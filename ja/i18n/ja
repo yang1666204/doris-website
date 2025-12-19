@@ -1,5 +1,5 @@
 ---
-{ "title": "key_column_usage", "language": "en" }
+{ "title": "metadata_name_ids", "language": "en" }
 ---
 
 <!--
@@ -23,7 +23,7 @@ under the License.
 
 ## Overview
 
-This table is solely for compatibility with MySQL behavior. It is always empty.
+View ID Information of Objects
 
 ## Database
 
@@ -31,17 +31,11 @@ This table is solely for compatibility with MySQL behavior. It is always empty.
 
 ## Table Information
 
-| Column Name                                                                                  | Type                           | Description |
-| -------------------------------------------------------------------------------------------- | ------------------------------ | ----------- |
-| CONSTRAINT_CATALOG                                                      | varchar(64) |             |
-| CONSTRAINT_SCHEMA                                                       | varchar(64) |             |
-| CONSTRAINT_NAME                                                         | varchar(64) |             |
-| TABLE_CATALOG                                                           | varchar(64) |             |
-| TABLE_SCHEMA                                                            | varchar(64) |             |
-| TABLE_NAME                                                              | varchar(64) |             |
-| COLUMN_NAME                                                             | varchar(64) |             |
-| ORDINAL_POSITION                                                        | bigint                         |             |
-| POSITION_IN_UNIQUE_CONSTRAINT | bigint                         |             |
-| REFERENCED_TABLE_SCHEMA                            | varchar(64) |             |
-| REFERENCED_TABLE_NAME                              | varchar(64) |             |
-| REFERENCED_COLUMN_NAME                             | varchar(64) |             |
+| Column Name                        | Type                            | Description          |
+| ---------------------------------- | ------------------------------- | -------------------- |
+| CATALOG_ID    | bigint                          | ID of the Catalog    |
+| CATALOG_NAME  | varchar(512) | Name of the Catalog  |
+| DATABASE_ID   | bigint                          | ID of the Database   |
+| DATABASE_NAME | varchar(64)  | Name of the Database |
+| TABLE_ID      | bigint                          | ID of the Table      |
+| TABLE_NAME    | varchar(64)  | Name of the Table    |
