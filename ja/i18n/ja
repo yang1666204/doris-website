@@ -1,5 +1,5 @@
 ---
-{ "title": "CONCAT_WS", "language": "en" }
+{ "title": "CONCAT", "language": "en" }
 ---
 
 <!-- 
@@ -21,69 +21,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## concat_ws
+## concat
 
 ### Description
 
 #### Syntax
 
-```sql
-VARCHAR concat_ws(VARCHAR sep, VARCHAR str,...)
-VARCHAR concat_ws(VARCHAR sep, ARRAY array)
-```
+`VARCHAR concat (VARCHAR,...)`
 
-Using the first parameter SEP as a connector, the second parameter and all subsequent parameters(or all string in an ARRAY) are spliced into a string.
-If the separator is NULL, return NULL.
-The `concat_ws` function does not skip empty strings, it skips NULL values.
+Connect multiple strings and return NULL if any of the parameters is NULL
 
 ### example
 
 ```
-mysql> select concat_ws("or", "d", "is");
-+----------------------------+
-| concat_ws('or', 'd', 'is') |
-+----------------------------+
-| doris                      |
-+----------------------------+
+mysql> select concat("a", "b");
++------------------+
+| concat('a', 'b') |
++------------------+
+| ab               |
++------------------+
 
-mysql> select concat_ws(NULL, "d", "is");
-+----------------------------+
-| concat_ws(NULL, 'd', 'is') |
-+----------------------------+
-| NULL                       |
-+----------------------------+
+mysql> select concat("a", "b", "c");
++-----------------------+
+| concat('a', 'b', 'c') |
++-----------------------+
+| abc                   |
++-----------------------+
 
-mysql> select concat_ws("or", "d", NULL,"is");
-+---------------------------------+
-| concat_ws("or", "d", NULL,"is") |
-+---------------------------------+
-| doris                           |
-+---------------------------------+
-
-mysql> select concat_ws("or", ["d", "is"]);
-+-----------------------------------+
-| concat_ws('or', ARRAY('d', 'is')) |
-+-----------------------------------+
-| doris                             |
-+-----------------------------------+
-
-mysql> select concat_ws(NULL, ["d", "is"]);
-+-----------------------------------+
-| concat_ws(NULL, ARRAY('d', 'is')) |
-+-----------------------------------+
-| NULL                              |
-+-----------------------------------+
-
-mysql> select concat_ws("or", ["d", NULL,"is"]);
-+-----------------------------------------+
-| concat_ws('or', ARRAY('d', NULL, 'is')) |
-+-----------------------------------------+
-| doris                                   |
-+-----------------------------------------+
+mysql> select concat("a", null, "c");
++------------------------+
+| concat('a', NULL, 'c') |
++------------------------+
+| NULL                   |
++------------------------+
 ```
 
 ### keywords
 
     ```
-    CONCAT_WS,CONCAT,WS,ARRAY
+    CONCAT
     ```
