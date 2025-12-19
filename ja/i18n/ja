@@ -1,5 +1,8 @@
 ---
-{ "title": "FIND_IN_SET", "language": "en" }
+{
+  "title": "FIRST_SIGNIFICANT_SUBDOMAIN",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -21,31 +24,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## find_in_set
+## Description
 
-### description
+## Syntax
 
-#### Syntax
+`VARCHAR  first_significant_subdomain(VARCHAR url)`
 
-`INT find_in_set(VARCHAR str, VARCHAR strlist)`
+Extract the "first valid subdomain" from a URL and return it. If the URL is invalid, return an empty string.
 
-"NOT found in set (VARCHAR str., VARCHAR strlist)"
+## Example
 
-Return to the location where the str first appears in strlist (counting from 1). Strlist is a comma-separated string. If not, return 0. Any parameter is NULL, returning NULL.
+```sql
+mysql [(none)]>select first_significant_subdomain("www.baidu.com");
++----------------------------------------------+
+| first_significant_subdomain('www.baidu.com') |
++----------------------------------------------+
+| baidu                                        |
++----------------------------------------------+
 
-### example
+mysql [(none)]>select first_significant_subdomain("www.google.com.cn");
++--------------------------------------------------+
+| first_significant_subdomain('www.google.com.cn') |
++--------------------------------------------------+
+| google                                           |
++--------------------------------------------------
 
+mysql [(none)]>select first_significant_subdomain("wwwwwwww");
++-----------------------------------------+
+| first_significant_subdomain('wwwwwwww') |
++-----------------------------------------+
+|                                         |
++-----------------------------------------+
 ```
-mysql> select find_in_set("b", "a,b,c");
-+---------------------------+
-| find_in_set('b', 'a,b,c') |
-+---------------------------+
-|                         2 |
-+---------------------------+
-```
 
-### keywords
+### Keywords
 
-    ```
-    FIND_IN_SET,FIND,IN,SET
-    ```
+FIRST_SIGNIFICANT_SUBDOMAIN
