@@ -1,8 +1,8 @@
 ---
-{ "title": "MICROSECONDS_SUB", "language": "en" }
+{ "title": "MILLISECONDS_ADD", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,33 +21,33 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## microseconds_sub
+## milliseconds_add
 
 ### description
 
 #### Syntax
 
-`DATETIMEV2 microseconds_sub(DATETIMEV2 basetime, INT delta)`
+`DATETIMEV2 milliseconds_add(DATETIMEV2 basetime, INT delta)`
 
 - basetime: Base time whose type is DATETIMEV2
-- delta: Microseconds to subtract from basetime
+- delta:Milliseconds to add to basetime
 - Return type of this function is DATETIMEV2
 
 ### example
 
 ```
-mysql> select now(3), microseconds_sub(now(3), 100000);
-+-------------------------+----------------------------------+
-| now(3)                  | microseconds_sub(now(3), 100000) |
-+-------------------------+----------------------------------+
-| 2023-02-25 02:03:05.174 | 2023-02-25 02:03:05.074          |
-+-------------------------+----------------------------------+
+mysql> select milliseconds_add('2023-09-08 16:02:08.435123', 1);
++--------------------------------------------------------------------------+
+| milliseconds_add(cast('2023-09-08 16:02:08.435123' as DATETIMEV2(6)), 1) |
++--------------------------------------------------------------------------+
+| 2023-09-08 16:02:08.436123                                               |
++--------------------------------------------------------------------------+
+1 row in set (0.04 sec)
 ```
-
-`now(3)` returns current time as type DATETIMEV2 with precision `3`，`microseconds_sub(now(3), 100000)` means 100000 microseconds before current time
 
 ### keywords
 
     ```
-    microseconds_sub
+    milliseconds_add
+    
     ```
