@@ -1,5 +1,5 @@
 ---
-{ "title": "FROM_UNIXTIME", "language": "en" }
+{ "title": "HOUR", "language": "en" }
 ---
 
 <!-- 
@@ -21,61 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## from_unixtime
+## Description
 
-### description
+Retrieves the hour information from a date.
 
-#### syntax
+The parameter can be of type Date, DateTime, or Time.
 
-`DATETIME FROM UNIXTIME (BIGINT unix timestamp [, VARCHAR string format]`
+When the parameter is of type Date or DateTime, the return value ranges from 0 to 23. When the parameter is of type Time, the return value can exceed 24.
 
-Convert the UNIX timestamp to the corresponding time format of bits, and the format returned is specified by `string_format`
+## Syntax
 
-Input is an big integer and return is a string type
+`INT HOUR(DATETIME date)`
 
-Support `date_format`'s format, and default is `%Y-%m-%d %H:%i:%s`
+## Example
 
-The current supported range for `unix_timestamp` is `[0, 32536771199]`. `unix_timestamp` values that fall outside of this range will be returned as NULL
-
-### example
-
-```
-mysql> select from_unixtime(1196440219);
-+---------------------------+
-| from_unixtime(1196440219) |
-+---------------------------+
-| 2007-12-01 00:30:19       |
-+---------------------------+
-
-mysql> select from_unixtime(1196440219, '%Y-%m-%d');
-+-----------------------------------------+
-| from_unixtime(1196440219, '%Y-%m-%d')   |
-+-----------------------------------------+
-| 2007-12-01                              |
-+-----------------------------------------+
-
-mysql> select from_unixtime(1196440219, '%Y-%m-%d %H:%i:%s');
-+--------------------------------------------------+
-|From unixtime (1196440219,'%Y-%m-%d %H:%i:%s')    |
-+--------------------------------------------------+
-| 2007-12-01 00:30:19                              |
-+--------------------------------------------------+
+```sql
+mysql> select hour('2018-12-31 23:59:59');
++-----------------------------+
+| hour('2018-12-31 23:59:59') |
++-----------------------------+
+|                          23 |
++-----------------------------+
+mysql> select cast(4562632 as time),hour(cast(4562632 as time)), minute(cast(4562632 as time)),second(cast(4562632 as time));
++-----------------------+-----------------------------+-------------------------------+-------------------------------+
+| cast(4562632 as TIME) | hour(cast(4562632 as TIME)) | minute(cast(4562632 as TIME)) | second(cast(4562632 as TIME)) |
++-----------------------+-----------------------------+-------------------------------+-------------------------------+
+| 456:26:32             |                         456 |                            26 |                            32 |
++-----------------------+-----------------------------+-------------------------------+-------------------------------+
 ```
 
-For timestamps that exceed the range, you can use the "from_second" function.
-`DATETIME FROM_SECOND(BIGINT unix_timestamp)`
-
-```
-mysql> select from_second(21474836470);
-+--------------------------+
-| from_second(21474836470) |
-+--------------------------+
-| 2650-07-06 16:21:10      |
-+--------------------------+
-```
-
-### keywords
+## Keywords
 
     ```
-    FROM_UNIXTIME,FROM,UNIXTIME
+    HOUR
     ```
