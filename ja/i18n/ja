@@ -1,5 +1,5 @@
 ---
-{ "title": "RTRIM", "language": "en" }
+{ "title": "RTRIM_IN", "language": "en" }
 ---
 
 <!--
@@ -21,36 +21,32 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## rtrim
+## Description
 
-### description
+## Syntax
 
-#### Syntax
+`VARCHAR rtrim_in(VARCHAR str[, VARCHAR rhs])`
 
-`VARCHAR rtrim(VARCHAR str[, VARCHAR rhs])`
+When there is no rhs parameter, remove the spaces that appear consecutively in the parameter str starting from the right part; when there is an rhs parameter, search and remove any characters in the rhs character set at the right end of the string (regardless of order)
 
-When the 'rhs' parameter is not present, remove the continuous spaces that appear from the ending of the 'str' parameter. Otherwise, remove 'rhs'.
+## Example
 
-### example
-
-```
-mysql> SELECT rtrim('ab d   ') str;
+```sql
+mysql> SELECT rtrim_in('ab d   ') str;
 +------+
 | str  |
 +------+
 | ab d |
 +------+
 
-mysql> SELECT rtrim('ababccaab','ab') str;
-+---------+
-| str     |
-+---------+
-| ababcca |
-+---------+
+mysql> SELECT rtrim_in('ababccaab','ab') str;
++--------+
+| str    |
++--------+
+| ababcc |
++--------+
 ```
 
-### keywords
+## Keywords
 
-    ```
-    RTRIM
-    ```
+RTRIM_IN
