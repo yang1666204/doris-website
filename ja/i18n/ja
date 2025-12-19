@@ -1,5 +1,5 @@
 ---
-{ "title": "Config FE", "language": "en" }
+{ "title": "Config Metaservice", "language": "en" }
 ---
 
 <!-- 
@@ -21,103 +21,123 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In the storage-computation separation mode, the FE (Frontend) is primarily responsible for SQL parsing and interacts with the metadata management component, MetaService. FE supports distributed deployment, and by default, it uses a master-observer configuration. Doris Operator supports deploying the storage-computation separation mode on Kubernetes for Doris versions 3.0.2 and above.
+MS is the abbreviation of MetaService, the storage and computing separation component of Doris, which provides metadata management and query services. The configuration field in `DorisDisaggregatedClulster` is metaService.
 
-## Resource configuration
+## Simplest configuration
 
-### Configuring compute resources
-
-By default, FE deployments on Kubernetes do not limit resource usage. The DorisDisaggregatedCluster uses Kubernetes' [requests and limits](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers/) to configure compute resources. To allocate 8 CPU cores and 8 Gi of memory to the FE service, use the following configuration:
+MS service is a stateless service and is usually deployed in active-standby mode. The simplest configuration is as follows:
 
 ```yaml
 spec:
-  feSpec:
+  metaService:
+    image: {msImage}
+    fdb:
+      configMapNamespaceName:
+        name: {foundationdbConfigmap}
+        namespace: {namespace}
+```
+
+Among them, `{msImage}` is the version of the MS service you want to deploy.
+`{foundationdbConfigmap}` is the access configmap provided by the FDB service deployed by K8s.
+`{namespace}` 为 is the Namespace where the FDB service deployed in K8s is located.
+
+## Configure resources
+
+Add resource usage restrictions for the MS service. Take the 4c 4Gi configuration as an example:
+
+```yaml
+spec:
+  metaService:
+    image: {msImage}
+    replicas: 2
     requests:
-      cpu: 8
-      memory: 8Gi
+      cpu: 4
+      memory: 4Gi
     limits:
-      cpu: 8
-      memory: 8Gi
+      cpu: 4
+      memory: 4Gi
 ```
 
-Update the above configuration in the [DorisDisaggregatedCluster resource](install-quickstart.md#step-3-deploy-the-compute-storage-decoupled-cluster).
+Update the modified configuration to the [metadata management resources for storage and computing separation that need to be deployed](install-quickstart.md#step-2-quickly-deploy-a-storage-and-computing-separation-cluster).
 
-### Configuring storage resources
+## Configure FDB
 
-The FE service in the storage-computation separation cluster is a stateful service. When deployed on Kubernetes, it requires persistent storage for metadata. Doris Operator automatically mounts the persistent storage based on the configuration of the metadata storage directory and the storage template. Add the following configuration to the [DorisDisaggregatedCluster resource](install-quickstart.md#step-3-deploy-the-compute-storage-decoupled-cluster):
+- Use ConfigMap  
+  The FDB cluster is built on the same K8s cluster and can obtain its namespace and configmap. Use the following configuration:
 
 ```yaml
 spec:
-  feSpec:
-    persistentVolume:
-      persistentVolumeClaimSpec:
-        storageClassName: ${storageClassName}
-        accessModes:
-        - ReadWriteOnce
-        resources:
-          requests:
-            storage: ${storageSize}
+  metaService:
+    image: {msImage}
+    fdb:
+      configMapNamespaceName:
+        name: {foundationdbConfigmap}
+        namespace: {namespace}
 ```
 
-Here, ${storageClassName} is the name of the desired StorageClass. If not specified, the cluster’s default StorageClass will be used. ${storageSize} indicates the storage capacity you wish to allocate, and the format follows Kubernetes' [quantity notation](https://kubernetes.io/docs/reference/kubernetes-api/common-definitions/quantity/), for example: 100Gi.
+- Directly Endpoint
+  The FDB is deployed on a physical machine, Please configure the FDB endpoint (FDB access string) for the metaService. The configuration is as follows:
 
-## Custom startup configuration
+```yaml
+spec:
+  metaService:
+    image: {msImage}
+    fdb:
+      address: {fdb_endpoint}
+```
 
-Doris Operator uses Kubernetes' ConfigMap to mount the startup configuration.
+## Customized configuration file
 
-1. Creating a Custom ConfigMap with Startup Configuration.  
-   Below is an example of a ConfigMap for FE, which includes the startup configuration:
+ConfigMap is used to mount the configuration file on K8s. Doris-Operator automates add the configuration of mutual perception between storage and computing separation components. When deploying MS services using customized configuration files, please do not configure FDB related configuration.
 
-  ```yaml
-  apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: fe-configmap
-    namespace: default
-    labels:
-      app.kubernetes.io/component: fe
-  data:
-    fe.conf: |
-      CUR_DATE=`date +%Y%m%d-%H%M%S`
-      # Log dir
-      LOG_DIR = ${DORIS_HOME}/log
-      # For jdk 17, this JAVA_OPTS will be used as default JVM options
-      JAVA_OPTS_FOR_JDK_17="-Djavax.security.auth.useSubjectCredsOnly=false -Xmx8192m -Xms8192m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$LOG_DIR -Xlog:gc*:$LOG_DIR/fe.gc.log.$CUR_DATE:time,uptime:filecount=10,filesize=50M --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED"
-      # INFO, WARN, ERROR, FATAL
-      sys_log_level = INFO
-      # NORMAL, BRIEF, ASYNC
-      sys_log_mode = NORMAL
-      # Default dirs to put jdbc drivers,default value is ${DORIS_HOME}/jdbc_drivers
-      # jdbc_drivers_dir = ${DORIS_HOME}/jdbc_drivers
-      http_port = 8030
-      rpc_port = 9020
-      query_port = 9030
-      edit_log_port = 9010
-      enable_fqdn_mode=true
-  ```
+Use ConfigMap to mount the configuration file to deploy MS services:
 
-In Kubernetes deployments, `enable_fqdn_mode=true` must be set.
-2. Use the following command to deploy the ConfigMap:
+**ConfigMap**:
 
-  ```shell
-  kubectl apply -n ${namespace} -f ${feConfigMapName}.yaml
-  ```
+```yaml
+apiVersion: v1
+data:
+  doris_cloud.conf: |
+    # // meta_service
+    brpc_listen_port = 5000
+    brpc_num_threads = -1
+    brpc_idle_timeout_sec = 30
+    http_token = greedisgood9999
 
-Where ${namespace} is the namespace of the DorisDisaggregatedCluster and ${feConfigMapName} is the filename containing the above configuration.  
-3. Update the `DorisDisaggregatedCluster` resource as follows:
+    # // doris txn config
+    label_keep_max_second = 259200
+    expired_txn_scan_key_nums = 1000
 
-  ```yaml
-  spec:
-    feSpec:
-      replicas: 2
-      configMaps:
-      - name: fe-configmap
-  ```
+    # // logging
+    log_dir = ./log/
+    # info warn error
+    log_level = info
+    log_size_mb = 1024
+    log_filenum_quota = 10
+    log_immediate_flush = false
+    # log_verbose_modules = *
 
-In the `DorisDisaggregatedCluster` resource, the `configMaps` field is an array, with each element’s `name` representing the name of the ConfigMap in the current namespace.
+    # //max stage num
+    max_num_stages = 40
+kind: ConfigMap
+metadata:
+  name: doris-metaservice
+  namespace: default
+```
+
+The MS configuration using the above ConfigMap is as follows:
+
+```yaml
+spec:
+  metaService:
+    image: {msImage}
+    configMaps:
+      - name: doris-metaservice
+        mountPath: /etc/doris
+```
+
+In actual deployment, configure the name and namespace of ConfigMap as needed, and configure the configuration information in the [storage-and-computing-separation metadata management resource](install-quickstart#step-2-quickly-deploy-a-storage-and-computing-separation-cluster) to be deployed according to the above sample format. The startup configuration file used by the MS service is named `doris_cloud.conf`, so the key of the ConfigMap for mounting the startup configuration must also be `doris_cloud.conf`. The startup configuration must be mounted to the `/etc/doris` directory, that is, the mountPath is `/etc/doris`.
 
 :::tip Tip
-
-1. In Kubernetes deployments, no need to manually set `meta_service_endpoint`, `deploy_mode`, or `cluster_id` in the startup configuration. These are automatically handled by Doris Operator services.
-2. When customizing the startup configuration in Kubernetes, always set `enable_fqdn_mode=true`.  
-   :::
+MS services need to use FDB as the backend metadata storage. FDB services must be deployed when deploying MS services.
+:::
