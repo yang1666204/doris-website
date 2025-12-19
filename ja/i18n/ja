@@ -1,5 +1,5 @@
 ---
-{ "title": "BIGINT", "language": "en" }
+{ "title": "BOOLEAN", "language": "en" }
 ---
 
 <!-- 
@@ -21,13 +21,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## BIGINT
+## BOOLEAN
 
 ### Description
 
-BIGINT
-8-byte signed integer, range [-9223372036854775808, 9223372036854775807]
+BOOL, BOOLEAN
+Like TINYINT, 0 stands for false and 1 for true.
 
 ### keywords
 
-BIGINT
+BOOLEAN
