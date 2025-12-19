@@ -1,5 +1,5 @@
 ---
-{ "title": "UNINSTALL-PLUGIN", "language": "en" }
+{ "title": "UNSET-VARIABLE", "language": "en" }
 ---
 
 <!--
@@ -21,38 +21,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## UNINSTALL-PLUGIN
+## UNSET-VARIABLE
 
 ### Name
 
-UNINSTALL PLUGIN
+UNSET VARIABLE
 
 ### Description
 
-This statement is used to uninstall a plugin.
+This statement is used to restore Doris system variables. These system variables can be modified at global or session level.
 
 grammar:
 
 ```sql
-UNINSTALL PLUGIN plugin_name;
+UNSET [SESSION|GLOBAL] VARIABLE (variable_name | ALL)
 ```
 
-plugin_name can be viewed with the `SHOW PLUGINS;` command.
+illustrate:
 
-Only non-builtin plugins can be uninstalled.
+1. (variable_name | ALL): statement must be ended with a variable name or keyword `ALL`.
+
+> Note:
+>
+> 1. Only ADMIN users can unset variables to take effect globally
+> 2. When restore a variable with `GLOBAL`,  it only affect your current using session and new open sessions. It does not affect other current open sessions.
 
 ### Example
 
-1. Uninstall a plugin:
+1. Restore value of the time zone
 
-    ```sql
-    UNINSTALL PLUGIN auditdemo;
-    ```
+   ```
+   UNSET VARIABLE time_zone;
+   ```
+
+2. Restore the global execution memory size
+
+   ```
+   UNSET GLOBAL VARIABLE exec_mem_limit;
+   ```
+
+3. Restore all variables globally
+
+   ```
+   UNSET GLOBAL VARIABLE ALL;
+   ```
 
 ### Keywords
 
     ```
-    UNINSTALL, PLUGIN
+    UNSET, VARIABLE
     ```
 
 ### Best Practice
