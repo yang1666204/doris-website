@@ -1,8 +1,5 @@
 ---
-{
-  "title": "DROP-ASYNC-MATERIALIZED-VIEW",
-  "language": "en"
-}
+{ "title": "DROP-CATALOG-RECYCLE-BIN", "language": "en" }
 ---
 
 <!--
@@ -24,47 +21,67 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-ASYNC-MATERIALIZED-VIEW
+## DROP-CATALOG-RECYCLE-BIN
 
 ### Name
 
-DROP ASYNC MATERIALIZED VIEW
+DROP CATALOG RECYCLE BIN
 
 ### Description
 
-This statement is used to delete asynchronous materialized views.
+This statement is used to delete db/table/partition in catalog recycle bin instantly.
 
-syntax:
+You can get all meta informations that can be deleted by statement `SHOW CATALOG RECYCLE BIN`.
 
-```sql
-DROP MATERIALIZED VIEW (IF EXISTS)? mvName=multipartIdentifier
-```
+grammar:
 
-1. IF EXISTS:
-   If the materialized view does not exist, do not throw an error. If this keyword is not declared and the materialized view does not exist, an error will be reported.
+1. delete database by DbId
 
-2. mv_name:
-   The name of the materialized view to be deleted. Required field.
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'DbId' = db_id;
+  ```
+
+2. delete table by TableId
+
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'TableId' = table_id;
+  ```
+
+3. delete partition by PartitionId
+
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'PartitionId' = partition_id;
+  ```
+
+illustrate:
+
+- When drop db/table/partition, the catalog recycle bin will delete them after catalog_trash_expire_second(in fe.conf) seconds. This statement will delete them to free disk usage timely.
+- `'DbId'`, `'TableId'` and `'PartitionId'` will be case-insensitive and not distinguish between `'` and `''`.
+- When drop a database which is not in catalog recycle bin, it will also delete all tables and partitions with same DbId in catalog recycle bin. Only if nothing is deleted，it will report an error. When drop a table which is not in catalog recycle bin, the treatment is similar.
 
 ### Example
 
-1. Delete table materialized view mv1
+1. Delete the database(include tables and partitions with same DbId) with id example_db_id
 
-```sql
-DROP MATERIALIZED VIEW mv1;
-```
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'DbId' = example_db_id;
+  ```
 
-2.If present, delete the materialized view of the specified database
+2. Delete the table(include partitions with same TableId) with id example_tbl_id
 
-```sql
-DROP MATERIALIZED VIEW IF EXISTS db1.mv1;
-```
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'TableId' = example_tbl_id;
+  ```
+
+3. Delete the partition with id p1_id
+
+  ```sql
+  DROP CATALOG RECYCLE BIN WHERE 'PartitionId' = p1_id;
+  ```
 
 ### Keywords
 
-    ```
-    DROP, ASYNC, MATERIALIZED, VIEW
-    ```
+DROP, CATALOG, RECYCLE, BIN
 
 ### Best Practice
 
