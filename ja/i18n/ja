@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-CATALOG-RECYCLE-BIN", "language": "en" }
+{ "title": "SHOW-CATALOGS", "language": "en" }
 ---
 
 <!--
@@ -21,55 +21,62 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-CATALOG-RECYCLE-BIN
+## SHOW-CATALOGS
 
 ### Name
 
-SHOW CATALOG RECYCLE BIN
+SHOW CATALOGS
 
 ### Description
 
-This statement is used to display the dropped meta informations that can be recovered
+This statement is used for view created catalogs
 
-grammar:
+Syntax:
 
 ```sql
-SHOW CATALOG RECYCLE BIN [ WHERE NAME [ = "name" | LIKE "name_matcher"] ]
+SHOW CATALOGS [LIKE]
 ```
 
-grammar:
+illustrate:
 
-```
-The meaning of each column is as follows:
-        Type：                type of meta information:Database、Table、Partition
-        Name：                name of meta information
-        DbId：                id of database
-        TableId：             id of table
-        PartitionId：         id of partition
-        DropTime：            drop time of meta information
-        DataSize：            the amount of data. If the type is database, this value includes the data size of the recycled tables and partitions in the database
-        RemoteDataSize：      the amount of data on remote storage(hdfs or object storage). If the type is database, this value includes the remote data size of the recycled tables and partitions in the database
-```
+1. LIKE: Fuzzy query can be performed according to the catalog name
+
+Return result:
+
+- CatalogId: Unique ID of the catalog
+- CatalogName: Catalog name. where "internal" is the default built-in catalog, which cannot be modified.
+- Type: Catalog type.
+- IsCurrent: Show yes on the line of current using catalog.
 
 ### Example
 
-1. Display all meta informations that can be recovered
+1. View the data catalogs that have been created currently
 
-      ```sql
-       SHOW CATALOG RECYCLE BIN;
-      ```
+   ```sql
+   SHOW CATALOGS;
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+    | CatalogId | CatalogName | Type     | IsCurrent | CreateTime              | LastUpdateTime      | Comment                |
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+    |    130100 | hive        | hms      |           | 2023-12-25 16:11:41.687 | 2023-12-25 20:43:18 | NULL                   |
+    |         0 | internal    | internal | yes       | UNRECORDED              | NULL                | Doris internal catalog |
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+   ```
 
-2. Display meta informations with name 'test'
+2. Fuzzy query by catalog name
 
-      ```sql
-       SHOW CATALOG RECYCLE BIN WHERE NAME = 'test';
-      ```
+   ```sql
+   SHOW CATALOGS LIKE 'hi%';
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+    | CatalogId | CatalogName | Type     | IsCurrent | CreateTime              | LastUpdateTime      | Comment                |
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+    |    130100 | hive        | hms      |           | 2023-12-25 16:11:41.687 | 2023-12-25 20:43:18 | NULL                   |
+    +-----------+-------------+----------+-----------+-------------------------+---------------------+------------------------+
+       ```
+   ```
 
 ### Keywords
 
-    ```
-    SHOW, CATALOG RECYCLE BIN
-    ```
+SHOW, CATALOG, CATALOGS
 
 ### Best Practice
 
