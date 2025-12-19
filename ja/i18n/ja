@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-COLUMNS", "language": "en" }
+{ "title": "SHOW COMPUTE GROUPS", "language": "en" }
 ---
 
 <!--
@@ -21,35 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-COLUMNS
+## Description
 
-### Name
+The SHOW COMPUTE GROUPS command is used to display information about all configured compute groups in the system. Compute groups are logical units used to manage and organize computational resources, helping users allocate and utilize system resources more effectively.
 
-SHOW FULL COLUMNS
+This command assists administrators and users in quickly understanding the existing compute group configurations in the system, including the name, attributes, and other relevant information for each compute group. This is particularly useful for resource management, performance optimization, and system monitoring.
 
-### Description
-
-This statement is used to specify the column information of the table
-
-grammar:
+## Syntax
 
 ```sql
-SHOW [FULL] COLUMNS FROM tbl;
+    SHOW COMPUTE GROUPS
 ```
 
-### Example
+## Return Values
 
-1. View the column information of the specified table
+This command returns a result set containing the following columns:
 
-    ```sql
-     SHOW FULL COLUMNS FROM tbl;
+- `Name`: The name of the compute group.
+- `IsCurrent`: Indicates whether it is the current working compute group.
+- `Users`: Displays the list of users who have permission to use this compute group.
+- `BackendNum`: Shows the number of backends (compute nodes) currently allocated to this compute group.
+
+## Related Commands
+
+- [ALTER SYSTEM ADD BACKEND](../Administration-Statements/ALTER-SYSTEM-ADD-BACKEND.md)
+- [GRANT](../Account-Management-Statements/GRANT.md)
+- [REVOKE](../Account-Management-Statements/REVOKE.md)
+- [SET DEFAULT COMPUTE GROUP](../Administration-Statements/SET-DEFAULT-COMPUTE-GROUP.md)
+
+## Keywords
+
     ```
-
-### Keywords
-
+    SHOW, COMPUTE GROUPS
     ```
-    SHOW, COLUMNS
-    ```
-
-### Best Practice
-
