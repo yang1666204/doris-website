@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 3.0.0", "language": "en" }
+{ "title": "Release 3.0.1", "language": "en" }
 ---
 
 <!--
@@ -21,443 +21,576 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-We are excited to announce the release of Apache Doris 3.0!
+Dear community members, the Apache Doris 3.0.1 version was officially released on August 23, 2024, featuring updates and improvements in compute-storage decoupling, lakehouse, semi-structured data analysis, asynchronous materialized views, and more.
 
-**Starting from version 3.X, Apache Doris supports a compute-storage decoupled mode in addition to the compute-storage coupled mode for cluster deployment. With the cloud-native architecture that decouples the computation and storage layers, users can achieve physical isolation between query loads across multiple compute clusters, as well as isolation between read and write loads. Additionally, users can take advantage of low-cost shared storage systems such as object storage or HDFS to significantly reduce storage costs.**
+**Quick Download:** https://doris.apache.org/download/
 
-Version 3.0 marks a milestone in the evolution of Apache Doris towards a unified data lake and data warehouse architecture. This version introduces the ability to write data back to data lakes, allowing users to perform data analysis, sharing, processing, and storage operations across multiple data sources within Apache Doris. With capabilities such as asynchronous materialized views, Apache Doris can serve as a unified data processing engine for enterprises, helping users better manage data across lakes, warehouses, and databases. Also, Apache Doris 3.0 introduces the Trino Connector. It allows users to quickly connect or adapt to more data sources, and leverage the high-performance compute engine of Doris to deliver faster query results than Trino.
+**GitHub Release:** https://github.com/apache/doris/releases
 
-Version 3.0 also enhances support for ETL batch processing scenarios, adding explicit transaction support for operations like `insert into select`, `delete` and `update`. The observability of query execution has also been improved.
+## Behavior Changes
 
-In terms of performance, we have improved the framework capabilities, infrastructure, and rules of the query optimizer in version 3.0. This provides optimized performance, which has been proven by blind testing in more complex and diverse business scenarios.
+### Query Optimizer
 
-The adaptive Runtime Filter computation method now accurately estimates filters based on data size during execution, delivering better performance under large data volumes and high loads. Additionally, asynchronous materialized view has been more stable and user-friendly in query acceleration and data modeling.
+- Added the variable `use_max_length_of_varchar_in_ctas` to control the length behavior of VARCHAR type when executing `CREATE TABLE AS SELECT` (CTAS) operations.  [#37069](https://github.com/apache/doris/pull/37069)
 
-**During the development of version 3.0, over 200 contributors submitted nearly 5,000 optimizations** and fixes to Apache Doris. Contributors from companies such as VeloDB, Baidu, Meituan, ByteDance, Tencent, Alibaba, Kwai, Huawei, and Tianyi Cloud actively collaborated with the community, contributing test cases from real-world use cases to help us improve Apache Doris. We extend our heartfelt thanks to all the contributors involved in the development, testing, and feedback process for this release.
+  - This variable is set to true by default.
 
-- **GitHub**: https://github.com/apache/doris/releases
+  - When set to true, if the VARCHAR type column originates from a table, the derived length is used; otherwise, the maximum length is used.
 
-- **Website**: https://doris.apache.org/download
+  - When set to false, the VARCHAR type will always use the derived length.
 
-## 1. Compute-storage decoupled mode
+- All data types will now be displayed in lowercase to maintain compatibility with MySQL format. [#38012](https://github.com/apache/doris/pull/38012)
 
-Since V3.0, Apache Doris supports the compute-storage decoupled mode. Users can choose between it and the compute-storage coupled mode during cluster deployment.
+- Multiple query statements in the same query request must now be separated by semicolons. [#38670](https://github.com/apache/doris/pull/38670)
 
-In the compute-storage decoupled mode, the BE nodes no longer store the data, but instead, a shared storage layer (HDFS and object storage) is introduced as the shared data storage layer. The computing and storage resources can be scaled independently, bringing multiple benefits to users:
+### Query Execution
 
-- **Workload isolation**: Multiple compute clusters can share the same data, allowing users to isolate different business workloads or offline loads using separate compute clusters.
+- The default number of parallel tasks after shuffle operations in the cluster is set to 100, which will improve query stability and concurrent processing capability in large clusters. [#38196](https://github.com/apache/doris/pull/38196)
 
-- **Reduced storage costs**: The full dataset is stored in the more cost-effective and highly reliable shared storage, with only hot data cached locally. Compared to the compute-storage coupled mode with three data replicas, the storage cost can be reduced by up to 90%.
+### Storage
 
-- **Elastic computing resources**: Since no data is stored on the BE nodes, the computing resources can be scaled flexibly based on the load requirements. Users can scale in or out an individual compute cluster or increase/decrease the number of compute clusters. This also leads to cost savings.
+- The default value of `trash_file_expire_time_sec` has been changed from 86400 seconds to 0 seconds, which means that if files are deleted by mistake and the FE trash is cleared, the data cannot be recovered.
 
-- **Improved system robustness**: By storing the data in shared storage, Doris no longer needs to handle the complex logic of multi-replica consistency, thus simplifying distributed storage complexity and improving the overall system robustness.
+- The table attribute `enable_mow_delete_on_delete_predicate` (introduced in version 3.0.0) has been renamed to `enable_mow_light_delete`.
 
-- **Flexible data sharing and cloning**: The flexibility of the compute-storage decoupled mode extends beyond a single Doris cluster. Tables from one Doris cluster can be easily cloned to another Doris cluster, with just metadata replication.
+- Explicit transactions are now prohibited from performing delete operations on tables with written data.
 
-### 1-1. From coupled to decoupled
+- Heavy schema change operations are prohibited on tables with auto-increment fields.
 
-In the compute-storage coupled mode, the Apache Doris architecture consists of two main process types: Frontend (FE) and Backend (BE). The FE is primarily responsible for user request access, query parsing and planning, metadata management, and node management. The BE is responsible for data storage and query plan execution.
+## New Features
 
-The BE nodes employ an MPP (Massively Parallel Processing) distributed computing architecture, leveraging a multi-replica consistency protocol to ensure high service availability and high data reliability.
+### Job Scheduling
 
-![From coupled to decoupled](/images/storage-compute-decoupled.PNG)
+- Optimized the execution logic of internal scheduling jobs, decoupling the strong association between start time and immediate execution parameters. Now, tasks can be created with a specified start time or selected for immediate execution, without conflict, enhancing scheduling flexibility. [#36805](https://github.com/apache/doris/pull/36805)
 
-The maturation of emerging cloud computing infrastructure, including public clouds, private clouds, and Kubernetes-based container platforms, has driven the need for cloud-native capabilities. Increasingly, users are seeking deeper integration between Apache Doris and cloud computing infrastructure to provide more elasticity.
+### Compute-Storage Decoupled
 
-**To address this need, the VeloDB team has designed and implemented a cloud-native version of Apache Doris that decouples compute and storage, known as VeloDB Cloud.  After extensive production testing and refinement across hundreds of enterprises over a long time, this cloud-native solution has now been contributed to the Apache Doris community, manifesting as the Apache Doris 3.0 in the compute-storage decoupled mode.**
+- Supports dynamic modification of the upper limit for file cache usage. [#37484](https://github.com/apache/doris/pull/37484)
 
-In the compute-storage decoupled mode, the Apache Doris architecture consists of three layers:
+- Recycler now supports object storage rate limiting and server-side rate limiting retry functionality. [#37663](https://github.com/apache/doris/pull/37663) [#37680](https://github.com/apache/doris/pull/37680)
 
-- **Meta data layer**: A new Meta Service module has been introduced to provide meta data services, such as processing database and table information, schemas, rowset meta, and transactions. The Meta Service is stateless and horizontally scalable. In V3.0, all of the BE's meta data and parts of the FE's meta data have been migrated to the Meta Service. We will finish the migration of the remains in future versions.
-- **Computation layer**: The stateless BE nodes execute query plans and cache a portion of the data and tablet meta data locally to improve query performance. Multiple stateless BE nodes can be organized into a computing resource pool (i.e., compute cluster), and multiple compute clusters can share the same data and metadata service. The compute clusters can be elastically scaled by adding or removing nodes as needed.
-- **Shared storage layer**: Data is persisted to the shared storage layer, which currently supports HDFS as well as various cloud-based object storage systems that are compatible with the S3 protocol, such as S3, OSS, GCS, Azure Blob, COS, BOS, and MinIO.
+### Lakehouse
 
-![From coupled to decoupled-2](/images/storage-compute-decoupled-2.JPEG)
+- Added the session variable `serde_dialect` to set the output format for complex types. [#37039](https://github.com/apache/doris/pull/37039)
 
-### 1-2 Design highlight
+- SQL interception now supports external tables.
 
-The design of the compute-storage decoupled mode of Apache Doris highlights the transformation of the FE's in-memory metadata model into a shared metadata service. This approach offers a globally consistent state view, allowing any node to directly submit writes without needing to go through the FE for publishing. During write operations, data is stored in shared storage, while metadata is managed by the metadata service. **This effectively controls the number of small files in shared storage. Meanwhile, the real-time write performance for individual tables is nearly on par with that in the compute-storage coupled mode. The system's overall write capacity is no longer limited by the processing power of a single FE node.**
+  - For more information, refer to the documentation on  [SQL Interception](https://doris.apache.org/docs/admin-manual/query-admin/sql-interception).
 
-![Design highlight](/images/design-hightlight.PNG)
+- Insert overwrite now supports Iceberg tables. [#37191](https://github.com/apache/doris/pull/37191)
 
-Based on the globally consistent state view, for data garbage collection, we have adopted a design approach for data deletion that is easier to prove correct and more efficient.
+### Asynchronous Materialized Views
 
-Specifically, data in the shared storage is incorporated into the globally consistent view offered by the shared meta data service. Whenever data is generated, we bind it to a separate, independent transaction. Similarly, for a meta data deletion operation, we also bind it to a separate, independent transaction. The purpose of this approach is to ensure that deletion and write operations cannot succeed together. The view records which data needs to be deleted, and the asynchronous deletion process can simply perform a forward deletion of the data based on the transaction records, without the need for reverse garbage collection.
+- Supports partition roll-up and build at the hourly level. [#37678](https://github.com/apache/doris/pull/37678)
 
-As the tablet-related meta data in the FE is gradually migrated to the shared meta data service, the scalability of the Doris cluster will no longer be constrained by the memory capacity of a single FE node. Building upon the shared meta data service and the forward data deletion technique, we can conveniently expand functionality such as data sharing and lightweight cloning.
+- Supports atomic replacement of asynchronous materialized view definition statements. [#36749](https://github.com/apache/doris/pull/36749)
 
-### 1-3 Comparison with alternative solutions
+- Transparent rewriting now supports Insert statements. [#38115](https://github.com/apache/doris/pull/38115)
 
-Another design of decoupling compute and storage in the industry is to store the data and BE node meta data in a shared object storage or HDFS. However, this approach brings the following problems:
+- Transparent rewriting now supports the VARIANT type. [#37929](https://github.com/apache/doris/pull/37929)
 
-- **Inability to support real-time writes**: During data writes, the data is mapped to tablets based on the partitioning and bucketing rules, generating segment files and rowset meta data. During the write process, a two-phase commit (Publish) is performed through the FE. When a BE node receives the Publish request, it then sets the rowset as visible. The Publish operation must not fail. If the rowset meta data is stored in the shared storage, the total small file data during the real-time write process would triple the size of the actual data files - one replica of data files, one for rowset meta data, and another for rowset meta data changes during Publish. The Publish operation is driven by a single FE node, so the write capacity of a single table or even the entire system is limited by the FE node's capabilities.
+### Query Execution
 
-  ![Comparison with alternative solutions](/images/comparison-with-alternative-solutions.png)
+- The group concat function now supports DISTINCT and ORDER BY options. [#38744](https://github.com/apache/doris/pull/38744)
 
-  We compared the real-time data write performance of Apache Doris 3.0 with the above-described solution. We simulated 500 concurrent tasks writing 10,000 data files with 500 rows each, and 50 concurrent tasks writing 250 data files with 20,000 rows each, using the same computational resources.
+### Semi-Structured Data Management
 
-  **The results showed that at 50 concurrent tasks, the micro-batch write performances of Apache Doris in both compute-storage coupled and decoupled modes were almost identical, while the industry solution lagged behind Apache Doris by a factor of 100.**
+- The ES Catalog now maps `nested` or `object` types in Elasticsearch to the JSON type in Doris. [#37101](https://github.com/apache/doris/pull/37101)
 
-  At 500 concurrent tasks, the performance of Apache Doris in the compute-storage decoupled mode showed slight degradation, but it still maintained an 11X advantage over the industry solution. To ensure a fair test, Apache Doris did not enable the Group Commit feature (which the industry solution lacks). Enabling Group Commit would further enhance real-time write performance.
+- Added the `MULTI_MATCH` function, which supports matching keywords across multiple fields and can leverage inverted indexes to accelerate searches. [#37722](https://github.com/apache/doris/pull/37722)
 
-  ![Comparison with alternative solutions](/images/real-time-write-performance..png)
+- Added the `explode_json_object` function, which can unfold objects in JSON data into multiple rows. [#36887](https://github.com/apache/doris/pull/36887)
 
-  Additionally, the industry solution also faces stability and cost issues in terms of real-time data ingestion:
+- Inverted indexes now support memtable advancement, requiring index construction only once during multi-replica writes, reducing CPU consumption and improving performance. [#35891](https://github.com/apache/doris/pull/35891)
 
-  - Stability concerns: A large number of small files can put pressure on the shared storage, especially HDFS, and introduce stability risks.
+- Added `MATCH_PHRASE` support for positive slop, e.g., `msg MATCH_PHRASE 'a b 2+'` can match instances containing words a and b with a slop of no more than two, and a preceding b; regular slop without the final `+` does not guarantee this order. [#36356](https://github.com/apache/doris/pull/36356)
 
-  - High object storage request costs: Some public cloud object storage services charge 10 times more for Put and Delete operations compared to Get operations. A large number of small files can lead to a significant increase in object storage request costs, which can even exceed the storage costs.
+### Other
 
-- **Limited scalability**: Use cases of the compute-storage decoupled model often handles larger data storage sizes, since the FE (Frontend) meta data is entirely in-memory, when the number of tablets reaches a certain high level (e.g. tens of millions), the FE's memory pressure can become a bottleneck that limits the overall write throughput of the system.
+- Added the FE parameter `skip_audit_user_list`, where user operations specified in this configuration will not be recorded in the audit log. [#38310](https://github.com/apache/doris/pull/38310)
 
-- **Potential data deletion logic issues**: In the compute-storage decoupled architecture, data is stored with one single replica. Therefore, the data deletion logic is critical for the system's reliability. The conventional approach of cross-system data deletion by comparing the differences can be challenging. During the write process, there is no way to completely avoid deletion and write from succeeding together, which can lead to data loss. Additionally, when the storage system experiences anomalies, the input used for difference calculation may be incorrect, which potentially leads to unintended data deletion.
+  - For more information, refer to the documentation on [Audit Plugin](https://doris.apache.org/docs/admin-manual/audit-plugin/).
 
-- **Data sharing and lightweight cloning**: The flexibility of the decoupled storage-compute architecture can enable future data sharing and lightweight data cloning, reducing the burden of enterprise data management. However, if each cluster has a separate FE, after cloning data across clusters, it becomes difficult to accurately determine which data is no longer referenced and can be safely deleted, as calculating cross-cluster references can easily lead to unintended data deletion.
+## Improvements
 
-By evolving the FE's full in-memory meta data model into a shared meta data service, Apache Doris 3.0 avoids all the aforementioned issues.
+### Storage
 
-### 1-4 Query performance comparison
+- Reduced the likelihood of write failures caused by disk balancing within a single BE. [#38000](https://github.com/apache/doris/pull/38000)
 
-In the compute-storage decoupled mode, data needs to be read from the remote shared storage system, the main bottleneck has become the network bandwidth instead of the disk I/O in the compute-storage coupled mode.
+- Decreased memory consumption by the memtable limiter. [#37511](https://github.com/apache/doris/pull/37511)
 
-To accelerate data access, Apache Doris has implemented a high-speed caching mechanism based on local disks, and provides two cache management policies: LRU (Least Recently Used) and TTL (Time-To-Live). The newly imported data is asynchronously written to the cache to accelerate the first-time access to the latest data. If the data required by a query is not in the cache, the system will read the data from the remote storage into memory and synchronously write it to the cache for subsequent queries.
+- Moved old partitions to the FE trash during partition replacement operations. [#36361](https://github.com/apache/doris/pull/36361)
 
-In use cases involving multiple compute clusters, Apache Doris provides a cache preheating function. When a new compute cluster is established, users can choose to preheat specific data (such as tables or partitions) to further improve query efficiency.
+- Optimized memory consumption during compaction. [#37099](https://github.com/apache/doris/pull/37099)
 
-In this context, we have conducted performance tests with different caching strategies in both the compute-storage coupled and decoupled modes, using the TPC-DS 1TB test dataset. The results are concluded as follows:
+- Added a session variable to control audit logs for JDBC PreparedStatement, with default setting to not print. [#38419](https://github.com/apache/doris/pull/38419)
 
-- When the cache is fully hit (i.e., all the data required for the query is loaded into the cache), **the query performance of the compute-storage decoupled mode is on par with that of the compute-storage coupled mode**.
+- Optimized the logic for selecting BEs for group commits. [#35558](https://github.com/apache/doris/pull/35558)
 
-- When the cache is partially hit (i.e., the cache is cleared before the test, and data is gradually loaded into the cache during the test, with performance continuously improving), the query performance of the compute-storage decoupled mode is about 10% lower than that of the compute-storage coupled mode. This test scenario is the most similar to the real-life use cases.
+- Improved the performance of column updates. [#38487](https://github.com/apache/doris/pull/38487)
 
-- When the cache is completely missed (i.e., the cache is cleared before every SQL execution, simulating an extreme case), the performance loss is around 35%. **Even so, Apache Doris in the compute-storage decoupled mode delivers much higher performance than its alternative solutions.**
+- Optimized the use of `delete bitmap cache`. [#38761](https://github.com/apache/doris/pull/38761)
 
-![Query performance comparison](/images/query-performance-comparison.png)
+- Added a configuration to control query affinity during hot and cold tiering. [#37492](https://github.com/apache/doris/pull/37492)
 
-### 1-5 Write speed comparison
+### Compute-Storage Decoupled
 
-In terms of write performance, we have simulated two test cases under the same computing resources: batch import and high-concurrency real-time import. The comparison of write performance between the compute-storage coupled mode and the compute-storage decoupled mode is as follows:
+- Implemented automatic retries when encountering object storage server rate limiting. [#37199](https://github.com/apache/doris/pull/37199)
 
-- **Batch import**: When importing the 1TB TPC-H and 1TB TPC-DS test datasets, **the write performance of the compute-storage decoupled mode is 20.05% and 27.98% higher than the compute-storage coupled mode**, respectively, under the single-replica configuration. During batch import, the segment file size is generally in the range of tens to hundreds of MB. In the compute-storage decoupled mode, the segment files are split into smaller files and concurrently uploaded to the object storage, which can result in higher throughput compared to writing to local disks. In real-life deployments, the compute-storage coupled mode typically uses three replicas, which means the write speed advantage of the compute-storage decoupled mode will be even more pronounced.
+- Adapted the number of threads for memtable flush in the compute-storage decoupled mode. [#38789](https://github.com/apache/doris/pull/38789)
 
-- **High-concurrency real-time import**: as described in the "Comparison with alternative solutions" section.
+- Added Azure as a compile option to support compilation in environments without Azure support.
 
-![Write speed comparison](/images/write-speed-comparison.png)
+- Optimized the observability of object storage access rate limiting. [#38294](https://github.com/apache/doris/pull/38294)
 
-### 1-6 Tips for production environment
+- Allowed the file cache TTL queue to perform LRU eviction, enhancing TTL queue usability. [#37312](https://github.com/apache/doris/pull/37312)
 
-- **Performance**: For real-time data analysis, users can achieve query performance comparable to the compute-storage coupled mode by specifying a TTL (Time-To-Live) for the cache and writing newly ingested data into the cache. To prevent query jitter, users can cache the data generated by background tasks such as compaction and schema changes based on how frequently used the data is.
+- Optimized the number of balance writeeditlog IO operations in the storage and compute separation mode. [#37787](https://github.com/apache/doris/pull/37787)
 
-- **Workload isolation**: Users can achieve physical resource isolation for different business using multiple compute clusters. For workload isolation within a single compute cluster, users can utilize the Workload Group mechanism to limit and isolate resources for different queries.
+- Improved table creation speed in the storage and compute separation mode by sending tablet creation requests in batches. [#36786](https://github.com/apache/doris/pull/36786)
 
-### 1-7 Notes
+- Optimized read failures caused by potential inconsistencies in the local file cache through backoff retries. [#38645](https://github.com/apache/doris/pull/38645)
 
-- Apache Doris 3.0 does not support the co-existence of the compute-storage coupled mode and the compute-storage decoupled mode. Users need to specify one of them during cluster deployment.
+### Lakehouse
 
-- If users need the compute-storage coupled mode, following the [documentation](https://doris.apache.org/docs/3.0/install/source-install/compilation-with-docker/) for its deployment and upgrade. We recommend using Doris Manager for quick deployment and cluster upgrades. However, the compute-storage decoupled mode does not yet support Doris Manager deployment and upgrade. We will continue iteration for better support in future versions.
+- Optimized memory statistics for Parquet/ORC format read and write operations. [#37234](https://github.com/apache/doris/pull/37234)
 
-- Currently Apache Doris does not support in-place upgrade from V2.1 to the compute-storage decoupled mode of V3.0. For such purpose, users need to perform data migration using tools like X2Doris after deploying the compute-storage decoupled clusters. In the future, we will support migration without service interruption through the CCR (Change Data Capture) capability.
+- Trino Connector Catalog now supports predicate pushdown. [#37874](https://github.com/apache/doris/pull/37874)
 
-:::info
-See doc:
-https://doris.apache.org/docs/3.0/compute-storage-decoupled/overview/
-:::
+- Added a session variable `enable_count_push_down_for_external_table` to control whether to enable `count(*)` pushdown optimization for external tables. [#37046](https://github.com/apache/doris/pull/37046)
 
-## 2. Data lakehouse
+- Optimized the read logic for Hudi snapshot reads, returning an empty set when the snapshot is empty, consistent with Spark behavior. [#37702](https://github.com/apache/doris/pull/37702)
 
-Apache Doris is positioned as a real-time data warehouse, but it is much more than that. In previous versions, we have consistently pushed beyond the boundaries of traditional data warehouse capabilities, advancing towards a unified data lakehouse. Version 3.0 marks a milestone in this journey, with its capabilities in the lakehouse architecture becoming fully mature. We believe that a unified lakehouse is identified by **boundaryless data** and **lakehouse fusion**:
+- Improved the read performance of partition columns for Hive tables. [#37377](https://github.com/apache/doris/pull/37377)
 
-**Boundaryless data: Apache Doris serves as a unified query processing engine, breaking down data barriers across different systems. It provides a consistent and ultra-fast analysis experience across all data sources, including data warehouses, data lakes, data streams, and local data files.**
+### Asynchronous Materialized Views
 
-- **Lakehouse query acceleration**: Without the need to migrate data to Apache Doris, users can leverage Doris’ efficient query engine to directly query data stored in data lakes such as Iceberg, Hudi, Paimon, and offline data warehouses like Hive, thereby accelerating query analysis.
+- Improved transparent rewrite plan speed by 20%. [#37197](https://github.com/apache/doris/pull/37197)
 
-- **Federated analysis**: By extending its catalog and storage plugins, Apache Doris enhances its federated analysis capabilities, allowing users to perform unified analysis across multiple heterogeneous data sources without physically centralizing the data in a single storage system. This enables external table queries and federated joins between internal and external tables, breaking down data silos and providing globally consistent data insights.
+- Eliminated roll-up during transparent rewrite if the group key satisfies data uniqueness for better nested matching. [#38387](https://github.com/apache/doris/pull/38387)
 
-- **Data lake construction**: Apache Doris introduces write-back functionality for Hive and Iceberg, allowing users to directly create Hive and Iceberg tables through Doris and write data into them. This allows users to write internal table data back to the offline lakehouse or process offline lakehouse data using Doris and save the results back into the lakehouse, simplifying and streamlining the data lake construction process.
+- Transparent rewrite now performs better aggregation elimination to improve the matching success rate of nested materialized views. [#36888](https://github.com/apache/doris/pull/36888)
 
-**Lakehouse fusion: As data lake architectures become increasingly complex, the costs of technology selection and maintenance rise for users. Achieving consistent fine-grained access control across multiple systems also becomes challenging, and real-time performance suffers. To address this, Apache Doris integrates core features of the data lake, transforming itself into a lightweight, efficient, native real-time lakehouse.**
+### MySQL Compatibility
 
-- **Real-time data updates**: Starting with version 1.2, Apache Doris enhanced the primary key model by introducing Merge-on-Write, supporting real-time updates. This feature allows high-frequency, real-time data updates based on primary key changes from upstream data sources.
+- Now correctly populates the database name, table name, and original name in the MySQL protocol result columns. [#38126](https://github.com/apache/doris/pull/38126)
 
-- **Data science and** **AI** **computation support**: From version 2.1, Apache Doris, using the efficient Arrow Flight protocol, increased the openness of its storage system and its support for various compute loads, enabling data science and AI computations.
+- Supported the hint format `/*+ func(value) */`. [#37720](https://github.com/apache/doris/pull/37720)
 
-- **Enhancements for semi-structured and unstructured Data**: Apache Doris has introduced support for data types like Array, Map, Struct, JSON, and Variant, with plans to support vector indexing in the future.
+### Query Optimizer
 
-- **Improved resource efficiency by decoupling storage and compute**: With version 3.0, Apache Doris supports a decoupled storage and compute mode, further improving resource efficiency and scalability.
+- Significantly improved the plan speed for complex queries. [#38317](https://github.com/apache/doris/pull/38317)
 
-### 2-1 Faster queries in the data lakehouse
+- Adaptively chose whether to perform bucket shuffle based on the number of data buckets to avoid performance degradation in extreme cases. [#36784](https://github.com/apache/doris/pull/36784)
 
-TPC-H and TPC-DS benchmarking proves that Apache Doris achieves average query performance that is 3 to 5 times faster than Trino/Presto.
+- Optimized the cost estimation logic for SEMI / ANTI JOIN. [#37951](https://github.com/apache/doris/pull/37951) [#37060](https://github.com/apache/doris/pull/37060)
 
-In V3.0, we have focused on optimizing query performance for production environments, including:
+- Supported pushing Limit down to the first stage of aggregation to improve performance. [#34853](https://github.com/apache/doris/pull/34853)
 
-- **More granular task splitting strategy**: By adjusting the consistent hashing algorithm and introducing a task sharding weighting mechanism, we ensure balanced query loads across all nodes.
+- Partition pruning now supports filter conditions containing the `date_trunc` or `date` function. [#38025](https://github.com/apache/doris/pull/38025) [#38743](https://github.com/apache/doris/pull/38743)
 
-- **Scheduling optimizations for use cases with numerous partitions and files**: For cases with a large number of files (over 1 million), we have largely reduced query latency (from 100 seconds to 10 seconds) and alleviated memory pressure on the Frontend (FE) by asynchronously and batch-fetching file shards.
+- SQL cache now supports query scenarios that include user variables. [#37915](https://github.com/apache/doris/pull/37915)
 
-We will continue to specifically enhance query acceleration performance in real-world business scenarios, improve the actual user experience, and build an industry-leading lakehouse query acceleration engine.
+- Optimized error messages for invalid aggregation semantics. [#38122](https://github.com/apache/doris/pull/38122)
 
-### 2-2 Federated analysis: more data connectors
+### Query Execution
 
-Previous versions of Apache Doris support connectors for over 10 mainstream data lakehouses, warehouses, and relational databases. In V3.0, we have introduced the Trino Connector compatibility framework, which expands the range of data sources that Apache Doris can connect to. With this framework, users can easily adapt their existing setups to access corresponding data sources using Doris and leverage its high-speed computing engine for data analysis.
+- Adapted AggState compatibility from 2.1 to 3.x and fixed Coredump issues. [#37104](https://github.com/apache/doris/pull/37104)
 
-Currently, Doris has completed adaptations for Delta Lake, Kudu, BigQuery, Kafka, TPCH, and TPCDS. We also encourage contributions from developers to prolong this list.
+- Refactored the strategy selection for local shuffle without Join. [#37282](https://github.com/apache/doris/pull/37282)
 
-:::info Note
+- Modified the scanner for internal table queries to be asynchronous to prevent stalling during such queries. [#38403](https://github.com/apache/doris/pull/38403)
 
-See doc:
+- Optimized the block merge process during Hash table construction for Join operators. [#37471](https://github.com/apache/doris/pull/37471)
 
-- Trino Connector: https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/
+- Optimized the duration of lock holding for MultiCast. [#37462](https://github.com/apache/doris/pull/37462)
 
-- TPC-H: https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/tpch/
+- Optimized gRPC keepAliveTime and added link monitoring to reduce the probability of query failure due to RPC errors. [#37304](https://github.com/apache/doris/pull/37304)
 
-- TPC-DS: https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/tpcds/
+- Cleaned up all dirty pages in jemalloc when memory limits were exceeded. [#37164](https://github.com/apache/doris/pull/37164)
 
-- Delta Lake: https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/deltalake/
+- Optimized the processing performance of `aes_encrypt`/`decrypt` functions for constant types. [#37194](https://github.com/apache/doris/pull/37194)
 
-- Kudu: https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/kudu/
+- Optimized the processing performance of the `json_extract` function for constant data. [#36927](https://github.com/apache/doris/pull/36927)
 
-- BigQuery: https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/bigquery/
-  :::
+- Optimized the processing performance of the `ParseUrl` function for constant data. [#36882](https://github.com/apache/doris/pull/36882)
 
-### 2-3 Data lake building
+### Semi-Structured Data Management
 
-In V3.0, we have introduced data writeback functionality for Hive and Iceberg. This allows users to create Hive and Iceberg tables directly through Doris and write data into these tables, and enables users to perform data analysis, sharing, processing, and storage operations across multiple data sources within Doris.
+- Bitmap indexes now default to using inverted indexes, with `enable_create_bitmap_index_as_inverted_index` set to true by default. [#36692](https://github.com/apache/doris/pull/36692)
 
-In future iterations, Apache Doris will further enhance support for data lake table formats and improve the openness of storage APIs.
+- In the compute-storage decoupled mode, DESC can now view sub-columns of VARIANT type. [#38143](https://github.com/apache/doris/pull/38143)
 
-:::info Note
-See doc: https://doris.apache.org/docs/3.0/lakehouse/datalake-building/hive-build/
-:::
+- Removed the step of checking file existence during inverted index queries to reduce access latency to remote storage. [#36945](https://github.com/apache/doris/pull/36945)
 
-## 3. Upgraded semi-structured data analysis capabilities
+- Complex types ARRAY / MAP / STRUCT now support `replace_if_not_null` for AGG tables. [#38304](https://github.com/apache/doris/pull/38304)
 
-In versions 2.0 and 2.1, Apache Doris introduced some well-embraced features such as inverted index, NGram Bloom Filter, and Variant data type to support high-performance full-text search and multi-dimensional analysis. With them, the storage and processing of complex semi-structured data have been more flexible and efficient.
+- Escape characters for JSON data are now supported. [#37176](https://github.com/apache/doris/pull/37176) [#37251](https://github.com/apache/doris/pull/37251)
 
-In V3.0, we have further enhanced the capabilities in this scenario.
+- Inverted index queries now behave consistently on MOW tables and DUP tables. [#37428](https://github.com/apache/doris/pull/37428)
 
-After extensive testing in production environments, the Variant data type has gained sufficient stability and become the preferred choice for JSON data storage and analysis. In V3.0, we have made multiple optimizations to it:
+- Optimized the performance of inverted index acceleration for IN queries. [#37395](https://github.com/apache/doris/pull/37395)
 
-- Support for indexing of the Variant data type to accelerate queries, including inverted index, Bloom Filter index, and the built-in ZoneMap index.
+- Reduced unnecessary memory allocation during TOPN queries to improve performance. [#37429](https://github.com/apache/doris/pull/37429)
 
-- Support for flexible partial column updates for Unique Key tables containing the Variant data type.
+- When creating an inverted index with tokenization, the `support_phrase` option is now automatically enabled to accelerate `match_phrase` series phrase queries. [#37949](https://github.com/apache/doris/pull/37949)
 
-- Support for the use of the Variant data type in the compute-storage decoupled mode, with optimizations of its metadata storage.
+### Other
 
-- Support for exporting the Variant data type to formats such as Parquet and CSV.
+- Audit log now can record SQL types. [#37790](https://github.com/apache/doris/pull/37790)
 
-The inverted index, introduced since V2.0, has reached a high level of maturity after more than a year of refinement and is now running in production environments of hundreds of enterprises. In V3.0, we have made multiple optimizations to the inverted index:
+- Added support for `information_schema.processlist` to show all FE. [#38701](https://github.com/apache/doris/pull/38701)
 
-- After performance optimizations, including lock concurrency, Apache Doris outperforms Elasticsearch in key metrics such as query latency and concurrency in real-time reporting analysis.
+- Cached ranger's `atamask` and `rowpolicy` to accelerate query efficiency. [#37723](https://github.com/apache/doris/pull/37723)
 
-- Optimized index file in the compute-storage decoupled mode to reduce remote storage calls and decrease index query latency.
+- Optimized metadata management in job manager to release locks immediately after modifying metadata, reducing lock holding time. [#38162](https://github.com/apache/doris/pull/38162)
 
-- Support for the Array data type to accelerate the `array_contains` queries.
+## Bug Fixes
 
-- Enhanced the `match_phrase_*` functionality, including support for slop and phrase prefix matching `match_phrase_prefix`.
+### Upgrade
 
-## 4. Enhanced ETL capabilities
+- Fix the issue where `mtmv load` fails during upgrade from version 2.1. [#38799](https://github.com/apache/doris/pull/38799)
 
-### 4-1. Transaction improvements
+- Resolve the issue where `null_type` cannot be found during the upgrade to version 2.1. [#39373](https://github.com/apache/doris/pull/39373)
 
-Data processing in data warehouses often involves multiple data changes that need to be handled as a single transaction. V3.0 provides explicit transaction support for `insert into select`, `delete`, and `update` operations. Example cases include:
+- Address the compatibility issue with permission persistence during the upgrade from version 2.1 to 3.0. [#39288](https://github.com/apache/doris/pull/39288)
 
-- **Transactional requirements**: For example, when updating data within a time range, the typical approach is to first delete the data in that time range, and then insert the new data. Considering that the data might already be in service, there is a need to ensure that queries visit either the old data or the new data. Thus, it can be achieved by executing the `delete` and `insert into select` operations in a transaction.
+### Load
 
-  ```Java
-  BEGIN;
-  DELETE FROM table WHERE date >= "2024-07-01" AND date <= "2024-07-31";
-  INSERT INTO table SELECT * FROM stage_table;
-  COMMIT;
-  ```
+- Fix the issue where parsing fails when the newline character is surrounded by delimiters in CSV format parsing. [#38347](https://github.com/apache/doris/pull/38347)
 
-- **Simplified the processing of failed tasks**: For example, when two `insert into select` operations are executed within a single transaction, if any of the operations fail, it can be retried directly.
+- Resolve potential exception issues when FE forwards group commit. [#38228](https://github.com/apache/doris/pull/38228) [#38265](https://github.com/apache/doris/pull/38265)
 
-  ```Java
-  BEGIN WITH LABEL label_etl_1;
-  INTO table1 SELECT * FROM stage_table1;
-  INSERT INTO table SELECT * FROM stage_table;
-  COMMIT;
-  ```
+- Group commit now supports the new optimizer. [#37002](https://github.com/apache/doris/pull/37002)
 
-:::info Note
-See doc: https://doris.apache.org/docs/3.0/data-operate/transaction/
-Currently, explicit transaction synchronization is not supported in Cross-Cluster Replication (CCR).
-:::
+- Fix the issue where group commit reports data errors when JDBC setNull is used. [#38262](https://github.com/apache/doris/pull/38262)
 
-### 4-2. Improved observability
+- Optimize the retry logic for group commit when encountering `delete bitmap lock` errors. [#37600](https://github.com/apache/doris/pull/37600)
 
-- **Real-time profile retrieval**: In previous versions, due to issues with the execution plan or the data, some complex queries might have high computational requirements, so developers can only access the query profile for performance analysis after the completion of the query. This makes it hard to promptly identify issues in query execution to guarantee stability of the production environment. Now, with the ability to retrieve real-time profiles, V3.0 allows users to monitor query execution as the query is running. It also allows them to better monitor the progress of each ETL job.
+- Resolve the issue where routine load cannot use CSV delimiters and escape characters. [#38402](https://github.com/apache/doris/pull/38402)
 
-- **`backend_active_tasks` system table**: The `backend_active_tasks` system table provides real-time resource consumption information for each query on each BE node. Users can analyze this system table using SQL to obtain the resource usage of each query, which helps identify large queries or abnormal workloads.
+- Fix the issue where routine load job names with mixed case cannot be displayed. [#38523](https://github.com/apache/doris/pull/38523)
 
-## 5. Asynchronous materialized view
+- Optimize the logic for actively recovering routine load during FE master-slave switching. [#37876](https://github.com/apache/doris/pull/37876)
 
-In V3.0, asynchronous materialized view is faster and more stable. It is also more user-friendly for query acceleration and data modeling scenarios. We have restructured the logic for transparent rewrite and expanded its capabilities, making it 2X faster.
+- Resolve the issue where routine load pauses when all data in Kafka is expired. [#37288](https://github.com/apache/doris/pull/37288)
 
-### 5-1 Refresh
+- Fix the issue where `show routine load` returns empty results. [#38199](https://github.com/apache/doris/pull/38199)
 
-- Support for incremental update of materialized views by partitions and partition roll-ups on materialized views to allow refreshes at different granularities.
+- Resolve the memory leak issue during multi-table stream import in routine load. [#38255](https://github.com/apache/doris/pull/38255)
 
-- Support for nested materialized views, which is useful in data modeling scenarios.
+- Fix the issue where stream load does not return the error URL. [#38325](https://github.com/apache/doris/pull/38325)
 
-- Support for index creation and sort key specification in asynchronous materialized views, which will improve query performance after the materialized view is hit.
+- Resolve potential load channel leak issues. [#38031](https://github.com/apache/doris/pull/38031) [#37500](https://github.com/apache/doris/pull/37500)
 
-- Higher usability of materialized view DDL with support for atomically replacing materialized views, allowing modifications to the materialized view definition SQL while keeping the materialized view available.
+- Fix the issue where no error may be reported when importing fewer segments than expected. [#36753](https://github.com/apache/doris/pull/36753)
 
-- Support for non-deterministic functions in materialized views to better serve daily materialized view creation.
+- Resolve the load stream leak issue. [#38912](https://github.com/apache/doris/pull/38912)
 
-- Support for trigger-based materialized view refresh, which ensures data consistency in data modeling with nested materialized views.
+- Optimize the impact of offline nodes on import operations. [#38198](https://github.com/apache/doris/pull/38198)
 
-- Support for a broader range of SQL patterns for building partitioned materialized views, making the incremental update capability available to more use cases.
+- Fix the issue where transactions do not end when inserting into empty data. [#38991](https://github.com/apache/doris/pull/38991)
 
-### 5-2 Refresh stability
+### Storage
 
-- V3.0 supports specifying a Workload Group for building materialized views. This is to limit the resources used by the materialized view build process and ensure that sufficient resources remain available for ongoing queries.
+**01 Backup and Restoration**
 
-### 5-3 Transparent rewrite
+- Fix the issue where tables cannot be written after backup and restoration. [#37089](https://github.com/apache/doris/pull/37089)
 
-- Support for transparent rewrite of more Join types, including derived Joins. Even when there is a mismatch of Join types between the query and materialized view, transparent rewrite can still be performed by compensating with additional predicates, as long as the materialized view can provide all the data needed for the query.
+- Resolve the issue where view database names are incorrect after backup and restoration. [#37412](https://github.com/apache/doris/pull/37412)
 
-- Support for more aggregate functions for roll-up as well as rewrite of multi-dimensional aggregations like GROUPING SETS, ROLLUP, and CUBE; support rewriting queries with aggregations when the materialized view does not contain aggregations, simplifying Join operations and expression computation.
+**02 Compaction**
 
-- Support for transparent rewrite of nested materialized views, enabling higher performance for complex queries.
+- Fix the issue where cumu compaction handles delete errors incorrectly during ordered data compression. [#38742](https://github.com/apache/doris/pull/38742)
 
-- For partially invalid partitioned materialized views, V3.0 supports `Union All` the base tables for data completion, expanding the applicability of partitioned materialized views.
+- Resolve the issue of duplicate keys in aggregate tables caused by sequential compression optimization. [#38224](https://github.com/apache/doris/pull/38224)
 
-### 5-4 Transparent rewrite performance
+- Fix the issue where compression operations cause coredump in large wide tables. [#37960](https://github.com/apache/doris/pull/37960)
 
-- Continuous optimization has been done to improve the transparent rewrite performance, achieving 2X the speed compared to version 2.1.0.
+- Resolve the compression starvation issue caused by inaccurate concurrent statistics of compression tasks. [#37318](https://github.com/apache/doris/pull/37318)
 
-:::info Note
+**03 MOW Unique Key**
 
-See doc:
+- Resolve the issue of inconsistent data between replicas caused by cumulative compression deletion of delete sign. [#37950](https://github.com/apache/doris/pull/37950)
 
-https://doris.apache.org/docs/3.0/query/view-materialized-view/query-async-materialized-view
+- MOW delete now uses partial column updates with the new optimizer. [#38751](https://github.com/apache/doris/pull/38751)
 
-https://doris.apache.org/docs/3.0/query/view-materialized-view/async-materialized-view/
+- Fix the potential duplicate key issue in MOW tables under compute-storage decoupled. [#39018](https://github.com/apache/doris/pull/39018)
 
-:::
+- Resolve the issue where MOW unique and duplicate tables cannot modify column order. [#37067](https://github.com/apache/doris/pull/37067)
 
-## 6. Performance improvement
+- Fix the potential data correctness issue caused by segcompaction. [#37760](https://github.com/apache/doris/pull/37760)
 
-### 6-1 Smarter optimizer
+- Resolve the potential memory leak issue during column updates. [#37706](https://github.com/apache/doris/pull/37706)
 
-In V3.0, the query optimizer has been enhanced in terms of framework capabilities, distributed plan support, optimizer infrastructure, and rule expansion. It provides better optimization capabilities for more complex and diverse business scenarios, with higher blind test performance for complex SQL:
+**04 Other**
 
-- **Improved plan enumeration capability**: The key structure Memo for plan enumeration has been restructured and normalized. This improves the efficiency of the Cascades framework in plan enumeration and the possibility of producing better plans. Additionally, it fixes incomplete column pruning during the Join Reorder process in older versions, which led to unnecessary overhead of the Join operator, thus improving the execution performance in the relevant scenarios.
+- Fix the small probability of exceptions in TOPN queries. [#39119](https://github.com/apache/doris/pull/39119) [#39199](https://github.com/apache/doris/pull/39199)
 
-- **Improved distributed plan support**: The distributed query plan has been enhanced to allow aggregation, join, and window function operations to more intelligently identify the data characteristics of intermediate computation results, avoiding ineffective data redistribution operations. Meanwhile, we have optimized the execution under the multi-replica continuous execution mode, making it more data cache-friendly.
+- Resolve the issue where auto-increment IDs may duplicate during FE restart. [#37306](https://github.com/apache/doris/pull/37306)
 
-- **Improved optimizer infrastructure**: V3 has fixed several issues in cost model and statistics information estimation. The fixes to the cost model are more adaptable to the evolution of the execution engine, making the execution plan more stable compared to previous versions.
+- Fix the potential queuing issue in the delete operation priority queue. [#37169](https://github.com/apache/doris/pull/37169)
 
-- **Enhanced Runtime Filter plan support**: On the basis of Join Runtime Filter, V3.0 has expanded the capability of the TopN Runtime Filter to achieve better performance in use cases that involve a TopN operator.
+- Optimize the delete retry logic. [#37363](https://github.com/apache/doris/pull/37363)
 
-- **Enriched optimization rule library**: Based on user feedback and internal testing results, we have introduced optimization rules such as Intersect Reorder to enrich the rule set of the optimizer.
+- Resolve the issue with `bucket = 0` in table creation statements under the new optimizer. [#38971](https://github.com/apache/doris/pull/38971)
 
-### 6-2 Self-adaptive Runtime Filter
+- Fix the issue where FE reports success incorrectly when image generation fails. [#37508](https://github.com/apache/doris/pull/37508)
 
-In previous versions, the generation of Runtime Filter relies on manual setting by users based on statistical information. However, inaccurate settings in certain cases could lead to performance instability.
+- Resolve the issue where using the wrong nodename during FE offline nodes may cause inconsistent FE members. [#37987](https://github.com/apache/doris/pull/37987)
 
-In V3.0, Doris implements a self-adaptive Runtime Filter calculation approach. It can estimate the Runtime Filter at runtime based on the data size with high accuracy, enabling better performance in use cases with large data volumes and high workloads.
+- Fix the issue where CCR partition addition may fail. [#37295](https://github.com/apache/doris/pull/37295)
 
-### 6-3 Function performance optimization
+- Resolve the `int32` overflow issue in inverted index files. [#38891](https://github.com/apache/doris/pull/38891)
 
-- V3.0 has improved the vectorized implementation of dozens of functions, enabling a performance improvement of over 50% for some commonly used functions.
-- V3.0 has also made extensive optimizations to the aggregation of nullable data types, enabling a 30% performance improvement.
+- Fix the issue where TRUNCATE TABLE failure may cause BE to fail to go offline. [#37334](https://github.com/apache/doris/pull/37334)
 
-### 6-4 Blind test performance improvement
+- Resolve the issue where publish cannot continue due to null pointers. [#37724](https://github.com/apache/doris/pull/37724) [#37531](https://github.com/apache/doris/pull/37531)
 
-Our blind tests on V3.0 and V2.1 show that the new version is 7.3% and 6.2% faster in TPC-DS and TPC-H benchmark tests, respectively.
+- Fix the potential coredump issue when manually triggering disk migration. [#37712](https://github.com/apache/doris/pull/37712)
 
-![Blind test performance improvement](/images/blind-test-performance-improvement.png)
+### Compute-Storage Decoupled
 
-## 7. New features
+- Fixed the issue where `show create table` might display the `file_cache_ttl_seconds` attribute twice. [#38052](https://github.com/apache/doris/pull/38052)
 
-### 7-1 Java UDTF
+- Fixed the issue where segment Footer TTL was not set correctly after setting file cache TTL. [#37485](https://github.com/apache/doris/pull/37485)
 
-Version 3.0 has added support for Java UDTFs. The key operations are as follows:
+- Fixed the issue where file cache might cause coredump due to massive conversion of cache types. [#38518](https://github.com/apache/doris/pull/38518)
 
-- Implementing a UDTF: Similar to a UDF, a UDTF requires the user to implement an `evaluate` method. Note that the return value of a UDTF function must be of the `Array` data type.
+- Fixed the potential file descriptor (fd) leak in file cache. [#38051](https://github.com/apache/doris/pull/38051)
 
-  ```sql
-  public class UDTFStringTest {
-      public ArrayList<String> evaluate(String value, String separator) {
-          if (value == null || separator == null) {
-              return null;
-          } else {
-              return new ArrayList<>(Arrays.asList(value.split(separator)));
-          }
-      }
-  }
-  ```
+- Fixed the issue where schema change Job overwriting compaction Job prevented base tablet compaction from completing normally. [#38210](https://github.com/apache/doris/pull/38210)
 
-- Creating a UDTF: By default, two corresponding functions will be created - `java-utdf`and `java-utdf_outer`. The `_outer` suffix adds a single row of `NULL` data when the table function generates 0 rows of output.
+- Fixed the potential inaccuracy of base compaction score due to data race. [#38006](https://github.com/apache/doris/pull/38006)
 
-  ```sql
-  CREATE TABLES FUNCTION java-utdf(string, string) RETURNS array<string> PROPERTIES (
-      "file"="file:///pathTo/java-udaf.jar",
-      "symbol"="org.apache.doris.udf.demo.UDTFStringTest",
-      "always_nullable"="true",
-      "type"="JAVA_UDF"
-  );
-  ```
+- Fixed the issue where error messages from imports might not be uploaded correctly to object storage. [#38359](https://github.com/apache/doris/pull/38359)
 
-:::info
+- Fixed the inconsistency in return information between compute-storage decoupled mode and storage and compute integration mode for 2PC imports. [#38076](https://github.com/apache/doris/pull/38076)
 
-See doc: https://doris.apache.org/docs/3.0/query/udf/java-user-defined-function/#udtf-1
+- Fix the issue where incorrect file size setting during file cache warm-up leads to coredump. [#38939](https://github.com/apache/doris/pull/38939)
 
-:::
+- Fixed the issue where partial column updates did not correctly dequeue delete operations. [#37151](https://github.com/apache/doris/pull/37151)
 
-### 7-2 Generated column
+- Fixed compatibility issues with permission persistence in compute-storage decoupled mode. [#38136](https://github.com/apache/doris/pull/38136) [#37708](https://github.com/apache/doris/pull/37708)
 
-A generated column is a special column whose value is calculated from the values of other columns rather than directly inserted or updated by the user. It supports pre-computing the results of expressions and storing them in the database, which is suitable for scenarios that require frequent queries or complex calculations.
+- Fixed the issue where observer did not retry correctly when encountering a `-230` error. [#37625](https://github.com/apache/doris/pull/37625)
 
-Results can be automatically calculated based on predefined expressions when data is imported or updated, and then stored persistently. In this way, during subsequent queries, the system can directly access these calculated results without performing complex calculations, thereby improving query performance.
+- Fixed the issue where `show load` with conditions did not perform correct analysis. [#37656](https://github.com/apache/doris/pull/37656)
 
-Generated columns are supported since V3.0. When creating a table, you can specify a column as generated column. A generated column automatically calculates values based on the defined expression when data is written. Generated columns allow for more complex expressions to be defined, but the value cannot be explicitly written or set.
+- Fixed the issue where `show streamload` in compute-storage decoupled mode caused BE coredump. [#37903](https://github.com/apache/doris/pull/37903)
 
-:::info
+- Fixed the issue where `copy into` did not correctly verify column names in strict mode. [#37650](https://github.com/apache/doris/pull/37650)
 
-See doc: https://doris.apache.org/docs/3.0/sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-TABLE-AND-GENERATED-COLUMN/
+- Fixed the issue where multi-stream imports into a single table lacked permissions. [#38878](https://github.com/apache/doris/pull/38878)
 
-:::
+- Fixed the potential overflow issue in `getVersionUpdateTimeMs`. [#38074](https://github.com/apache/doris/pull/38074)
 
-## 8. Functional improvements
+- Fixed the issue where FE azure blob list was not implemented correctly. [#37986](https://github.com/apache/doris/pull/37986)
 
-### 8-1. Materialized view
+- Fixed the issue where inaccurate azure blob recycling time calculation prevented recycling. [#37535](https://github.com/apache/doris/pull/37535)
 
-We have refactored the selection logic for materialized views and migrated it from the rule-based optimizer (RBO) to the cost-based optimizer (CBO). This aligns the selection logic with that of asynchronous materialized views. This functionality is enabled by default. If any issues are encountered, you can revert to the RBO mode using `set global enable_sync_mv_cost_based_rewrite = false`.
+- Fixed the issue where inverted index files were not deleted in compute-storage decoupled mode. [#38306](https://github.com/apache/doris/pull/38306)
 
-### 8-2. Routine Load
+### Lakehouse
 
-In previous versions, the Routine Load functionality faced some usability challenges, such as uneven task scheduling across BE nodes, untimely task scheduling, complex configuration requirements (the need to change multiple FE and BE settings for optimization), insufficient overall stability (where restarts or upgrades could frequently pause Routine Load jobs, requiring manual user intervention to resume).
+- Fixed the issue with reading binary data from Oracle Catalog. [#37078](https://github.com/apache/doris/pull/37078)
 
-To address these issues, we have made extensive optimizations to the Routine Load feature:
+- Fixed the potential deadlock issue when acquiring external table metadata in multi-FE scenarios. [#37756](https://github.com/apache/doris/pull/37756)
 
-- **Resource scheduling**: We have improved the scheduling balance to make sure that tasks are more evenly distributed across BE nodes. Jobs that encounter unrepairable errors will be promptly paused to avoid wasting resources on futile scheduling attempts. Additionally, we have improved the timeliness of the scheduling process, which has enhanced the import performance of Routine Load.
+- Fixed the issue where JNI scanner failure caused BE nodes to crash. [#37697](https://github.com/apache/doris/pull/37697)
 
-- **Parameter configuration**: Users in most environments no longer need to modify FE and BE configurations for optimization. An automatic adjustment mechanism with timeout parameter has been introduced to prevent tasks from constantly retrying when cluster pressure increases.
+- Fixed the issue with slow reading of date types from Trino Connector Catalog. [#37266](https://github.com/apache/doris/pull/37266)
 
-- **Stability**: We have enhanced the robustness of Doris in various exceptional scenarios, such as FE failovers, BE rolling upgrades, and Kafka cluster anomalies, ensuring continuous stable operation. We have also optimized the Auto Resume mechanism, allowing Routine Load to automatically resume operation after faults are repaired, reducing the need for manual user intervention.
+- Optimized kerberos authentication logic for Hive Catalog. [#37301](https://github.com/apache/doris/pull/37301)
 
-## 9. Behavior changed
+- Fixed the issue where region attributes might be parsed incorrectly when parsing MinIO properties. [#37249](https://github.com/apache/doris/pull/37249)
 
-- `cpu_resource_limit` will no longer be supported, and all types of resource isolation will be implemented through Workload Groups.
+- Fixed the issue where creating too many FileSystems by FE caused memory leaks. [#36954](https://github.com/apache/doris/pull/36954)
 
-- Please use JDK 17 for Apache Doris 3.0 and later versions. The recommended version being `jdk-17.0.10_linux-x64_bin.tar.gz`.
+- Fixed the issue with reading incorrect time zone information from Paimon. [#37716](https://github.com/apache/doris/pull/37716)
 
-## Try Apache Doris 3.0 now!
+- Fixed the potential thread leak issue caused by Hive write-back operations. [#36990](https://github.com/apache/doris/pull/36990)
 
-Before the official release of version 3.0, the compute-storage decoupled mode of Apache Doris has undergone nearly two years of extensive testing and optimization in the production environments of hundreds of enterprises. Contributors from many tech giants have collaborated with the community to provide a significant number of test cases based on their real-world business needs. This has rigorously validated the usability and stability of version 3.0.
+- Fixed the null pointer issue caused by enabling Hive metastore event synchronization. [#38421](https://github.com/apache/doris/pull/38421)
 
-We highly recommend users with compute-storage decoupling needs to download version 3.0 and experience it firsthand.
+- Fixed the issue where error messages were unclear or caused stalling when creating catalogs. [#37551](https://github.com/apache/doris/pull/37551)
 
-Going forward, we will accelerate our release iteration cycle to deliver a more stable version experience for all users. Feel free to join us in the [Apache Doris community](https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-2gmq5o30h-455W226d79zP3L96ZhXIoQ) and engage directly with the core developers.
+- Fixed the issue where reading Hive text format tables behaved differently from Hive. [#37638](https://github.com/apache/doris/pull/37638)
+
+- Fixed the logic error when switching between catalogs and databases. [#37828](https://github.com/apache/doris/pull/37828)
+
+### MySQL Compatibility
+
+- Fixed the issue where certain flags in the MySQL protocol were set incorrectly when SSL was enabled. [#38086](https://github.com/apache/doris/pull/38086)
+
+### Asynchronous Materialized Views
+
+- Fixed the issue where construction might fail when the base table had a very large number of partitions. [#37589](https://github.com/apache/doris/pull/37589)
+
+- Fixed the issue where nested materialized views incorrectly performed full table refreshes even when partition refreshes were possible. [#38698](https://github.com/apache/doris/pull/38698)
+
+- Fixed the issue where partition refresh could not handle the simultaneous existence of valid and invalid dependencies when analyzing partition dependencies. [#38367](https://github.com/apache/doris/pull/38367)
+
+- Fixed the issue where the final result containing NULL type might cause asynchronous materialized views to fail. [#37019](https://github.com/apache/doris/pull/37019)
+
+- Fixed the planning error that might occur during transparent rewriting when both synchronous and asynchronous materialized views with the same name were present. [#37311](https://github.com/apache/doris/pull/37311)
+
+### Synchronous Materialized Views
+
+- The rewritten synchronous materialized views now can correctly perform partition pruning. [#38527](https://github.com/apache/doris/pull/38527)
+
+- When rewriting synchronous materialized views, those with unready data are no longer selected. [#38148](https://github.com/apache/doris/pull/38148)
+
+### Query Optimizer
+
+- Fixed the deadlock issue that might occur when queries and delete operations are performed simultaneously. [#38660](https://github.com/apache/doris/pull/38660)
+
+- Fixed the issue where bucket pruning might incorrectly prune on decimal column buckets. [#37889](https://github.com/apache/doris/pull/37889)
+
+- Fixed the issue where planning might be incorrect when mark join participates in join reorder. [#39152](https://github.com/apache/doris/pull/39152)
+
+- Fixed the issue where the result is incorrect when the correlation condition of a correlated subquery is not a simple column. [#37644](https://github.com/apache/doris/pull/37644)
+
+- Fixed the issue where partition pruning cannot correctly handle or expressions. [#38897](https://github.com/apache/doris/pull/38897)
+
+- Fixed the planning error that might occur when optimizing the execution order of JOIN and AGG. [#37343](https://github.com/apache/doris/pull/37343)
+
+- Fixed the issue where `str_to_date` performs incorrect constant folding calculations on datev1 types. [#37360](https://github.com/apache/doris/pull/37360)
+
+- Fixed the issue where the ACOS function's constant folding returns non-NaN values. [#37932](https://github.com/apache/doris/pull/37932)
+
+- Fixed the occasional planning error: "The children format needs to be [WhenClause+, DefaultValue?]". [#38491](https://github.com/apache/doris/pull/38491)
+
+- Fixed the issue where planning might be incorrect when the projection includes window functions and there is both the original column and its alias. [#38166](https://github.com/apache/doris/pull/38166)
+
+- Fixed the issue where planning might report an error when the aggregation parameter contains a lambda expression. [#37109](https://github.com/apache/doris/pull/37109)
+
+- Fixed the insert error that might occur in extreme cases: "MultiCastDataSink cannot be cast to DataStreamSink". [#38526](https://github.com/apache/doris/pull/38526)
+
+- Fixed the issue where the new optimizer does not correctly handle `char(0)/varchar(0)` when creating a table. [#38427](https://github.com/apache/doris/pull/38427)
+
+- Fixed the incorrect behavior of `char(255) toSql`. [#37340](https://github.com/apache/doris/pull/37340)
+
+- Fixed the issue where the nullable attribute within the `agg_state` type might lead to planning errors. [#37489](https://github.com/apache/doris/pull/37489)
+
+- Fixed the issue where row count statistics are inaccurate during mark Join. [#38270](https://github.com/apache/doris/pull/38270)
+
+### Query Execution
+
+- Fixed issues where the Pipeline execution engine was stuck, causing queries to not end, in multiple scenarios. [#38657](https://github.com/apache/doris/pull/38657), [#38206](https://github.com/apache/doris/pull/38206), [#38885](https://github.com/apache/doris/pull/38885), [#38151](https://github.com/apache/doris/pull/38151), [#37297](https://github.com/apache/doris/pull/37297)
+
+- Fixed the coredump issue caused by NULL and non-NULL columns during set difference calculations. [#38750](https://github.com/apache/doris/pull/38750)
+
+- Fixed the error when using the DECIMAL type with pure decimals in delete statements. [#37801](https://github.com/apache/doris/pull/37801)
+
+- Fixed the issue where the `width_bucket` function returned incorrect results. [#37892](https://github.com/apache/doris/pull/37892)
+
+- Fixed the query error when a single row of data was very large and the result set was also large (exceeding 2GB). [#37990](https://github.com/apache/doris/pull/37990)
+
+- Fixed the coredump issue caused by incorrect release of rpc connections during single-replica imports. [#38087](https://github.com/apache/doris/pull/38087)
+
+- Fixed the coredump issue caused by processing NULL values with the `foreach` function. [#37349](https://github.com/apache/doris/pull/37349)
+
+- Fixed the issue where stddev returned incorrect results for DECIMALV2 types. [#38731](https://github.com/apache/doris/pull/38731)
+
+- Fixed the slow performance of `bitmap union` calculations. [#37816](https://github.com/apache/doris/pull/37816)
+
+- Fixed the issue where RowsProduced for aggregation operators was not set in the profile. [#38271](https://github.com/apache/doris/pull/38271)
+
+- Fixed the overflow issue when calculating the number of buckets for the hash table under hash join. [#37193](https://github.com/apache/doris/pull/37193), [#37493](https://github.com/apache/doris/pull/37493)
+
+- Fixed the inaccurate recording of the `jemalloc cache memory tracker`. [#37464](https://github.com/apache/doris/pull/37464)
+
+- Added the `enable_stacktrace` configuration option, allowing users to control whether exception stacks are output in BE logs. [#37713](https://github.com/apache/doris/pull/37713)
+
+- Fixed the issue where Arrow Flight SQL did not work correctly when `enable_parallel_result_sink` was set to false. [#37779](https://github.com/apache/doris/pull/37779)
+
+- Fixed the incorrect use of colocate Join. [#37361](https://github.com/apache/doris/pull/37361), [#37729](https://github.com/apache/doris/pull/37729)
+
+- Fixed the calculation overflow issue of the `round` function on DECIMAL128 types. [#37733](https://github.com/apache/doris/pull/37733), [#38106](https://github.com/apache/doris/pull/38106)
+
+- Fixed the coredump issue when passing a const string to the `sleep` function. [#37681](https://github.com/apache/doris/pull/37681)
+
+- Increased the queue length for audit logs, solving the issue where audit logs could not be recorded normally under high concurrency scenarios with thousands of concurrent connections. [#37786](https://github.com/apache/doris/pull/37786)
+
+- Fixed the issue where creating a workload group caused too many threads, leading to BE coredump. [#38096](https://github.com/apache/doris/pull/38096)
+
+- Fixed the coredump issue caused by the `MULTI_MATCH_ANY` function. [#37959](https://github.com/apache/doris/pull/37959)
+
+- Fixed the transaction rollback issue caused by `insert overwrite auto partition`. [#38103](https://github.com/apache/doris/pull/38103)
+
+- Fixed the issue where the TimeUtils formatter did not use the correct time zone. [#37465](https://github.com/apache/doris/pull/37465)
+
+- Fixed the issue where results were incorrect under constant folding scenarios for week/yearweek. [#37376](https://github.com/apache/doris/pull/37376)
+
+- Fixed the issue where the `convert_tz` function returned incorrect results. [#37358](https://github.com/apache/doris/pull/37358), [#38764](https://github.com/apache/doris/pull/38764)
+
+- Fixed the coredump issue when using the `collect_set` function with window functions. [#38234](https://github.com/apache/doris/pull/38234)
+
+- Fixed the coredump issue caused by `percentile_approx` during rolling upgrades. [#39321](https://github.com/apache/doris/pull/39321)
+
+- Fixed the coredump issue caused by the `mod` function when encountering abnormal input. [#37999](https://github.com/apache/doris/pull/37999)
+
+- Fixed the issue where the hash table was not fully built when the broadcast join probe started running. [#37643](https://github.com/apache/doris/pull/37643)
+
+- Fixed the issue where executing the same expression in multithreaded environments might lead to incorrect results for Java UDFs. [#38612](https://github.com/apache/doris/pull/38612)
+
+- Fixed the overflow issue caused by incorrect return types of the `conv` function. [#38001](https://github.com/apache/doris/pull/38001)
+
+- Fixed the issue where the `json_replace` function returned incorrect types. [#3701](https://github.com/apache/doris/pull/37014)
+
+- Fixed the issue where the nullable attribute setting was unreasonable for the `percentile` aggregation function. [#37330](https://github.com/apache/doris/pull/37330)
+
+- Fixed the issue where the results of the `histogram` function were unstable. [#38608](https://github.com/apache/doris/pull/38608)
+
+- Fixed the issue where task state was displayed incorrectly in the profile. [#38082](https://github.com/apache/doris/pull/38082)
+
+- Fixed the issue where some queries were incorrectly canceled when the system just started. [#37662](https://github.com/apache/doris/pull/37662)
+
+### Semi-Structured Data Management
+
+- Fix some issues with time series compression. [#39170](https://github.com/apache/doris/pull/39170) [#39176](https://github.com/apache/doris/pull/39176)
+
+- Fix the issue of incorrect index size statistics during compression. [#37232](https://github.com/apache/doris/pull/37232)
+
+- Fix the potential incorrect matching of ultra-long strings without tokenization in inverted indexes. [#37679](https://github.com/apache/doris/pull/37679) [#38218](https://github.com/apache/doris/pull/38218)
+
+- Fix the high memory usage issue of `array_range` and `array_with_const` functions when dealing with large data volumes. [#38284](https://github.com/apache/doris/pull/38284) [#37495](https://github.com/apache/doris/pull/37495)
+
+- Fix the potential coredump issue when selecting columns of ARRAY / MAP / STRUCT types. [#37936](https://github.com/apache/doris/pull/37936)
+
+- Fix the import failure issue caused by simdjson parsing errors when specifying jsonpath in Stream Load. [#38490](https://github.com/apache/doris/pull/38490)
+
+- Fix the exception handling issue when there are duplicate keys in JSON data. [#38146](https://github.com/apache/doris/pull/38146)
+
+- Fix the potential query error after DROP INDEX. [#37646](https://github.com/apache/doris/pull/37646)
+
+- Fix the error return issue in row merging checks during index compression. [#38732](https://github.com/apache/doris/pull/38732)
+
+- Inverted index v2 format now supports renaming columns. [#38079](https://github.com/apache/doris/pull/38079)
+
+- Fix the coredump issue when the `MATCH` function matches an empty string without an index. [#37947](https://github.com/apache/doris/pull/37947)
+
+- Fix the handling of NULL values in inverted indexes. [#37921](https://github.com/apache/doris/pull/37921) [#37842](https://github.com/apache/doris/pull/37842) [#38741](https://github.com/apache/doris/pull/38741)
+
+- Fix the incorrect `row_store_page_size` after FE restart. [#38240](https://github.com/apache/doris/pull/38240)
+
+### Other
+
+- Fix the timezone configuration issue. The default timezone is no longer fixed at UTC+8 and is now obtained from system configuration. [#37294](https://github.com/apache/doris/pull/37294)
+
+- Fix the class conflict issue when using ranger due to multiple JSR specification implementations. [#37575](https://github.com/apache/doris/pull/37575)
+
+- Fix the potential uninitialized field issue in some BE code. [#37403](https://github.com/apache/doris/pull/37403)
+
+- Fix the error in delete statements for random distributed tables. [#37985](https://github.com/apache/doris/pull/37985)
+
+- Fix the incorrect requirement for `alter_priv` permission on the base table when creating a synchronized materialized view. [#38011](https://github.com/apache/doris/pull/38011)
+
+- Fix the issue of not authenticating resources when used in TVF. [#36928](https://github.com/apache/doris/pull/36928)
 
 ## Credits
 
-Special thanks to the following contributors who participated in the development, testing, and provided feedback for this version:
+Thanks all who contribute to this release:
 
-@133tosakarin、@390008457、@924060929、@AcKing-Sam、@AshinGau、@BePPPower、@BiteTheDDDDt、@ByteYue、@CSTGluigi、@CalvinKirs、@Ceng23333、@DarvenDuan、@DongLiang-0、@Doris-Extras、@Dragonliu2018、@Emor-nj、@FreeOnePlus、@Gabriel39、@GoGoWen、@HappenLee、@HowardQin、@Hyman-zhao、@INNOCENT-BOY、@JNSimba、@JackDrogon、@Jibing-Li、@KassieZ、@Lchangliang、@LemonLiTree、@LiBinfeng-01、@LompleZ、@M1saka2003、@Mryange、@Nitin-Kashyap、@On-Work-Song、@SWJTU-ZhangLei、@StarryVerse、@TangSiyang2001、@Tech-Circle-48、@Thearas、@Vallishp、@WinkerDu、@XieJiann、@XuJianxu、@XuPengfei-1020、@Yukang-Lian、@Yulei-Yang、@Z-SWEI、@ZhongJinHacker、@adonis0147、@airborne12、@allenhooo、@amorynan、@bingquanzhao、@biohazard4321、@bobhan1、@caiconghui、@cambyzju、@caoliang-web、@catpineapple、@cjj2010、@csun5285、@dataroaring、@deardeng、@dongsilun、@dutyu、@echo-hhj、@eldenmoon、@elvestar、@englefly、@feelshana、@feifeifeimoon、@feiniaofeiafei、@felixwluo、@freemandealer、@gavinchou、@ghkang98、@gnehil、@hechao-ustc、@hello-stephen、@httpshirley、@hubgeter、@hust-hhb、@iszhangpch、@iwanttobepowerful、@ixzc、@jacktengg、@jackwener、@jeffreys-cat、@kaijchen、@kaka11chen、@kindred77、@koarz、@kobe6th、@kylinmac、@larshelge、@liaoxin01、@lide-reed、@liugddx、@liujiwen-up、@liutang123、@lsy3993、@luwei16、@luzhijing、@lxliyou001、@mongo360、@morningman、@morrySnow、@mrhhsg、@my-vegetable-has-exploded、@mymeiyi、@nanfeng1999、@nextdreamblue、@pingchunzhang、@platoneko、@py023、@qidaye、@qzsee、@raboof、@rohitrs1983、@rotkang、@ryanzryu、@seawinde、@shoothzj、@shuke987、@sjyango、@smallhibiscus、@sollhui、@sollhui、@spaces-X、@stalary、@starocean999、@superdiaodiao、@suxiaogang223、@taptao、@vhwzx、@vinlee19、@w41ter、@wangbo、@wangshuo128、@whutpencil、@wsjz、@wuwenchi、@wyxxxcat、@xiaokang、@xiedeyantu、@xiedeyantu、@xingyingone、@xinyiZzz、@xy720、@xzj7019、@yagagagaga、@yiguolei、@yongjinhou、@ytwp、@yuanyuan8983、@yujun777、@yuxuan-luo、@zclllyybb、@zddr、@zfr9527、@zgxme、@zhangbutao、@zhangstar333、@zhannngchen、@zhiqiang-hhhh、@ziyanTOP、@zxealous、@zy-kkk、@zzzxl1993、@zzzzzzzs
+@133tosakarin, @924060929, @AshinGau, @Baymine, @BePPPower, @BiteTheDDDDt, @ByteYue, @CalvinKirs, @Ceng23333, @DarvenDuan, @FreeOnePlus, @Gabriel39, @HappenLee, @JNSimba, @Jibing-Li, @KassieZ, @Lchangliang, @LiBinfeng-01, @Mryange, @SWJTU-ZhangLei, @TangSiyang2001, @Tech-Circle-48, @Vallishp, @Yukang-Lian, @Yulei-Yang, @airborne12, @amorynan, @bobhan1, @cambyzju, @cjj2010, @csun5285, @dataroaring, @deardeng, @eldenmoon, @englefly, @feiniaofeiafei, @felixwluo, @freemandealer, @gavinchou, @ghkang98, @hello-stephen, @hubgeter, @hust-hhb, @jacktengg, @kaijchen, @kaka11chen, @keanji-x, @liaoxin01, @liutang123, @luwei16, @luzhijing, @lxr599, @morningman, @morrySnow, @mrhhsg, @mymeiyi, @platoneko, @qidaye, @qzsee, @seawinde, @shuke987, @sollhui, @starocean999, @suxiaogang223, @w41ter, @wangbo, @wangshuo128, @whutpencil, @wsjz, @wuwenchi, @wyxxxcat, @xiaokang, @xiedeyantu, @xinyiZzz, @xy720, @xzj7019, @yagagagaga, @yiguolei, @yujun777, @z404289981, @zclllyybb, @zddr, @zfr9527, @zhangbutao, @zhangstar333, @zhannngchen, @zhiqiang-hhhh, @zjj, @zy-kkk, @zzzxl1993
