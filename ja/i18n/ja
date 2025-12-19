@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 1.1.4", "language": "en" }
+{ "title": "Release 1.1.5", "language": "en" }
 ---
 
 <!--
@@ -21,47 +21,42 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this release, Doris Team has fixed about 60 issues or performance improvement since 1.1.3. This release is a bugfix release on 1.1 and all users are encouraged to upgrade to this release.
+In this release, Doris Team has fixed about 36 issues or performance improvement since 1.1.4. This release is a bugfix release on 1.1 and all users are encouraged to upgrade to this release.
+
+# Behavior Changes
+
+When alias name is same as the original column name like "select year(birthday) as birthday" and use it in group by, order by , having clause, doris's behavior is different from MySQL in the past. In this release, we make it follow MySQL's behavior. Group by and having clause will use original column at first and order by will use alias first. It maybe a litter confuse here so there is a simple advice here, you'd better not use an alias the same as original column name.
 
 # Features
 
-- Support obs broker load for Huawei Cloud. [#13523](https://github.com/apache/doris/pull/13523)
-
-- SparkLoad support parquet and orc file.[#13438](https://github.com/apache/doris/pull/13438)
+Add support of murmur_hash3_64. [#14636](https://github.com/apache/doris/pull/14636)
 
 # Improvements
 
-- Do not acquire mutex in metric hook since it will affect query performance during heavy load.[#10941](https://github.com/apache/doris/pull/10941)
+Add timezone cache for convert_tz to improve performance. [#14616](https://github.com/apache/doris/pull/14616)
 
-# BugFix
+Sort result by tablename when call show clause. [#14492](https://github.com/apache/doris/pull/14492)
 
-- The where condition does not take effect when spark load loads the file. [#13804](https://github.com/apache/doris/pull/13804)
+# Bug Fix
 
-- If function return error result when there is nullable column in vectorized mode. [#13779](https://github.com/apache/doris/pull/13779)
+Fix coredump when there is a if constant expr in select clause.  [#14858](https://github.com/apache/doris/pull/14858)
 
-- Fix incorrect result when using anti join with other join predicates. [#13743](https://github.com/apache/doris/pull/13743)
+ColumnVector::insert_date_column may crashed. [#14839](https://github.com/apache/doris/pull/14839)
 
-- BE crash when call function concat(ifnull). [#13693](https://github.com/apache/doris/pull/13693)
+Update high_priority_flush_thread_num_per_store default value to 6 and it will improve the load performance. [#14775](https://github.com/apache/doris/pull/14775)
 
-- Fix planner bug when there is a function in group by clause. [#13613](https://github.com/apache/doris/pull/13613)
+Fix quick compaction core.  [#14731](https://github.com/apache/doris/pull/14731)
 
-- Table name and column name is not recognized correctly in lateral view clause. [#13600](https://github.com/apache/doris/pull/13600)
+Partition column is not duplicate key, spark load will throw IndexOutOfBounds error. [#14661](https://github.com/apache/doris/pull/14661)
 
-- Unknown column when use MV and table alias. [#13605](https://github.com/apache/doris/pull/13605)
+Fix a memory leak problem in VCollectorIterator. [#14549](https://github.com/apache/doris/pull/14549)
 
-- JSONReader release memory of both value and parse allocator. [#13513](https://github.com/apache/doris/pull/13513)
+Fix create table like when having sequence column. [#14511](https://github.com/apache/doris/pull/14511)
 
-- Fix allow create mv using to_bitmap() on negative value columns when enable_vectorized_alter_table is true. [#13448](https://github.com/apache/doris/pull/13448)
+Using avg rowset to calculate batch size instead of using total_bytes since it costs a lot of cpu. [#14273](https://github.com/apache/doris/pull/14273)
 
-- Microsecond in function from_date_format_str is lost. [#13446](https://github.com/apache/doris/pull/13446)
+Fix right outer join core with conjunct. [#14821](https://github.com/apache/doris/pull/14821)
 
-- Sort exprs nullability property may not be right after subsitute using child's smap info. [#13328](https://github.com/apache/doris/pull/13328)
-
-- Fix core dump on case when have 1000 condition. [#13315](https://github.com/apache/doris/pull/13315)
-
-- Fix bug that last line of data lost for stream load. [#13066](https://github.com/apache/doris/pull/13066)
-
-- Restore table or partition with the same replication num as before the backup. [#11942](https://github.com/apache/doris/pull/11942)
-
+Optimize policy of tcmalloc gc.  [#14777](https://github.com/apache/doris/pull/14777) [#14738](https://github.com/apache/doris/pull/14738) [#14374](https://github.com/apache/doris/pull/14374)
 
 
