@@ -1,5 +1,5 @@
 ---
-{ "title": "ADMIN-REPAIR-TABLE", "language": "en" }
+{ "title": "ADMIN-SET-CONFIG", "language": "en" }
 ---
 
 <!--
@@ -21,46 +21,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ADMIN-REPAIR-TABLE
+## ADMIN-SET-CONFIG
 
 ### Name
 
-ADMIN REPAIR TABLE
+ADMIN SET CONFIG
 
 ### Description
 
-statement used to attempt to preferentially repair the specified table or partition
+This statement is used to set the configuration items of the cluster (currently only supports setting FE configuration items).
 
-grammar:
+The configurable items can be viewed using the `SHOW FRONTEND CONFIG;` command.
+
+Syntax:
 
 ```sql
-ADMIN REPAIR TABLE table_name[ PARTITION (p1,...)]
+ADMIN SET FRONTEND CONFIG ("key" = "value") [ALL];
+-- or
+ADMIN SET ALL FRONTENDS CONFIG ("key" = "value");
 ```
 
-illustrate:
+:::tip Explanation
 
-1. This statement only means to let the system try to repair the shard copy of the specified table or partition with high priority, and does not guarantee that the repair can be successful. Users can view the repair status through the SHOW REPLICA STATUS command.
-2. The default timeout is 14400 seconds (4 hours). A timeout means that the system will no longer repair shard copies of the specified table or partition with high priority. Need to re-use this command to set
+- Starting from versions 2.0.11 and 2.1.5, the `ALL` keyword is supported. When using the `ALL` keyword, the configuration parameters will be applied to all FEs (except for the `master_only` parameter).
+- This syntax does not persistently modify the configuration. After an FE restarts, the modified configuration becomes invalid. To persist the changes, the configuration items need to be synchronously added in fe.conf.
+  :::
 
 ### Example
 
-1. Attempt to repair the specified table
+1. Set `disable_balance` to true
 
-        ```
-         ADMIN REPAIR TABLE tbl1;
-        ```
-
-2. Try to repair the specified partition
-
-        ```
-         ADMIN REPAIR TABLE tbl1 PARTITION (p1, p2);
-        ```
+   `ADMIN SET FRONTEND CONFIG ("disable_balance" = "true");`
 
 ### Keywords
 
-    ```
-    ADMIN, REPAIR, TABLE
-    ```
+ADMIN, SET, CONFIG
 
 ### Best Practice
 
