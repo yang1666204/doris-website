@@ -1,5 +1,5 @@
 ---
-{ "title": "CLEAN-LABEL", "language": "en" }
+{ "title": "CLEAN-PROFILE", "language": "en" }
 ---
 
 <!--
@@ -21,40 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## CLEAN-LABEL
+## CLEAN-PROFILE
 
 ### Name
 
-CLEAN LABEL
+CLEAN PROFILE
 
 ### Description
 
-For manual cleanup of historical load jobs. After cleaning, the Label can be reused.
+For manual cleanup all of historical query or load profile.
 
 Syntax:
 
 ```sql
-CLEAN LABEL [label] FROM db;
+CLEAN ALL PROFILE;
 ```
 
 ### Example
 
-1. Clean label label1 from database db1
+1. Clean all profile
 
    ```sql
-   CLEAN LABEL label1 FROM db1;
-   ```
-
-2. Clean all labels from database db1
-
-   ```sql
-   CLEAN LABEL FROM db1;
+   CLEAN ALL PROFILE;
    ```
 
 ### Keywords
 
     ```
-    CLEAN, LABEL
+    CLEAN, PROFILE
     ```
 
 ### Best Practice
