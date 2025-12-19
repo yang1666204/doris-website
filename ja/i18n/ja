@@ -1,5 +1,5 @@
 ---
-{ "title": "BITMAP_FROM_ARRAY", "language": "en" }
+{ "title": "BITMAP_FROM_BASE64", "language": "en" }
 ---
 
 <!-- 
@@ -19,35 +19,43 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bitmap_from_array
+## bitmap_from_base64
 
 ### description
 
 #### Syntax
 
-`BITMAP BITMAP_FROM_ARRAY(ARRAY input)`
+`BITMAP BITMAP_FROM_BASE64(VARCHAR input)`
 
-Convert a TINYINT/SMALLINT/INT/BIGINT array to a BITMAP
-When the input field is illegal, the result returns NULL
+Convert a base64 string(result of function `bitmap_to_base64`) into a bitmap. If input string is invalid, return NULL.
 
 ### example
 
 ```
-mysql> select *, bitmap_to_string(bitmap_from_array(c_array)) from array_test;
-+------+-----------------------+------------------------------------------------+
-| id   | c_array               | bitmap_to_string(bitmap_from_array(`c_array`)) |
-+------+-----------------------+------------------------------------------------+
-|    1 | [NULL]                | NULL                                           |
-|    2 | [1, 2, 3, NULL]       | NULL                                           |
-|    2 | [1, 2, 3, -10]        | NULL                                           |
-|    3 | [1, 2, 3, 4, 5, 6, 7] | 1,2,3,4,5,6,7                                  |
-|    4 | [100, 200, 300, 300]  | 100,200,300                                    |
-+------+-----------------------+------------------------------------------------+
-5 rows in set (0.02 sec)
+mysql> select bitmap_to_string(bitmap_from_base64("AA=="));
++----------------------------------------------+
+| bitmap_to_string(bitmap_from_base64("AA==")) |
++----------------------------------------------+
+|                                              |
++----------------------------------------------+
+
+mysql> select bitmap_to_string(bitmap_from_base64("AQEAAAA="));
++-----------------------------------+
+| bitmap_to_string(bitmap_from_base64("AQEAAAA=")) |
++-----------------------------------+
+| 1                                 |
++-----------------------------------+
+
+mysql> select bitmap_to_string(bitmap_from_base64("AjowAAACAAAAAAAAAJgAAAAYAAAAGgAAAAEAf5Y="));
++----------------------------------------------------------------------------------+
+| bitmap_to_string(bitmap_from_base64("AjowAAACAAAAAAAAAJgAAAAYAAAAGgAAAAEAf5Y=")) |
++----------------------------------------------------------------------------------+
+| 1,9999999                                                                        |
++----------------------------------------------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    BITMAP_FROM_ARRAY,BITMAP
+    BITMAP_FROM_BASE64,BITMAP
     ```
