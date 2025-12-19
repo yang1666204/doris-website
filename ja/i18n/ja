@@ -1,5 +1,5 @@
 ---
-{ "title": "UNSET-VARIABLE", "language": "en" }
+{ "title": "WARM UP COMPUTE GROUP", "language": "en" }
 ---
 
 <!--
@@ -21,56 +21,60 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## UNSET-VARIABLE
+## Description
 
-### Name
+The WARM UP COMPUTE GROUP statement is used to warm up data in a compute group to improve query performance. The warming operation can either retrieve resources from another compute group or specify particular tables and partitions for warming. The warming operation returns a job ID that can be used to track the status of the warming job.
 
-UNSET VARIABLE
-
-### Description
-
-This statement is used to restore Doris system variables. These system variables can be modified at global or session level.
-
-grammar:
+## Syntax
 
 ```sql
-UNSET [SESSION|GLOBAL] VARIABLE (variable_name | ALL)
+WARM UP COMPUTE GROUP <destination_compute_group_name> WITH COMPUTE GROUP <source_compute_group_name>;
+
+WARM UP COMPUTE GROUP <destination_compute_group_name> WITH <warm_up_list>;
+
+warm_up_list ::= warm_up_item [AND warm_up_item...];
+
+warm_up_item ::= TABLE <table_name> [PARTITION <partition_name>];
+
 ```
 
-illustrate:
+## Parameters
 
-1. (variable_name | ALL): statement must be ended with a variable name or keyword `ALL`.
+- destination_compute_group_name: The name of the destination compute group that is to be warmed up.
 
-> Note:
->
-> 1. Only ADMIN users can unset variables to take effect globally
-> 2. When restore a variable with `GLOBAL`,  it only affect your current using session and new open sessions. It does not affect other current open sessions.
+- source_compute_group_name(Optional) The name of the source cluster from which resources will be warmed up.
 
-### Example
+- warm_up_list: (Optional) A list of specific items to warm up, which can include tables and partitions.
 
-1. Restore value of the time zone
+- table_name: The name of the table is used to warmup.
 
-   ```
-   UNSET VARIABLE time_zone;
-   ```
+- partition_name: The name of the partition is used to warmup.
 
-2. Restore the global execution memory size
+## Return Values
 
-   ```
-   UNSET GLOBAL VARIABLE exec_mem_limit;
-   ```
+- JobId: the id of warm-up job.
 
-3. Restore all variables globally
+## Example
 
-   ```
-   UNSET GLOBAL VARIABLE ALL;
-   ```
+1. Warm up a compute group named destination_group_name with a compute group named source_group_name.
 
-### Keywords
+```sql
+   WARM UP COMPUTE GROUP destination_group_name WITH COMPUTE GROUP source_group_name;
+
+```
+
+2. Warm up a compute group named destination_group with table sales_data and customer_info and partition q1_2024 of table orders .
+
+```
+    WARM UP COMPUTE GROUP destination_group WITH 
+        TABLE sales_data 
+        AND TABLE customer_info 
+        AND TABLE orders PARTITION q1_2024;
+
+```
+
+## Keywords
 
     ```
-    UNSET, VARIABLE
+    WARM UP, COMPUTE GROUP, CACHE
     ```
-
-### Best Practice
-
