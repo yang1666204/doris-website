@@ -1,5 +1,8 @@
 ---
-{ "title": "ST_Y", "language": "en" }
+{
+  "title": "APPEND_TRAILING_CHAR_IF_ABSENT",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -21,27 +24,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ST_Y
+## append_trailing_char_if_absent
 
-### Description
+### description
 
 #### Syntax
 
-`DOUBLE ST_Y(POINT point)`
+`VARCHAR append_trailing_char_if_absent(VARCHAR str, VARCHAR trailing_char)`
 
-When point is a valid POINT type, the corresponding Y coordinate value is returned.
+If the @str string is non-empty and does not contain the @trailing_char character at the end, it appends the @trailing_char character to the end.
+@trailing_char contains only one character, and it will return NULL if contains more than one character
 
 ### example
 
 ```
-mysql> SELECT ST_Y(ST_Point(24.7, 56.7));
-+----------------------------+
-| st_y(st_point(24.7, 56.7)) |
-+----------------------------+
-|                       56.7 |
-+----------------------------+
+MySQL [test]> select append_trailing_char_if_absent('a','c');
++------------------------------------------+
+| append_trailing_char_if_absent('a', 'c') |
++------------------------------------------+
+| ac                                       |
++------------------------------------------+
+1 row in set (0.02 sec)
+
+MySQL [test]> select append_trailing_char_if_absent('ac','c');
++-------------------------------------------+
+| append_trailing_char_if_absent('ac', 'c') |
++-------------------------------------------+
+| ac                                        |
++-------------------------------------------+
+1 row in set (0.00 sec)
 ```
 
 ### keywords
 
-ST_Y,ST,Y
+    ```
+    APPEND_TRAILING_CHAR_IF_ABSENT
+    ```
