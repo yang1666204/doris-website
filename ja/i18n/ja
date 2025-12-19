@@ -1,5 +1,5 @@
 ---
-{ "title": "S3 Compatible Storage", "language": "en" }
+{ "title": "Tencent COS", "language": "en" }
 ---
 
 <!-- 
@@ -21,14 +21,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Doris provides two ways to load files from S3 Compatible Storage:
+Doris provides two ways to load files from Tencent COS:
 
-- Use S3 Load to load S3 Compatible Storage files into Doris, which is an asynchronous load method.
-- Use TVF to load S3 Compatible Storage files into Doris, which is a synchronous load method.
-
-:::caution Caution
-The S3 SDK uses the virtual-hosted style by default. However, some object storage systems may not enable or support virtual-hosted style access. In this case, we can add the `use_path_style` parameter to force the use of the path style.
-:::
+- Use S3 Load to load Tencent COS files into Doris, which is an asynchronous load method.
+- Use TVF to load Tencent COS files into Doris, which is a synchronous load method.
 
 ## load with S3 Load
 
@@ -36,7 +32,7 @@ Use S3 Load to import files on object storage. For detailed steps, please refer 
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on S3 Compatible Storage and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Tencent COS and its content is as follows:
 
 ```
 1,Emily,25
@@ -76,12 +72,11 @@ LOAD LABEL s3_load_2022_04_01
 )
 WITH S3
 (
-    "provider" = "S3",
-    "s3.endpoint" = "play.min.io:9000",  
-    "s3.region" = "us-east-1",
+    "provider" = "COS",
+    "s3.endpoint" = "cos.ap-beijing.myqcloud.com",
+    "s3.region" = "ap-beijing",
     "s3.access_key" = "<your-ak>",
-    "s3.secret_key" = "<your-sk>",
-    "use_path_style" = "true"
+    "s3.secret_key" = "<your-sk>"
 )
 PROPERTIES
 (
@@ -120,7 +115,7 @@ mysql> select * from test_s3load;
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on S3 Compatible Storage and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on Tencent COS and its content is as follows:
 
 ```
 1,Emily,25
@@ -155,14 +150,13 @@ SELECT * FROM S3
 (
     "uri" = "s3://your_bucket_name/s3load_example.csv",
     "format" = "csv",
-    "provider" = "S3",
-    "s3.endpoint" = "play.min.io:9000",
-    "s3.region" = "us-east-1",
+    "provider" = "COS",
+    "s3.endpoint" = "cos.ap-beijing.myqcloud.com",
+    "s3.region" = "ap-beijing",
     "s3.access_key" = "<your-ak>",
     "s3.secret_key" = "<your-sk>",
     "column_separator" = ",",
-    "csv_schema" = "user_id:int;name:string;age:int",
-    "use_path_style" = "true"
+    "csv_schema" = "user_id:int;name:string;age:int"
 );
 ```
 
