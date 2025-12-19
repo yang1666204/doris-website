@@ -1,5 +1,5 @@
 ---
-{ "title": "SHOW-VARIABLES", "language": "en" }
+{ "title": "SHOW-VIEW", "language": "en" }
 ---
 
 <!--
@@ -21,54 +21,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## SHOW-VARIABLES
+## SHOW-VIEW
 
 ### Name
 
-SHOW VARIABLES
+SHOW VIEW
 
 ### Description
 
-This statement is used to display Doris system variables, which can be queried by conditions
+This statement is used to display all views based on the given table
 
 grammar:
 
 ```sql
-SHOW [GLOBAL | SESSION] VARIABLES
-     [LIKE 'pattern' | WHERE expr]
+  SHOW VIEW { FROM | IN } table [ FROM db ]
 ```
-
-illustrate:
-
-- show variables is mainly used to view the values of system variables.
-- Executing the SHOW VARIABLES command does not require any privileges, it only requires being able to connect to the server.
-- Use the like statement to match with variable_name.
-- The % percent wildcard can be used anywhere in the matching pattern
 
 ### Example
 
-1. The default here is to match the Variable_name, here is the exact match
+1. Show all views created based on table testTbl
 
     ```sql
-    show variables like 'max_connections';
-    ```
-
-2. Matching through the percent sign (%) wildcard can match multiple items
-
-    ```sql
-    show variables like '%connec%';
-    ```
-
-3. Use the Where clause for matching queries
-
-    ```sql
-    show variables where variable_name = 'version';
+    SHOW VIEW FROM testTbl;
     ```
 
 ### Keywords
 
     ```
-    SHOW, VARIABLES
+    SHOW, VIEW
     ```
 
 ### Best Practice
