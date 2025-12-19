@@ -1,5 +1,5 @@
 ---
-{ "title": "PARSE_URL", "language": "en" }
+{ "title": "QUOTE", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## parse_url
+## quote
 
 ### description
 
 #### Syntax
 
-`VARCHAR  parse_url(VARCHAR url, VARCHAR  name)`
+`VARCHAR quote(VARCHAR str)`
 
-From the URL, the field corresponding to name is resolved. The name options are as follows: 'PROTOCOL', 'HOST', 'PATH', 'REF', 'AUTHORITY', 'FILE', 'USERINFO', 'PORT', 'QUERY', and the result is returned.
+Output all the strings in the argument as is and wrap them with ''
 
 ### example
 
+```sql
+mysql> select quote('hello world!\\t');
++-------------------------+
+| quote('hello world!\t') |
++-------------------------+
+| 'hello world!\t'        |
++-------------------------+
 ```
-mysql> SELECT parse_url ('https://doris.apache.org/', 'HOST');
-+------------------------------------------------+
-| parse_url('https://doris.apache.org/', 'HOST') |
-+------------------------------------------------+
-| doris.apache.org                               |
-+------------------------------------------------+
-```
-
-If you want to get parameter in QUERY, you can use [extract_url_parameter](./extract_url_parameter.md).
 
 ### keywords
 
     ```
-    PARSE URL
+    QUOTE
     ```
