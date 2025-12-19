@@ -1,8 +1,8 @@
 ---
-{ "title": "NVL", "language": "en" }
+{ "title": "CONVERT_TZ", "language": "en" }
 ---
 
-<!-- 
+<!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,36 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## nvl
+## convert_tz
 
-nvl
-
-### description
+### Description
 
 #### Syntax
 
-`nvl(expr1, expr2)`
+`DATETIME CONVERT_TZ(DATETIME dt, VARCHAR from_tz, VARCHAR to_tz)`
 
-If the value of expr1 is not null, expr1 is returned, otherwise expr2 is returned
+Convert datetime value. Go from the given input time zone to the specified time zone and return the result value. If the argument is invalid, the function returns null.
 
-### example
+### Example
 
 ```
-mysql> select nvl(1,0);
-+--------------+
-| nvl(1, 0) |
-+--------------+
-|            1 |
-+--------------+
+mysql> select convert_tz('2019-08-01 13:21:03', 'Asia/Shanghai', 'America/Los_Angeles');
++---------------------------------------------------------------------------+
+| convert_tz('2019-08-01 13:21:03', 'Asia/Shanghai', 'America/Los_Angeles') |
++---------------------------------------------------------------------------+
+| 2019-07-31 22:21:03                                                       |
++---------------------------------------------------------------------------+
 
-mysql> select nvl(null,10);
-+------------------+
-| nvl(NULL, 10) |
-+------------------+
-|               10 |
-+------------------+
+mysql> select convert_tz('2019-08-01 13:21:03', '+08:00', 'America/Los_Angeles');
++--------------------------------------------------------------------+
+| convert_tz('2019-08-01 13:21:03', '+08:00', 'America/Los_Angeles') |
++--------------------------------------------------------------------+
+| 2019-07-31 22:21:03                                                |
++--------------------------------------------------------------------+
 ```
 
 ### keywords
 
-NVL
+    ```
+    CONVERT_TZ
+    ```
