@@ -1,5 +1,5 @@
 ---
-{ "title": "Query Stats Action", "language": "en" }
+{ "title": "Row Count Action", "language": "en" }
 ---
 
 <!-- 
@@ -21,73 +21,61 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# Row Count Action
+
 ## Request
 
-```
-View  
-get api/query_stats/<catalog_name>  
-get api/query_stats/<catalog_name>/<db_name>  
-get api/query_stats/<catalog_name>/<db_name>/<tbl_name>  
-  
-Clear  
-delete api/query_stats/<catalog_name>/<db_name>  
-delete api/query_stats/<catalog_name>/<db_name>/<tbl_name>
-```
+`GET /api/rowcount`
 
 ## Description
 
-Get or delete the statistics information of the specified catalog database or table, if it is a doris catalog, you can use default_cluster
+Used to manually update the row count statistics of the specified table. While updating the statistics of the number of rows, the table and the number of rows corresponding to the rollup will also be returned in JSON format
 
 ## Path parameters
 
-- `<catalog_name>`
-  specified catalog name
-
--
-
-- `<db_name>`
-  specified database name
-
-- `<tbl_name>`
-  specified table name
+None
 
 ## Query parameters
 
-- `summary`
-  if true, only return summary information, otherwise return all the detailed statistics information of the table, only used in get
+- `db`
+
+  Specify database
+
+- `table`
+
+  Specify table
 
 ## Request body
 
-```
-GET /api/query_stats/default_cluster/test_query_db/baseall?summary=false
-{
-    "msg": "success",
-    "code": 0,
-    "data": {
-        "summary": {
-            "query": 2
-        },
-        "detail": {
-            "baseall": {
-                "summary": {
-                    "query": 2
-                }
-            }
-        }
-    },
-    "count": 0
-}
-
-```
+None
 
 ## Response
 
-- return statistics information
+```
+{
+	"msg": "success",
+	"code": 0,
+	"data": {
+		"tbl1": 10000
+	},
+	"count": 0
+}
+```
 
-## Example
+## Examples
 
-2. use curl
+1. Update and get the number of rows in the specified Table
 
     ```
-    curl --location -u root: 'http://127.0.0.1:8030/api/query_stats/default_cluster/test_query_db/baseall?summary=false'
+    GET /api/rowcount?db=example_db&table=tbl1
+    
+    Response:
+    {
+    	"msg": "success",
+    	"code": 0,
+    	"data": {
+    		"tbl1": 10000
+    	},
+    	"count": 0
+    }
     ```
