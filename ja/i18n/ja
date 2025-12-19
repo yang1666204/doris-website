@@ -1,8 +1,8 @@
 ---
-{ "title": "LOCALTIME,LOCALTIMESTAMP", "language": "en" }
+{ "title": "MAKEDATE", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,37 +21,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## localtime,localtimestamp
+## makedate
 
-### description
+### Description
 
 #### Syntax
 
-`DATETIME localtime()`
-`DATETIME localtimestamp()`
+`DATE MAKEDATE(INT year, INT dayofyear)`
 
-Get the current time and return it in Datetime type.
+Returns a date, given year and day-of-year values. dayofyear must be greater than 0 or the result is NULL.
 
-### Example
+### example
 
 ```
-mysql> select localtime();
-+---------------------+
-| localtime()         |
-+---------------------+
-| 2022-09-22 17:30:23 |
-+---------------------+
-
-mysql> select localtimestamp();
-+---------------------+
-| localtimestamp()    |
-+---------------------+
-| 2022-09-22 17:30:29 |
-+---------------------+
+mysql> select makedate(2021,1), makedate(2021,100), makedate(2021,400);
++-------------------+---------------------+---------------------+
+| makedate(2021, 1) | makedate(2021, 100) | makedate(2021, 400) |
++-------------------+---------------------+---------------------+
+| 2021-01-01        | 2021-04-10          | 2022-02-04          |
++-------------------+---------------------+---------------------+
 ```
 
 ### keywords
 
     ```
-    localtime,localtimestamp
+    MAKEDATE
     ```
