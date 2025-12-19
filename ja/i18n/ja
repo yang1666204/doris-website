@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 3.0.2", "language": "en" }
+{ "title": "Release 3.0.3", "language": "en" }
 ---
 
 <!--
@@ -21,7 +21,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Dear community members, the Apache Doris 3.0.2 version was officially released on October 15, 2024, featuring updates and improvements in compute-storage decoupling, data storage, lakehouse, query optimizer, query execution and more.
+Dear community members, the Apache Doris 3.0.3 version was officially released on December 02, 2024, this version further enhances the performance and stability of the system.
 
 **Quick Download:** https://doris.apache.org/download/
 
@@ -29,309 +29,200 @@ Dear community members, the Apache Doris 3.0.2 version was officially released o
 
 ## Behavioral Changes
 
-### Storage
-
-- Limited the number of tablets in a single backup task to prevent FE memory overflow. [#40518](https://github.com/apache/doris/pull/40518)
-- The `SHOW PARTITIONS` command now displays the `CommittedVersion` of partitions. [#28274](https://github.com/apache/doris/pull/28274)
-
-### Other
-
-- The default printing mode (asynchronous) of `fe.log` now includes file line number information. If performance issues are encountered due to line number output, please switch to BRIEF mode. [#39419](https://github.com/apache/doris/pull/39419)
-- The default value of the session variable `ENABLE_PREPARED_STMT_AUDIT_LOG` has been changed from `true` to `false`, and the audit log of prepare statements will no longer be printed. [#38865](https://github.com/apache/doris/pull/38865)
-- The default value of the session variable `max_allowed_packet` has been adjusted from 1MB to 16MB to align with MySQL 8.4. [#38697](https://github.com/apache/doris/pull/38697)
-- The JVM of FE and BE defaults to using the UTF-8 character set. [#39521](https://github.com/apache/doris/pull/39521)
+- Prohibited column updates on MOW tables with synchronous materialized views. [#40190](https://github.com/apache/doris/pull/40190)
+- Adjusted the default parameters of RoutineLoad to improve import efficiency. [#42968](https://github.com/apache/doris/pull/42968)
+- When StreamLoad fails, the return value of LoadedRows is adjusted to 0. [#41946](https://github.com/apache/doris/pull/41946) [#42291](https://github.com/apache/doris/pull/42291)
+- Adjusted the default memory limit of Segment cache to 5%. [#42308](https://github.com/apache/doris/pull/42308) [#42436](https://github.com/apache/doris/pull/42436)
 
 ## New Features
 
-### Storage
+- Introduced the session variable `enable_cooldown_replica_affinity` to control the affinity of cold and hot tiered replicas. [#42677](https://github.com/apache/doris/pull/42677)
 
-- Backup and recovery now support clearing tables or partitions that are not in the backup. [#39028](https://github.com/apache/doris/pull/39028)
+- Added `table$partition` syntax for querying partition information of Hive tables. [#40774](https://github.com/apache/doris/pull/40774)
 
-### Compute-Storage Decoupled
+  - [View Documentation](https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/hive)
 
-- Support for parallel recycling of expired data on multiple tablets. [#37630](https://github.com/apache/doris/pull/37630)
-- Support for changing storage vaults through `ALTER` statements. [#38685](https://github.com/apache/doris/pull/38685)  [#37606](https://github.com/apache/doris/pull/37606)
-- Support for importing a large number of tablets (5000+) in a single transaction (experimental feature). [#38243](https://github.com/apache/doris/pull/38243)
-- Support for automatically aborting pending transactions caused by reasons such as node restarts, solving the issue of pending transactions blocking decommission or schema change. [#37669](https://github.com/apache/doris/pull/37669)
-- A new session variable `enable_segment_cache` has been added to control whether to use segment cache during queries (default is `true`). [#37141](https://github.com/apache/doris/pull/37141)
-- Resolved the issue of not being able to import a large amount of data during schema changes in compute-storage decoupled mode. [#39558](https://github.com/apache/doris/pull/39558)
-- Support for adding multiple follower roles of FE in compute-storage decoupled mode. [#38388](https://github.com/apache/doris/pull/38388)
-- Support for using memory as file cache to accelerate queries in environments with no disks or low-performance HDDs. [#38811](https://github.com/apache/doris/pull/38811)
+- Supported creation of Hive tables in Text format. [#41860](https://github.com/apache/doris/pull/41860) [#42175](https://github.com/apache/doris/pull/42175)
 
-### Lakehouse
+  - [View Documentation](https://doris.apache.org/zh-CN/docs/3.0/lakehouse/datalake-building/hive-build#table)
 
-- New Lakesoul Catalog has been added. [Apache Doris Docs](https://doris.apache.org/zh-CN/docs/dev/lakehouse/datalake-analytics/lakesoul)
-- A new system table `catalog_meta_cache_statistics` has been added to view the usage of various metadata caches in external catalog. [#40155](https://github.com/apache/doris/pull/40155)
+### Asynchronous Materialized Views
+
+- Introduced new materialized view attribute `use_for_rewrite`. When `use_for_rewrite` is set to false, the materialized view does not participate in transparent rewriting. [#40332](https://github.com/apache/doris/pull/40332)
 
 ### Query Optimizer
 
-- Support for `is [not] true/false` expressions. [#38623](https://github.com/apache/doris/pull/38623)
+- Supported correlated non-aggregate subqueries. [#42236](https://github.com/apache/doris/pull/42236)
 
 ### Query Execution
 
-- A new CRC32 function has been added. [#38204](https://github.com/apache/doris/pull/38204)
-- New aggregate functions skew and kurt have been added. [#41277](https://github.com/apache/doris/pull/41277)
-- Profiles are now persisted to the FE's disk to retain more profiles. [#33690](https://github.com/apache/doris/pull/33690)
-- A new system table `workload_group_privileges` has been added to view permission information related to workload groups. [#38436](https://github.com/apache/doris/pull/38436)
-- A new system table `workload_group_resource_usage` has been added to monitor resource statistics of workload groups. [#39177](https://github.com/apache/doris/pull/39177)
-- Workload groups now support limiting reads of local IO and remote IO. [#39012](https://github.com/apache/doris/pull/39012)
-- Workload groups now support cgroupv2 to limit CPU usage. [#39374](https://github.com/apache/doris/pull/39374)
-- A new system table `information_schema.partitions` has been added to view some table creation attributes. [#40636](https://github.com/apache/doris/pull/40636)
+- Added functions `ngram_search`, `normal_cdf`, `to_iso8601`, `from_iso8601_date`, `SESSION_USER()`, `last_query_id`. [#38226](https://github.com/apache/doris/pull/38226) [#40695](https://github.com/apache/doris/pull/40695) [#41075](https://github.com/apache/doris/pull/41075) [#41600](https://github.com/apache/doris/pull/41600) [#39575](https://github.com/apache/doris/pull/39575) [#40739](https://github.com/apache/doris/pull/40739)
+- The `aes_encrypt` and `aes_decrypt` functions support GCM mode. [#40004](https://github.com/apache/doris/pull/40004)
+- Profile outputs the changed session variable values. [#41016](https://github.com/apache/doris/pull/41016) [#41318](https://github.com/apache/doris/pull/41318)
 
-### Other
+### Semi-structured Data Management
 
-- Support for using the `SHOW` statement to display BE's configuration information, such as `SHOW BACKEND CONFIG LIKE ${pattern}`. [#36525](https://github.com/apache/doris/pull/36525)
+- Added array functions `array_match_all` and `array_match_any`. [#40605](https://github.com/apache/doris/pull/40605) [#43514](https://github.com/apache/doris/pull/43514)
+- The array function `array_agg` supports nesting ARRAY/MAP/STRUCT within ARRAY. [#42009](https://github.com/apache/doris/pull/42009)
+- Added approximate aggregate statistical functions `approx_top_k` and `approx_top_sum`. [#44082](https://github.com/apache/doris/pull/44082)
 
 ## Improvements
 
-### Load
-
-- Improved the import efficiency of routine load when encountering frequent EOFs from Kafka. [#39975](https://github.com/apache/doris/pull/39975)
-- The stream load result now includes the time taken to read HTTP data, `ReceiveDataTimeMs`, which can quickly determine slow stream load issues caused by network reasons. [#40735](https://github.com/apache/doris/pull/40735)
-- Optimized the routine load timeout logic to avoid frequent timeouts during inverted index and mow writes. [#40818](https://github.com/apache/doris/pull/40818)
-
 ### Storage
 
-- Support for batch addition of partitions. [#37114](https://github.com/apache/doris/pull/37114)
+- Supported `bitmap_empty` as the default value. [#40364](https://github.com/apache/doris/pull/40364)
+- Introduced the session variable `insert_timeout` to control the timeout of DELETE statements. [#41063](https://github.com/apache/doris/pull/41063)
+- Improved some error message prompts. [#41048](https://github.com/apache/doris/pull/41048) [#39631](https://github.com/apache/doris/pull/39631)
+- Improved the priority scheduling of replica repair. [#41076](https://github.com/apache/doris/pull/41076)
+- Enhanced the robustness of timezone handling when creating tables. [#41926](https://github.com/apache/doris/pull/41926) [#42389](https://github.com/apache/doris/pull/42389)
+- Checked the validity of partition expressions when creating tables. [#40158](https://github.com/apache/doris/pull/40158)
+- Supported Unicode-encoded column names in DELETE operations. [#39381](https://github.com/apache/doris/pull/39381)
 
 ### Compute-Storage Decoupled
 
-- Added the meta-service HTTP interface `/MetaService/http/show_meta_ranges` to facilitate the statistics of KV distribution in FDB. [#39208](https://github.com/apache/doris/pull/39208)
-- The meta-service/recycler stop script ensures that the process fully exits before returning. [#40218](https://github.com/apache/doris/pull/40218)
-- Support for using the session variable `version_comment` (Cloud Mode) to display the current deployment mode as compute-storage decoupled. [#38269](https://github.com/apache/doris/pull/38269)
-- Fixed the detailed message returned when transaction submission fails. [#40584](https://github.com/apache/doris/pull/40584)
-- Support for using one meta-service process to provide both metadata services and data recycling services. [#40223](https://github.com/apache/doris/pull/40223)
-- Optimized the default configuration of file_cache to avoid potential issues when not set. [#41421](https://github.com/apache/doris/pull/41421)  [#41507](https://github.com/apache/doris/pull/41507)
-- Improved query performance by batch retrieving the version of multiple partitions. [#38949](https://github.com/apache/doris/pull/38949)
-- Delayed the redistribution of tablets to avoid query performance issues caused by temporary network fluctuations. [#40371](https://github.com/apache/doris/pull/40371)
-- Optimized the read-write lock logic in the balance. [#40633](https://github.com/apache/doris/pull/40633)
-- Enhanced the robustness of file cache in handling TTL filenames during restarts/crashes. [#40226](https://github.com/apache/doris/pull/40226)
-- Added the BE HTTP interface `/api/file_cache?op=hash` to facilitate the calculation of the hash file names of segment files on disk. [#40831](https://github.com/apache/doris/pull/40831)
-- Optimized the unified naming to be compatible with using compute group to represent BE groups (original cloud cluster). [#40767](https://github.com/apache/doris/pull/40767)
-- Optimized the waiting time for obtaining locks when calculating delete bitmaps in primary key tables. [#40341](https://github.com/apache/doris/pull/40341)
-- When there are many delete bitmaps in primary key tables, optimized the high CPU consumption during queries by pre-merging multiple delete bitmaps. [#40204](https://github.com/apache/doris/pull/40204)
-- Support for managing FE/BE nodes in compute-storage decoupled mode through SQL statements, hiding the logic of direct interaction with meta-service when deploying in compute-storage decoupled mode. [#40264](https://github.com/apache/doris/pull/40264)
-- Added a script for rapid deployment of FDB. [#39803](https://github.com/apache/doris/pull/39803)
-- Optimized the output of `SHOW CACHE HOTSPOT` to unify the column name style with other `SHOW` statements. [#41322](https://github.com/apache/doris/pull/41322)
-- When using a storage vault as the storage backend, disallowed the use of `latest_fs()` to avoid binding different storage backends to the same table. [#40516](https://github.com/apache/doris/pull/40516)
-- Optimized the timeout strategy for calculating delete bitmaps when importing mow tables. [#40562](https://github.com/apache/doris/pull/40562)  [#40333](https://github.com/apache/doris/pull/40333)
-- The enable_file_cache in be.conf is now enabled by default in compute-storage decoupled mode. [#41502](https://github.com/apache/doris/pull/41502)
+- Supported ARM architecture deployment in storage and compute separation mode. [#42467](https://github.com/apache/doris/pull/42467) [#43377](https://github.com/apache/doris/pull/43377)
+- Optimized the eviction strategy and lock competition of file cache, improving hit rate and high concurrency point query performance. [#42451](https://github.com/apache/doris/pull/42451) [#43201](https://github.com/apache/doris/pull/43201) [#41818](https://github.com/apache/doris/pull/41818) [#43401](https://github.com/apache/doris/pull/43401)
+- S3 storage vault supported `use_path_style`, solving the problem of using custom domain names for object storage. [#43060](https://github.com/apache/doris/pull/43060) [#43343](https://github.com/apache/doris/pull/43343) [#43330](https://github.com/apache/doris/pull/43330)
+- Optimized storage and compute separation configuration and deployment, preventing misoperations in different modes. [#43381](https://github.com/apache/doris/pull/43381) [#43522](https://github.com/apache/doris/pull/43522) [#43434](https://github.com/apache/doris/pull/43434) [#40764](https://github.com/apache/doris/pull/40764) [#43891](https://github.com/apache/doris/pull/43891)
+- Optimized observability and provided an interface for deleting specified segment file cache. [#38489](https://github.com/apache/doris/pull/38489) [#42896](https://github.com/apache/doris/pull/42896) [#41037](https://github.com/apache/doris/pull/41037) [#43412](https://github.com/apache/doris/pull/43412)
+- Optimized Meta-service operation and maintenance interface: RPC rate limiting and tablet metadata correction. [#42413](https://github.com/apache/doris/pull/42413) [#43884](https://github.com/apache/doris/pull/43884) [#41782](https://github.com/apache/doris/pull/41782) [#43460](https://github.com/apache/doris/pull/43460)
 
 ### Lakehouse
 
-- When reading tables in CSV format, support for the session `keep_carriage_return` setting to control the reading behavior of the `\r` symbol. [#39980](https://github.com/apache/doris/pull/39980)
-- The default maximum memory of BE's JVM has been adjusted to 2GB (affecting only new deployments). [#41403](https://github.com/apache/doris/pull/41403)
-- Hive Catalog has added `hive.recursive_directories_table` and `hive.ignore_absent_partitions` properties to specify whether to recursively traverse data directories and whether to ignore missing partitions. [#39494](https://github.com/apache/doris/pull/39494)
-- Optimized the Catalog refresh logic to avoid generating a large number of connections during refresh. [#39205](https://github.com/apache/doris/pull/39205)
-- `SHOW CREATE DATABASE` and `SHOW CREATE TABLE` for external data sources now display location information. [#39179](https://github.com/apache/doris/pull/39179)
-- The new optimizer supports inserting data into JDBC external tables using the `INSERT INTO` statement. [#41511](https://github.com/apache/doris/pull/41511)
-- MaxCompute Catalog now supports complex data types. [#39259](https://github.com/apache/doris/pull/39259)
-- Optimized the logic for reading and merging data shards of external tables. [#38311](https://github.com/apache/doris/pull/38311)
-- Optimized some refresh strategies for metadata caches of external tables. [#38506](https://github.com/apache/doris/pull/38506)
-- Paimon tables now support pushing down `IN/NOT IN` predicates. [#38390](https://github.com/apache/doris/pull/38390)
-- Compatible with tables created in Parquet format by Paimon version 0.9. [#41020](https://github.com/apache/doris/pull/41020)
+- Paimon Catalog supported Alibaba Cloud DLF and OSS-HDFS storage. [#41247](https://github.com/apache/doris/pull/41247) [#42585](https://github.com/apache/doris/pull/42585)
 
-### Asynchronous Materialized Views
+  - View [Documentation](https://doris.apache.org/docs/3.0/lakehouse/datalake-analytics/paimon)
 
-- Building asynchronous materialized views now supports the use of both immediate and starttime. [#39573](https://github.com/apache/doris/pull/39573)
-- Asynchronous materialized views based on external tables will refresh the metadata cache of the external tables before refreshing the materialized views, ensuring construction based on the latest external table data. [#38212](https://github.com/apache/doris/pull/38212)
-- Partition incremental construction now supports rolling up according to weekly and quarterly granularities. [#39286](https://github.com/apache/doris/pull/39286)
+- Supported reading of Hive tables in OpenCSV format. [#42257](https://github.com/apache/doris/pull/42257) [#42942](https://github.com/apache/doris/pull/42942)
+
+- Optimized the performance of accessing the `information_schema.columns` table in External Catalog. [#41659](https://github.com/apache/doris/pull/41659) [#41962](https://github.com/apache/doris/pull/41962)
+
+- Used the new Max Compute open storage API to access Max Compute data sources. [#41614](https://github.com/apache/doris/pull/41614)
+
+- Optimized the scheduling policy of the JNI part of Paimon tables, making scan tasks more balanced. [#43310](https://github.com/apache/doris/pull/43310)
+
+- Optimized the read performance of small ORC files. [#42004](https://github.com/apache/doris/pull/42004) [#43467](https://github.com/apache/doris/pull/43467)
+
+- Supported reading of parquet files in brotli compressed format. [#42177](https://github.com/apache/doris/pull/42177)
+
+- Added `file_cache_statistics` table under the `information_schema` library to view metadata cache statistics. [#42160](https://github.com/apache/doris/pull/42160)
 
 ### Query Optimizer
 
-- The aggregate function `GROUP_CONCAT` now supports the use of both `DISTINCT` and `ORDER BY`. [#38080](https://github.com/apache/doris/pull/38080)
-- Optimized the collection and use of statistical information, as well as the logic for estimating row counts and cost calculations, to generate more efficient and stable execution plans.
-- Window function partition data pre-filtering now supports cases containing multiple window functions. [#38393](https://github.com/apache/doris/pull/38393)
+- Optimization: When queries only differ in comments, the same SQL Cache can be reused. [#40049](https://github.com/apache/doris/pull/40049)
+- Optimization: Improved the stability of statistical information when data is frequently updated. [#43865](https://github.com/apache/doris/pull/43865) [#39788](https://github.com/apache/doris/pull/39788) [#43009](https://github.com/apache/doris/pull/43009) [#40457](https://github.com/apache/doris/pull/40457) [#42409](https://github.com/apache/doris/pull/42409) [#41894](https://github.com/apache/doris/pull/41894)
+- Optimization: Enhanced the stability of constant folding. [#42910](https://github.com/apache/doris/pull/42910) [#41164](https://github.com/apache/doris/pull/41164) [#39723](https://github.com/apache/doris/pull/39723) [#41394](https://github.com/apache/doris/pull/41394) [#42256](https://github.com/apache/doris/pull/42256) [#40441](https://github.com/apache/doris/pull/40441)
+- Optimization: Column pruning can generate better execution plans. [#41719](https://github.com/apache/doris/pull/41719) [#41548](https://github.com/apache/doris/pull/41548)
 
 ### Query Execution
 
-- Reduced query latency by running prepare pipeline tasks in parallel. [#40874](https://github.com/apache/doris/pull/40874)
-- Display Catalog information in Profile. [#38283](https://github.com/apache/doris/pull/38283)
-- Optimized the computational performance of `IN` filtering conditions. [#40917](https://github.com/apache/doris/pull/40917)
-- Supported cgroupv2 in K8S to limit Doris's memory usage. [#39256](https://github.com/apache/doris/pull/39256)
-- Optimized the performance of converting strings to datetime types. [#38385](https://github.com/apache/doris/pull/38385)
-- When a `string` is a decimal number, support casting it to an `int`, which will be more compatible with certain behaviors of MySQL. [#38847](https://github.com/apache/doris/pull/38847)
+- Optimized the memory usage of the sort operator. [#39306](https://github.com/apache/doris/pull/39306)
+- Optimized the performance of computations on ARM. [#38888](https://github.com/apache/doris/pull/38888) [#38759](https://github.com/apache/doris/pull/38759)
+- Optimized the computational performance of a series of functions. [#40366](https://github.com/apache/doris/pull/40366) [#40821](https://github.com/apache/doris/pull/40821) [#40670](https://github.com/apache/doris/pull/40670) [#41206](https://github.com/apache/doris/pull/41206) [#40162](https://github.com/apache/doris/pull/40162)
+- Used SSE instructions to optimize the performance of the `match_ipv6_subnet` function. [#38755](https://github.com/apache/doris/pull/38755)
+- Supported automatic creation of new partitions during insert overwrite. [#38628](https://github.com/apache/doris/pull/38628) [#42645](https://github.com/apache/doris/pull/42645)
+- Added the status of each PipelineTask in Profile. [#42981](https://github.com/apache/doris/pull/42981)
+- IP type supported runtime filter. [#39985](https://github.com/apache/doris/pull/39985)
 
-### Semi-Structured Data Management
+### Semi-structured Data Management
 
-- Optimized the performance of inverted index matching. [#41122](https://github.com/apache/doris/pull/41122)
-- Temporarily prohibited the creation of inverted indexes with tokenization on arrays. [#39062](https://github.com/apache/doris/pull/39062)
-- `explode_json_array` now supports binary JSON types. [#37278](https://github.com/apache/doris/pull/37278)
-- IP data types now support bloomfilter indexes. [#39253](https://github.com/apache/doris/pull/39253)
-- IP data types now support row storage. [#39258](https://github.com/apache/doris/pull/39258)
-- Nested data types such as ARRAY, MAP, and STRUCT now support schema changes. [#39210](https://github.com/apache/doris/pull/39210)
-- When creating MTMV, automatically truncate KEYs encountered in VARIANT data types. [#39988](https://github.com/apache/doris/pull/39988)
-- Lazy loading of inverted indexes during queries to improve performance. [#38979](https://github.com/apache/doris/pull/38979)
-- `add inverted index file size for open file`. [#37482](https://github.com/apache/doris/pull/37482)
-- Reduced access to object storage interfaces during compaction to improve performance. [#41079](https://github.com/apache/doris/pull/41079)
-- Added three new query profile metrics related to inverted indexes. [#36696](https://github.com/apache/doris/pull/36696)
-- Reduced cache overhead for non-PreparedStatement SQL to improve performance. [#40910](https://github.com/apache/doris/pull/40910)
-- Pre-warming cache now supports inverted indexes. [#38986](https://github.com/apache/doris/pull/38986)
-- Inverted indexes are now cached immediately after writing. [#39076](https://github.com/apache/doris/pull/39076)
+- Output the real SQL of prepared statements in audit logs. [#43321](https://github.com/apache/doris/pull/43321)
+- The filebeat doris output plugin supports fault tolerance and progress reporting. [#36355](https://github.com/apache/doris/pull/36355)
+- Optimized the performance of inverted index queries. [#41547](https://github.com/apache/doris/pull/41547) [#41585](https://github.com/apache/doris/pull/41585) [#41567](https://github.com/apache/doris/pull/41567) [#41577](https://github.com/apache/doris/pull/41577) [#42060](https://github.com/apache/doris/pull/42060) [#42372](https://github.com/apache/doris/pull/42372)
+- The array function `array overlaps` supports acceleration using inverted indexes. [#41571](https://github.com/apache/doris/pull/41571)
+- The IP function `is_ip_address_in_range` supports acceleration using inverted indexes. [#41571](https://github.com/apache/doris/pull/41571)
+- Optimized the CAST performance of the VARIANT data type. [#41775](https://github.com/apache/doris/pull/41775) [#42438](https://github.com/apache/doris/pull/42438) [#43320](https://github.com/apache/doris/pull/43320)
+- Optimized the CPU resource consumption of the Variant data type. [#42856](https://github.com/apache/doris/pull/42856) [#43062](https://github.com/apache/doris/pull/43062) [#43634](https://github.com/apache/doris/pull/43634)
+- Optimized the metadata and execution memory resource consumption of the Variant data type. [#42448](https://github.com/apache/doris/pull/42448) [#43326](https://github.com/apache/doris/pull/43326) [#41482](https://github.com/apache/doris/pull/41482) [#43093](https://github.com/apache/doris/pull/43093) [#43567](https://github.com/apache/doris/pull/43567) [#43620](https://github.com/apache/doris/pull/43620)
 
-### Compatibility
+### Permissions
 
-- Fixed the issue of Thrift ID incompatibility on the master with branch-2.1. [#41057](https://github.com/apache/doris/pull/41057)
+- Added a new configuration item `ldap_group_filter` in LDAP for custom group filtering. [#43292](https://github.com/apache/doris/pull/43292)
 
 ### Other
 
-- BE HTTP API now supports authentication; set config::enable_all_http_auth to true (default is false) when authentication is required. [#39577](https://github.com/apache/doris/pull/39577)
-- Optimized the user permissions required for the REFRESH operation. Permissions have been relaxed from ALTER to SHOW. [#39008](https://github.com/apache/doris/pull/39008)
-- Reduced the range of nextId when calling advanceNextId(). [#40160](https://github.com/apache/doris/pull/40160)
-- Optimized the caching mechanism for Java UDFs. [#40404](https://github.com/apache/doris/pull/40404)
+- Supported displaying connection count information by user in FE monitoring items. [#39200](https://github.com/apache/doris/pull/39200)
 
 ## Bug Fixes
 
-### Load
-
-- Fixed the issue where `abortTransaction` did not handle return codes. [#41275](https://github.com/apache/doris/pull/41275)
-- Fixed the issue where transactions failed to commit or abort in compute-storage decoupled mode without calling `afterCommit/afterAbort`. [#41267](https://github.com/apache/doris/pull/41267)
-- Fixed the issue where Routine Load could not work properly when modifying consumer offsets in compute-storage decoupled mode. [#39159](https://github.com/apache/doris/pull/39159)
-- Fixed the issue of repeatedly closing file handles when obtaining error log file paths. [#41320](https://github.com/apache/doris/pull/41320)
-- Fixed the issue of incorrect job progress caching for Routine Load in compute-storage decoupled mode. [#39313](https://github.com/apache/doris/pull/39313)
-- Fixed the issue where Routine Load could get stuck when failing to commit transactions in compute-storage decoupled mode. [#40539](https://github.com/apache/doris/pull/40539)
-- Fixed the issue where Routine Load kept reporting data quality check errors in compute-storage decoupled mode. [#39790](https://github.com/apache/doris/pull/39790)
-- Fixed the issue where Routine Load did not check transactions before committing in compute-storage decoupled mode. [#39775](https://github.com/apache/doris/pull/39775)
-- Fixed the issue where Routine Load did not check transactions before aborting in compute-storage decoupled mode. [#40463](https://github.com/apache/doris/pull/40463)
-- Fixed the issue where cluster keys did not support certain data types. [#38966](https://github.com/apache/doris/pull/38966)
-- Fixed the issue of transactions being repeatedly committed. [#39786](https://github.com/apache/doris/pull/39786)
-- Fixed the issue of use after free with WAL when BE exits. [#33131](https://github.com/apache/doris/pull/33131)
-- Fixed the issue where WAL playback did not skip completed import transactions in compute-storage decoupled mode. [#41262](https://github.com/apache/doris/pull/41262)
-- Fixed the logic for selecting BE in group commit in compute-storage decoupled mode. [#39986](https://github.com/apache/doris/pull/39986)  [#38644](https://github.com/apache/doris/pull/38644)
-- Fixed the issue where BE might crash when group commit was enabled for insert into. [#39339](https://github.com/apache/doris/pull/39339)
-- Fixed the issue where insert into with group commit enabled might get stuck. [#39391](https://github.com/apache/doris/pull/39391)
-- Fixed the issue where not enabling the group commit option during import might result in a table not found error. [#39731](https://github.com/apache/doris/pull/39731)
-- Fixed the issue of transaction submission timeouts due to too many tablets. [#40031](https://github.com/apache/doris/pull/40031)
-- Fixed the issue of concurrent opens with Auto Partition. [#38605](https://github.com/apache/doris/pull/38605)
-- Fixed the issue of import lock granularity being too large. [#40134](https://github.com/apache/doris/pull/40134)
-- Fixed the issue of coredumps caused by zero-length varchars. [#40940](https://github.com/apache/doris/pull/40940)
-- Fixed the issue of incorrect index Id values in log prints. [#38790](https://github.com/apache/doris/pull/38790)
-- Fixed the issue of memtable shifting not closing BRPC streaming. [#40105](https://github.com/apache/doris/pull/40105)
-- Fixed the issue of inaccurate bvar statistics during memtable shifting. [#39075](https://github.com/apache/doris/pull/39075)
-- Fixed the issue of multi-replication fault tolerance during memtable shifting. [#38003](https://github.com/apache/doris/pull/38003)
-- Fixed the issue of incorrect message length calculations for Routine Load with multiple tables in one stream. [#40367](https://github.com/apache/doris/pull/40367)
-- Fixed the issue of inaccurate progress reporting for Broker Load. [#40325](https://github.com/apache/doris/pull/40325)
-- Fixed the issue of inaccurate data scan volume reporting for Broker Load. [#40694](https://github.com/apache/doris/pull/40694)
-- Fixed the issue of concurrency with Routine Load in compute-storage decoupled mode. [#39242](https://github.com/apache/doris/pull/39242)
-- Fixed the issue of Routine Load jobs being canceled in compute-storage decoupled mode. [#39514](https://github.com/apache/doris/pull/39514)
-- Fixed the issue of progress not being reset when deleting Kafka topics. [#38474](https://github.com/apache/doris/pull/38474)
-- Fixed the issue of updating progress during transaction state transitions in Routine Load. [#39311](https://github.com/apache/doris/pull/39311)
-- Fixed the issue of Routine Load switching from a paused state to a paused state. [#40728](https://github.com/apache/doris/pull/40728)
-- Fixed the issue of Stream Load records being missed due to database deletion. [#39360](https://github.com/apache/doris/pull/39360)
-
 ### Storage
 
-- Fixed the issue of missing storage policies. [#38700](https://github.com/apache/doris/pull/38700)
-- Fixed the issue of errors during cross-version backup and recovery. [#38370](https://github.com/apache/doris/pull/38370)
-- Fixed the NPE issue with ccr binlog. [#39909](https://github.com/apache/doris/pull/39909)
-- Fixed potential issues with duplicate keys in mow. [#41309](https://github.com/apache/doris/pull/41309)  [#39791](https://github.com/apache/doris/pull/39791)  [#39958](https://github.com/apache/doris/pull/39958)  [#38369](https://github.com/apache/doris/pull/38369)  [#38331](https://github.com/apache/doris/pull/38331)
-- Fixed the issue of not being able to write after backup and recovery in high-frequency write scenarios. [#40118](https://github.com/apache/doris/pull/40118)  [#38321](https://github.com/apache/doris/pull/38321)
-- Fixed the issue of data errors potentially triggered by deleting empty strings and schema changes. [#41064](https://github.com/apache/doris/pull/41064)
-- Fixed the issue of incorrect statistics due to column updates. [#40880](https://github.com/apache/doris/pull/40880)
-- Limited the size of tablet meta pb to prevent BE crashes due to oversized meta. [#39455](https://github.com/apache/doris/pull/39455)
-- Fixed the potential column misalignment issue with the new optimizer in `begin; insert into values; commit`. [#39295](https://github.com/apache/doris/pull/39295)
+- Fixed the issue with using IPv6 hostnames. [#40074](https://github.com/apache/doris/pull/40074)
+- Fixed the inaccurate display of broker/s3 load progress. [#43535](https://github.com/apache/doris/pull/43535)
+- Fixed the issue where queries might hang from FE. [#41303](https://github.com/apache/doris/pull/41303) [#42382](https://github.com/apache/doris/pull/42382)
+- Fixed the issue of duplicate auto-increment IDs under exceptional circumstances. [#43774](https://github.com/apache/doris/pull/43774)  [#43983](https://github.com/apache/doris/pull/43983)
+- Fixed occasional NPE issues with groupcommit. [#43635](https://github.com/apache/doris/pull/43635)
+- Fixed the inaccurate calculation of auto bucket. [#41675](https://github.com/apache/doris/pull/41675) [#41835](https://github.com/apache/doris/pull/41835)
+- Fixed the issue where FE might not correctly plan multi-table flows after restart. [#41677](https://github.com/apache/doris/pull/41677) [#42290](https://github.com/apache/doris/pull/42290)
 
 ### Compute-Storage Decoupled
 
-- Fixed the issue where the tablet distribution might be inconsistent across multiple FEs in compute-storage decoupled mode. [#41458](https://github.com/apache/doris/pull/41458)
-- Fixed the issue where TVF might not work in multi-computing group environments. [#39249](https://github.com/apache/doris/pull/39249)
-- Fixed the issue where compaction used resources that had already been released when BE exited in compute-storage decoupled mode. [#39302](https://github.com/apache/doris/pull/39302)
-- Fixed the issue where automatic start-stop might cause FE replay to get stuck. [#40027](https://github.com/apache/doris/pull/40027)
-- Fixed the issue where the BE status and the stored status in meta-service were inconsistent. [#40799](https://github.com/apache/doris/pull/40799)
-- Fixed the issue where the FE->meta-service connection pool could not automatically expire and reconnect. [#41202](https://github.com/apache/doris/pull/41202)  [#40661](https://github.com/apache/doris/pull/40661)
-- Fixed the issue where some tablets might repeatedly undergo unexpected balance processes during rebalance. [#39792](https://github.com/apache/doris/pull/39792)
-- Fixed the issue where storage vault permissions were lost after FE restarted. [#40260](https://github.com/apache/doris/pull/40260)
-- Fixed the issue where tablet row counts and other statistical information might be incomplete due to FDB scan range pagination. [#40494](https://github.com/apache/doris/pull/40494)
-- Fixed the performance issue caused by a large number of aborted transactions associated with the same label. [#40606](https://github.com/apache/doris/pull/40606)
-- Fixed the issue where `commit_txn` did not automatically re-enter, maintaining consistent behavior between compute-storage decoupled and integrated modes. [#39615](https://github.com/apache/doris/pull/39615)
-- Fixed the issue where the number of projected columns increased when dropping columns. [#40187](https://github.com/apache/doris/pull/40187)
-- Fixed the issue where delete statements did not correctly handle return values, causing data to still be visible after deletion. [#39428](https://github.com/apache/doris/pull/39428)
-- Fixed the coredump issue caused by rowset metadata competition during file cache preheating. [#39361](https://github.com/apache/doris/pull/39361)
-- Fixed the issue where the entire cache space would be used up when TTL cache enabled LRU eviction. [#39814](https://github.com/apache/doris/pull/39814)
-- Fixed the issue where temporary files could not be recycled when importing commit rowset failed with HDFS storage backend. [#40215](https://github.com/apache/doris/pull/40215)
+- Fixed the issue that MOW primary key tables with large delete bitmaps might cause coredump. [#43088](https://github.com/apache/doris/pull/43088) [#43457](https://github.com/apache/doris/pull/43457) [#43479](https://github.com/apache/doris/pull/43479) [#43407](https://github.com/apache/doris/pull/43407) [#43297](https://github.com/apache/doris/pull/43297) [#43613](https://github.com/apache/doris/pull/43613) [#43615](https://github.com/apache/doris/pull/43615) [#43854](https://github.com/apache/doris/pull/43854) [#43968](https://github.com/apache/doris/pull/43968) [#44074](https://github.com/apache/doris/pull/44074) [#41793](https://github.com/apache/doris/pull/41793) [#42142](https://github.com/apache/doris/pull/42142)
+- Fixed the issue that segment files, when being a multiple of 5MB, would fail to upload objects. [#43254](https://github.com/apache/doris/pull/43254)
+- Fixed the issue that the default retry policy of aws sdk did not take effect. [#43575](https://github.com/apache/doris/pull/43575) [#43648](https://github.com/apache/doris/pull/43648)
+- Fixed the issue that altering storage vault could continue execution even when the wrong type was specified. [#43489](https://github.com/apache/doris/pull/43489) [#43352](https://github.com/apache/doris/pull/43352) [#43495](https://github.com/apache/doris/pull/43495)
+- Fixed the issue that tablet_id might be 0 during the delayed commit process of large transactions. [#42043](https://github.com/apache/doris/pull/42043) [#42905](https://github.com/apache/doris/pull/42905)
+- Fixed the issue that constant folding RCP and FE forwarding SQL might not be executed in the expected computation group. [#43110](https://github.com/apache/doris/pull/43110) [#41819](https://github.com/apache/doris/pull/41819) [#41846](https://github.com/apache/doris/pull/41846)
+- Fixed the issue that meta-service did not strictly check instance_id upon receiving RPC. [#43253](https://github.com/apache/doris/pull/43253) [#43832](https://github.com/apache/doris/pull/43832)
+- Fixed the issue that FE follower information_schema version did not update in time. [#43496](https://github.com/apache/doris/pull/43496)
+- Fixed the issue of atomicity in file cache rename and inaccurate metrics. [#42869](https://github.com/apache/doris/pull/42869) [#43504](https://github.com/apache/doris/pull/43504) [#43220](https://github.com/apache/doris/pull/43220)
 
 ### Lakehouse
 
-- Fixed some issues with predicate pushdown in JDBC Catalog. [#39064](https://github.com/apache/doris/pull/39064)
-- Fixed the issue of not being able to read when `S``TRUCT` type columns are missing in Parquet format. [#38718](https://github.com/apache/doris/pull/38718)
-- Fixed the issue of FileSystem leaks on the FE side in some cases. [#38610](https://github.com/apache/doris/pull/38610)
-- Fixed the issue of metadata cache information being inconsistent when Hive/Iceberg tables write back in some cases. [#40729](https://github.com/apache/doris/pull/40729)
-- Fixed the issue of unstable partition ID generation for external tables in some cases. [#39325](https://github.com/apache/doris/pull/39325)
-- Fixed the issue of external table queries selecting BE nodes in the blacklist in some cases. [#39451](https://github.com/apache/doris/pull/39451)
-- Optimized the timeout time for batch retrieval of external table partition information to avoid long-term thread occupation. [#39346](https://github.com/apache/doris/pull/39346)
-- Fixed the issue of memory leaks when querying Hudi tables in some cases. [#41256](https://github.com/apache/doris/pull/41256)
-- Fixed the issue of connection pool connection leaks in JDBC Catalog in some cases. [#39582](https://github.com/apache/doris/pull/39582)
-- Fixed the issue of BE memory leaks in JDBC Catalog in some cases. [#41041](https://github.com/apache/doris/pull/41041)
-- Fixed the issue of not being able to query Hudi data on Alibaba Cloud OSS. [#41316](https://github.com/apache/doris/pull/41316)
-- Fixed the issue of not being able to read empty partitions in MaxCompute. [#40046](https://github.com/apache/doris/pull/40046)
-- Fixed the issue of poor performance when querying Oracle through JDBC Catalog. [#41513](https://github.com/apache/doris/pull/41513)
-- Fixed the issue of BE crashes when querying deletion vector of Paimon tables after enabling file cache features. [#39877](https://github.com/apache/doris/pull/39877)
-- Fixed the issue of not being able to access Paimon tables on HDFS clusters with HA enabled. [#39806](https://github.com/apache/doris/pull/39806)
-- Temporarily disabled the page index filtering feature of Parquet to avoid potential issues. [#38691](https://github.com/apache/doris/pull/38691)
-- Fixed the issue of not being able to read unsigned types in Parquet files. [#39926](https://github.com/apache/doris/pull/39926)
-- Fixed the issue of potential infinite loops when reading Parquet files in some cases. [#39523](https://github.com/apache/doris/pull/39523)
+- Prohibited implicit conversion predicates from being pushed down to JDBC data sources to avoid inconsistent query results. [#42102](https://github.com/apache/doris/pull/42102)
+- Fixed some read issues with high-version Hive transactional tables. [#42226](https://github.com/apache/doris/pull/42226)
+- Fixed the issue that the Export command might cause deadlocks. [#43083](https://github.com/apache/doris/pull/43083) [#43402](https://github.com/apache/doris/pull/43402)
+- Fixed the issue of being unable to query Hive views created by Spark. [#43552](https://github.com/apache/doris/pull/43552)
+- Fixed the issue that Hive partition paths containing special characters led to incorrect partition pruning. [#42906](https://github.com/apache/doris/pull/42906)
+- Fixed the issue that Iceberg Catalog could not use AWS Glue. [#41084](https://github.com/apache/doris/pull/41084)
 
 ### Asynchronous Materialized Views
 
-- Fixed the issue where partition construction might select the wrong table to track partitions if both sides have the same column names. [#40810](https://github.com/apache/doris/pull/40810)
-- Fixed the issue where transparent rewrite partition compensation might result in incorrect results. [#40803](https://github.com/apache/doris/pull/40803)
-- Fixed the issue where transparent rewrite did not take effect on external tables. [#38909](https://github.com/apache/doris/pull/38909)
-- Fixed the issue where nested materialized views might not refresh properly. [#40433](https://github.com/apache/doris/pull/40433)
-
-### Synchronous Materialized Views
-
-- Fixed the issue where creating synchronous materialized views on MOW tables might result in incorrect query results. [#39171](https://github.com/apache/doris/pull/39171)
+- Fixed the issue that asynchronous materialized views might not refresh after the base table is rebuilt. [#41762](https://github.com/apache/doris/pull/41762)
 
 ### Query Optimizer
 
-- Fixed the issue where existing synchronous materialized views might not be usable after upgrading. [#41283](https://github.com/apache/doris/pull/41283)
-- Fixed the issue of not correctly handling milliseconds when comparing datetime literals. [#40121](https://github.com/apache/doris/pull/40121)
-- Fixed the issue of potential errors in conditional function partition pruning. [#39298](https://github.com/apache/doris/pull/39298)
-- Fixed the issue where MOW tables with synchronous materialized views could not perform delete operations. [#39578](https://github.com/apache/doris/pull/39578)
-- Fixed the issue where the nullable of slots in JDBC external table query predicates might be incorrectly planned, causing query errors. [#41014](https://github.com/apache/doris/pull/41014)
+- Fixed the issue that partition pruning results might be incorrect when using multi-column range partitioning. [#43332](https://github.com/apache/doris/pull/43332)
+- Fixed the issue of incorrect calculation results in some limit offset scenarios. [#42576](https://github.com/apache/doris/pull/42576)
 
 ### Query Execution
 
-- Fixed the memory leak issue caused by the use of runtime filters. [#39155](https://github.com/apache/doris/pull/39155)
-- Fixed the issue of excessive memory usage by window functions. [#39581](https://github.com/apache/doris/pull/39581)
-- Fixed a series of function compatibility issues during rolling upgrades. [#41023](https://github.com/apache/doris/pull/41023)  [#40438](https://github.com/apache/doris/pull/40438)  [#39648](https://github.com/apache/doris/pull/39648)
-- Fixed the issue of incorrect results with `encryption_function` when used with constants. [#40201](https://github.com/apache/doris/pull/40201)
-- Fixed the issue of errors when importing single-table materialized views. [#39061](https://github.com/apache/doris/pull/39061)
-- Fixed the issue of incorrect partition result calculations for window functions. [#39100](https://github.com/apache/doris/pull/39100)  [#40761](https://github.com/apache/doris/pull/40761)
-- Fixed the issue of incorrect calculations for topn when null values are present. [#39497](https://github.com/apache/doris/pull/39497)
-- Fixed the issue of incorrect results with the `map_agg` function. [#39743](https://github.com/apache/doris/pull/39743)
-- Fixed the issue of incorrect messages returned by cancel. [#38982](https://github.com/apache/doris/pull/38982)
-- Fixed the issue of BE core dumps caused by encrypt and decrypt functions. [#40726](https://github.com/apache/doris/pull/40726)
-- Fixed the issue of queries getting stuck due to too many scanners in high-concurrency scenarios. [#40495](https://github.com/apache/doris/pull/40495)
-- Supported time types in runtime filters. [#38258](https://github.com/apache/doris/pull/38258)
-- Fixed the issue of incorrect results with window funnel functions. [#40960](https://github.com/apache/doris/pull/40960)
+- Fixed the issue that hash join with array types larger than 4G could cause BE Core. [#43861](https://github.com/apache/doris/pull/43861)
+- Fixed the issue that is null predicate operations might yield incorrect results in some scenarios. [#43619](https://github.com/apache/doris/pull/43619)
+- Fixed the issue that bitmap types might produce incorrect output results in hash join. [#43718](https://github.com/apache/doris/pull/43718)
+- Fixed some issues where function results were calculated incorrectly. [#40710](https://github.com/apache/doris/pull/40710) [#39358](https://github.com/apache/doris/pull/39358) [#40929](https://github.com/apache/doris/pull/40929) [#40869](https://github.com/apache/doris/pull/40869) [#40285](https://github.com/apache/doris/pull/40285) [#39891](https://github.com/apache/doris/pull/39891) [#40530](https://github.com/apache/doris/pull/40530) [#41948](https://github.com/apache/doris/pull/41948) [#43588](https://github.com/apache/doris/pull/43588)
+- Fixed some issues with JSON type parsing. [#39937](https://github.com/apache/doris/pull/39937)
+- Fixed issues with varchar and char types in runtime filter operations. [#43758](https://github.com/apache/doris/pull/43758) [#43919](https://github.com/apache/doris/pull/43919)
+- Fixed some issues with the use of decimal256 in scalar and aggregate functions. [#42136](https://github.com/apache/doris/pull/42136) [#42356](https://github.com/apache/doris/pull/42356)
+- Fixed the issue that arrow flight reported `Reach limit of connections` errors upon connection. [#39127](https://github.com/apache/doris/pull/39127)
+- Fixed the issue of incorrect memory usage statistics for BE in k8s environments. [#41123](https://github.com/apache/doris/pull/41123)
 
-### Semi-Structured Data Management
+### Semi-structured Data Management
 
-- Fixed the issue of match function errors when no indexes were present. [#38989](https://github.com/apache/doris/pull/38989)
-- Fixed the issue of crashes when ARRAY data types were used as parameters for array_min/array_max functions. [#39492](https://github.com/apache/doris/pull/39492)
-- Fixed the issue of nullable with the `array_enumerate_uniq` function. [#38384](https://github.com/apache/doris/pull/38384)
-- Fixed the issue of bloomfilter indexes not being updated when adding or deleting columns. [#38431](https://github.com/apache/doris/pull/38431)
-- Fixed the issue of es-catalog parsing exceptions with array data. [#39104](https://github.com/apache/doris/pull/39104)
-- Fixed the issue of improper predicate push-down in es-catalog. [#40111](https://github.com/apache/doris/pull/40111)
-- Fixed the issue of exceptions caused by modifying input data with`map()` and `struct()` functions. [#39699](https://github.com/apache/doris/pull/39699)
-- Fixed the issue of index compaction crashes in special cases. [#40294](https://github.com/apache/doris/pull/40294)
-- Fixed the issue of ARRAY type inverted indexes missing nullbitmaps. [#38907](https://github.com/apache/doris/pull/38907)
-- Fixed the issue of incorrect results with the `count()` function on inverted indexes. [#41152](https://github.com/apache/doris/pull/41152)
-- Fixed the issue of correct results with the `explode_map` function when using aliases. [#39757](https://github.com/apache/doris/pull/39757)
-- Fixed the issue of VARIANT type not being able to use row storage for exceptional JSON data. [#39394](https://github.com/apache/doris/pull/39394)
-- Fixed the issue of memory leaks when returning ARRAY results with VARIANT type. [#41358](https://github.com/apache/doris/pull/41358)
-- Fixed the issue of changing column names with VARIANT type. [#40320](https://github.com/apache/doris/pull/40320)
-- Fixed the issue of potential precision loss when converting VARIANT type to DECIMAL type. [#39650](https://github.com/apache/doris/pull/39650)
-- Fixed the issue of nullable handling with VARIANT type. [#39732](https://github.com/apache/doris/pull/39732)
-- Fixed the issue of sparse column reading with VARIANT type. [#40295](https://github.com/apache/doris/pull/40295)
+- Adjusted the default values of `segment_cache_fd_percentage` and `inverted_index_fd_number_limit_percent`. [#42224](https://github.com/apache/doris/pull/42224)
+- logstash now supports group_commit. [#40450](https://github.com/apache/doris/pull/40450)
+- Fixed the issue of coredump when building index. [#43246](https://github.com/apache/doris/pull/43246) [#43298](https://github.com/apache/doris/pull/43298)
+- Fixed issues with variant index. [#43375](https://github.com/apache/doris/pull/43375) [#43773](https://github.com/apache/doris/pull/43773)
+- Fixed potential fd and memory leaks under abnormal compaction circumstances. [#42374](https://github.com/apache/doris/pull/42374)
+- Inverted index match null now correctly returns null instead of false. [#41786](https://github.com/apache/doris/pull/41786)
+- Fixed the issue of coredump when ngram bloomfilter index bf_size is set to 65536. [#43645](https://github.com/apache/doris/pull/43645)
+- Fixed the issue of potential coredump during complex data type JOINs. [#40398](https://github.com/apache/doris/pull/40398)
+- Fixed the issue of coredump with TVF JSON data. [#43187](https://github.com/apache/doris/pull/43187)
+- Fixed the precision issue of bloom filter calculations for dates and times. [#43612](https://github.com/apache/doris/pull/43612)
+- Fixed the issue of coredump with IPv6 type storage. [#43251](https://github.com/apache/doris/pull/43251)
+- Fixed the issue of coredump when using VARIANT type with light_schema_change disabled. [#40908](https://github.com/apache/doris/pull/40908)
+- Improved cache performance for high-concurrency point queries. [#44077](https://github.com/apache/doris/pull/44077)
+- Fixed the issue that bloom filter indexes were not synchronized when columns were deleted. [#43378](https://github.com/apache/doris/pull/43378)
+- Fixed instability issues with es catalog under special circumstances such as mixed array and scalar data. [#40314](https://github.com/apache/doris/pull/40314) [#40385](https://github.com/apache/doris/pull/40385) [#43399](https://github.com/apache/doris/pull/43399) [#40614](https://github.com/apache/doris/pull/40614)
+- Fixed coredump issues caused by abnormal regular pattern matching. [#43394](https://github.com/apache/doris/pull/43394)
+
+### Permissions
+
+- Fixed several issues where permissions were not properly restricted after authorization. [#43193](https://github.com/apache/doris/pull/43193) [#41723](https://github.com/apache/doris/pull/41723) [#42107](https://github.com/apache/doris/pull/42107) [#43306](https://github.com/apache/doris/pull/43306)
+- Enhanced several permission checks. [#40688](https://github.com/apache/doris/pull/40688) [#40533](https://github.com/apache/doris/pull/40533) [#41791](https://github.com/apache/doris/pull/41791) [#42106](https://github.com/apache/doris/pull/42106)
 
 ### Other
 
-- Fixed the compatibility issue between new and old audit log plugins. [#41401](https://github.com/apache/doris/pull/41401)
-- Fixed the issue where users could see processes of others in certain cases. [#39747](https://github.com/apache/doris/pull/39747)
-- Fixed the issue where users with permissions could not export. [#38365](https://github.com/apache/doris/pull/38365)
-- Fixed the issue where create table like required create permissions for the existing table. [#37879](https://github.com/apache/doris/pull/37879)
-- Fixed the issue where some features did not verify permissions. [#39726](https://github.com/apache/doris/pull/39726)
-- Fixed the issue of not correctly closing connections when using SSL. [#38587](https://github.com/apache/doris/pull/38587)
-- Fixed the issue where executing ALTER VIEW operations in some cases caused FE to fail to start. [#40872](https://github.com/apache/doris/pull/40872)
+- Supplemented missing audit log fields in audit log tables and files. [#43303](https://github.com/apache/doris/pull/43303)
+
+  - [View Documentation](https://doris.apache.org/docs/3.0/admin-manual/system-tables/internal_schema/audit_log)
