@@ -1,5 +1,5 @@
 ---
-{ "title": "PERCENTILE", "language": "en" }
+{ "title": "PERCENTILE_APPROX_WEIGHTED", "language": "en" }
 ---
 
 <!-- 
@@ -21,39 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-### Description
+## PERCENTILE_APPROX_WEIGHTED
+
+### description
 
 #### Syntax
 
-`PERCENTILE(expr, DOUBLE p)`
+`PERCENTILE_APPROX_WEIGHTED(expr, w ,DOUBLE p [, DOUBLE compression])`
 
-Calculates the exact percentile for small amounts of data. The specified columns are sorted in descending order and then the exact `p` percentile is taken. The value of `p` is between `0` and `1`.
-If `p` does not point to an exact position, the linear interpolation of the values adjacent to either side of the pointed position at the position pointed to by `p` is returned. Note that this is not an average of the two numbers.
+The function is similar to PERCENTILE_APPROX, with the only difference being an additional parameter w, which represents the number of times expr appears.
+Note that the value of parameter W needs to be greater than 0. If the value of a row is less than or equal to 0 during the calculation process, the current row will be skipped.
 
-Parameters:
-`expr`: required. The value is an integer (`bigint` at most).
-`p`: required. The const value is `[0.0,1.0]`.
+### example
 
-### Example
+```
+mysql >select * from quantile_weighted_table order by k;
++------+------+
+| k    | w    |
++------+------+
+|    1 |    2 |
+|    3 |    1 |
+|    5 |    2 |
++------+------+
 
-```sql
-MySQL > select `table`, percentile(cost_time,0.99) from log_statis group by `table`;
-+---------------------+---------------------------+
-| table    |         percentile(`cost_time`, 0.99)|
-+----------+--------------------------------------+
-| test     |                                54.22 |
-+----------+--------------------------------------+
 
-MySQL > select percentile(NULL,0.3) from table1;
-+-----------------------+
-| percentile(NULL, 0.3) |
-+-----------------------+
-|                  NULL |
-+-----------------------+
+mysql >select percentile_approx_weighted(k,w,0.55) from quantile_weighted_table;
++----------------------------------------------------------------------------------------+
+| percentile_approx_weighted(cast(k as DOUBLE), cast(w as DOUBLE), cast(0.55 as DOUBLE)) |
++----------------------------------------------------------------------------------------+
+|                                                                     3.3333332538604736 |
++----------------------------------------------------------------------------------------+
+
 ```
 
-### Keywords
+### keywords
 
-    ```
-    PERCENTILE
-    ```
+PERCENTILE_APPROX,PERCENTILE,APPROX,PERCENTILE_APPROX_WEIGHTED
