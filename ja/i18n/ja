@@ -1,5 +1,8 @@
 ---
-{ "title": "SHOW COMPUTE GROUPS", "language": "en" }
+{
+  "title": "SHOW-CONVERT-LIGHT-SCHEMA-CHANGE-PROCESS",
+  "language": "en"
+}
 ---
 
 <!--
@@ -21,36 +24,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## SHOW-CONVERT-LIGHT-SCHEMA-CHANGE-PROCESS
 
-The SHOW COMPUTE GROUPS command is used to display information about all configured compute groups in the system. Compute groups are logical units used to manage and organize computational resources, helping users allocate and utilize system resources more effectively.
+### Name
 
-This command assists administrators and users in quickly understanding the existing compute group configurations in the system, including the name, attributes, and other relevant information for each compute group. This is particularly useful for resource management, performance optimization, and system monitoring.
+SHOW CONVERT LIGHT SCHEMA CHANGE PROCESS
 
-## Syntax
+### Description
+
+This statement is used to show the process of converting light schema change process. should enable config `enable_convert_light_weight_schema_change`.
+
+grammar:
 
 ```sql
-    SHOW COMPUTE GROUPS
+SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS [FROM db]
 ```
 
-## Return Values
+### Example
 
-This command returns a result set containing the following columns:
+1. View the converting process in db named test
 
-- `Name`: The name of the compute group.
-- `IsCurrent`: Indicates whether it is the current working compute group.
-- `Users`: Displays the list of users who have permission to use this compute group.
-- `BackendNum`: Shows the number of backends (compute nodes) currently allocated to this compute group.
+    ```sql
+     SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS FROM test;
+    ```
 
-## Related Commands
+2. View the converting process globally
 
-- [ALTER SYSTEM ADD BACKEND](../Administration-Statements/ALTER-SYSTEM-ADD-BACKEND.md)
-- [GRANT](../Account-Management-Statements/GRANT.md)
-- [REVOKE](../Account-Management-Statements/REVOKE.md)
-- [SET DEFAULT COMPUTE GROUP](../Administration-Statements/SET-DEFAULT-COMPUTE-GROUP.md)
+    ```sql
+    SHOW CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS;
+    ```
 
-## Keywords
+### Keywords
 
     ```
-    SHOW, COMPUTE GROUPS
+    SHOW, CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS
     ```
+
+### Best Practice
