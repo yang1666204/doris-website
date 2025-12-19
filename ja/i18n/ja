@@ -1,5 +1,5 @@
 ---
-{ "title": "LINEAR_HISTOGRAM", "language": "en" }
+{ "title": "MAP_AGG", "language": "en" }
 ---
 
 <!-- 
@@ -21,46 +21,73 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Description
+## MAP_AGG
 
-### Syntax
+### description
 
-`LINEAR_HISTOGRAM(expr, DOUBLE interval[, DOUBLE offset)`
+#### Syntax
 
-The linear_histogram function is used to describe the distribution of the data, It uses an "equal width" bucking strategy, and divides the data into buckets according to the value of the data.
+`MAP_AGG(expr1, expr2)`
 
-Parameter description:
+Returns a map consists of expr1 as the key and expr2 as the corresponding value.
 
-- `interval`: Required. The bucket width.
-- `offset`: Optional. Default is 0. It should be in `[0, interval)`.
-
-## Example
+### example
 
 ```
-mysql> select linear_histogram(a, 2) from histogram_test;
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| linear_histogram(a, cast(2 as DOUBLE))                                                                                                                                                                                                                                                                                                           |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| {"num_buckets":6,"buckets":[{"lower":0.0,"upper":2.0,"count":2,"acc_count":2},{"lower":2.0,"upper":4.0,"count":4,"acc_count":6},{"lower":4.0,"upper":6.0,"count":4,"acc_count":10},{"lower":6.0,"upper":8.0,"count":4,"acc_count":14},{"lower":8.0,"upper":10.0,"count":4,"acc_count":18},{"lower":10.0,"upper":12.0,"count":2,"acc_count":20}]} |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+MySQL > select `n_nationkey`, `n_name`, `n_regionkey` from `nation`;
++-------------+----------------+-------------+
+| n_nationkey | n_name         | n_regionkey |
++-------------+----------------+-------------+
+|           0 | ALGERIA        |           0 |
+|           1 | ARGENTINA      |           1 |
+|           2 | BRAZIL         |           1 |
+|           3 | CANADA         |           1 |
+|           4 | EGYPT          |           4 |
+|           5 | ETHIOPIA       |           0 |
+|           6 | FRANCE         |           3 |
+|           7 | GERMANY        |           3 |
+|           8 | INDIA          |           2 |
+|           9 | INDONESIA      |           2 |
+|          10 | IRAN           |           4 |
+|          11 | IRAQ           |           4 |
+|          12 | JAPAN          |           2 |
+|          13 | JORDAN         |           4 |
+|          14 | KENYA          |           0 |
+|          15 | MOROCCO        |           0 |
+|          16 | MOZAMBIQUE     |           0 |
+|          17 | PERU           |           1 |
+|          18 | CHINA          |           2 |
+|          19 | ROMANIA        |           3 |
+|          20 | SAUDI ARABIA   |           4 |
+|          21 | VIETNAM        |           2 |
+|          22 | RUSSIA         |           3 |
+|          23 | UNITED KINGDOM |           3 |
+|          24 | UNITED STATES  |           1 |
++-------------+----------------+-------------+
 
-mysql> select linear_histogram(a, 2, 1) from histogram_test;
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| linear_histogram(a, cast(2 as DOUBLE), cast(1 as DOUBLE))                                                                                                                                                                                                                                   |
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| {"num_buckets":5,"buckets":[{"lower":1.0,"upper":3.0,"count":4,"acc_count":4},{"lower":3.0,"upper":5.0,"count":4,"acc_count":8},{"lower":5.0,"upper":7.0,"count":4,"acc_count":12},{"lower":7.0,"upper":9.0,"count":4,"acc_count":16},{"lower":9.0,"upper":11.0,"count":4,"acc_count":20}]} |
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+MySQL > select `n_regionkey`, map_agg(`n_nationkey`, `n_name`) from `nation` group by `n_regionkey`;
++-------------+---------------------------------------------------------------------------+
+| n_regionkey | map_agg(`n_nationkey`, `n_name`)                                          |
++-------------+---------------------------------------------------------------------------+
+|           1 | {1:"ARGENTINA", 2:"BRAZIL", 3:"CANADA", 17:"PERU", 24:"UNITED STATES"}    |
+|           0 | {0:"ALGERIA", 5:"ETHIOPIA", 14:"KENYA", 15:"MOROCCO", 16:"MOZAMBIQUE"}    |
+|           3 | {6:"FRANCE", 7:"GERMANY", 19:"ROMANIA", 22:"RUSSIA", 23:"UNITED KINGDOM"} |
+|           4 | {4:"EGYPT", 10:"IRAN", 11:"IRAQ", 13:"JORDAN", 20:"SAUDI ARABIA"}         |
+|           2 | {8:"INDIA", 9:"INDONESIA", 12:"JAPAN", 18:"CHINA", 21:"VIETNAM"}          |
++-------------+---------------------------------------------------------------------------+
+
+MySQL > select n_regionkey, map_agg(`n_name`, `n_nationkey` % 5) from `nation` group by `n_regionkey`;
++-------------+------------------------------------------------------------------------+
+| n_regionkey | map_agg(`n_name`, (`n_nationkey` % 5))                                 |
++-------------+------------------------------------------------------------------------+
+|           2 | {"INDIA":3, "INDONESIA":4, "JAPAN":2, "CHINA":3, "VIETNAM":1}          |
+|           0 | {"ALGERIA":0, "ETHIOPIA":0, "KENYA":4, "MOROCCO":0, "MOZAMBIQUE":1}    |
+|           3 | {"FRANCE":1, "GERMANY":2, "ROMANIA":4, "RUSSIA":2, "UNITED KINGDOM":3} |
+|           1 | {"ARGENTINA":1, "BRAZIL":2, "CANADA":3, "PERU":2, "UNITED STATES":4}   |
+|           4 | {"EGYPT":4, "IRAN":0, "IRAQ":1, "JORDAN":3, "SAUDI ARABIA":0}          |
++-------------+------------------------------------------------------------------------+
 ```
 
-Field description:
+### keywords
 
-- `num_buckets`: The number of buckets.
-- `buckets`: All buckets.
-  - `lower`: Lower bound of the bucket. (included)
-  - `upper`: Upper bound of the bucket. (not included)
-  - `count`: The number of elements contained in the bucket.
-  - `acc_count`: Accumulated count.
-
-## Keywords
-
-LINEAR_HISTOGRAM
+MAP_AGG
