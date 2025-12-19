@@ -1,5 +1,5 @@
 ---
-{ "title": "inner_product", "language": "en" }
+{ "title": "l1_distance", "language": "en" }
 ---
 
 <!-- 
@@ -19,17 +19,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## inner_product
+## l1_distance
 
 ### description
 
 #### Syntax
 
 ```sql
-DOUBLE inner_product(ARRAY<T> array1, ARRAY<T> array2)
+DOUBLE l1_distance(ARRAY<T> array1, ARRAY<T> array2)
 ```
 
-Calculates the scalar product of two vectors of the same size.
+Calculates the distance between two points (the values of the vectors are the coordinates) in L1 space.
 Return NULL if input array is NULL or any element of array is NULL.
 
 #### Notice
@@ -40,16 +40,16 @@ Return NULL if input array is NULL or any element of array is NULL.
 ### example
 
 ```
-sql> SELECT inner_product([1, 2], [2, 3]);
-+-----------------------------------------+
-| inner_product(ARRAY(1, 2), ARRAY(2, 3)) |
-+-----------------------------------------+
-|                                       8 |
-+-----------------------------------------+
+sql> SELECT l1_distance([1, 2], [2, 3]);
++---------------------------------------+
+| l1_distance(ARRAY(1, 2), ARRAY(2, 3)) |
++---------------------------------------+
+|                                     2 |
++---------------------------------------+
 ```
 
 ### keywords
 
  ```
- INNER_PRODUCT,DISTANCE,ARRAY
+ L1_DISTANCE,DISTANCE,L1,ARRAY
  ```
