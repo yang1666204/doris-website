@@ -1,5 +1,5 @@
 ---
-{ "title": "DAYOFYEAR", "language": "en" }
+{ "title": "DAYS_ADD", "language": "en" }
 ---
 
 <!-- 
@@ -21,31 +21,31 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## dayofyear
+## days_add
 
-### Description
+### description
 
 #### Syntax
 
-`INT DAYOFYEAR (DATETIME date)`
+`DATETIME DAYS_ADD(DATETIME date, INT days)`
 
-The date of acquisition is the date of the corresponding year.
+From date time or date plus specified days
 
-The parameter is Date or Datetime type
+The parameter date can be DATETIME or DATE, and the return type is consistent with that of the parameter date.
 
 ### example
 
 ```
-mysql> select dayofyear('2007-02-03 00:00:00');
-+----------------------------------+
-| dayofyear('2007-02-03 00:00:00') |
-+----------------------------------+
-|                               34 |
-+----------------------------------+
+mysql> select days_add(to_date("2020-02-02 02:02:02"), 1);
++---------------------------------------------+
+| days_add(to_date('2020-02-02 02:02:02'), 1) |
++---------------------------------------------+
+| 2020-02-03                                  |
++---------------------------------------------+
 ```
 
 ### keywords
 
     ```
-    DAYOFYEAR
+    DAYS_ADD
     ```
