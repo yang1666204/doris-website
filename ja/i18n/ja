@@ -1,5 +1,5 @@
 ---
-{ "title": "BIT_COUNT", "language": "en" }
+{ "title": "BITNOT", "language": "en" }
 ---
 
 <!-- 
@@ -21,33 +21,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## bit_count
+## bitnot
 
 ### description
 
 #### Syntax
 
-`BIT_COUNT(Integer-type x)`
+`BITNOT(Integer-type value)`
 
-Returns the exist count of one in 2's complement represent of integer x.
+Returns the result of the NOT operation of one integer.
 
-Integer-type could be: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
+Integer range: TINYINT、SMALLINT、INT、BIGINT、LARGEINT
 
 ### example
 
 ```
-select "0b11111111", bit_count(-1)
---------------
+mysql> select bitnot(7) ans;
++------+
+| ans  |
++------+
+|   -8 |
++------+
 
-+--------------+---------------+
-| '0b11111111' | bit_count(-1) |
-+--------------+---------------+
-| 0b11111111   |             8 |
-+--------------+---------------+
+mysql> select bitxor(-127) ans;
++------+
+| ans  |
++------+
+|  126 |
++------+
 ```
 
 ### keywords
 
     ```
-    BITCOUNT, BIT_COUNT
+    BITNOT
     ```
