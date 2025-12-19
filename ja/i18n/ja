@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-MATERIALIZED-VIEW", "language": "en" }
+{ "title": "DROP-RESOURCE", "language": "en" }
 ---
 
 <!--
@@ -21,63 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-POLICY
+## DROP-RESOURCE
 
 ### Name
 
-DROP POLICY
+DROP RESOURCE
 
 ### Description
 
-drop policy for row or storage
-
-#### ROW POLICY
-
-Grammar：
-
-1. Drop row policy
+This statement is used to delete an existing resource. Only the root or admin user can delete resources.
+grammar:
 
 ```sql
-DROP ROW POLICY test_row_policy_1 on table1 [FOR user| ROLE role];
+DROP RESOURCE 'resource_name'
 ```
 
-2. Drop storage policy
-
-```sql
-DROP STORAGE POLICY policy_name1
-```
+Note: ODBC/S3 resources in use cannot be deleted.
 
 ### Example
 
-1. Drop the row policy for table1 named test_row_policy_1
+1. Delete the Spark resource named spark0:
 
-   ```sql
-   DROP ROW POLICY test_row_policy_1 on table1
-   ```
-
-2. Drop the row policy for table1 using by user test
-
-   ```sql
-   DROP ROW POLICY test_row_policy_1 on table1 for test
-   ```
-
-3. Drop the row policy for table1 using by role1
-
-   ```sql
-   DROP ROW POLICY test_row_policy_1 on table1 for role role1
-   ```
-
-4. Drop the storage policy named policy_name1
-
-```sql
-DROP STORAGE POLICY policy_name1
-```
+     ```sql
+     DROP RESOURCE 'spark0';
+     ```
 
 ### Keywords
 
-    ```
-    DROP, POLICY
-    ```
+     ```
+      DROP, RESOURCE
+     ```
 
 ### Best Practice
-
