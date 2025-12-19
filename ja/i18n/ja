@@ -1,5 +1,5 @@
 ---
-{ "title": "ARRAY_ENUMERATE_UNIQ", "language": "en" }
+{ "title": "ARRAY_ENUMERATE", "language": "en" }
 ---
 
 <!--
@@ -21,36 +21,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## array_enumerate_uniq
+## array_enumerate
 
-array_enumerate_uniq
+array_enumerate
 
 ### description
 
 #### Syntax
 
-`ARRAY<T> array_enumerate_uniq(ARRAY<T> arr)`
+`ARRAY<T> array_enumerate(ARRAY<T> arr)`
 
-Returns an array the same size as the source array, indicating for each element what its position is among elements with the same value. For example, array_enumerate_uniq([1, 2, 1, 4]) = [1, 1, 2, 1].
-The array_enumerate_uniq function can take multiple arrays of the same size as arguments. In this case, uniqueness is considered for tuples of elements in the same positions in all the arrays. For example, array_enumerate_uniq([1, 2, 1, 1, 2], [2, 1, 2, 2, 1]) = [1, 1, 2, 3, 2].
+Returns array sub item indexes eg. [1, 2, 3, …, length (arr) ]
 
 ### example
 
 ```shell
-mysql> select k2, array_enumerate_uniq([1, 2, 3, 1, 2, 3]);
-+-----------------------------------------------------+
-| array_enumerate_uniq(ARRAY(1, 2, 3, 1, 2, 3))       |
-+-----------------------------------------------------+
-| [1, 1, 1, 2, 2, 2]                                  |
-+-----------------------------------------------------+
-mysql> select array_enumerate_uniq([1, 1, 1, 1, 1], [2, 1, 2, 1, 2], [3, 1, 3, 1, 3]);
-+----------------------------------------------------------------------------------------+
-| array_enumerate_uniq(ARRAY(1, 1, 1, 1, 1), ARRAY(2, 1, 2, 1, 2), ARRAY(3, 1, 3, 1, 3)) |
-+----------------------------------------------------------------------------------------+
-| [1, 1, 2, 1, 3]                                                                        |
-+----------------------------------------------------------------------------------------+
+mysql> create table array_type_table(k1 INT, k2 Array<STRING>) duplicate key (k1)
+    -> distributed by hash(k1) buckets 1 properties('replication_num' = '1');
+mysql> insert into array_type_table values (0, []), ("1", [NULL]), ("2", ["1", "2", "3"]), ("3", ["1", NULL, "3"]), ("4", NULL);
+mysql> select k2, array_enumerate(k2) from array_type_table;
++------------------+-----------------------+
+| k2               | array_enumerate(`k2`) |
++------------------+-----------------------+
+| []               | []                    |
+| [NULL]           | [1]                   |
+| ['1', '2', '3']  | [1, 2, 3]             |
+| ['1', NULL, '3'] | [1, 2, 3]             |
+| NULL             | NULL                  |
++------------------+-----------------------+
+5 rows in set (0.01 sec)
 ```
 
 ### keywords
 
-ARRAY,ENUMERATE_UNIQ,ARRAY_ENUMERATE_UNIQ
+ARRAY,ENUMERATE,ARRAY_ENUMERATE
