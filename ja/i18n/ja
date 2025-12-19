@@ -1,5 +1,5 @@
 ---
-{ "title": "DROP-ROLE", "language": "en" }
+{ "title": "DROP-USER", "language": "en" }
 ---
 
 <!--
@@ -21,30 +21,39 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## DROP-ROLE
+## DROP-USER
+
+### Name
+
+DROP USER
 
 ### Description
 
-The statement user removes a role
+Delete a user
 
 ```sql
-  DROP ROLE [IF EXISTS] role1;
+  DROP USER 'user_identity'
+
+     `user_identity`:
+    
+         user@'host'
+         user@['domain']
 ```
 
-Deleting a role does not affect the permissions of users who previously belonged to the role. It is only equivalent to decoupling the role from the user. The permissions that the user has obtained from the role will not change
+Delete the specified user identitiy.
 
 ### Example
 
-1. Drop a role1
+1. Delete user jack@'192.%'
 
-```sql
-DROP ROLE role1;
-```
+    ```sql
+    DROP USER 'jack'@'192.%'
+    ```
 
 ### Keywords
 
     ```
-    DROP, ROLE
+    DROP, USER
     ```
 
 ### Best Practice
