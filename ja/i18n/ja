@@ -1,5 +1,5 @@
 ---
-{ "title": "ST_ANGLE_SPHERE", "language": "en" }
+{ "title": "ST_ANGLE", "language": "en" }
 ---
 
 <!-- 
@@ -21,39 +21,68 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ST_Angle_Sphere
+## ST_Angle
+
+### Syntax
+
+`DOUBLE ST_Angle(GEOPOINT point1, GEOPOINT point2, GEOPOINT point3)`
 
 ### description
 
-#### Syntax
+Enter three point, which represent two intersecting lines. Returns the angle between these lines. Point 2 and point 1 represent the first line and point 2 and point 3 represent the second line. The angle between these lines is in radians, in the range [0, 2pi). The angle is measured clockwise from the first line to the second line.
 
-`DOUBLE ST_Angle_Sphere(DOUBLE x_lng, DOUBLE x_lat, DOUBLE y_lng, DOUBLE y_lat)`
+ST_ANGLE has the following edge cases:
 
-Calculates the central angle between two points on the Earth's surface. The incoming parameters are the longitude of point X, the latitude of point X, the longitude of point Y and the latitude of point Y.
-
-x_lng and y_lng are Longitude values, must be in the range [-180, 180].
-x_lat and y_lat are Latitude values, must be in the range [-90, 90].
+- If points 2 and 3 are the same, returns NULL.
+- If points 2 and 1 are the same, returns NULL.
+- If points 2 and 3 are exactly antipodal, returns NULL.
+- If points 2 and 1 are exactly antipodal, returns NULL.
+- If any of the input geographies are not single points or are the empty geography, then throws an error.
 
 ### example
 
 ```
-mysql> select ST_Angle_Sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219);
-+---------------------------------------------------------------------------+
-| st_angle_sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219) |
-+---------------------------------------------------------------------------+
-|                                                        0.0659823452409903 |
-+---------------------------------------------------------------------------+
-1 row in set (0.06 sec)
+mysql> SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(0, 1));
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(0.0, 1.0)) |
++----------------------------------------------------------------------+
+|                                                     4.71238898038469 |
++----------------------------------------------------------------------+
+1 row in set (0.04 sec)
 
-mysql> select ST_Angle_Sphere(0, 0, 45, 0);
-+----------------------------------------+
-| st_angle_sphere(0.0, 0.0, 45.0, 0.0) |
-+----------------------------------------+
-|                                     45 |
-+----------------------------------------+
-1 row in set (0.06 sec)
+mysql> SELECT ST_Angle(ST_Point(0, 0),ST_Point(1, 0),ST_Point(0, 1));
++----------------------------------------------------------------------+
+| st_angle(st_point(0.0, 0.0), st_point(1.0, 0.0), st_point(0.0, 1.0)) |
++----------------------------------------------------------------------+
+|                                                  0.78547432161873854 |
++----------------------------------------------------------------------+
+1 row in set (0.02 sec)
+
+mysql> SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(1, 0));
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(1.0, 0.0)) |
++----------------------------------------------------------------------+
+|                                                                    0 |
++----------------------------------------------------------------------+
+1 row in set (0.02 sec)
+
+mysql> SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(0, 0));
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(0.0, 0.0)) |
++----------------------------------------------------------------------+
+|                                                                 NULL |
++----------------------------------------------------------------------+
+1 row in set (0.03 sec)
+
+mysql> SELECT ST_Angle(ST_Point(0, 0),ST_Point(-30, 0),ST_Point(150, 0));
++--------------------------------------------------------------------------+
+| st_angle(st_point(0.0, 0.0), st_point(-30.0, 0.0), st_point(150.0, 0.0)) |
++--------------------------------------------------------------------------+
+|                                                                     NULL |
++--------------------------------------------------------------------------+
+1 row in set (0.02 sec)
 ```
 
 ### keywords
 
-ST_ANGLE_SPHERE,ST,ANGLE,SPHERE
+ST_ANGLE,ST,ANGLE
