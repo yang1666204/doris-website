@@ -1,5 +1,8 @@
 ---
-{ "title": "ALTER-POLICY", "language": "en" }
+{
+  "title": "ALTER-TABLE-AND-GENERATED-COLUMN",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -10,9 +13,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,41 +22,45 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## ALTER-POLICY
+## ALTER TABLE and generated columns
 
-### Name
+The ALTER TABLE ADD COLUMN is not supported for adding a generated column, and the ALTER TABLE MODIFY COLUMN is not supported for modifying generated column information.
+The ALTER TABLE syntax is supported for modifying the order of generated columns, modifying the names of generated columns, and deleting generated columns.
 
-ALTER STORAGE POLICY
-
-### Description
-
-This statement is used to modify an existing cold and hot separation migration strategy. Only root or admin users can modify resources.
+The following error is reported for unsupported scenarios:
 
 ```sql
-ALTER STORAGE POLICY  'policy_name'
-PROPERTIES ("key"="value", ...);
+mysql> CREATE TABLE test_alter_add_column(a int, b int) properties("replication_num"="1");
+Query OK, 0 rows affected (0.14 sec)
+mysql> ALTER TABLE test_alter_add_column ADD COLUMN c int AS (a+b);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Not supporting alter table add generated columns.
+mysql> ALTER TABLE test_alter MODIFY COLUMN c int KEY AS (a+b+1);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Not supporting alter table modify generated columns.
 ```
 
-### Example
-
-1. Modify the name to coolown_datetime Cold and hot separation data migration time point:
+### REORDER COLUMN
 
 ```sql
-ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES("cooldown_datetime" = "2023-06-08 00:00:00");
+ALTER TABLE products ORDER BY (product_id, total_value, price, quantity);
 ```
 
-2. Modify the name to coolown_countdown of hot and cold separation data migration of ttl
+Note:
+The modified column order still needs to meet the order restrictions when generating columns and creating tables.
+
+### RENAME COLUMN
 
 ```sql
-ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "10000");
-ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "1h");
-ALTER STORAGE POLICY has_test_policy_to_alter PROPERTIES ("cooldown_ttl" = "3d");
+ALTER TABLE products RENAME COLUMN total_value new_name;
 ```
 
-### Keywords
+Note:
+If a column in a table (generated column or common column) is referenced by other generated columns, you need to delete the other generated columns before you can modify the name of this generated column.
+
+### DROP COLUMN
 
 ```sql
-ALTER, STORAGE, POLICY
+ALTER TABLE products DROP COLUMN total_value;
 ```
 
-### Best Practice
+Note:
+If a column in a table (generated column or ordinary column) is referenced by other generated columns, you need to delete the other generated columns first before deleting the referenced generated column or ordinary column.
