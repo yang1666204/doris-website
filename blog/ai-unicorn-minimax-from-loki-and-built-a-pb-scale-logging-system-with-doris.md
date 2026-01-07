@@ -30,7 +30,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
+aaa
 You might not have heard of [MiniMax](https://www.minimaxi.com/en), but you've probably heard of [Talkie](https://www.talkie-ai.com), the AI chatbot taking the world by storm. In the summer of 2024, Talkie ranked fifth among the most-downloaded free entertainment apps in the US, bringing its creator, MiniMax, into the global spotlight. As the maker of this market-stunning product, the AI unicorn maintains a low profile, but its history of smart decision-making dates back a long way.
 
 Before MoE (Mixture of Experts) became an industry consensus, MiniMax has been investing most of its efforts in it. In April 2024, MiniMax launched its first commercially deployed MoE-based LLM, **MiniMax-abab 6.5**, which contains over a trillion parameters and delivers performances comparable to GPT-4, Claude-3, and Gemini-1.5. 
