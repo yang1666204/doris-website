@@ -1,14 +1,14 @@
 ---
 {
-  "title": "JSON_QUOTE",
+  "title": "JSON_UNQUOTE",
   "language": "en",
-  "description": "Surrounds the input string parameter with double quotes and escapes special characters and control characters in the string."
+  "description": "This function removes quotes from JSON values and returns the result as a string. If the parameter is NULL, it returns NULL."
 }
 ---
 
 ## Description
 
-Surrounds the input string parameter with double quotes and escapes special characters and control characters in the string. The main purpose of this function is to convert strings into valid JSON strings.
+This function removes quotes from JSON values and returns the result as a string. If the parameter is NULL, it returns NULL.
 
 Special characters include:
 
@@ -26,80 +26,84 @@ Control characters include:
 ## Syntax
 
 ```sql
-JSON_QUOTE (<str>)
+JSON_UNQUOTE (<str>)
 ```
 
 ## Parameters
 
-`<str>` String type, the value to be quoted.
+- `<str>` The string from which quotes are to be removed.
 
 ## Return Value
 
-Returns a string enclosed in double quotes
+Returns a string. Special cases are as follows:
 
-## Usage Notes
-
-- If the parameter is NULL, returns NULL.
-- If the parameter contains escape symbol (`\`) + non-escape character, the escape symbol will be removed, see examples 4 and 5.
+- If the input parameter is NULL, returns NULL.
+- If the input parameter is not a value enclosed in double quotes, it returns the value itself.
+- If the input parameter is not a string, it will be automatically converted to a string and then return the value itself.
 
 ## Examples
 
-1. Double quotes are escaped
+1. Escape characters in strings are removed
     ```sql
-    select json_quote('I am a "string" that contains double quotes.');
+    select json_unquote('"I am a \\"string\\" that contains double quotes."');
     ```
     ```
-    +------------------------------------------------------------+
-    | json_quote('I am a "string" that contains double quotes.') |
-    +------------------------------------------------------------+
-    | "I am a \"string\" that contains double quotes."           |
-    +------------------------------------------------------------+
+    +--------------------------------------------------------------------+
+    | json_unquote('"I am a \\"string\\" that contains double quotes."') |
+    +--------------------------------------------------------------------+
+    | I am a "string" that contains double quotes.                       |
+    +--------------------------------------------------------------------+
     ```
-
 2. Escaping special characters
     ```sql
-    select json_quote("\\ \b \n \r \t");
+    select json_unquote('"\\\\ \\b \\n \\r \\t"');
     ```
     ```
-    +------------------------------+
-    | json_quote("\\ \b \n \r \t") |
-    +------------------------------+
-    | "\\ \b \n \r \t"             |
-    +------------------------------+
+    +----------------------------------------+
+    | json_unquote('"\\\\ \\b \\n \\r \\t"') |
+    +----------------------------------------+
+    | \ 
+                                        |
+    +----------------------------------------+
     ```
-
+   > Because escape characters are removed, some whitespace characters (newline, backspace, tab, etc.) will be printed
 3. Control character escaping
     ```sql
-    select json_quote("\0");
+    select json_unquote('"\\u0000"');
     ```
     ```
-    +------------------+
-    | json_quote("\0") |
-    +------------------+
-    | "\u0000"         |
-    +------------------+
+    +---------------------------+
+    | json_unquote('"\\u0000"') |
+    +---------------------------+
+    |                           |
+    +---------------------------+
     ```
-
-4. Escape symbol + non-escape character case
+4. Invalid JSON string
     ```sql
-    select json_quote("\a");
+    select json_unquote('"I am a "string" that contains double quotes."');
     ```
     ```
-    +------------------+
-    | json_quote("\a") |
-    +------------------+
-    | "a"              |
-    +------------------+
+    ERROR 1105 (HY000): errCode = 2, detailMessage = [RUNTIME_ERROR]Invalid JSON text in argument 1 to function json_unquote: "I am a "string" that contains double quotes."
     ```
-
-5. Non-zero unprintable characters
+5. Case where it starts with quotes but doesn't end with quotes
     ```sql
-    select json_quote("\1");
+    select json_unquote('"I am a "string" that contains double quotes.');
     ```
     ```
-    +------------------+
-    | json_quote("\1") |
-    +------------------+
-    | "1"              |
-    +------------------+
+    +---------------------------------------------------------------+
+    | json_unquote('"I am a "string" that contains double quotes.') |
+    +---------------------------------------------------------------+
+    | "I am a "string" that contains double quotes.                 |
+    +---------------------------------------------------------------+
+    ```
+6. Case where it ends with quotes
+    ```sql
+    select json_unquote('I am a "string" that contains double quotes."');
+    ```
+    ```
+    +---------------------------------------------------------------+
+    | json_unquote('I am a "string" that contains double quotes."') |
+    +---------------------------------------------------------------+
+    | I am a "string" that contains double quotes."                 |
+    +---------------------------------------------------------------+
     ```
