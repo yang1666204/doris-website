@@ -1,168 +1,125 @@
 ---
 {
-  "title": "Overview | Ai Functions",
+  "title": "Release 3.1.3",
   "language": "en",
-  "description": "AI Function is a built-in function provided by Doris based on Artificial Intelligence (AI) capabilities.",
-  "sidebar_label": "Overview"
+  "description": "Apache Doris 3.1.3 brings major improvements in:"
 }
 ---
 
-# Overview
+## New Features
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+### Storage & Filesystem
 
-  http://www.apache.org/licenses/LICENSE-2.0
+- Upgrade libhdfs to 3.4.2 ([#57638](https://github.com/apache/doris/pull/57638))
+- Add TotalGetRequestTime profile metric to S3 reader ([#57636](https://github.com/apache/doris/pull/57636))
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+### Catalog
 
-## Description
+- Support MaxCompute catalog (project-schema-table) ([#57286](https://github.com/apache/doris/pull/57286))
+- Support retrying original SQL after error when execute dialect sql ([#57498](https://github.com/apache/doris/pull/57498))
+- Support Azure Blob Storage ([#57219](https://github.com/apache/doris/pull/57219))
 
-AI Function is a built-in function provided by Doris based on Artificial Intelligence (AI) capabilities. Users can directly call AI in SQL queries to perform various intelligent text tasks. AI Function connects to multiple mainstream AI providers (such as OpenAI, Anthropic, DeepSeek, Gemini, Ollama, MoonShot, etc.) through Doris's resource mechanism.
+### Cloud Mode
 
-The AI used must be provided externally by Doris and support text analysis.
+- Support balance sync warm-up ([#57666](https://github.com/apache/doris/pull/57666))
+- Support peer BE cache read in same cluster ([#57672](https://github.com/apache/doris/pull/57672))
 
----
+### SQL Engine & Planner
 
-## Configure AI Resource
+- Check SQL regex block rule before plan phase ([#57706](https://github.com/apache/doris/pull/57706))
 
-Before using AI Function, you need to create a Resource of type AI to centrally manage access information for the AI API.
+### Functions
 
-### Example: Create AI Resource
+- Enhance EXPLODE function with struct-type support ([#57827](https://github.com/apache/doris/pull/57827))
 
-```sql
-CREATE RESOURCE "ai_resource_name"
-PROPERTIES (
-    'type' = 'ai',
-    'ai.provider_type' = 'openai',
-    'ai.endpoint' = 'https://endpoint_example',
-    'ai.model_name' = 'model_example',
-    'ai.api_key' = 'sk-xxx',
-    'ai.temperature' = '0.7',
-    'ai.max_token' = '1024',
-    'ai.max_retries' = '3',
-    'ai.retry_delay_second' = '1',
-    'ai.dimensions' = '1024'
-);
-```
+## Optimizations
 
-##### Parameter Description
+### Query Execution & Planner
 
-`type`: Required, must be `ai`, used as the type identifier for ai.
+- Optimize variant cast when only NULL values ([#57161](https://github.com/apache/doris/pull/57161))
+- Optimize FROM_UNIXTIME performance ([#57573](https://github.com/apache/doris/pull/57573))
+- Improve graceful shutdown behavior and query retry ([#57805](https://github.com/apache/doris/pull/57805))
 
-`ai.provider_type`: Required, external AI provider type. Currently supported providers include: OpenAI, Anthropic, Gemini, DeepSeek, Local, MoonShot, MiniMax, Zhipu, QWen, Baichuan. If there are providers not listed above but their API format is the same as [OpenAI](https://platform.openai.com/docs/overview)/[Anthropic](https://docs.anthropic.com/en/api/messages-examples)/[Gemini](https://ai.google.dev/gemini-api/docs/quickstart#rest_1), you can directly fill in the corresponding provider.
+### Storage & Compaction
 
-`ai.endpoint`: Required, AI API endpoint.
+- Make read slice size configurable (MergeIO) ([#57159](https://github.com/apache/doris/pull/57159))
+- Add score threshold for cold data compaction ([#57217](https://github.com/apache/doris/pull/57217))
+- Add configurable threshold for small memory task protection ([#56994](https://github.com/apache/doris/pull/56994))
+- Improve jemalloc configuration to reduce page faults ([#57152](https://github.com/apache/doris/pull/57152))
 
-`ai.model_name`: Required, model name.
+### Cloud Mode
 
-`ai_api_key`: Required except when `ai.provider_type = local`, API key.
+- Expose cloud balance metrics ([#57352](https://github.com/apache/doris/pull/57352))
+- Optimize create warm-up job logic ([#57865](https://github.com/apache/doris/pull/57865))
+- Enhance warm-up job and peer read efficiency ([#57554](https://github.com/apache/doris/pull/57554), [#57807](https://github.com/apache/doris/pull/57807))
 
-`ai.temperature`: Optional. Controls the randomness of generated content. Accepts a float value between 0 and 1.
-The default value is -1, which means this parameter is not set.
+### Index & Search
 
-`ai.max_tokens`: Optional. Limits the maximum number of tokens for generated content.
-The default value is -1, which means this parameter is not set. The default value for Anthropic is 2048.
+- Add custom analyzer support (char_filter, basic & ICU tokenizer) ([#57137](https://github.com/apache/doris/pull/57137))
+- Support builtin analyzer names in custom analyzer ([#57727](https://github.com/apache/doris/pull/57727))
 
-`ai.max_retries`: Optional. The maximum number of retries for a single request. The default value is 3.
+## Bug Fixes
 
-`ai.retry_delay_second`: Optional. The delay time (in seconds) before retrying. The default value is 0.
+### Storage & File I/O
 
-`ai.dimensions`: Optional, control the vector dimension of [EMBED](./distance-functions/embed.md) output.
-**Make sure to confirm that the model filled in `ai.model_name` supports custom vector dimension before setting**,
-otherwise it may cause model call failure.
+- Fix segcompaction coredump when adding key column ([#57212](https://github.com/apache/doris/pull/57212))
+- Fix Parquet RLE_DICTIONARY decode performance issue ([#57614](https://github.com/apache/doris/pull/57614))
+- Fix schema change expr cache misuse ([#57517](https://github.com/apache/doris/pull/57517))
+- Replace tablet report with ForkJoinPool ([#57927](https://github.com/apache/doris/pull/57927))
 
----
+### Cloud Mode
 
-## Resource Selection and Session Variables
+- Fix cloud pipeline task number calculation ([#57261](https://github.com/apache/doris/pull/57261))
+- Fix rebalance residual metrics cleanup ([#57438](https://github.com/apache/doris/pull/57438))
+- Skip tablet report when rebalance not inited ([#57393](https://github.com/apache/doris/pull/57393))
+- Fix domain user default cluster report error ([#57555](https://github.com/apache/doris/pull/57555))
+- Fix wrong private endpoint config ([#57675](https://github.com/apache/doris/pull/57675))
+- Fix peer read bugs and thread handling ([#57910](https://github.com/apache/doris/pull/57910), [#57807](https://github.com/apache/doris/pull/57807))
+- Fix filecache metrics and microbench issues ([#57535](https://github.com/apache/doris/pull/57535), [#57536](https://github.com/apache/doris/pull/57536))
 
-When users call AI-related functions, resources can be specified in the following two ways:
+### Catalog
 
-- Explicitly specify the resource: directly pass the resource name when calling the function.
-- Implicitly specify the resource: set the Session variable in advance, and the function will automatically use the corresponding resource.
+- Fix MaxCompute predicate pushdown null pointer ([#57567](https://github.com/apache/doris/pull/57567))
+- Fix Iceberg client.region and REST credentials issues ([#57539](https://github.com/apache/doris/pull/57539))
+- Fix Iceberg catalog NPE and query error ([#57796](https://github.com/apache/doris/pull/57796), [#57790](https://github.com/apache/doris/pull/57790))
+- Fix Paimon S3 prefix unification and configuration ([#57526](https://github.com/apache/doris/pull/57526))
+- Fix JDBC catalog compatibility for `zeroDateTimeBehavior` ([#57731](https://github.com/apache/doris/pull/57731))
+- Fix Parquet schema analysis error ([#57500](https://github.com/apache/doris/pull/57500))
+- Fix Parquet all row groups filtered issue ([#57646](https://github.com/apache/doris/pull/57646))
+- Fix CSV reader wrong result when escape equals enclose ([#57762](https://github.com/apache/doris/pull/57762))
+- Prevent removing catalog from refresh queue ([#57671](https://github.com/apache/doris/pull/57671))
+- Fix `max_meta_object_cache_num` must > 0 config ([#57793](https://github.com/apache/doris/pull/57793))
 
-Set Session variable format:
+### SQL Engine & Planner
 
-```sql
-SET default_ai_resource='resource_name';
-```
+- Fix constant folding of FROM_UNIXTIME with decimal literal ([#57606](https://github.com/apache/doris/pull/57606))
+- Fix MV rewrite fail with group sets and filter ([#57674](https://github.com/apache/doris/pull/57674))
+- Fix prepare statement stage only explain SQL ([#57504](https://github.com/apache/doris/pull/57504))
+- Release physical plan in Profile.releaseMemory() ([#57316](https://github.com/apache/doris/pull/57316))
+- Fix aggregation elimination error when group sets exist ([#57885](https://github.com/apache/doris/pull/57885))
+- Fix LargeInt overflow on max_value+1 ([#57351](https://github.com/apache/doris/pull/57351))
+- Fix decimal256 overflow when casting to float ([#57503](https://github.com/apache/doris/pull/57503))
 
-Function call format:
+### Networking & Platform
 
-```sql
-SELECT AI_FUNCTION([<resource_name>], <args...>);
-```
+- Fix MySQL SSL unwrap infinite loop ([#57599](https://github.com/apache/doris/pull/57599))
+- Disable TLS renegotiation in MySQL ([#57748](https://github.com/apache/doris/pull/57748))
+- Fix unaligned uint128 constructor ([#57430](https://github.com/apache/doris/pull/57430))
+- Fix JNI local/global ref leak ([#57597](https://github.com/apache/doris/pull/57597))
+- Make Scanner.close() thread-safe ([#57644](https://github.com/apache/doris/pull/57644))
+- Fix exchange coredump due to nullptr ([#57698](https://github.com/apache/doris/pull/57698))
 
-### Resource Selection Priority
+## Chores & Infrastructure
 
-When calling an AI_Function, it determines which resource to use in the following order:
+- Deprecated LakeSoul external catalog ([#57163](https://github.com/apache/doris/pull/57163))
 
-1. The resource explicitly specified by the user in the call
-2. The global default resource (`default_ai_resource`)
+## Summary
 
-Example:
+Apache Doris **3.1.3** brings major improvements in:
 
-```sql
-SET default_ai_resource='global_default_resource';
-SELECT AI_SENTIMENT('this is a test'); -- Uses resource named 'global_default_resource'
-SELECT AI_SENTIMENT('invoke_resource', 'this is a test'); --Uses resource named 'invoke_resource'
-```
+- **Storage compatibility** (Azure Blob, Hadoop 3.4.2, S3 metric support)
+- **Cloud performance and reliability** (warm-up, rebalance, peer cache)
+- **SQL planner stability**
+- **Dependency modernization and security hardening**
 
----
-
-## AI Functions
-
-Currently supported AI Functions in Doris include:
-
-- `AI_CLASSIFY`: Information classification
-
-- `AI_EXTRACT`: Information extraction
-
-- `AI_FILTER`：Filter information
-
-- `AI_FIXGRAMMAR`: Grammar correction
-
-- `AI_GENERATE`: Text generation
-
-- `AI_MASK`: Masking sensitive information
-
-- `AI_SENTIMENT`: Sentiment analysis
-
-- `AI_SIMILARITY`: Text semantic similarity comparison
-
-- `AI_SUMMARIZE`: Text summarization
-
-- `AI_TRANSLATE`: Translation
-
-- `AI_AGG`: Perform cross-line aggregation analysis on multiple texts
-
-### Examples
-
-1. `AI_TRANSLATE`
-
-```sql
-SELECT AI_TRANSLATE('resource_name', 'this is a test', 'Chinese');
--- 这是一个测试
-```
-
-2. `AI_SENTIMENT`
-
-```sql
-SET default_ai_resource = 'resource_name';
-SELECT AI_SENTIMENT('Apache Doris is a great DBMS.');
-```
-
-For detailed function and usage, please refer to the documentation of each specific function.
-
+This release greatly enhances **stability, performance, and cloud-native integration** across hybrid data environments.
