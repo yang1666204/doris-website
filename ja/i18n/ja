@@ -1,90 +1,78 @@
 ---
 {
-  "title": "MICROSECONDS_ADD",
+  "title": "MICROSECONDS_DIFF",
   "language": "en",
-  "description": "The MICROSECONDSADD function adds a specified number of microseconds to the input datetime value and returns the resulting new datetime value."
+  "description": "The MICROSECONDS_DIFF function calculates the difference in microseconds between two datetime values. The result is the number of microseconds in the interval between the end time and the start time. This function supports processing DATETIME types with microsecond precision."
 }
 ---
 
 ## Description
 
-The MICROSECONDS_ADD function adds a specified number of microseconds to the input datetime value and returns the resulting new datetime value. This function supports processing DATETIME or TIMESTAMPTZ types with microsecond precision.
-
-This function behaves the same as MySQL’s [date_add function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_date-add) when using MICROSECOND as the unit.
+The MICROSECONDS_DIFF function calculates the difference in microseconds between two datetime values. The result is the number of microseconds in the interval between the end time and the start time. This function supports processing DATETIME types with microsecond precision.
 
 ## Syntax
 
 ```sql
-MICROSECONDS_ADD(`<datetime_like_type>`, `<delta>`)
+MICROSECONDS_DIFF(`<date_or_time_expr1>`, `<date_or_time_expr2>`)
 ```
 
 ## Parameters
 
-| Parameter              | Description                                                                                                                                                                                                                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<datetime_like_type>` | The input datetime value, of type DATETIME or TIMESTAMPTZ. For formats, see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) |
-| `<delta>`              | The number of microseconds to add, of type BIGINT. 1 second = 1,000,000 microseconds.                                                                                                                                                                                                  |
+| Parameter              | Description                                                                                                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr1>` | The end time, of type DATETIME. For datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion). |
+| `<date_or_time_expr2>` | The start time, of type DATETIME or a valid datetime string.                                                                                                                         |
 
 ## Return Value
 
-Return the result of adding the specified microseconds `<delta>` to the base time `<datetime_like_type>`, with the return type being the same as the type of the first parameter.
+Returns a BIGINT type, representing the difference in microseconds between the two times.
 
-- If the first parameter is TIMESTAMPTZ, then return TIMESTAMPTZ.
-
-- If the first parameter is DATETIME, then return DATETIME.
-
-- If `<delta>` is negative, the function subtracts the corresponding microseconds from the base time (i.e., MICROSECONDS_ADD(basetime, -n) is equivalent to MICROSECONDS_SUB(basetime, n)).
-
-- If the calculation result exceeds the valid range of the DATETIME type (0000-01-01 00:00:00 to 9999-12-31 23:59:59.999999), an exception is thrown.
-
+- If `<date_or_time_expr1>` is greater than `<date_or_time_expr2>`, returns a positive number.
+- If `<date_or_time_expr1>` is less than `<date_or_time_expr2>`, returns a negative number.
+- If the two times are identical (including the microsecond part), returns 0.
 - If any parameter is NULL, returns NULL.
 
 ## Examples
 
 ```sql
--- Add microseconds
-SELECT NOW(3) AS current_time, MICROSECONDS_ADD(NOW(3), 100000000) AS after_add;
+-- Calculate the microsecond difference between two datetime values
+SELECT MICROSECONDS_DIFF('2020-12-25 21:00:00.623000', '2020-12-25 21:00:00.123000');
 
-+-------------------------+----------------------------+
-| current_time            | after_add                  |
-+-------------------------+----------------------------+
-| 2025-08-11 14:49:16.368 | 2025-08-11 14:50:56.368000 |
-+-------------------------+----------------------------+
++------------------------------------------------------------------------------+
+| MICROSECONDS_DIFF('2020-12-25 21:00:00.623000','2020-12-25 21:00:00.123000') |
++------------------------------------------------------------------------------+
+|                                                                       500000 |
++------------------------------------------------------------------------------+
 
--- Add negative microseconds, equivalent to subtracting
-SELECT MICROSECONDS_ADD('2023-10-01 12:00:00.500000', -300000) AS after_add;
-+----------------------------+
-| after_add                  |
-+----------------------------+
-| 2023-10-01 12:00:00.200000 |
-+----------------------------+
+--If the end time is earlier than the start time, a negative number is returned.
+SELECT MICROSECONDS_DIFF('2023-10-01 12:00:00.500000', '2023-10-01 12:00:00.800000');
++-------------------------------------------------------------------------------+
+| MICROSECONDS_DIFF('2023-10-01 12:00:00.500000', '2023-10-01 12:00:00.800000') |
++-------------------------------------------------------------------------------+
+|                                                                       -300000 |
++-------------------------------------------------------------------------------+
 
 -- Input type is date, time part defaults to 00:00:00.000000
-SELECT MICROSECONDS_ADD('2023-10-01', -300000);
-+-----------------------------------------+
-| MICROSECONDS_ADD('2023-10-01', -300000) |
-+-----------------------------------------+
-| 2023-09-30 23:59:59.700000              |
-+-----------------------------------------+
+SELECT MICROSECONDS_DIFF('2023-10-01 12:00:00.500000', '2023-10-01');
++---------------------------------------------------------------+
+| MICROSECONDS_DIFF('2023-10-01 12:00:00.500000', '2023-10-01') |
++---------------------------------------------------------------+
+|                                                   43200500000 |
++---------------------------------------------------------------+
 
--- Example of TimeStampTz type, SET time_zone = '+08:00'
-SELECT MICROSECONDS_ADD('2024-12-25 12:34:56.123+04:00', '765800');
-+-------------------------------------------------------------+
-| MICROSECONDS_ADD('2024-12-25 12:34:56.123+04:00', '765800') |
-+-------------------------------------------------------------+
-| 2024-12-25 16:34:56.888800+08:00                            |
-+-------------------------------------------------------------+
+-- Any parameter is NULL, returns NULL
+SELECT MICROSECONDS_DIFF('2023-01-01 00:00:00', NULL), MICROSECONDS_DIFF(NULL, '2023-01-01 00:00:00');
++------------------------------------------------+------------------------------------------------+
+| MICROSECONDS_DIFF('2023-01-01 00:00:00', NULL) | MICROSECONDS_DIFF(NULL, '2023-01-01 00:00:00') |
++------------------------------------------------+------------------------------------------------+
+|                                           NULL |                                           NULL |
++------------------------------------------------+------------------------------------------------+
 
--- Calculation result exceeds datetime range, throws error
-SELECT MICROSECONDS_ADD('9999-12-31 23:59:59.999999', 2000000) AS after_add;
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation microseconds_add of 9999-12-31 23:59:59.999999, 2000000 out of range
-
--- Any input parameter is NULL, returns NULL
-SELECT MICROSECONDS_ADD('2023-10-01 12:00:00.500000', NULL);
-+-----------------------------------------------------+
-| MICROSECONDS_ADD('2023-10-01 12:00:00.500000',NULL) |
-+-----------------------------------------------------+
-| NULL                                                |
-+-----------------------------------------------------+
-
+--- datetime is same,return 0
+ SELECT MICROSECONDS_DIFF('2025-08-11 15:30:00.123456', '2025-08-11 15:30:00.123456');
++-------------------------------------------------------------------------------+
+| MICROSECONDS_DIFF('2025-08-11 15:30:00.123456', '2025-08-11 15:30:00.123456') |
++-------------------------------------------------------------------------------+
+|                                                                             0 |
++-------------------------------------------------------------------------------+
 ```
