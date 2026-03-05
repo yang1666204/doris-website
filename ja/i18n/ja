@@ -1,52 +1,53 @@
 ---
 {
-  "title": "BIT_LENGTH",
+  "title": "BITAND",
   "language": "en",
-  "description": "返回字符串或二进制值的位长度（实际长度就是字节数 8。）。"
+  "description": "Performs a bitwise AND operation. The bitwise AND operation compares each bit of two integers; the result is 1 only if both corresponding bits are 1,"
 }
 ---
 
-## 描述
+## Description
 
-返回字符串或二进制值的位长度（实际长度就是字节数 \* 8。）。
+Performs a bitwise AND operation. The bitwise AND operation compares each bit of two integers; the result is 1 only if both corresponding bits are 1, otherwise it is 0.
 
-## 语法
+Supported integer types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT
+
+## Syntax
 
 ```sql
-BIT_LENGTH(<str>)
+BITAND(<lhs>, <rhs>)
 ```
 
-## 参数
+## Parameters
 
-- `<str>` 要返回长度的字符串值。
+- `<lhs>`: The first integer for the bitwise AND operation.
+- `<rhs>`: The second integer for the bitwise AND operation.
 
-## 返回值
+## Return Value
 
-返回 `<str>` 在二进制表示中所占的位数，包括所有 0 和 1。
+Returns the result of the bitwise AND operation between the two integers.
 
-## 示例
+## Examples
 
 1. Example 1
-
     ```sql
-    select BIT_LENGTH("abc"), BIT_LENGTH("中国"), BIT_LENGTH(123);
+    select BITAND(3,5), BITAND(5, 10), BITAND(7, 10);
     ```
-
     ```text
-    +-------------------+----------------------+-----------------+
-    | BIT_LENGTH("abc") | BIT_LENGTH("中国")   | BIT_LENGTH(123) |
-    +-------------------+----------------------+-----------------+
-    |                24 |                   48 |              24 |
-    +-------------------+----------------------+-----------------+
+    +-------------+---------------+---------------+
+    | BITAND(3,5) | BITAND(5, 10) | BITAND(7, 10) |
+    +-------------+---------------+---------------+
+    |           1 |             0 |             2 |
+    +-------------+---------------+---------------+
     ```
 2. NULL argument
     ```sql
-    select BIT_LENGTH(NULL);
+    select BITAND(1, null), BITAND(null, 1), BITAND(null, null);
     ```
     ```text
-    +------------------+
-    | BIT_LENGTH(NULL) |
-    +------------------+
-    |             NULL |
-    +------------------+
+    +-----------------+-----------------+--------------------+
+    | BITAND(1, null) | BITAND(null, 1) | BITAND(null, null) |
+    +-----------------+-----------------+--------------------+
+    |            NULL |            NULL |               NULL |
+    +-----------------+-----------------+--------------------+
     ```
