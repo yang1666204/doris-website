@@ -1,76 +1,76 @@
 ---
 {
-  "title": "BITMAP_MIN",
+  "title": "BITMAP_NOT",
   "language": "en",
-  "description": "Computes and returns the minimum value in a Bitmap."
+  "description": "Computes the difference between the first Bitmap and the second Bitmap, and returns the result as a new Bitmap."
 }
 ---
 
 ## Description
 
-Computes and returns the minimum value in a Bitmap.
+Computes the difference between the first Bitmap and the second Bitmap, and returns the result as a new Bitmap.
 
 ## Syntax
 
 ```sql
-BITMAP_MIN(<bitmap>)
+BITMAP_NOT(<bitmap1>, <bitmap2>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                        |
-| ---------- | ---------------------------------- |
-| `<bitmap>` | A Bitmap type column or expression |
+| Parameter   | Description       |
+| ----------- | ----------------- |
+| `<bitmap1>` | The first Bitmap  |
+| `<bitmap2>` | The second Bitmap |
 
 ## Return Value
 
-The minimum value in the Bitmap.  
-Returns `NULL` if the Bitmap is empty or is NULL value.
+A Bitmap representing the elements in `<bitmap1>` that are not in `<bitmap2>`.
+
+- If the parameter has a NULL value, it returns NULL
 
 ## Examples
 
-To compute the minimum value in an empty Bitmap:
+To compute the difference between two Bitmaps:
 
 ```sql
-select bitmap_min(bitmap_from_string('')) value;
+select bitmap_to_string(bitmap_not(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'))) as res;
 ```
 
-The result will be:
+The result will be an empty Bitmap, as all elements in `<bitmap1>` are also in `<bitmap2>`:
 
 ```text
-+-------+
-| value |
-+-------+
-|  NULL |
-+-------+
++------+
+| res  |
++------+
+|      |
++------+
 ```
 
-To compute the minimum value in a Bitmap with multiple elements:
+To compute the difference where `<bitmap1>` has elements not present in `<bitmap2>`:
 
 ```sql
-select bitmap_min(bitmap_from_string('1,9999999999')) value;
+select bitmap_to_string(bitmap_not(bitmap_from_string('2,3,5'), bitmap_from_string('1,2,3,4'))) as res;
 ```
 
-The result will be:
+The result will be a Bitmap containing the element `5`:
 
 ```text
-+-------+
-| value |
-+-------+
-|     1 |
-+-------+
++------+
+| res  |
++------+
+| 5    |
++------+
 ```
 
 ```sql
-select bitmap_min(bitmap_empty()) res1,bitmap_min(NULL) res2;
+select bitmap_to_string(bitmap_not(bitmap_from_string('2,3,5'), NULL)) as res;
 ```
 
-The result will be:
-
 ```text
-+------+------+
-| res1 | res2 |
-+------+------+
-| NULL | NULL |
-+------+------+
++------+
+| res  |
++------+
+| NULL |
++------+
 ```
