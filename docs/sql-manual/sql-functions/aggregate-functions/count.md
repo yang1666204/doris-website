@@ -1,61 +1,112 @@
 ---
 {
     "title": "COUNT",
-    "language": "en"
+    "language": "en",
+    "description": "Returns the number of non-NULL records for the specified column, or the total number of records."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Returns the number of non-NULL records for the specified column, or the total number of records.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## COUNT
-### Description
-#### Syntax
-
-`COUNT([DISTINCT] expr)`
-
-
-Number of rows used to return the required rows
-
-### example
-
+```sql
+COUNT(DISTINCT <expr> [,<expr>,...])
+COUNT(*)
+COUNT(<expr>)
 ```
-MySQL > select count(*) from log_statis group by datetime;
+
+## Parameters
+
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | If an expression is specified, counts the number of non-NULL records; otherwise, counts the total number of rows. |
+
+## Return Value
+
+The return type is Bigint. If expr is NULL, it is not counted.
+
+## Example
+
+```sql
+-- setup
+create table test_count(
+    id int,
+    name varchar(20),
+    sex int
+) distributed by hash(id) buckets 1
+properties ("replication_num"="1");
+
+insert into test_count values
+    (1, '1', 1),
+    (2, '2', 1),
+    (3, '3', 1),
+    (4, '0', 1),
+    (4, '4', 1),
+    (5, NULL, 1);
+
+create table test_insert(
+    id int,
+    name varchar(20),
+    sex int
+) distributed by hash(id) buckets 1
+properties ("replication_num"="1");
+
+insert into test_insert values
+    (1, '1', 1),
+    (2, '2', 1),
+    (3, '3', 1),
+    (4, '0', 1),
+    (4, '4', 1),
+    (5, NULL, 1);
+```
+
+```sql
+select count(*) from test_count;
+```
+
+```text
 +----------+
 | count(*) |
 +----------+
-| 28515903 |
+|        6 |
 +----------+
-
-MySQL > select count(datetime) from log_statis group by datetime;
-+-------------------+
-| count(`datetime`) |
-+-------------------+
-|         28521682  |
-+-------------------+
-
-MySQL > select count(distinct datetime) from log_statis group by datetime;
-+-------------------------------+
-| count(DISTINCT `datetime`)    |
-+-------------------------------+
-|                       71045   |
-+-------------------------------+
 ```
-### keywords
-COUNT
+
+```sql
+select count(name) from test_insert;
+```
+
+```text
++-------------+
+| count(name) |
++-------------+
+|           5 |
++-------------+
+```
+
+```sql
+select count(distinct sex) from test_insert;
+```
+
+```text
++---------------------+
+| count(DISTINCT sex) |
++---------------------+
+|                   1 |
++---------------------+
+```
+
+```sql
+select count(distinct id,sex) from test_insert;
+```
+
+```text
++-------------------------+
+| count(DISTINCT id, sex) |
++-------------------------+
+|                       5 |
++-------------------------+
+```
