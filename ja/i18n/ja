@@ -1,82 +1,175 @@
 ---
-{
-  "title": "Release 3.1.4",
-  "language": "en",
-  "description": "Apache Doris 3.1.4 enhances query, data lake, and cloud operations with new features, performance boosts, and critical bug fixes for improved stability and security."
-}
+{ "title": "TIME_FORMAT", "language": "en" }
 ---
 
-# 3.1.4 release note
+## Description
 
-## New Features
+The TIME_FORMAT function is used to convert a time value into a string according to the specified format string. It supports formatting for TIME and DATETIME types, and the output is a string that conforms to the format requirements.
 
-### Query Engine
+This function behaves consistently with the [time_format function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_time-format) in MySQL.
 
-- Support Dereference Expressions [#58550](https://github.com/apache/doris/pull/58550)
+## Syntax
 
-### Data Lake & External Catalogs
+```sql
+TIME_FORMAT(<time_or_datetime_expr>, <format>)
+```
 
-- Catalog supports loading credentials via `AwsCredentialsProviderChain` [#59054](https://github.com/apache/doris/pull/59054)
-- Support passing `credentials_provider_type` to BE for S3 access [#59158](https://github.com/apache/doris/pull/59158)
-- Support Elasticsearch `flatten` data type [#58793](https://github.com/apache/doris/pull/58793)
+## Parameters
 
-### Observability & Audit
+| Parameter                 | Description                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<time_or_datetime_expr>` | A valid time value, supporting TIME or DATETIME types.                                                                                                                     |
+| `<format>`                | Specifies the output format for the time, as a `varchar` type. If the format string contains date or non-compliant format specifiers, it will return NULL. |
 
-- Support encrypting SQL statements stored in audit logs [#58508](https://github.com/apache/doris/pull/58508)
-- QueryPlanAction supports writing SQL from table query plans into audit logs [#59121](https://github.com/apache/doris/pull/59121)
-- Generate SQL Digest for statements parsed by Nereids [#59215](https://github.com/apache/doris/pull/59215)
+Supported format specifiers:
 
-## Optimizations & Improvements
+| Specifier | Description                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------ |
+| %f        | Microseconds (000000-999999)                                                  |
+| %H        | Hour (00-23)                                                                  |
+| %h        | Hour (01-12)                                                                  |
+| %I        | Hour (01-12)                                                                  |
+| %i        | Minutes, numeric (00-59)                                                      |
+| %k        | Hour (0-23)                                                                   |
+| %l        | Hour (1-12)                                                                   |
+| %p        | AM or PM                                                                                         |
+| %r        | Time, 12-hour (hh:mm:ss followed by AM or PM) |
+| %S        | Seconds (00-59)                                                               |
+| %s        | Seconds (00-59)                                                               |
+| %T        | Time, 24-hour (hh:mm:ss)                      |
+| %%        | Represents a literal % character                                                                 |
 
-### Query Engine
+## Return Value
 
-- Adjust type inference and coercion behavior to improve expression consistency [#57961](https://github.com/apache/doris/pull/57961)
-- Prevent analysis tasks from polluting column statistics cache, improving statistics accuracy [#58742](https://github.com/apache/doris/pull/58742)
-- Improve execution of queries with multiple DISTINCT aggregate functions [#58973](https://github.com/apache/doris/pull/58973)
-- Optimize Join / Set / CTE / predicate pushdown rules to avoid unnecessary plan complexity [#58664](https://github.com/apache/doris/pull/58664), [#59141](https://github.com/apache/doris/pull/59141), [#59151](https://github.com/apache/doris/pull/59151)
+A formatted time string, of type Varchar.
 
-### Data Lake & External Catalogs
+Special cases:
 
-- Accelerate Hive partition pruning and write performance, significantly reducing write latency for large partitioned tables [#58886](https://github.com/apache/doris/pull/58886), [#58932](https://github.com/apache/doris/pull/58932)
-- Iceberg supports ignoring dangling deletes to improve COUNT pushdown [#59069](https://github.com/apache/doris/pull/59069)
-- Enhance Iceberg REST Catalog connectivity checks and network timeout handling [#58433](https://github.com/apache/doris/pull/58433), [#58434](https://github.com/apache/doris/pull/58434)
-- Align Paimon incremental query behavior with Spark in single-snapshot scenarios [#58253](https://github.com/apache/doris/pull/58253)
+- If `time_or_datetime_expr` or `format` is NULL, it returns NULL.
+- If the `format` string contains date format specifiers:
+  - `%Y`: return `0000`.
+  - `%y`, `%m`, `%d`: return `00`.
+  - `%c`, `%e`: return `0`.
+  - Other date format specifiers (`%a`, `%b`, `%D`, `%j`, `%M`, `%u`, `%U`, `%v`, `%V`, `%w`, `%W`, `%x`, `%X`): return NULL.
+- If the time value contains an hour part greater than 23, the `%H` and `%k` format specifiers will produce a value larger than 23. Other hour format specifiers will produce the hour value modulo 12.
 
-### Doris Cloud (Compute-Storage Separation)
+## Examples
 
-- Support dynamically updating tablet rebalancer configuration to improve operational flexibility in cloud environments [#58376](https://github.com/apache/doris/pull/58376)
-- Optimize TopN queries in compute-storage separation scenarios to avoid unnecessary remote broadcast reads [#58112](https://github.com/apache/doris/pull/58112), [#58155](https://github.com/apache/doris/pull/58155)
-- Improve tablet performance consistency during upgrade processes, reducing hotspot risks [#58247](https://github.com/apache/doris/pull/58247)
-- Make File Cache adaptive during Schema Change to reduce cache impact for large tables [#58622](https://github.com/apache/doris/pull/58622)
-- Add download wait time metrics to query profiles to improve IO observability [#58870](https://github.com/apache/doris/pull/58870)
-- Enhance File Cache debugging capabilities with LRU dump support [#58871](https://github.com/apache/doris/pull/58871)
+```sql
+SELECT * FROM test_time_format;
+```
 
-### Security & Stability
+```text
++------+-------------------+
+| id   | tm                |
++------+-------------------+
+|    1 | 00:00:00          |
+|    2 | 00:00:00.123456   |
+|    3 | 12:34:56          |
+|    4 | 12:34:56.789012   |
+|    5 | 23:59:59          |
+|    6 | 23:59:59.999999   |
+|    7 | 08:00:00          |
+|    8 | 15:00:00          |
+|    9 | 100:00:00         |
+|   10 | 123:45:56         |
+|   11 | 838:59:59.999999  |
+|   12 | -00:00:01         |
+|   13 | -12:34:56.000001  |
+|   14 | -838:59:59.999999 |
++------+-------------------+
+```
 
-- Enforce HTTPS for Glue Catalog to improve external catalog security [#58366](https://github.com/apache/doris/pull/58366)
-- Add SSRF validation for Create Stage [#58874](https://github.com/apache/doris/pull/58874)
+```sql
+SELECT
+    id,
+    tm,
+    TIME_FORMAT(tm, '%H') AS '%H',
+    TIME_FORMAT(tm, '%k') AS '%k',
+    TIME_FORMAT(tm, '%h') AS '%h',
+    TIME_FORMAT(tm, '%I') AS '%I',
+    TIME_FORMAT(tm, '%l') AS '%l',
+    TIME_FORMAT(tm, '%i') AS '%i',
+    TIME_FORMAT(tm, '%s') AS '%s',
+    TIME_FORMAT(tm, '%S') AS '%S',
+    TIME_FORMAT(tm, '%f') AS '%f',
+    TIME_FORMAT(tm, '%p') AS '%p',
+    TIME_FORMAT(tm, '%r') AS '%r',
+    TIME_FORMAT(tm, '%T') AS '%T',
+    TIME_FORMAT(tm, '%H:%i:%s.%f') AS '%H:%i:%s.%f',
+    TIME_FORMAT(tm, '%k %H %l %I %h') AS '%k %H %l %I %h',
+    TIME_FORMAT(tm, '%T %r %h:%I') AS '%T %r %h:%I',
+    TIME_FORMAT(tm, '%l %k %I %H %h %p') AS '%l %k %I %H %h %p',
+    TIME_FORMAT(tm, '%f %s %i %T %r') AS '%f %s %i %T %r'
+FROM test_time_format
+ORDER BY id;
+```
 
-## Bug Fixes
+```text
++------+-------------------+------+------+------+------+------+------+------+------+---------+------+--------------+-----------+------------------+-----------------+-----------------------------+--------------------+------------------------------------+
+| id   | tm                | %H   | %k   | %h   | %I   | %l   | %i   | %s   | %S   | %f      | %p   | %r           | %T        | %H:%i:%s.%f      | %k %H %l %I %h  | %T %r %h:%I                 | %l %k %I %H %h %p  | %f %s %i %T %r                     |
++------+-------------------+------+------+------+------+------+------+------+------+---------+------+--------------+-----------+------------------+-----------------+-----------------------------+--------------------+------------------------------------+
+|    1 | 00:00:00          | 00   | 0    | 12   | 12   | 12   | 00   | 00   | 00   | 000000  | AM   | 12:00:00 AM  | 00:00:00  | 00:00:00.000000  | 0 00 12 12 12   | 00:00:00 12:00:00 AM 12:12  | 12 0 12 00 12 AM   | 000000 00 00 00:00:00 12:00:00 AM  |
+|    2 | 00:00:00.123456   | 00   | 0    | 12   | 12   | 12   | 00   | 00   | 00   | 123456  | AM   | 12:00:00 AM  | 00:00:00  | 00:00:00.123456  | 0 00 12 12 12   | 00:00:00 12:00:00 AM 12:12  | 12 0 12 00 12 AM   | 123456 00 00 00:00:00 12:00:00 AM  |
+|    3 | 12:34:56          | 12   | 12   | 12   | 12   | 12   | 34   | 56   | 56   | 000000  | PM   | 12:34:56 PM  | 12:34:56  | 12:34:56.000000  | 12 12 12 12 12  | 12:34:56 12:34:56 PM 12:12  | 12 12 12 12 12 PM  | 000000 56 34 12:34:56 12:34:56 PM  |
+|    4 | 12:34:56.789012   | 12   | 12   | 12   | 12   | 12   | 34   | 56   | 56   | 789012  | PM   | 12:34:56 PM  | 12:34:56  | 12:34:56.789012  | 12 12 12 12 12  | 12:34:56 12:34:56 PM 12:12  | 12 12 12 12 12 PM  | 789012 56 34 12:34:56 12:34:56 PM  |
+|    5 | 23:59:59          | 23   | 23   | 11   | 11   | 11   | 59   | 59   | 59   | 000000  | PM   | 11:59:59 PM  | 23:59:59  | 23:59:59.000000  | 23 23 11 11 11  | 23:59:59 11:59:59 PM 11:11  | 11 23 11 23 11 PM  | 000000 59 59 23:59:59 11:59:59 PM  |
+|    6 | 23:59:59.999999   | 23   | 23   | 11   | 11   | 11   | 59   | 59   | 59   | 999999  | PM   | 11:59:59 PM  | 23:59:59  | 23:59:59.999999  | 23 23 11 11 11  | 23:59:59 11:59:59 PM 11:11  | 11 23 11 23 11 PM  | 999999 59 59 23:59:59 11:59:59 PM  |
+|    7 | 08:00:00          | 08   | 8    | 08   | 08   | 8    | 00   | 00   | 00   | 000000  | AM   | 08:00:00 AM  | 08:00:00  | 08:00:00.000000  | 8 08 8 08 08    | 08:00:00 08:00:00 AM 08:08  | 8 8 08 08 08 AM    | 000000 00 00 08:00:00 08:00:00 AM  |
+|    8 | 15:00:00          | 15   | 15   | 03   | 03   | 3    | 00   | 00   | 00   | 000000  | PM   | 03:00:00 PM  | 15:00:00  | 15:00:00.000000  | 15 15 3 03 03   | 15:00:00 03:00:00 PM 03:03  | 3 15 03 15 03 PM   | 000000 00 00 15:00:00 03:00:00 PM  |
+|    9 | 100:00:00         | 100  | 100  | 04   | 04   | 4    | 00   | 00   | 00   | 000000  | AM   | 04:00:00 AM  | 100:00:00 | 100:00:00.000000 | 100 100 4 04 04 | 100:00:00 04:00:00 AM 04:04 | 4 100 04 100 04 AM | 000000 00 00 100:00:00 04:00:00 AM |
+|   10 | 123:45:56         | 123  | 123  | 03   | 03   | 3    | 45   | 56   | 56   | 000000  | AM   | 03:45:56 AM  | 123:45:56 | 123:45:56.000000 | 123 123 3 03 03 | 123:45:56 03:45:56 AM 03:03 | 3 123 03 123 03 AM | 000000 56 45 123:45:56 03:45:56 AM |
+|   11 | 838:59:59.999999  | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL    | NULL | NULL         | NULL      | NULL             | NULL            | NULL                        | NULL               | NULL                               |
+|   12 | -00:00:01         | -00  | -0   | -12  | -12  | -12  | -00  | -01  | -01  | -000000 | -AM  | -12:00:01 AM | -00:00:01 | -00:00:01.000000 | -0 00 12 12 12  | -00:00:01 12:00:01 AM 12:12 | -12 0 12 00 12 AM  | -000000 01 00 00:00:01 12:00:01 AM |
+|   13 | -12:34:56.000001  | -12  | -12  | -12  | -12  | -12  | -34  | -56  | -56  | -000001 | -PM  | -12:34:56 PM | -12:34:56 | -12:34:56.000001 | -12 12 12 12 12 | -12:34:56 12:34:56 PM 12:12 | -12 12 12 12 12 PM | -000001 56 34 12:34:56 12:34:56 PM |
+|   14 | -838:59:59.999999 | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL    | NULL | NULL         | NULL      | NULL             | NULL            | NULL                        | NULL               | NULL                               |
++------+-------------------+------+------+------+------+------+------+------+------+---------+------+--------------+-----------+------------------+-----------------+-----------------------------+--------------------+------------------------------------+
+```
 
-### Query Engine (Nereids Optimizer)
+> Note: For the parameters `838:59:59.999999` and `-838:59:59.999999`, since they exceed the TIME range [-838:59:59, 838:59:59], they cannot be converted to the TIME type, and thus the returned result is NULL.
 
-- Fix potential infinite loops triggered by TopN / Limit / Join rules in specific scenarios [#58697](https://github.com/apache/doris/pull/58697)
-- Fix logic errors in aggregation, window functions, Repeat, and type conversion [#58080](https://github.com/apache/doris/pull/58080), [#58114](https://github.com/apache/doris/pull/58114), [#58330](https://github.com/apache/doris/pull/58330), [#58548](https://github.com/apache/doris/pull/58548)
+````
 
-### Materialized Views (MV)
+```sql
+-- Placeholder for %Y, %y, %m, %d, %c, %e returns the corresponding number of digits 0
+SELECT fmt, TIME_FORMAT('12:13:14.123456', fmt) AS res FROM test_format;
+````
 
-- Disallow creating invalid materialized views with value column predicates on MOW tables [#57937](https://github.com/apache/doris/pull/57937)
+```text
++------+------+
+| fmt  | res  |
++------+------+
+| %Y   | 0000 |
+| %y   | 00   |
+| %m   | 00   |
+| %d   | 00   |
+| %c   | 0    |
+| %e   | 0    |
++------+------+
+```
 
-### Data Ingestion
+```sql
+-- Other placeholders (`%D`, `%j`, `%M`, `%u`, `%U`, `%v`, `%V`, `%w`, `%W`, `%x`, `%X`) return NULL.
+SELECT TIME_FORMAT('11:22:33', '%h:%i:%s, %j');
+```
 
-- Fix undefined behavior caused by multiple invocations of the JSON Reader, preventing potential data corruption [#58192](https://github.com/apache/doris/pull/58192)
-- Fix incorrect behavior related to `COLUMNS FROM PATH` in Broker Load [#58351](https://github.com/apache/doris/pull/58351), [#58904](https://github.com/apache/doris/pull/58904)
-- Fix abnormal behavior of Group Commit when nodes are offline or decommissioned [#59118](https://github.com/apache/doris/pull/59118)
-- Fix failures in Load / Delete / Partial Update under specific edge conditions [#58553](https://github.com/apache/doris/pull/58553), [#58230](https://github.com/apache/doris/pull/58230), [#59096](https://github.com/apache/doris/pull/59096)
+```sql
++-----------------------------------------+
+| TIME_FORMAT('11:22:33', '%h:%i:%s, %j') |
++-----------------------------------------+
+| NULL                                    |
++-----------------------------------------+
+```
 
-### Doris Cloud (Compute-Storage Separation)
+```sql
+-- If any parameter is NULL, then return NULL
+SELECT TIME_FORMAT('12:34:56', NULL);
+```
 
-- Fix stability issues in compute-storage separation scenarios, including Tablet Drop, Compaction, and slow initial startup [#58157](https://github.com/apache/doris/pull/58157), [#58195](https://github.com/apache/doris/pull/58195), [#58761](https://github.com/apache/doris/pull/58761)
-- Fix crashes and resource leaks in File Cache under abnormal conditions or BE failures [#58196](https://github.com/apache/doris/pull/58196), [#58819](https://github.com/apache/doris/pull/58819), [#59058](https://github.com/apache/doris/pull/59058)
-- Fix abnormal read behavior caused by uncleared Segment Footer Cache after compaction [#59185](https://github.com/apache/doris/pull/59185)
-- Fix failures when executing Copy Into with ORC / Parquet formats [#58551](https://github.com/apache/doris/pull/58551)
+```text
++-------------------------------+
+| TIME_FORMAT('12:34:56', NULL) |
++-------------------------------+
+| NULL                          |
++-------------------------------+
+```
