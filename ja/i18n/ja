@@ -1,97 +1,97 @@
 ---
 {
-  "title": "SIGNBIT",
+  "title": "COT",
   "language": "en",
-  "description": "Determine whether the sign bit of the given floating-point number is set."
+  "description": "Returns the cotangent of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
 ## Description
 
-Determine whether the sign bit of the given floating-point number is set.
+Returns the cotangent of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
 
 ## Syntax
 
 ```sql
-SIGNBIT(<a>)
+COT(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                     |
-| --------- | ----------------------------------------------- |
-| `<a>`     | Floating-point number to check the sign bit for |
+| Parameter | Description                                           |
+| --------- | ----------------------------------------------------- |
+| `<x>`     | The value for which the cotangent is to be calculated |
 
 ## Return Value
 
-Returns true if the sign bit of `<a>` is set (i.e., `<a>` is negative), otherwise returns false.
-Specifically, it can also distinguish between positive and negative zeros in floating-point numbers.
+Returns a Double type value means the cotangent of x.
 
-## Examples
+## Special Cases
+
+- When `x` is NaN, returns NaN
+- When `x` is positive or negative infinity, returns NaN
+- When `x` is NULL, returns NULL
+
+## Example
 
 ```sql
-select signbit(-1.0);
+select cot(1),cot(2),cot(1000);
+```
+
+```text
++--------------------+----------------------+--------------------+
+| cot(1)             | cot(2)               | cot(1000)          |
++--------------------+----------------------+--------------------+
+| 0.6420926159343306 | -0.45765755436028577 | 0.6801221323348698 |
++--------------------+----------------------+--------------------+
+```
+
+Input null value.
+
+```sql
+select cot(null);
+```
+
+```text
++--------------------+
+| cot(null)          |
++--------------------+
+|      NULL          |
++--------------------+
+```
+
+```sql
+select cot(cast('nan' as double));
+```
+
+```text
++----------------------------+
+| cot(cast('nan' AS DOUBLE)) |
++----------------------------+
+| NaN                        |
++----------------------------+
+```
+
+```sql
+select cot(cast('inf' as double));
+```
+
+```text
++----------------------------+
+| cot(cast('inf' AS DOUBLE)) |
++----------------------------+
+| NaN                        |
++----------------------------+
+```
+
+```sql
+select cot(cast('-inf' as double));
 ```
 
 ```text
 +-----------------------------+
-| signbit(cast(-1 as DOUBLE)) |
+| cot(cast('-inf' AS DOUBLE)) |
 +-----------------------------+
-| true                        |
+| NaN                         |
 +-----------------------------+
-```
-
-```sql
-select signbit(0.0);
-```
-
-```text
-+----------------------------+
-| signbit(cast(0 as DOUBLE)) |
-+----------------------------+
-| false                      |
-+----------------------------+
-```
-
-```sql
-select signbit(1.0);
-```
-
-```text
-+----------------------------+
-| signbit(cast(1 as DOUBLE)) |
-+----------------------------+
-| false                      |
-+----------------------------+
-```
-
-```sql
-select signbit(cast('+0.0' as double)) , signbit(cast('-0.0' as double));
-```
-
-```text
-+---------------------------------+---------------------------------+
-| signbit(cast('+0.0' as double)) | signbit(cast('-0.0' as double)) |
-+---------------------------------+---------------------------------+
-|                               0 |                               1 |
-+---------------------------------+---------------------------------+
 ```
