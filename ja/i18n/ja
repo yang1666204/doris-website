@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_DISTINCT",
+  "title": "ARRAY_EXCEPT",
   "language": "en",
-  "description": "Removes duplicate elements from an array and returns a new array containing unique elements. The function maintains the original order of elements,"
+  "description": "Returns elements that exist in the first array but not in the second array,"
 }
 ---
 
-## array_distinct
+## array_except
 
 <version since="2.0.0">
 
@@ -14,17 +14,18 @@
 
 ## Description
 
-Removes duplicate elements from an array and returns a new array containing unique elements. The function maintains the original order of elements, keeping only the first occurrence of each element.
+Returns elements that exist in the first array but not in the second array, forming a new array after deduplication while maintaining the original order.
 
 ## Syntax
 
 ```sql
-array_distinct(ARRAY<T> arr)
+array_except(ARRAY<T> arr1, ARRAY<T> arr2)
 ```
 
 ### Parameters
 
-- `arr`：ARRAY\<T> type, the array to deduplicate. Supports column names or constant values.
+- `arr1`：ARRAY<T> type, the first array.
+- `arr2`：ARRAY<T> type, the second array.
 
 **T supported types:**
 
@@ -36,148 +37,202 @@ array_distinct(ARRAY<T> arr)
 
 ### Return Value
 
-Return type: ARRAY\<T>
+Return type: ARRAY<T>
 
 Return value meaning:
 
-- The deduplicated array containing all unique elements from the original array
-- Maintains the original order of elements
-- NULL: if the input array is NULL
+- Returns a new array containing all unique elements that exist in arr1 but not in arr2, maintaining the same order as arr1.
+- NULL: if either input array is NULL.
 
 Usage notes:
 
-- The function traverses the array from left to right, keeping the first occurrence of each element and removing subsequent duplicate elements
-- Empty array returns empty array, NULL array returns NULL
-- Deduplication maintains the relative order of elements in the original array, does not reorder
-- For null values in array elements: null elements will be deduplicated, multiple nulls only keep one
+- Only supports basic type arrays, does not support complex types (ARRAY, MAP, STRUCT).
+- Empty array with any array results in an empty array.
+- Element comparison follows type compatibility rules, attempts conversion when types are incompatible, fails to null.
+- For null values in array elements: null elements are treated as regular elements in operations, null and null are considered the same
 
 ### Examples
 
+```sql
+CREATE TABLE array_except_test (
+    id INT,
+    arr1 ARRAY<INT>,
+    arr2 ARRAY<INT>,
+    str_arr1 ARRAY<STRING>,
+    str_arr2 ARRAY<STRING>
+)
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 3
+PROPERTIES (
+    "replication_num" = "1"
+);
+
+INSERT INTO array_except_test VALUES
+(1, [1, 2, 3, 4, 5], [2, 4]),
+(2, [10, 20, 30], [30, 40]),
+(3, [], [1, 2]),
+(4, NULL, [1, 2]),
+(5, [1, null, 2, null, 3], [null, 2]),
+(6, [1, 2, 3], NULL),
+(7, [1, 2, 3], []),
+(8, [], []),
+(9, [1, 2, 2, 3, 3, 3, 4, 5, 5], [2, 3, 5]),
+(10, [1], [1]);
+```
+
 **Query examples:**
 
-Integer array deduplication, the original array [1, 2, 3, 4, 5] has no duplicate elements, so the result after deduplication is the same as the original array.
+Basic integer array except:
 
 ```sql
-SELECT array_distinct([1, 2, 3, 4, 5]);
-+---------------------------------+
-| array_distinct([1, 2, 3, 4, 5]) |
-+---------------------------------+
-| [1, 2, 3, 4, 5]                 |
-+---------------------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 1;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| [1, 3, 5]                   |
++-----------------------------+
 ```
 
-String array deduplication: removes duplicate string elements. In the original array ['a', 'b', 'a', 'c', 'b', 'd'], 'a' appears twice (keeping the first occurrence), 'b' appears twice (keeping the first occurrence), after deduplication it becomes ["a", "b", "c", "d"].
+Partial element overlap:
 
 ```sql
-SELECT array_distinct(['a', 'b', 'a', 'c', 'b', 'd']);
-+------------------------------------------------+
-| array_distinct(['a', 'b', 'a', 'c', 'b', 'd']) |
-+------------------------------------------------+
-| ["a", "b", "c", "d"]                           |
-+------------------------------------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 2;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| [10, 20]                    |
++-----------------------------+
 ```
 
-Array containing null values: null elements will also be deduplicated, multiple nulls only keep one. In the original array [1, null, 2, null, 3, null], null appears three times, after deduplication only the first null is kept, resulting in [1, null, 2, 3].
+Empty array with any array:
 
 ```sql
-SELECT array_distinct([1, null, 2, null, 3, null]);
-+---------------------------------------------+
-| array_distinct([1, null, 2, null, 3, null]) |
-+---------------------------------------------+
-| [1, null, 2, 3]                             |
-+---------------------------------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 3;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| []                          |
++-----------------------------+
 ```
 
-IP type array deduplication: deduplication of IPv4 address array. In the original array ['192.168.1.1', '192.168.1.2', '192.168.1.1'], '192.168.1.1' appears twice, after deduplication only the first occurrence of the address is kept, resulting in [192.168.1.1, 192.168.1.2].
+NULL array: returning NULL when either input array is NULL without throwing an error.
 
 ```sql
-SELECT array_distinct(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.1'] AS ARRAY<IPV4>));
-+------------------------------------------------------------------------------------+
-| array_distinct(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.1'] AS ARRAY<IPV4>)) |
-+------------------------------------------------------------------------------------+
-| ["192.168.1.1", "192.168.1.2"]                                                     |
-+------------------------------------------------------------------------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 4;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| NULL                        |
++-----------------------------+
 ```
 
-IPv6 type array deduplication: deduplication of IPv6 address array. In the original array ['2001:db8::1', '2001:db8::2', '2001:db8::1'], '2001:db8::1' appears twice, after deduplication only the first occurrence of the address is kept, resulting in [2001:db8::1, 2001:db8::2].
+Array containing null values:
 
 ```sql
-SELECT array_distinct(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::1'] AS ARRAY<IPV6>));
-+------------------------------------------------------------------------------------+
-| array_distinct(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::1'] AS ARRAY<IPV6>)) |
-+------------------------------------------------------------------------------------+
-| ["2001:db8::1", "2001:db8::2"]                                                     |
-+------------------------------------------------------------------------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 5;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| [1, 3]                      |
++-----------------------------+
 ```
 
-Empty array returns empty array: empty array has no elements to deduplicate, directly returns empty array.
+Second array is NULL: returning NULL when either input array is NULL without throwing an error.
 
 ```sql
-+--------------------+
-| array_distinct([]) |
-+--------------------+
-| []                 |
-+--------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 6;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| NULL                        |
++-----------------------------+
 ```
 
-NULL array returns NULL: returning NULL when the input array is NULL without throwing an error.
+Second array is empty:
 
 ```sql
-+----------------------+
-| array_distinct(NULL) |
-+----------------------+
-| NULL                 |
-+----------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 7;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| [1, 2, 3]                   |
++-----------------------------+
 ```
 
-Single element array returns the original array: array with only one element has no duplicate elements, the result after deduplication is the same as the original array.
+Both arrays are empty:
 
 ```sql
-SELECT array_distinct([42]);
-+----------------------+
-| array_distinct([42]) |
-+----------------------+
-| [42]                 |
-+----------------------+
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 8;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| []                          |
++-----------------------------+
+```
+
+Deduplication example:
+
+```sql
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 9;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| [1, 4]                      |
++-----------------------------+
+```
+
+All elements are excepted:
+
+```sql
+SELECT array_except(arr1, arr2) FROM array_except_test WHERE id = 10;
++-----------------------------+
+| array_except(arr1, arr2)    |
++-----------------------------+
+| []                          |
++-----------------------------+
+```
+
+String array except:
+
+```sql
+SELECT array_except(['a', 'b', 'c', 'd'], ['b', 'd']);
++----------------------------------+
+| array_except(['a','b','c','d'],['b','d']) |
++----------------------------------+
+| ["a", "c"]                      |
++----------------------------------+
+```
+
+### Exception examples
+
+Incorrect number of parameters:
+
+```sql
+SELECT array_except([1, 2, 3]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_except' which has 1 arity. Candidate functions are: [array_except(Expression, Expression)]
+```
+
+Incompatible types:
+
+```sql
+SELECT array_except([1, 2, 3], ['a', 'b']);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_except(ARRAY<INT>, ARRAY<VARCHAR(1)>)
+```
+
+Passing non-array type:
+
+```sql
+SELECT array_except('not_an_array', [1, 2, 3]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_except(VARCHAR(12), ARRAY<INT>)
 ```
 
 Complex types not supported:
 
-Nested array type not supported, throws error.
-
 ```sql
-SELECT array_distinct([[1,2,3], [4,5,6], [1,2,3]]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.6)[RUNTIME_ERROR]execute failed or unsupported types for function array_distinct(Array(Nullable(Array(Nullable(TINYINT)))))
-```
-
-Map type not supported, throws error.
-
-```sql
-SELECT array_distinct([{'a':1}, {'b':2}, {'a':1}]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.6)[RUNTIME_ERROR]execute failed or unsupported types for function array_distinct(Array(Nullable(Map(Nullable(String), Nullable(TINYINT)))))
-```
-
-Struct type not supported, throws error.
-
-```sql
-SELECT array_distinct(array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30), named_struct('name','Alice','age',20)));
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.6)[RUNTIME_ERROR]execute failed or unsupported types for function array_distinct(Array(Nullable(Struct(name:Nullable(String), age:Nullable(TINYINT)))))
-```
-
-Incorrect number of parameters will cause an error: the array_distinct function only accepts one array parameter, passing multiple parameters will cause an error.
-
-```sql
-SELECT array_distinct([1, 2, 3], [4, 5, 6]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_distinct' which has 2 arity. Candidate functions are: [array_distinct(Expression)]
-```
-
-Passing non-array type will cause an error: the array_distinct function only accepts array type parameters, passing non-array types like strings will cause an error.
-
-```sql
-SELECT array_distinct('not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_distinct(VARCHAR(12))
+SELECT array_except([[1,2],[3,4]], [[3,4]]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_except(ARRAY<ARRAY<INT>>, ARRAY<ARRAY<INT>>)
 ```
 
 ### Keywords
 
-ARRAY, DISTINCT, ARRAY_DISTINCT
+ARRAY, EXCEPT, ARRAY_EXCEPT
