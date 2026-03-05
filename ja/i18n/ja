@@ -1,11 +1,11 @@
 ---
 {
-  "title": "GET_JSON_INT",
+  "title": "GET_JSON_STRING",
   "language": "en",
-  "description": "Alias of function JSONEXTRACTINT."
+  "description": "Alias of function JSONEXTRACTSTRING."
 }
 ---
 
 ## Description
 
-Alias of function [`JSON_EXTRACT_INT`](./json-extract-int.md).
+Alias of function [`JSON_EXTRACT_STRING`](./json-extract-string.md).
