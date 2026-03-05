@@ -1,112 +1,72 @@
 ---
 {
-  "title": "Tableau | Bi",
+  "title": "BladePipe",
   "language": "en",
-  "description": "For enabling Apache Doris access on Tableau, Tableau's official MySQL connector can meet your needs.",
-  "sidebar_label": "Tableau"
+  "description": "BladePipe is a real-time end-to-end data replication tool, moving data between 30+ databases, message queues, search engines, caching,"
 }
 ---
 
-# Tableau
+BladePipe is a **real-time end-to-end data replication** tool, moving data between **30+** databases, message queues, search engines, caching, real-time data warehouses, data lakes and more, with **ultra-low latency less than 3 seconds**. It features efficiency, stability and scalability, compatibility with diverse database engines, one-stop management, enhanced security, and complex data transformation.
 
-For enabling Apache Doris access on Tableau, Tableau's official MySQL connector can meet your needs. This connector uses the MySQL JDBC driver to access data.
+## Functions
 
-Through the MySQL connector, Tableau can integrate Apache Doris databases and tables as data sources. To enable this feature, follow the setup guide below:
+BladePipe presents a visual management interface, allowing you to easily create DataJobs to realize **schema migration, data migration, synchronization, verification and correction**, etc. In addition, more refined and customized configurations are supported by setting parameters. Now BladePipe supports data movement from the following source DataSources to Doris:
 
-- Required setup before use
-- Configuring the Apache Doris data source in Tableau
-- Building visualizations in Tableau
-- Connection and usage tips
+| Source DataSource           | Schema Migration | Data Migration | Data Sync | Verification & Correction |
+| --------------------------- | ---------------- | -------------- | --------- | --------------------------------------------- |
+| MySQL/MariaDB/AuroraMySQL   | Yes              | Yes            | Yes       | Yes                                           |
+| Oracle                      | Yes              | Yes            | Yes       | Yes                                           |
+| PostgreSQL/AuroraPostgreSQL | Yes              | Yes            | Yes       | Yes                                           |
+| SQL Server                  | Yes              | Yes            | Yes       | Yes                                           |
+| Kafka                       | No               | No             | Yes       | No                                            |
+| AutoMQ                      | No               | No             | Yes       | No                                            |
+| TiDB                        | Yes              | Yes            | Yes       | Yes                                           |
+| Hana                        | Yes              | Yes            | Yes       | Yes                                           |
+| PolarDB-X                   | Yes              | Yes            | Yes       | Yes                                           |
 
-## Installing Tableau and the JDBC driver
+:::info
+For more functions and parameter settings, please refer to [BladePipe Connections](https://doc.bladepipe.com/dataMigrationAndSync/connection/mysql2?target=Doris).
+:::
 
-1. Download and install [Tableau desktop](https://www.tableau.com/products/desktop/download).
-2. Obtain [MySQL JDBC](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Tableau/latest/mysql-connector-j-8.3.0.jar) (version 8.3.0).
-3. JDBC Driver Placement Path
-   - macOS: JDBC driver JAR file placement path: `~/Library/Tableau/Drivers`
-   - Windows: Assuming `tableau_path` is the Tableau installation directory on the Windows operating system, generally the default is: `tableau_path = C:\Program Files\Tableau`, then the JDBC driver JAR file placement path is: `%tableau_path%\Drivers\`
+## Installation
 
-Next, you can configure a Doris data source in Tableau and start building data visualizations!
+Follow the instructions in [Install Worker (Docker)](https://doc.bladepipe.com/productOP/docker/install_worker_docker) or [Install Worker (Binary)](https://doc.bladepipe.com/productOP/binary/install_worker_binary) to download and install a BladePipe Worker.
 
-## Configuring a Doris Data Source in Tableau
+## Example
 
-Now that you have installed and set up the **JDBC and Connector** drivers, let's see how to define a data source in Tableau that connects to the tpch database in Doris.
+Taking a MySQL instance as an example, the following part describes how to move data from MySQL to Doris.
 
-1. Gathering Your Connection Details
+### Add DataSources
 
-To connect to Apache Doris via JDBC, you need the following information:
+1. Log in to the [BladePipe Cloud](https://cloud.bladepipe.com/). Click **DataSource** > **Add DataSource**.
 
-| Parameter          | Meaning               | Example                                                    |
-| ------------------ | --------------------- | ---------------------------------------------------------- |
-| Server             | Database host         | 127.0.1.28 |
-| Port               | Database MySQL port   | 9030                                                       |
-| Database           | Database name         | tpch                                                       |
-| Username           | Username              | testuser                                                   |
-| Password           | Password              | Leave blank                                                |
-| Init SQL Statement | Initial SQL statement | `select * from database.table`                             |
+2. Select MySQL and Doris as the Type respectively, and fill in the setup form accordingly.
+   ![Add DataSources-1](/images/bp-doris-1.png)
 
-2. Start Tableau. (If you are already running it, please restart it.)
-3. From the left-hand menu, click **More** under the **To a Server** section. Search for **mysql** in the list of available connectors.
+3. Click **Test Connection**. After successful connection, click **Add DataSource** to add the DataSource.
+   ![Add DataSources-2](/images/bp-doris-2.png)
 
-![](/images/ecomsystem/tableau/QSrsbadm0oEiuHxyGv3clFhTnLh.png)
+### Create a DataJob
 
-4. Clicking **MySQL** will bring up the following dialog box:
+1. Click DataJob > [Create DataJob](https://doc.bladepipe.com/operation/job_manage/create_job/create_full_incre_task).
 
-![](/images/ecomsystem/tableau/DN47bCp5ZovHCmxH0DAc3fBonR3.png)
+2. Select the source and target DataSources, and click **Test Connection** to ensure the connection to the source and target DataSources are both successful.
+   ![Create a DataJob-1](/images/bp-doris-3.png)
 
-5. Follow the prompts in the dialog box to enter the corresponding connection information.
-6. After completing the above input boxes, click the **Sign In** button. You should then see a new Tableau workbook.
-   ![](/images/ecomsystem/tableau/LJK9bPMptoAGjGxzoCtcY8Agnye.png)
+3. Select **Incremental** for DataJob Type, together with the **Full Data** option.
+   ![Create a DataJob-2](/images/bp-doris-4.png)
 
-Next, we can build some visualizations in Tableau!
+4. Select the tables to be replicated.
+   ![Create a DataJob-3](/images/bp-doris-5.png)
 
-## Building Visualizations in Tableau
+5. Select the columns to be replicated.
+   ![Create a DataJob-4](/images/bp-doris-6.png)
 
-We've chosen TPC-H data as our data source. For instructions on building a Doris TPC-H data source, refer to [this document](../../benchmark/tpch.md).
+6. Confirm the DataJob creation.
 
-Now that we've configured the Doris data source in Tableau, let's visualize the data.
+7. The DataJob runs automatically. BladePipe will automatically run the following DataTasks:
 
-1. Drag the `customer` and `orders` tables into the workbook. Then, select the `Custkey` field for the table association below.
-   ![](/images/ecomsystem/tableau/ZJuBbDBc5o2Gnyxhn7icv30xnXw.png)
-2. Drag the `nation` table into the workbook and associate it with the `customer` table by selecting the `Nationkey` field.
-   ![](/images/ecomsystem/tableau/GPXQbcNUnobHtLx5sIocMHAwn2d.png)
-3. Now you have linked the `customer`, `orders`, and `nation` tables as data sources, so you can use this relationship to work on data-related issues. Select the `Sheet 1` tab at the bottom of the workbook to access the workbench.
-   ![](/images/ecomsystem/tableau/FsHmbUOKIoFT5YxWmGecLArLnjd.png)
-4. Suppose you want to know the total number of users each year. Drag OrderDate from orders to the Columns area (a horizontal field), and then drag customer(count) from customer to Rows. Tableau will generate the following line chart:
-   ![](/images/ecomsystem/tableau/I9SCbCFzoo7TgLx6BP1cHdtRnWc.png)
-
-A simple line chart is now complete. However, this dataset is not real data and was automatically generated by the tpch script and default rules; it is intended for testing usability.
-
-5. Suppose you want to know the average order amount (USD) by region (country) and year:
-   - Click the `New Worksheet` tab to create a new table
-   - Drag Name from the nation table into `Rows`
-   - Drag OrderDate from the orders table into `Columns`
-
-You should see the following:
-
-6. Note: The `Abc` value is just a populated value because you haven't defined the aggregation logic to this icon, so you need to drag the measure onto the table. Drag Totalprice from the orders table to the middle of the table. Note that the default calculation is a SUM on Totalprices:
-   ![](/images/ecomsystem/tableau/Am9IbyUo4o30DixVi2ccoZvKn8b.png)
-7. Click `SUM` and change `Measure` to `Average`.
-   ![](/images/ecomsystem/tableau/AaFwbMOKTo86NaxU54mcVYs1nJd.png)
-8. From the same drop-down menu, select `Format` and change `Numbers` to `Currency (Standard)`
-   ![](/images/ecomsystem/tableau/ZmRDbjws9o5Ampx4YZYcS6Umnqf.png)
-9. You will get a table that meets your expectations.
-   ![](/images/ecomsystem/tableau/MNb0bjoB2ozn4kxfKx9cVj2hnhb.png)
-
-At this point, Tableau has been successfully connected to Apache Doris, enabling data analysis and dashboard creation.
-
-## Connection and Usage Tips
-
-**Performance Optimization**
-
-- Create Doris database tables appropriately based on actual needs, partitioning and bucketing by time to effectively reduce predicate filtering and most data transfer.
-- Appropriate data pre-aggregation can be achieved by creating materialized views on the Doris side.
-- Set a reasonable refresh schedule to balance refresh computational resource consumption and dashboard data timeliness.
-
-**Security Configuration**
-
-- It is recommended to use a VPC private connection to avoid security risks introduced by public network access.
-- Configure security groups to restrict access.
-- Enable SSL/TLS connections and other access methods.
-- Fine-tune Doris user account roles and access permissions to avoid excessive delegation of permissions.
-
+- **Schema Migration**: The schemas of the source tables will be migrated to the target instance.
+- **Full Data**: All existing data of the source tables will be fully migrated to the target instance.
+- **Incremental**: Ongoing data changes will be continuously synchronized to the target instance.
+  ![Create a DataJob-5](/images/bp-doris-8.png)
