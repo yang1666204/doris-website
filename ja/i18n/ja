@@ -1,52 +1,53 @@
 ---
 {
-  "title": "BITNOT",
+  "title": "BITOR",
   "language": "en",
-  "description": "Performs a bitwise NOT operation on an integer."
+  "description": "Performs a bitwise OR operation on two integers."
 }
 ---
 
 ## Description
 
-Performs a bitwise NOT operation on an integer.
+Performs a bitwise OR operation on two integers.
 
-Supported integer types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT.
+Supported integer types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT
 
 ## Syntax
 
 ```sql
-BITNOT(<x>)
+BITOR(<lhs>, <rhs>)
 ```
 
 ## Parameters
 
-- `<x>`: The integer to perform the operation on.
+- `<lhs>`: The first integer for the operation.
+- `<rhs>`: The second integer for the operation.
 
 ## Return Value
 
-Returns the result of the bitwise NOT operation on the integer.
+Returns the result of the bitwise OR operation between the two integers.
 
 ## Examples
 
 1. Example 1
     ```sql
-    select BITNOT(7), BITNOT(-127);
+    select BITOR(3,5), BITOR(4,7);
     ```
     ```text
-    +-----------+--------------+
-    | BITNOT(7) | BITNOT(-127) |
-    +-----------+--------------+
-    |        -8 |          126 |
-    +-----------+--------------+
+    +------------+------------+
+    | BITOR(3,5) | BITOR(4,7) |
+    +------------+------------+
+    |          7 |          7 |
+    +------------+------------+
     ```
 2. NULL argument
     ```sql
-    select BITNOT(NULL);
+    select BITOR(3, NULL), BITOR(NULL, 5), BITOR(NULL, NULL);
     ```
     ```text
-    +--------------+
-    | BITNOT(NULL) |
-    +--------------+
-    |         NULL |
-    +--------------+
+    +----------------+----------------+-------------------+
+    | BITOR(3, NULL) | BITOR(NULL, 5) | BITOR(NULL, NULL) |
+    +----------------+----------------+-------------------+
+    |           NULL |           NULL |              NULL |
+    +----------------+----------------+-------------------+
     ```
