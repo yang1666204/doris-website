@@ -1,60 +1,122 @@
 ---
 {
-  "title": "SHOW DELETE",
+  "title": "ACOSH",
   "language": "en",
-  "description": "This statement is used to display the historical delete tasks that have been successfully executed"
+  "description": "Returns the hyperbolic arc cosine of x, or NULL if x is less than 1."
 }
 ---
 
 ## Description
 
-This statement is used to display the historical delete tasks that have been successfully executed
+Returns the hyperbolic arc cosine of `x`, or `NULL` if `x` is less than `1`.
 
 ## Syntax
 
 ```sql
-SHOW DELETE [FROM <db_name>]
+ACOSH(<x>)
 ```
 
-## Optional Parameters
+## Parameters
 
-**<db_name>** : The name of the database to be displayed
+| Parameter | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| `<x>`     | The value for which the hyperbolic arc cosine is to be calculated |
 
 ## Return Value
 
-| Column            | Description                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-| `TableName`       | The name of the table where the delete operation was executed.                   |
-| `PartitionName`   | The name of the partition affected by the delete operation.                      |
-| `CreateTime`      | The timestamp when the delete operation was issued.                              |
-| `DeleteCondition` | The condition used for the delete operation, specifying which rows were deleted. |
-| `State`           | The status of the delete operation                                                               |
+The hyperbolic arc cosine value of parameter `x`.
 
-## Example
+## Special Cases
 
-1. Go to the test database to view all historical delete tasks
-     ```sql
-     show delete;
-     ```
-    ```text
-    +---------------+---------------+---------------------+-----------------+----------+
-    | TableName     | PartitionName | CreateTime          | DeleteCondition | State    |
-    +---------------+---------------+---------------------+-----------------+----------+
-    | iceberg_table | *             | 2025-03-14 15:53:32 | id EQ "1"       | FINISHED |
-    +---------------+---------------+---------------------+-----------------+----------+
-    ```
+- When `x` equals 1, returns 0
+- When `x` is less than 1, returns `NULL`
+- When `x` is NaN, returns NaN
+- When `x` is positive infinity, returns Infinity
+- When `x` is negative infinity, returns `NULL`
+- When `x` is NULL, returns NULL
 
-2. Display all historical delete tasks of database database
+## Examples
 
-     ```sql
-     show delete from tpch;
-     ```
+```sql
+select acosh(0.0);
+```
 
-     ```
-     +-----------+---------------+---------------------+-------------------+----------+
-     | TableName | PartitionName | CreateTime          | DeleteCondition   | State    |
-     +-----------+---------------+---------------------+-------------------+----------+
-     | customer  | *             | 2025-03-14 15:45:19 | c_custkey EQ "18" | FINISHED |
-     +-----------+---------------+---------------------+-------------------+----------+
-     ```
+```text
++------------+
+| acosh(0.0) |
++------------+
+|       NULL |
++------------+
+```
 
+```sql
+select acosh(-1.0);
+```
+
+```text
++-------------+
+| acosh(-1.0) |
++-------------+
+|        NULL |
++-------------+
+```
+
+```sql
+select acosh(1.0);
+```
+
+```text
++------------+
+| acosh(1.0) |
++------------+
+|          0 |
++------------+
+```
+
+```sql
+select acosh(1.0000001);
+```
+
+```text
++-------------------------+
+| acosh(1.0000001)        |
++-------------------------+
+| 0.0004472135918947727   |
++-------------------------+
+```
+
+```sql
+select acosh(cast('nan' as double));
+```
+
+```text
++----------------------------+
+| acosh(cast('nan' AS DOUBLE)) |
++----------------------------+
+| NaN                        |
++----------------------------+
+```
+
+```sql
+select acosh(cast('inf' as double));
+```
+
+```text
++----------------------------+
+| acosh(cast('inf' AS DOUBLE)) |
++----------------------------+
+| Infinity                   |
++----------------------------+
+```
+
+```sql
+select acosh(10.0);
+```
+
+```text
++-------------------+
+| acosh(10.0)       |
++-------------------+
+| 2.993222846126381 |
++-------------------+
+```
