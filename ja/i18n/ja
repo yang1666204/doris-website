@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_MIN",
-  "language": "en",
-  "description": "Calculates the minimum value in an array. The function iterates through all elements in the array, finds the minimum value and returns it."
+  "title": "ARRAY_POPBACK",
+  "language": "en-US",
+  "description": "Removes the last element from an array. The function returns a new array containing all elements from the original array except the last one."
 }
 ---
 
-## array_min
+## array_popback
 
 <version since="2.0.0">
 
@@ -14,17 +14,17 @@
 
 ## Description
 
-Calculates the minimum value in an array. The function iterates through all elements in the array, finds the minimum value and returns it.
+Removes the last element from an array. The function returns a new array containing all elements from the original array except the last one.
 
 ## Syntax
 
 ```sql
-array_min(ARRAY<T> arr)
+array_popback(ARRAY<T> arr)
 ```
 
 ### Parameters
 
-- `arr`：ARRAY<T> type, the array for which to calculate the minimum value.
+- `arr`：ARRAY<T> type, the array from which to remove the last element
 
 **Supported types for T:**
 
@@ -33,145 +33,124 @@ array_min(ARRAY<T> arr)
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
+- Complex types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
-Return type: T
+Return type: ARRAY<T>
 
 Return value meaning:
 
-- Returns the minimum value in the array
-- NULL: if the array is empty, or if all elements are null
+- Returns a new array containing all elements from the original array except the last one
+- NULL: if the input array is NULL
 
 Usage notes:
 
-- Determines the element to return by comparing elements in the array, supports comparing elements of the same data type
-- If the array is NULL, it will return a type conversion error
-- For null values in array elements: null elements are not included in comparison
+- The function removes the last element from the array and returns the remaining elements
+- Empty arrays return empty arrays, arrays with only one element return empty arrays
+- For null values in array elements: null elements are handled normally
 
 **Query Examples:**
 
-Calculate the minimum value of a floating-point array:
+Remove the last element from a string array:
 
 ```sql
-SELECT array_min([5.5, 2.2, 8.8, 1.1, 9.9, 3.3]);
-+-------------------------------------------+
-| array_min([5.5, 2.2, 8.8, 1.1, 9.9, 3.3]) |
-+-------------------------------------------+
-|                                       1.1 |
-+-------------------------------------------+
+SELECT array_popback(['apple', 'banana', 'cherry', 'date']);
++--------------------------------------------------+
+| array_popback(['apple', 'banana', 'cherry', 'date']) |
++--------------------------------------------------+
+| ["apple", "banana", "cherry"]                    |
++--------------------------------------------------+
 ```
 
-Calculate the minimum value of a string array (lexicographically):
+Remove the last element from an array containing null values:
 
 ```sql
-SELECT array_min(['zebra', 'apple', 'banana', 'cherry']);
-+---------------------------------------------------+
-| array_min(['zebra', 'apple', 'banana', 'cherry']) |
-+---------------------------------------------------+
-| apple                                             |
-+---------------------------------------------------+
+SELECT array_popback([1, null, 3, null, 5]);
++--------------------------------------------+
+| array_popback([1, null, 3, null, 5])      |
++--------------------------------------------+
+| [1, null, 3, null]                        |
++--------------------------------------------+
 ```
 
-Calculate the minimum value of an array containing null values, null elements are not included in comparison:
+Arrays with only one element return empty arrays:
 
 ```sql
-SELECT array_min([5, null, 2, null, 8, 1]);
-+-------------------------------------+
-| array_min([5, null, 2, null, 8, 1]) |
-+-------------------------------------+
-|                                   1 |
-+-------------------------------------+
+SELECT array_popback([42]);
++----------------------+
+| array_popback([42])  |
++----------------------+
+| []                   |
++----------------------+
 ```
 
-Empty array returns NULL:
+Empty arrays return empty arrays:
 
 ```sql
-SELECT array_min([]);
-+------------------+
-| array_min([])    |
-+------------------+
-| NULL             |
-+------------------+
+SELECT array_popback([]);
++----------------------+
+| array_popback([])    |
++----------------------+
+| []                   |
++----------------------+
 ```
 
-Array with all null elements returns NULL:
+NULL arrays return NULL:
 
 ```sql
-SELECT array_min([null, null, null]);
-+----------------------------------+
-| array_min([null, null, null])    |
-+----------------------------------+
-| NULL                             |
-+----------------------------------+
+SELECT array_popback(NULL);
++----------------------+
+| array_popback(NULL)  |
++----------------------+
+| NULL                 |
++----------------------+
 ```
 
-Minimum value of a date array:
+Remove the last element from an IP address array:
 
 ```sql
-SELECT array_min(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>));
-+--------------------------------------------------------------------------------+
-| array_min(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>)) |
-+--------------------------------------------------------------------------------+
-| 2022-12-31 00:00:00                                                            |
-+--------------------------------------------------------------------------------+
-```
-
-Minimum value of an IP address array:
-
-```sql
-SELECT array_min(CAST(['192.168.1.100', '192.168.1.1', '192.168.1.50'] AS ARRAY<IPV4>));
+SELECT array_popback(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>));
 +----------------------------------------------------------------------------------+
-| array_min(CAST(['192.168.1.100', '192.168.1.1', '192.168.1.50'] AS ARRAY<IPV4>)) |
+| array_popback(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>)) |
 +----------------------------------------------------------------------------------+
-| 192.168.1.1                                                                      |
+| ["192.168.1.1", "192.168.1.2"]                                                   |
 +----------------------------------------------------------------------------------+
-
-SELECT array_min(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>));
-+-------------------------------------------------------------------------------+
-| array_min(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>)) |
-+-------------------------------------------------------------------------------+
-| 2001:db8::                                                                    |
-+-------------------------------------------------------------------------------+
 ```
 
-Complex type examples:
-
-Nested array types are not supported, will error:
+Remove the last element from a nested array:
 
 ```sql
-SELECT array_min([[1,2],[3,4],[5,6]]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = array_min does not support complex types: array_min([[1, 2], [3, 4], [5, 6]])
+SELECT array_popback([[1, 2], [3, 4], [5, 6]]);
++------------------------------------------+
+| array_popback([[1, 2], [3, 4], [5, 6]]) |
++------------------------------------------+
+| [[1, 2], [3, 4]]                         |
++------------------------------------------+
 ```
 
-Map types are not supported, will error:
+Remove the last element from a MAP array:
 
 ```sql
-SELECT array_min([{'k':1},{'k':2},{'k':3}]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = array_min does not support complex types: array_min([map('k', 1), map('k', 2), map('k', 3)])
+SELECT array_popback([{'name':'Alice','age':20}, {'name':'Bob','age':30}, {'name':'Charlie','age':40}]);
++------------------------------------------------------------------------------------------+
+| array_popback([{'name':'Alice','age':20}, {'name':'Bob','age':30}, {'name':'Charlie','age':40}]) |
++------------------------------------------------------------------------------------------+
+| [{"name":"Alice","age":20}, {"name":"Bob","age":30}]                                     |
++------------------------------------------------------------------------------------------+
 ```
 
-Error when parameter count is wrong:
+Remove the last element from a STRUCT array:
 
 ```sql
-SELECT array_min([1,2,3], [4,5,6]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_min' which has 2 arity. Candidate functions are: [array_min(Expression)]
-```
-
-Error when passing non-array type:
-
-```sql
-SELECT array_min('not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = class org.apache.doris.nereids.types.VarcharType cannot be cast to class org.apache.doris.nereids.types.ArrayType (org.apache.doris.nereids.types.VarcharType and org.apache.doris.nereids.types.ArrayType are in unnamed module of loader 'app')
-```
-
-Array is NULL, will return type conversion error:
-
-```sql
-mysql> SELECT array_min(NULL);
-ERROR 1105 (HY000): errCode = 2, detailMessage = class org.apache.doris.nereids.types.NullType cannot be cast to class org.apache.doris.nereids.types.ArrayType (org.apache.doris.nereids.types.NullType and org.apache.doris.nereids.types.ArrayType are in unnamed module of loader 'app')
+SELECT array_popback(array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30), named_struct('name','Charlie','age',40)));
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| array_popback(array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30), named_struct('name','Charlie','age',40))) |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| [{"name":"Alice", "age":20}, {"name":"Bob", "age":30}]                                                                                    |
++-------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
 ### Keywords
 
-ARRAY, MIN, ARRAY_MIN
+ARRAY, POPBACK, ARRAY_POPBACK
