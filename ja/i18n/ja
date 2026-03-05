@@ -1,172 +1,136 @@
 ---
 {
-  "title": "STRRIGHT",
+  "title": "SUB_REPLACE",
   "language": "en",
-  "description": "The STRRIGHT function returns a specified number of characters from the right side of a string. The length is measured in UTF8 characters."
+  "description": "The subreplace function is used to replace substrings within a string."
 }
 ---
 
 ## Description
 
-The STRRIGHT function returns a specified number of characters from the right side of a string. The length is measured in UTF8 characters.
-
-## Alias
-
-RIGHT
+The `sub_replace` function is used to replace substrings within a string. You can specify the substring to be replaced and the target string to replace it with. It returns a new string where the substring starting from `start` with length `len` in `str` is replaced by `new_str`. If `start` or `len` is a negative integer, it returns NULL. The default value for `len` is the length of `new_str`.
 
 ## Syntax
 
 ```sql
-STRRIGHT(<str>, <len>)
+sub_replace(<str>, <new_str>, [ ,<start> [ , <len> ] ])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                   |
-| --------- | ----------------------------------------------------------------------------- |
-| `<str>`   | The string to extract from. Type: VARCHAR     |
-| `<len>`   | The number of characters to return. Type: INT |
+| Parameter   | Description                                                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `<str>`     | The target string in which the replacement will occur                                                                                   |
+| `<new_str>` | The string that will replace the specified substring                                                                                    |
+| `<start>`   | `start` is the position where the replacement operation begins, indicating from which position in the string the replacement will start |
+| `<len>`     | `len` is an optional parameter that specifies the length of the substring to be replaced                                                |
 
 ## Return Value
 
-Returns VARCHAR type, representing the extracted substring.
-
-Special cases:
-
-- Returns NULL if any argument is NULL
-- If len is negative, returns the substring starting from the abs(len)th character from the right
-- Returns the entire string if len is greater than the string length
+Returns the string after replacement.
 
 ## Examples
 
-1. Basic right extraction
+1. Basic usage: specify position and length replacement
 
 ```sql
-SELECT STRRIGHT('Hello doris', 5), RIGHT('Hello doris', 5);
+SELECT sub_replace('doris', '***', 1, 2);
 ```
 
 ```text
-+----------------------------+------------------------+
-| STRRIGHT('Hello doris', 5) | RIGHT('Hello doris', 5) |
-+----------------------------+------------------------+
-| doris                      | doris                  |
-+----------------------------+------------------------+
++-----------------------------------+
+| sub_replace('doris', '***', 1, 2) |
++-----------------------------------+
+| d***is                            |
++-----------------------------------+
 ```
 
-2. Different extraction lengths
+2. Using default length replacement
 
 ```sql
-SELECT STRRIGHT('Hello World', 3), STRRIGHT('Hello World', 8);
+SELECT sub_replace('hello', 'Hi', 0);
 ```
 
 ```text
-+-----------------------------+-----------------------------+
-| STRRIGHT('Hello World', 3)  | STRRIGHT('Hello World', 8)  |
-+-----------------------------+-----------------------------+
-| rld                         | lo World                    |
-+-----------------------------+-----------------------------+
++--------------------------------+
+| sub_replace('hello', 'Hi', 0)  |
++--------------------------------+
+| Hillo                          |
++--------------------------------+
 ```
 
-3. NULL value handling
+3. Negative parameter returns NULL
 
 ```sql
-SELECT STRRIGHT(NULL, 5), STRRIGHT('Hello doris', NULL);
+SELECT sub_replace('hello', 'Hi', -1, 2);
 ```
 
 ```text
-+-------------------+-------------------------------+
-| STRRIGHT(NULL, 5) | STRRIGHT('Hello doris', NULL) |
-+-------------------+-------------------------------+
-| NULL              | NULL                          |
-+-------------------+-------------------------------+
++------------------------------------+
+| sub_replace('hello', 'Hi', -1, 2)  |
++------------------------------------+
+| NULL                               |
++------------------------------------+
 ```
 
-4. Empty string and zero length
+4. NULL value handling
 
 ```sql
-SELECT STRRIGHT('', 5), STRRIGHT('Hello World', 0);
+SELECT sub_replace(NULL, 'new', 0, 3);
 ```
 
 ```text
-+-------------------+-----------------------------+
-| STRRIGHT('', 5)   | STRRIGHT('Hello World', 0)  |
-+-------------------+-----------------------------+
-|                   |                             |
-+-------------------+-----------------------------+
++-------------------------------------+
+| sub_replace(NULL, 'new', 0, 3)      |
++-------------------------------------+
+| NULL                                |
++-------------------------------------+
 ```
 
-5. Negative length handling
+5. UTF-8 string
 
 ```sql
-SELECT STRRIGHT('Hello doris', -7), STRRIGHT('Hello doris', -5);
+SELECT sub_replace('doris', 'ṛìḍḍ', 1, 2);
 ```
 
 ```text
-+-----------------------------+-----------------------------+
-| STRRIGHT('Hello doris', -7) | STRRIGHT('Hello doris', -5) |
-+-----------------------------+-----------------------------+
-| doris                       | o doris                     |
-+-----------------------------+-----------------------------+
++-------------------------------------------+
+| sub_replace('doris', 'ṛìḍḍ', 1, 2)        |
++-------------------------------------------+
+| dṛìḍḍis                                   |
++-------------------------------------------+
 ```
 
-6. Length exceeds string length
+6. Start position exceeds string length
 
 ```sql
-SELECT STRRIGHT('ABC', 10), STRRIGHT('short', 20);
+SELECT sub_replace('hello', 'Hi', 9, 2);
 ```
 
 ```text
-+---------------------+-----------------------+
-| STRRIGHT('ABC', 10) | STRRIGHT('short', 20) |
-+---------------------+-----------------------+
-| ABC                 | short                 |
-+---------------------+-----------------------+
++----------------------------------+
+| sub_replace('hello', 'Hi', 9, 2) |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
 
-7. UTF-8 multi-byte characters
+7. Specified replacement length exceeds remaining string length
 
 ```sql
-SELECT STRRIGHT('ṭṛì ḍḍumai hello', 5), STRRIGHT('ṭṛì ḍḍumai hello', 11);
+SELECT sub_replace('hello', 'Hi', 1, 9);
 ```
 
 ```text
-+----------------------------------+-----------------------------------+
-| STRRIGHT('ṭṛì ḍḍumai hello', 5)  | STRRIGHT('ṭṛì ḍḍumai hello', 11) |
-+----------------------------------+-----------------------------------+
-| hello                            | ḍumai hello                       |
-+----------------------------------+-----------------------------------+
-```
-
-8. Numeric string handling
-
-```sql
-SELECT STRRIGHT('123456789', 3), STRRIGHT('ID_987654321', 6);
-```
-
-```text
-+----------------------------+-------------------------------+
-| STRRIGHT('123456789', 3)   | STRRIGHT('ID_987654321', 6)   |
-+----------------------------+-------------------------------+
-| 789                        | 654321                        |
-+----------------------------+-------------------------------+
-```
-
-9. Email domain extraction
-
-```sql
-SELECT STRRIGHT('user@example.com', 11), STRRIGHT('admin@company.org.cn', 14);
-```
-
-```text
-+----------------------------------+--------------------------------------+
-| STRRIGHT('user@example.com', 11) | STRRIGHT('admin@company.org.cn', 14) |
-+----------------------------------+--------------------------------------+
-| example.com                      | company.org.cn                      |
-+----------------------------------+--------------------------------------+
++----------------------------------+
+| sub_replace('hello', 'Hi', 1, 9) |
++----------------------------------+
+| hHi                              |
++----------------------------------+
 ```
 
 ### Keywords
 
     ```
-    STRRIGHT, RIGHT
+    SUB_REPLACE, REPLACE
     ```
