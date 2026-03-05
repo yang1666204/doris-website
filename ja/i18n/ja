@@ -1,64 +1,119 @@
 ---
 {
-  "title": "SHOW RESTORE",
+  "title": "ST_DISTANCE",
   "language": "en",
-  "description": "This statement is used to view RESTORE tasks"
+  "description": "Calculates the shortest distance on the sphere between two geometry objects, in meters."
 }
 ---
 
 ## Description
 
-This statement is used to view RESTORE tasks
+Calculates the shortest distance on the sphere between two geometry objects, in meters. This function uses a spherical Earth model for calculation.
+
+Unlike `ST_DISTANCE_SPHERE`, which accepts longitude and latitude coordinates, `ST_DISTANCE` accepts geometry objects (points, lines, polygons, circles, etc.) as parameters and calculates the shortest distance between their boundaries. If the two shapes intersect (including touching or containing each other), it returns 0.
 
 ## Syntax
 
-```SQL
-SHOW [BRIEF] [GLOBAL] RESTORE [FROM <db_name>]
+```sql
+ST_DISTANCE( <shape1>, <shape2> )
 ```
 
 ## Parameters
 
-**1.`<db_name>`**
-
-The name of the database to which the recovery task belongs.
+| Parameter  | Description                                                                                 |
+| :--------- | :------------------------------------------------------------------------------------------ |
+| `<shape1>` | The first geometry, supporting Point, Line, Polygon, Circle, MultiPolygon.  |
+| `<shape2>` | The second geometry, supporting Point, Line, Polygon, Circle, MultiPolygon. |
 
 ## Return Value
 
-- brief: only show key information of RESTORE tasks, columns RestoreObjs, Progress, TaskErrMsg will not show
+Returns the shortest spherical distance between the boundaries of the two geometry objects, in meters (DOUBLE type).
 
-| Column               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| JobId                | Unique job id                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Label                | The name of the backup to restore                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Timestamp            | The time version of the backup to restore                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| DbName               | belongs to the database                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| State                | current stage: <ul><li>PENDING: The initial state after submitting the job.</li><li>SNAPSHOTING: Executing snapshot.</li><li>DOWNLOAD: The snapshot is complete, ready to download the snapshot in the repository.</li><li>DOWNLOADING: Snapshot downloading.</li><li>COMMIT: Snapshot download is complete, ready to take effect.</li><li>COMMITTING: in effect.</li><li>FINISHED: Job finish time.</li><li>CANCELLED: Job failed.</li></ul> |
-| AllowLoad            | Whether to allow import when restoring (currently not supported)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ReplicationNum       | Specifies the number of replicas to restore                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ReserveReplica       | Whether to keep a copy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ReplicaAllocation    | Whether to keep dynamic partitioning enabled                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| RestoreJobs          | Tables and partitions to restore                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| CreateTime           | task submission time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| MetaPreparedTime     | Metadata preparation completion time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| SnapshotFinishedTime | Snapshot completion time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| DownloadFinishedTime | Snapshot download completion time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| FinishedTime         | Job finish time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| UnfinishedTasks      | Displays unfinished subtask ids during SNAPSHOTING, DOWNLOADING and COMMITING stages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Progress             | Task progress                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| TaskErrMsg           | Display task error messages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Status               | If the job fails, display the failure message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Timeout              | Job timeout, in seconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+`ST_DISTANCE` has the following edge cases:
+
+- If any input parameter is `NULL`, returns `NULL`.
+- If any input parameter cannot be parsed into a valid geometry object, returns `NULL`.
+- If the two geometry objects intersect (including one containing the other), returns `0.0`.
+- Supported geometry types include: `POINT`, `LINESTRING`, `POLYGON`, `CIRCLE`, `MULTIPOLYGON`.
 
 ## Example
 
-1. View the latest RESTORE task under example_db.
+**Distance Between Points**
 
 ```sql
-SHOW RESTORE FROM example_db;
+-- Calculate the distance between two points with a 1-degree longitude difference on the equator
+SELECT ST_DISTANCE(ST_GeometryFromText('POINT(0 0)'), ST_GeometryFromText('POINT(1 0)'));
 ```
 
-2. View the latest GLOBAL RESTORE task.
+```text
++---------------------------------------------+
+| ST_Distance(ST_Point(0, 0), ST_Point(1, 0)) |
++---------------------------------------------+
+|                           111195.1011774839 |
++---------------------------------------------+
+```
+
+**Distance Between a Point and a Line**
 
 ```sql
-SHOW GLOBAL RESTORE;
+-- Calculate the shortest distance from a point to a line
+SELECT ST_DISTANCE(ST_GeometryFromText('POINT(2 2)'), ST_GeometryFromText('LINESTRING(0 0, 10 0)'));
+```
+
+```text
++----------------------------------------------------------------------------------------------+
+| ST_DISTANCE(ST_GeometryFromText('POINT(2 2)'), ST_GeometryFromText('LINESTRING(0 0, 10 0)')) |
++----------------------------------------------------------------------------------------------+
+|                                                                            222390.2023549678 |
++----------------------------------------------------------------------------------------------+
+```
+
+**Polygon and Circle Intersect (Distance 0)**
+
+```sql
+-- Circle intersects polygon; the center is outside but the circle covers part of the polygon's boundary
+SELECT ST_DISTANCE(
+    ST_GeometryFromText('POLYGON ((-0.00045 -0.00045, 0.00045 -0.00045, 0.00045 0.00045, -0.00045 0.00045, -0.00045 -0.00045))'),
+    ST_Circle(0.0006, 0, 50)
+);
+```
+
+```text
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ST_DISTANCE(
+    ST_GeometryFromText('POLYGON ((-0.00045 -0.00045, 0.00045 -0.00045, 0.00045 0.00045, -0.00045 0.00045, -0.00045 -0.00045))'),
+    ST_Circle(0.0006, 0, 50)
+) |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                                                                                             0 |
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
+
+**Invalid Parameter (Returns NULL)**
+
+```sql
+-- Invalid WKT string
+SELECT ST_DISTANCE(ST_GeometryFromText('NOT_A_GEOMETRY'), ST_GeometryFromText('POINT(1 1)'));
+```
+
+```text
++---------------------------------------------------------------------------------------+
+| ST_DISTANCE(ST_GeometryFromText('NOT_A_GEOMETRY'), ST_GeometryFromText('POINT(1 1)')) |
++---------------------------------------------------------------------------------------+
+|                                                                                  NULL |
++---------------------------------------------------------------------------------------+
+```
+
+**NULL Parameter**
+
+```sql
+SELECT ST_DISTANCE(NULL, ST_GeometryFromText('POINT(1 1)'));
+```
+
+```text
++------------------------------------------------------+
+| ST_DISTANCE(NULL, ST_GeometryFromText('POINT(1 1)')) |
++------------------------------------------------------+
+|                                                 NULL |
++------------------------------------------------------+
 ```
