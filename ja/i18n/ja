@@ -1,335 +1,176 @@
 ---
 {
-  "title": "Cast to INT Types",
+  "title": "Use Advice",
   "language": "en",
-  "description": "If the source type is nullable, returns nullable type;"
+  "description": "Asynchronous materialized views improve query performance by precomputing and storing query results, but each refresh may incur significant overhead."
 }
 ---
 
-## From string
+## Overview
 
-### Strict mode
+Asynchronous materialized views improve query performance by precomputing and storing query results, but each refresh may incur significant overhead. This document provides usage recommendations for asynchronous materialized views.  
+For the refresh principles of materialized views, refer to: [Refresh Principles](../overview.md)
 
-If the source type is nullable, returns nullable type;
+## Recommended Usage Scenarios
 
-If the source type is non-nullable, returns non-nullable type;
+### Recommended Scenarios
 
-#### BNF definition
+#### Complex Aggregation Queries
 
-```xml
-<integer>       ::= <whitespace>* <sign>? <decimal_digit>+ <whitespace>*
+- **Scenario**: Queries involving multi-table joins, complex aggregate functions (e.g., SUM, AVG, COUNT), or window functions
+- **Advantage**: Avoids recomputing complex logic during each execution
 
-<sign>          ::= "+" | "-"
+#### Reporting
 
-<decimal_digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+- **Scenario**: Reports requiring consistent snapshots at fixed time points (e.g., daily midnight)
+- **Advantage**: Ensures all users see data from the same point in time
 
-<whitespace>    ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
-```
+#### Computation-Intensive Analysis
 
-#### Rule description
+- **Scenario**: Analytical queries involving complex mathematical calculations or data transformations, such as customer lifetime value calculations or predictive modeling
+- **Advantage**: Precomputes results to reduce runtime resource consumption
 
-- Only supports decimal format numbers;
+#### Star/Snowflake Schemas in Data Warehouses
 
-- Numbers can be prefixed with positive or negative sign characters;
+- **Scenario**: Fact tables joined with multiple dimension tables, e.g., sales fact tables joined with product, time, and region dimension tables
+- **Advantage**: Pre-materializes join results to accelerate analytical queries
 
-- Strings allow arbitrary prefix and suffix whitespace characters, including: ' ', '\t', '\n', '\r', '\f', '\v';
+#### Data Lake Acceleration
 
-- Does not support scientific notation;
+- **Scenario**: Queries on data lakes may slow down due to network latency and object storage throughput limitations
+- **Advantage**: Leverages Doris's local storage advantages to accelerate data lake analysis
 
-- Return error for other formats;
+#### Data Warehouse Layering
 
-- Return error if overflow.
+- **Scenario**: Base tables contain large amounts of raw data, and queries require complex ETL operations
+- **Advantage**: Implements data warehouse layering by building multi-level asynchronous materialized views
 
-#### Examples
+### Not Recommended Scenarios
 
-| String                              | Cast as int result | Comment                                          |
-| ----------------------------------- | ------------------ | ------------------------------------------------ |
-| "2147483647"                        | 2147483647         |                                                  |
-| "-2147483648"                       | -2147483648        |                                                  |
-| " \t\r\n\f\v2147483647 \t\r\n\f\v"  | 2147483647         | With prefix and suffix whitespace                |
-| " \t\r\n\f\v+2147483647 \t\r\n\f\v" | 2147483647         | With prefix and suffix whitespace, positive sign |
-| " \t\r\n\f\v-2147483648 \t\r\n\f\v" | -2147483648        | With prefix and suffix whitespace, negative sign |
-| 'abc'                               | Error              | Invalid format                                   |
-| '123.456'           | Error              | Decimal format not supported                     |
-| '1.23456e5'         | Error              | Scientific notation not supported                |
-| '2147483648'                        | Error              | Overflow                                         |
-| '-2147483649'                       | Error              | Overflow                                         |
+#### Frequently Updated Base Tables
 
-### Non-strict mode
+- **Scenario**: Source table data changes very frequently (e.g., multiple updates per minute)
+- **Issue**: Asynchronous materialized views struggle to stay synchronized, and refresh costs are too high. Consider periodic refreshes instead.
 
-Always returns nullable type.
+#### Simple Queries
 
-#### BNF definition
+- **Scenario**: Queries involving only single-table scans or simple filtering
+- **Issue**: The benefits of asynchronous materialized views cannot offset the refresh costs
 
-```xml
-<integer_non_strict> ::= <whitespace_char>* <sign>? <number> <whitespace_char>*
+#### Scenarios Requiring Real-Time (1–5 Minute Freshness) Data
 
-<sign>               ::= "+" | "-"
+- **Scenario**: Business requirements demand the latest data
+- **Issue**: Asynchronous materialized views introduce data latency
 
-<number>             ::= <decimal_number> | <decimal_number> "." <decimal_number> | <decimal_number> "." | "." <decimal_number>
+#### Small Source Tables
 
-<decimal_number>     ::= <decimal_digit>+
+- **Scenario**: Base tables contain only a small number of records (e.g., a few hundred rows)
+- **Issue**: The optimization effect of asynchronous materialized views is negligible
 
-<decimal_digit>      ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+## Refresh Strategy Recommendations
 
-<whitespace_char>    ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
-```
+Asynchronous materialized views offer three primary refresh strategies, each suited to different business scenarios and data characteristics. Choosing the right strategy is critical for balancing data freshness and system performance.
 
-#### Rule description
+### Detailed Refresh Strategies
 
-- Supports all valid formats from strict mode;
+#### Manual Refresh
 
-- Supports strict mode format followed by decimal part, conversion result directly discards the decimal part;
+**How It Works**:
 
-- Scientific notation format converts to NULL;
+- Triggered explicitly by user commands or external system scheduling
 
-- All other format cases convert to NULL;
+**Applicable Scenarios**:
 
-- Converts to NULL when overflow occurs.
+- Reporting systems with low real-time data requirements
+- Historical data analysis in data warehouses
+- Scenarios requiring synchronization with specific business processes
+- Large-scale data refreshes requiring coordinated system resources
 
-#### Examples
+**Pros and Cons**:
 
-| String                              | Cast as int result | Comment                                          |
-| ----------------------------------- | ------------------ | ------------------------------------------------ |
-| "2147483647"                        | 2147483647         |                                                  |
-| "-2147483648"                       | -2147483648        |                                                  |
-| " \t\r\n\f\v2147483647 \t\r\n\f\v"  | 2147483647         | With prefix and suffix whitespace                |
-| " \t\r\n\f\v+2147483647 \t\r\n\f\v" | 2147483647         | With prefix and suffix whitespace, positive sign |
-| " \t\r\n\f\v-2147483648 \t\r\n\f\v" | -2147483648        | With prefix and suffix whitespace, negative sign |
-| '123.456'           | 123                |                                                  |
-| '1.23456e5'         | NULL               | Scientific notation                              |
-| 'abc'                               | NULL               | Invalid format                                   |
-| '2147483648'                        | NULL               | Overflow                                         |
-| '-2147483649'                       | NULL               | Overflow                                         |
+- Pros: Full control over refresh timing, avoiding peak business hours
+- Cons: Requires additional scheduling management and fault tolerance to prevent external loops from continuously triggering refreshes
 
-## From bool
+#### Scheduled Refresh
 
-true converts to 1, false converts to 0.
+**How It Works**:
 
-If the source type is nullable, returns nullable type.
+- Automatically refreshes at fixed intervals
+- Minimum time unit: minutes
+- Can specify the start time for the first task run
 
-If the source type is non-nullable, returns non-nullable type.
+**Applicable Scenarios**:
 
-## From integer to integer
+- Periodic business metric monitoring
+- Tiered data pipelines
+- Time-sensitive reporting systems
+- Source data with regular fluctuations
 
-Supports conversion between any integer types.
+**Pros and Cons**:
 
-### Strict mode
+- Pros: Scheduled data processing with predictable data latency
+- Cons: Limited data freshness; refresh sequences for related views require manual orchestration
 
-Return error when overflow occurs.
+**Configuration Constraints**:  
+Avoid configuring all materialized views for high-frequency scheduled refreshes to achieve near-real-time results, as this may:
 
-If the source type is nullable, returns nullable type.
+- Continuously occupy system resources
+- Cause refresh jobs to compete for resources
+- Frequent partition/tablet operations may impose heavy pressure on BEs
 
-If the source type is non-nullable, returns non-nullable type.
+#### Trigger-Based Refresh
 
-#### Examples
+**How It Works**:
 
-| Bigint      | int        | Comment  |
-| ----------- | ---------- | -------- |
-| 2147483647  | 2147483647 |          |
-| 2147483648  | Error      | Overflow |
-| -2147483649 | Error      | Overflow |
+- Automatically triggers refreshes when base table data changes
 
-### Non-strict mode
+**Applicable Scenarios**:
 
-:::caution Behavior Change
-Since version 4.0, the result of overflow is no longer undefined value, but NULL.
-:::
+- Upper-layer views in a multi-level materialized view architecture
+- Scenarios where base tables change infrequently
 
-Returns NULL when overflow occurs.
+**Pros and Cons**:
 
-If the source type is nullable, returns nullable type.
+- Pros: High data freshness and automation
+- Cons: May cause refresh storms and unpredictable system load
 
-If the source type is non-nullable:
+**Configuration Constraints**:  
+Avoid using trigger-based refreshes for foundational materialized views unless:
 
-- If overflow is possible (e.g., `cast bigint as int`), returns nullable type;
+- Base table refresh frequency is known to be low (e.g., changes every few tens of minutes)
 
-- Otherwise returns non-nullable type (e.g., `cast int as bigint`).
+### Combined Refresh Strategy Recommendations
 
-#### Examples
+#### Layered Strategy
 
-| Bigint      | int        | Comment  |
-| ----------- | ---------- | -------- |
-| 2147483647  | 2147483647 |          |
-| 2147483648  | NULL       | Overflow |
-| -2147483649 | NULL       | Overflow |
+- **Foundation Layer**: Scheduled refresh (e.g., hourly)
+- **Intermediate Layer**: Scheduled or trigger-based refresh
+- **Presentation Layer**: Trigger-based or manual refresh
 
-## From date
+#### Business Criticality Tiering
 
-If the source type is nullable, returns nullable type.
+- **Critical Real-Time Business Data**: Not recommended for asynchronous materialized views
+- **Regular Analytical Data**: Scheduled refresh (daily/hourly)
+- **Historical/Archived Data**: Manual refresh
 
-If the source type is non-nullable, returns non-nullable type.
+#### Data Change Frequency Adaptation
 
-### Rule description
+- **High-Frequency Changes**: Scheduled refresh (longer intervals) or manual refresh
+- **Low-Frequency Changes**: Trigger-based refresh or short-interval scheduled refresh
+- **Bulk Changes**: Manual refresh after changes
 
-:::caution Behavior Change
-Since version 4.0, does not support casting date to tinyint and smallint anymore.
-:::
+### Refresh Frequency Recommendations
 
-- Does not support casting to tinyint and smallint, as overflow will definitely occur.
+These are general guidelines; actual settings should consider system resources, the number of materialized views, and other business resource usage.
 
-- Supports casting to int, bigint and largeint. Concatenates the year, month, and day numbers of the date in order to form an integer, with month and day treated as two digits, padding with a leading 0 if less than 10.
+| Actual Refresh Time                   | Recommended Refresh Frequency |
+| ------------------------------------- | ----------------------------- |
+| < 15s        | ≥ 5 minutes                   |
+| < 10 minutes | ≥ 1 hour                      |
+| < 1 hour     | ≥ 1 day                       |
 
-### Examples
+## Key Considerations for Asynchronous Materialized Views
 
-| date       | int      |
-| ---------- | -------- |
-| 2025-03-14 | 20250314 |
-
-## From datetime
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-### Rule description
-
-:::caution Behavior Change
-Since version 4.0, does not support casting datetime to tinyint, smallint and int anymore.
-:::
-
-- Does not support casting to tinyint, smallint, int, as overflow will definitely occur;
-
-- Supports casting to bigint, largeint. Discards the microsecond part of datetime, then concatenates year, month, day, hour, minute, second in order to form an integer, with month, day, hour, minute, second treated as two digits, padding with a leading 0 if less than 10.
-
-### Examples
-
-| datetime                                                                   | int            |
-| -------------------------------------------------------------------------- | -------------- |
-| 2025-03-14 17:00:01.123456 | 20250314170001 |
-| 9999-12-31 23:59:59.999999 | 99991231235959 |
-
-## From float/double
-
-Does not support rounding.
-
-### Strict mode
-
-#### Rule description
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-- Return error when overflow occurs;
-
-- Return error for Infinity and NaN values.
-
-#### Examples
-
-| float/double                | Cast as int | Comment    |
-| --------------------------- | ----------- | ---------- |
-| 1.5         | 1           | Truncation |
-| 1.79769E308 | Error       | Overflow   |
-| Infinity                    | Error       |            |
-| NaN                         | Error       |            |
-
-### Non-strict mode
-
-Always returns nullable type.
-
-#### Rule description
-
-:::caution Behavior Change
-Since version 4.0, the result of overflow is no longer undefined value, but NULL.
-:::
-
-- Converts to NULL when overflow occurs;
-
-- Infinity converts to NULL;
-
-- NaN converts to NULL.
-
-#### Examples
-
-| float/double                | Cast as int | Comment    |
-| --------------------------- | ----------- | ---------- |
-| 1.5         | 1           | Truncation |
-| 1.79769E308 | NULL        | Overflow   |
-| Infinity                    | NULL        |            |
-| -Infinity                   | NULL        |            |
-| NaN                         | NULL        |            |
-
-## From decimal
-
-Does not support rounding.
-
-### Strict mode
-
-Return error when overflow occurs.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| Decimal(18, 6) | int   | comment    |
-| --------------------------------- | ----- | ---------- |
-| 1.654321          | 1     | Truncation |
-| 12345678901.123   | Error | Overflow   |
-
-### Non-strict mode
-
-Converts to NULL when overflow occurs.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable:
-
-- If overflow is possible (e.g., `cast decimal(18, 0) as int`), returns nullable type;
-
-- Otherwise returns non-nullable type (e.g., `cast decimal(9, 0) as bigint`).
-
-#### Examples
-
-| Decimal(18, 6) | int  | comment    |
-| --------------------------------- | ---- | ---------- |
-| 1.654321          | 1    | Truncation |
-| 12345678901.123   | NULL | Overflow   |
-
-## From time
-
-Converts to microseconds.
-
-### Strict mode
-
-Return error when overflow occurs.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| Time                                      | int     | Comment  |
-| ----------------------------------------- | ------- | -------- |
-| 00:00:01  | 1000000 |          |
-| 838:59:58 | Error   | Overflow |
-
-### Non-strict mode
-
-:::caution Behavior Change
-Since version 4.0, the result of overflow is no longer undefined value, but NULL.
-:::
-
-Converts to NULL when overflow occurs.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable:
-
-- If overflow is possible (e.g., `cast time as tinyint`), returns nullable type;
-
-- Otherwise returns non-nullable type (e.g., `cast time as bigint`).
-
-#### Examples
-
-| Time                                      | int     | Comment  |
-| ----------------------------------------- | ------- | -------- |
-| 00:00:01  | 1000000 |          |
-| 838:59:58 | NULL    | Overflow |
-
-## Other types
-
-Not supported
+1. **Monitoring**: After deploying materialized views, monitor system performance via [metrics](../../../admin-manual/maint-monitor/metrics.md). Additional metrics for asynchronous materialized views will be exposed in the future. Currently, use [tasks](../../../sql-manual/sql-functions/table-valued-functions/tasks.md) to check task count, execution status, and duration.
+2. **Planning**: Plan the number of materialized views, refresh frequency, and the cluster's maximum computational capacity. Avoid "creating materialized views without maintaining them"—they are essentially enhanced ETL computations and require maintenance like traditional ETL.
+3. **Resource Isolation**: Materialized views are data computation tasks. Implement resource isolation as needed.
