@@ -1,66 +1,62 @@
 ---
 {
-  "title": "STD,STDDEV,STDDEV_POP",
+  "title": "SUM",
   "language": "en",
-  "description": "Returns the standard deviation of the expr expression"
+  "description": "Used to return the sum of all values of the selected field"
 }
 ---
 
 ## Description
 
-Returns the standard deviation of the expr expression
-
-## Alias
-
-- STD
-- STDDEV_POP
+Used to return the sum of all values of the selected field
 
 ## Syntax
 
 ```sql
-STDDEV(<expr>)
+SUM(<expr>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                          |
-| --------- | ------------------------------------------------------------------------------------ |
-| `<expr>`  | The value to be calculated standard deviation, supports type Double. |
+| Parameter | Description                                                                                                                            |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `<expr>`  | The field to calculate the sum of, supports type Double, Float, Decimal, LargeInt, BigInt, Integer, SmallInt, TinyInt. |
 
 ## Return Value
 
-Return the sample standard deviation of the expr expression as Double type.
+Return the sum of all values of the selected field.
 If there is no valid data in the group, returns NULL.
 
 ## Examples
 
 ```sql
 -- Create sample tables
-CREATE TABLE score_table (
-    student_id INT,
-    score DOUBLE
-) DISTRIBUTED BY HASH(student_id)
+CREATE TABLE sales_table (
+    product_id INT,
+    price DECIMAL(10,2),
+    quantity INT
+) DISTRIBUTED BY HASH(product_id)
 PROPERTIES (
     "replication_num" = "1"
 );
 
 -- Insert test data
-INSERT INTO score_table VALUES
-(1, 85),
-(2, 90),
-(3, 82),
-(4, 88),
-(5, 95);
+INSERT INTO sales_table VALUES
+(1, 99.99, 2),
+(2, 159.99, 1),
+(3, 49.99, 5),
+(4, 299.99, 1),
+(5, 79.99, 3);
 
--- Calculate the standard deviation of all students' scores
-SELECT STDDEV(score) as score_stddev
-FROM score_table;
+-- Calculate the total sales amount
+SELECT SUM(price * quantity) as total_sales
+FROM sales_table;
 ```
 
 ```text
-+-------------------+
-| score_stddev      |
-+-------------------+
-| 4.427188724235729 |
-+-------------------+
++-------------+
+| total_sales |
++-------------+
+|     1149.88 |
++-------------+
 ```
