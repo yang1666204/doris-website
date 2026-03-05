@@ -1,115 +1,171 @@
 ---
 {
-  "title": "Built-in Authorization",
+  "title": "Migrating Data from Other OLTP",
   "language": "en",
-  "description": "Authorization refers to the mechanism by which user identities are restricted in accessing and operating Doris resources."
+  "description": "There are various ways to migrate data from other TP systems, such as MySQL/SqlServer/Oracle, to Doris."
 }
 ---
 
-## Key Concepts
+There are various ways to migrate data from other TP systems, such as MySQL/SqlServer/Oracle, to Doris.
 
-Authorization refers to the mechanism by which user identities are restricted in accessing and operating Doris resources.
+## Multi-Catalog
 
-Doris uses a Role-Based Access Control (RBAC) model for permission management.
+Use the Catalog to map as an external table, and then use the INSERT INTO or CREATE-TABLE-AS-SELECT statements to complete the data load.
 
-### Permissions
+For example, with MySQL:
 
-Permissions apply to nodes, catalogs, databases, or tables. Different permissions represent different operation allowances.
+```sql
+CREATE CATALOG mysql_catalog properties(
+    'type' = 'jdbc',
+    'user' = 'root',
+    'password' = '123456',
+    'jdbc_url' = 'jdbc:mysql://host:3306/mysql_db',
+    'driver_url' = 'mysql-connector-java-8.0.25.jar',
+    'driver_class' = 'com.mysql.cj.jdbc.Driver'
+);
 
-#### All Permissions
+-- Load via INSERT
+INSERT INTO internal.doris_db.tbl1
+SELECT * FROM iceberg_catalog.iceberg_db.table1;
 
-| Permission                                               | Object Type                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin_priv                          | Global                                               | Super admin permissions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Node_priv                           | Global                                               | Node change permissions. Includes adding, deleting, and decommissioning FE, BE, and BROKER nodes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Grant_priv                          | Global, Catalog, Db, Table, Resource, Workload Group | Permission change permissions. Allows operations such as granting, revoking, adding/removing/changing users/roles. <br>When granting permissions to other users/roles, prior to version 2.1.2, the current user only needs the corresponding level of Grant_priv permission. After version 2.1.2, the current user also needs the permissions of the resources they want to grant. <br>To assign roles to other users, Global level Grant_priv permission is required. |
-| Select_priv                         | Global, Catalog, Db, Table, Column                   | Select permission. Allows querying data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Load_priv                           | Global, Catalog, Db, Table                           | Load permission. Includes Load, Insert, Delete, etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Alter_priv                          | Global, Catalog, Db, Table                           | Alter permission. Includes renaming databases/tables, adding/deleting/changing columns, adding/deleting partitions, etc.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Create_priv                         | Global, Catalog, Db, Table                           | Create permission. Allows creating catalogs, databases, tables, and views.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Drop_priv                           | Global, Catalog, Db, Table                           | Drop permission. Allows dropping catalogs, databases, tables, and views.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Usage_priv                          | Resource, Workload Group                             | Usage permission for Resources and Workload Groups.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Show_view_priv | Global, Catalog, Db, Table                           | Execute SHOW CREATE VIEW permission.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-
-### Roles
-
-Doris allows creating custom-named roles. Roles can be seen as a collection of permissions. New users can be assigned a role, and they will automatically be granted the permissions of that role. Subsequent changes to the role's permissions will also affect the permissions of all users belonging to that role.
-
-#### Built-in Roles
-
-Built-in roles are default roles created by Doris, with default permissions, including operator and admin.
-
-- operator: Has Admin_priv and Node_priv
-- admin: Has Admin_priv
-
-### Users
-
-In Doris, a `user_identity` uniquely identifies a user. `user_identity` consists of two parts: `user_name` and `host`, where `username` is the username. `host` identifies the host address from which the user connects.
-
-## Authorization Mechanism
-
-Doris's permission design is based on the RBAC (Role-Based Access Control) model, associating users with roles, roles with permissions, and users indirectly with permissions through roles.
-
-When a role is deleted, users automatically lose all permissions of that role.
-
-When a user and role are unassociated, the user automatically loses all permissions of that role.
-
-When a role's permissions are added or deleted, the user's permissions also change.
-
-```
-┌────────┐        ┌────────┐         ┌────────┐
-│  user1 ├────┬───►  role1 ├────┬────►  priv1 │
-└────────┘    │   └────────┘    │    └────────┘
-              │                 │
-              │                 │
-              │   ┌────────┐    │
-              │   │  role2 ├────┤
-┌────────┐    │   └────────┘    │    ┌────────┐
-│  user2 ├────┘                 │  ┌─►  priv2 │
-└────────┘                      │  │ └────────┘
-                  ┌────────┐    │  │
-           ┌──────►  role3 ├────┘  │
-           │      └────────┘       │
-           │                       │
-           │                       │
-┌────────┐ │      ┌────────┐       │ ┌────────┐
-│  userN ├─┴──────►  roleN ├───────┴─►  privN │
-└────────┘        └────────┘         └────────┘
+-- Load via CTAS
+CREATE TABLE internal.doris_db.tbl1
+PROPERTIES('replication_num' = '1')
+AS
+SELECT * FROM iceberg_catalog.iceberg_db.table1;
 ```
 
-As shown above:
+For more details, refer to [Catalog Data Load](../../../lakehouse/catalog-overview.md#data-import)。
 
-user1 and user2 both have priv1 permission through role1.
+## Flink Doris Connector
 
-userN has priv1 permission through role3 and priv2 and privN permissions through roleN, so userN has priv1, priv2, and privN permissions.
+You can leverage Flink to achieve offline and real-time synchronization for TP systems.
 
-### Notes
+- Offline synchronization can be done using Flink's JDBC Source and Doris Sink to complete the data load. For example, using FlinkSQL:
+  ```sql
+  CREATE TABLE student_source (
+      id INT,
+      name STRING,
+      age INT
+    PRIMARY KEY (id) NOT ENFORCED
+  ) WITH (
+    'connector' = 'jdbc',
+    'url' = 'jdbc:mysql://localhost:3306/mydatabase',
+    'table-name' = 'students',
+    'username' = 'username',
+    'password' = 'password',
+  );
 
-- For convenience, users can be directly granted permissions. Under the hood, a default role is created for each user, and granting permissions to the user is equivalent to granting permissions to the default role.
-- Default roles cannot be deleted, cannot be assigned to other users, and are automatically deleted when the user is deleted.
+  CREATE TABLE student_sink (
+      id INT,
+      name STRING,
+      age INT
+      ) 
+      WITH (
+        'connector' = 'doris',
+        'fenodes' = '127.0.0.1:8030',
+        'table.identifier' = 'test.students',
+        'username' = 'root',
+        'password' = 'password',
+        'sink.label-prefix' = 'doris_label'
+  );
 
-## Related Commands
+  INSERT into student_sink select * from student_source;
+  ```
+  For more details, refer to [Flink JDBC](https://nightlies.apache.org/flink/flink-docs-master/zh/docs/connectors/table/jdbc/#%e5%a6%82%e4%bd%95%e5%88%9b%e5%bb%ba-jdbc-%e8%a1%a8)。
 
-- Grant/assign role: [GRANT](../../../sql-manual/sql-statements/account-management/GRANT-TO)
-- Revoke/revoke role: [REVOKE](../../../sql-manual/sql-statements/account-management/REVOKE-FROM.md)
-- Create role: [CREATE ROLE](../../../sql-manual/sql-statements/account-management/CREATE-ROLE)
-- Delete role: [DROP ROLE](../../../sql-manual/sql-statements/account-management/DROP-ROLE)
-- Modify role: [ALTER ROLE](../../../sql-manual/sql-statements/account-management/ALTER-ROLE)
-- View current user permissions and roles: [SHOW GRANTS](../../../sql-manual/sql-statements/account-management/SHOW-GRANTS)
-- View all user permissions and roles: [SHOW ALL GRANTS](../../../sql-manual/sql-statements/account-management/SHOW-GRANTS)
-- View created roles: [SHOW ROLES](../../../sql-manual/sql-statements/account-management/SHOW-ROLES)
-- View supported permissions: [SHOW PRIVILEGES](../../../sql-manual/sql-statements/account-management/SHOW-PRIVILEGES)
+- Real-time synchronization can be achieved using FlinkCDC to read both full and incremental data. For example, using FlinkSQL:
 
-## Best Practices
+  ```sql
+  SET 'execution.checkpointing.interval' = '10s';
 
-Here are some examples of using Doris's permission system.
+  CREATE TABLE cdc_mysql_source (
+    id int
+    ,name VARCHAR
+    ,PRIMARY KEY (id) NOT ENFORCED
+  ) WITH (
+  'connector' = 'mysql-cdc',
+  'hostname' = '127.0.0.1',
+  'port' = '3306',
+  'username' = 'root',
+  'password' = 'password',
+  'database-name' = 'database',
+  'table-name' = 'table'
+  );
 
-1. Scenario 1
+  -- Supports synchronization of insert/update/delete events.
+  CREATE TABLE doris_sink (
+  id INT,
+  name STRING
+  ) 
+  WITH (
+    'connector' = 'doris',
+    'fenodes' = '127.0.0.1:8030',
+    'table.identifier' = 'database.table',
+    'username' = 'root',
+    'password' = '',
+    'sink.properties.format' = 'json',
+    'sink.properties.read_json_by_line' = 'true',
+    'sink.enable-delete' = 'true',  -- Synchronize delete events.
+    'sink.label-prefix' = 'doris_label'
+  );
 
-   Doris cluster users are divided into administrators (Admin), development engineers (RD), and users (Client). Administrators have all permissions for the entire cluster, mainly responsible for cluster setup, node management, etc. Development engineers are responsible for business modeling, including database and table creation, data import and modification, etc. Users access different databases and tables to retrieve data.
+  insert into doris_sink select id,name from cdc_mysql_source;
+  ```
 
-   In this scenario, administrators can be granted ADMIN or GRANT permissions. RD can be granted CREATE, DROP, ALTER, LOAD, and SELECT permissions for any or specified databases and tables. Client can be granted SELECT permission for any or specified databases and tables. At the same time, different roles can be created to simplify permission management for multiple users.
+  For synchronizing an entire database or multiple tables in a TP database, you can use the full-database synchronization feature provided by the Flink Doris Connector to complete the TP database write with a single click, as shown below:
 
-2. Scenario 2
+  ```shell
+  <FLINK_HOME>bin/flink run \
+      -Dexecution.checkpointing.interval=10s \
+      -Dparallelism.default=1 \
+      -c org.apache.doris.flink.tools.cdc.CdcTools \
+      lib/flink-doris-connector-1.16-24.0.1.jar \
+      mysql-sync-database \
+      --database test_db \
+      --mysql-conf hostname=127.0.0.1 \
+      --mysql-conf port=3306 \
+      --mysql-conf username=root \
+      --mysql-conf password=123456 \
+      --mysql-conf database-name=mysql_db \
+      --including-tables "tbl1|test.*" \
+      --sink-conf fenodes=127.0.0.1:8030 \
+      --sink-conf username=root \
+      --sink-conf password=123456 \
+      --sink-conf jdbc-url=jdbc:mysql://127.0.0.1:9030 \
+      --sink-conf sink.label-prefix=label \
+      --table-conf replication_num=1 
+  ```
 
-   A cluster has multiple businesses, each business may use one or more datasets. Each business needs to manage its own users. In this scenario, the administrator can create a user with DATABASE-level GRANT permission for each database. This user can only grant permissions for the specified database.
+  For more details, refer to [Full Database Synchronization](../../../ecosystem/flink-doris-connector.md#full-database-synchronization)
+
+## Spark Connector
+
+You can use the JDBC Source and Doris Sink of the Spark Connector to complete the data write.
+
+```java
+val jdbcDF = spark.read
+  .format("jdbc")
+  .option("url", "jdbc:postgresql:dbserver")
+  .option("dbtable", "schema.tablename")
+  .option("user", "username")
+  .option("password", "password")
+  .load()
+  
+ jdbcDF.write.format("doris")
+  .option("doris.table.identifier", "db.table")
+  .option("doris.fenodes", "127.0.0.1:8030")
+  .option("user", "root")
+  .option("password", "")
+  .save() 
+```
+
+For more details, refer to [JDBC To Other Databases](https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html)，[Spark Doris Connector](../../../ecosystem/spark-doris-connector.md#batch-write)
+
+## DataX / Seatunnel / CloudCanal and other third-party tools.
+
+In addition, you can also use third-party synchronization tools for data synchronization. For more details, please refer to:
+
+- [DataX](../../../ecosystem/datax)
+- [Seatunnel](../../../ecosystem/seatunnel)
+- [CloudCanal](../../../ecosystem/cloudcanal)
