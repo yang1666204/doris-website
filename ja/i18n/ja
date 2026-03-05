@@ -1,96 +1,123 @@
 ---
 {
-  "title": "MAX_BY",
+  "title": "MAX",
   "language": "en",
-  "description": "The MAXBY function returns the associated value based on the maximum value of the specified column."
+  "description": "The MAX function returns the maximum non-NULL value of the expression."
 }
 ---
 
 ## Description
 
-The MAX_BY function returns the associated value based on the maximum value of the specified column.
+The MAX function returns the maximum non-NULL value of the expression.
 
 ## Syntax
 
 ```sql
-MAX_BY(<expr1>, <expr2>)
+MAX(<expr>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                                                                                  |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<expr1>` | The expression for the associated value, supports types: Bool, TinyInt, SmallInt, Int, BigInt, LargeInt, Float, Double, Decimal, String, Date, Datetime, Array, Map, Struct. |
-| `<expr2>` | The expression for the maximum value, supports types: Bool, TinyInt, SmallInt, Int, BigInt, LargeInt, Float, Double, Decimal, String, Date, Datetime, Array.                 |
+| Parameters | Description                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<expr>`   | The expression to get the value. Supported types are String, Time, Date, DateTime, Timestamptz, IPv4, IPv6, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Array. |
 
 ## Return Value
 
-Returns the same data type as <expr1>.
-Returns NULL if there is no valid data in the group.
+Returns the same data type as the input expression.
+If all records in the group are NULL, the function returns NULL.
 
 ## Example
 
 ```sql
 -- setup
-create table tbl(
-    k1 int,
-    k2 int,
-    arr ARRAY<INT>,
-    mp MAP<STRING, INT>,
-    st STRUCT<a: INT, b: STRING>,
-) distributed by hash(k1) buckets 1
+create table t1(
+        k1 int,
+        k_string varchar(100),
+        k_decimal decimal(10, 2),
+        k_array array<int>
+) distributed by hash (k1) buckets 1
 properties ("replication_num"="1");
-insert into tbl values
-    (0, 100, [1,2,3], {"x": 1, "y": 4}, NAMED_STRUCT("a", 1, "b", "x")),
-    (1, 4,   [5, 6],  {"x": 2, "y": 3}, NAMED_STRUCT("a", 2, "b", "y")),
-    (4, 1,   [7],     {"x": 3, "y": 2}, NAMED_STRUCT("a", 3, "b", "z")),
-    (3, 1,   [8],     {"x": 4, "y": 1}, NAMED_STRUCT("a", 4, "b", "r"));
+insert into t1 values 
+    (1, 'apple', 10.01, [10, 20, 30]),
+    (1, 'banana', 20.02, [10, 20]),
+    (2, 'orange', 30.03, [10, 20, 40]),
+    (2, null, null, [10, 20, null]),
+    (3, null, null, null);
 ```
 
 ```sql
-select max_by(k1, k2) from tbl;
+select k1, max(k_string) from t1 group by k1;
 ```
 
+For String type: Returns the maximum string value for each group.
+
 ```text
-+----------------+
-| max_by(k1, k2) |
-+----------------+
-|              0 |
-+----------------+
++------+---------------+
+| k1   | max(k_string) |
++------+---------------+
+|    1 | banana        |
+|    2 | orange        |
+|    3 | NULL          |
++------+---------------+
 ```
 
 ```sql
-select max_by(arr, k1), max_by(mp, k1), max_by(st, k1) from tbl;
+select k1, max(k_decimal) from t1 group by k1;
 ```
 
+For Decimal type: Returns the maximum high-precision decimal value.
+
 ```text
-+-----------------+----------------+------------------+
-| max_by(arr, k1) | max_by(mp, k1) | max_by(st, k1)   |
-+-----------------+----------------+------------------+
-| [7]             | {"x":3, "y":2} | {"a":3, "b":"z"} |
-+-----------------+----------------+------------------+
++------+----------------+
+| k1   | max(k_decimal) |
++------+----------------+
+|    1 |          20.02 |
+|    2 |          30.03 |
+|    3 |           NULL |
++------+----------------+
 ```
 
 ```sql
-select max_by(k1, arr), max_by(mp, arr), max_by(st, arr), max_by(arr, arr) from tbl;
+select k1, max(k_array) from t1 group by k1;
 ```
 
+For Array type: Returns the maximum array value for each group(Compare elements one by one; null is the smallest element.).
+
 ```text
-+-----------------+-----------------+------------------+------------------+
-| max_by(k1, arr) | max_by(mp, arr) | max_by(st, arr)  | max_by(arr, arr) |
-+-----------------+-----------------+------------------+------------------+
-|               3 | {"x":4, "y":1}  | {"a":4, "b":"r"} | [8]              |
-+-----------------+-----------------+------------------+------------------+
++------+--------------+
+| k1   | max(k_array) |
++------+--------------+
+|    1 | [10, 20, 30] |
+|    2 | [10, 20, 40] |
+|    3 | NULL         |
++------+--------------+
 ```
 
 ```sql
-select max_by(k1, k2) from tbl where k1 is null;
+select max(k_string) from t1 where k1 = 3;
 ```
 
+When all values in the group are NULL, returns NULL.
+
 ```text
-+----------------+
-| max_by(k1, k2) |
-+----------------+
-|           NULL |
-+----------------+
++---------------+
+| max(k_string) |
++---------------+
+| NULL          |
++---------------+
+```
+
+```sql
+select max(k_string) from t1;
+```
+
+Returns the maximum value across all data.
+
+```text
++---------------+
+| max(k_string) |
++---------------+
+| orange        |
++---------------+
 ```
