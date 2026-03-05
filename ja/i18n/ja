@@ -1,167 +1,173 @@
 ---
 {
-  "title": "Routine Load Internals and Best Practices",
+  "title": "EMBED",
   "language": "en",
-  "description": "Routine Load is designed for continuously consuming Kafka data and writing it into Apache Doris."
+  "description": "Generates a semantic embedding vector based on the input text, representing the semantic information of the text."
 }
 ---
 
-## 1. Overview
+<!-- 
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
 
-Routine Load is designed for continuously consuming Kafka data and writing it into Apache Doris. Users can create Routine Load Jobs to automatically subscribe to specified Kafka Topics. Its core features include:
+  http://www.apache.org/licenses/LICENSE-2.0
 
-- **High Availability:** Supports 24/7 uninterrupted Kafka data consumption with automatic recovery after failures.
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 
-- **Low Latency:** Kafka messages can achieve second-level visibility.
+## Description
 
-- **Exactly-Once Semantics:** Ensures Kafka data consumption without loss or duplication, achieving exactly-once processing.
+Generates a semantic embedding vector based on the input text, representing the semantic information of the text. It can be used for similarity calculation, retrieval, and other scenarios.
 
-This document provides an in-depth analysis of the implementation principles, best practices for typical scenarios, and troubleshooting approaches for common issues to help users get started quickly and operate efficiently.
+## Syntax
 
-## 2. Implementation Principles
-
-Kafka data exists in streaming form, while Doris consumes Kafka streaming data in a "micro-batch" manner. After creating a routine load job, the system splits it into multiple tasks for concurrent execution based on the configured concurrency level. Each task is responsible for consuming data from specific partitions in the Kafka topic. Each task corresponds to one transaction, and after completion, a new task is generated to continue consuming the next batch of data. The following sections explain this from three perspectives: job/task scheduling, Exactly-Once semantics implementation, and multi-table writing from a single stream.
-
-### 2.1 Job and Task Scheduling
-
-Routine Load employs a two-level scheduling approach:
-
-- **Job Scheduling:** Responsible for task splitting, failure recovery, and lifecycle management.
-
-- **Task Scheduling:** Responsible for distributing specific data fetching, transformation, and writing operations to BE nodes for execution.
-
-#### 2.1.1 Job Scheduling
-
-Job State Machine:
-
-| State                              | Description                                                         |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| NEED_SCHEDULE | Waiting for initial scheduling or requiring reschedule              |
-| RUNNING                            | Normal consumption in progress                                      |
-| PAUSED                             | Actively or abnormally paused, can auto-recover                     |
-| CANCELLED                          | Terminated due to unrecoverable errors like database/table deletion |
-| STOPPED                            | Manually stopped and unrecoverable                                  |
-
-Based on different job states, the scheduling thread performs the following actions every cycle (10s):
-
-- **NEED_SCHEDULE:** Retrieves topic metadata (partition count, starting offset) and splits tasks according to:
-
-```Plain
-taskNum = min(topic_partition_num,
-              desired_concurrent_number,
-              max_routine_load_task_concurrent_num)
+```sql
+EMBED([<resource_name>], <text>)
 ```
 
-Places tasks into `needScheduleTasksQueue` waiting for the task scheduling thread to begin scheduling.
+## Parameters
 
-- **RUNNING:** Periodically retrieves topic metadata and immediately reschedules if partition count changes.
+| Parameter         | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `<resource_name>` | The specified resource name                   |
+| `<text>`          | The text to generate the embedding vector for |
 
-- **PAUSED:** To ensure job high availability, an auto-resume mechanism is introduced. In cases of unexpected pauses, the Routine Load Scheduler thread attempts to automatically recover jobs. For unexpected Kafka-side failures or other non-functional situations, the auto-recovery mechanism ensures that after Kafka recovery, import jobs can continue normal operation without manual intervention. Note that there are three situations that will not auto-recover:
+## Return Value
 
-  - User manually executes PAUSE ROUTINE LOAD command.
-  - Data quality issues exist.
-  - Unrecoverable situations, such as database/table deletion.
+The return type is ARRAY<FLOAT>, representing the generated vector.
 
-  Except for the above three situations, all other paused jobs will attempt auto-recovery.
+Returns NULL if the input value is NULL.
 
-- **CANCELLED / STOPPED:** Delayed resource cleanup.
+The result is generated by a large language model, so the returned content is not fixed.
 
-#### 2.1.2 Task Scheduling
+## Example
 
-**Scheduling Conditions**
+The following table simulates a company's code of conduct.
 
-- Task has not reached the end of partition, meaning there is still data to consume, to avoid ineffective resource occupation.
+```sql
+CREATE TABLE knowledge_base (
+    id BIGINT,
+    title STRING,
+    content STRING,
+    embedding ARRAY<FLOAT> COMMENT 'Generated embedding vectors by the EMBED function'
+)
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 4
+PROPERTIES (
+    "replication_num" = "1"
+);
 
-- If EOF was reached in the last execution, a new round of scheduling will only be initiated if more than `max_batch_interval` has passed since the last execution start. This aims to appropriately batch data when consumption speed exceeds production speed, preventing generation of too many small transactions.
+SET default_ai_resource = 'embed_resource_name';
 
-**Load Balancing Strategy**
+-- `embedding` is the embedding vector generated by the function EMBED according to the corresponding tag of the content.
+INSERT INTO knowledge_base (id, title, content, embedding) VALUES
+(1, "Travel Reimbursement Policy",
+    "Employees must submit a reimbursement request within 7 days after the business trip, with invoices and travel approval attached.",
+    EMBED("travel reimbursement policy")),
+(2, "Leave Policy",
+    "Employees must apply for leave in the system in advance. If the leave is longer than three days, approval from the direct manager is required.",
+    EMBED("leave request policy")),
+(3, "VPN User Guide",
+    "To access the internal network, employees must use VPN. For the first login, download and install the client and configure the certificate.",
+    EMBED("VPN guide intranet access")),
+(4, "Meeting Room Reservation",
+    "Meeting rooms can be reserved in advance through the OA system, with time and number of participants specified.",
+    EMBED("meeting room booking reservation")),
+(5, "Procurement Request Process",
+    "Departments must fill out a procurement request form for purchasing items. If the amount exceeds $5000, financial approval is required.",
+    EMBED("procurement request process finance"));
+```
 
-1. Prioritize selecting BE nodes with the fewest currently running Tasks.
+By vectorizing the text, you can perform operations such as:
 
-2. If multiple BEs have the same Task count, prioritize reusing nodes with cached Kafka Consumers to reduce initialization overhead.
+1. Question answering retrieval (with `COSINE_DISTANCE`)
 
-**Batch Boundaries**
+```sql
+SELECT 
+    id, title, content,
+    COSINE_DISTANCE(embedding, EMBED("How to apply for travel reimbursement?")) AS score
+FROM knowledge_base
+ORDER BY score ASC
+LIMIT 2;
+```
 
-A current task ends when any of the following conditions is met:
+```text
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+| id   | title                       | content                                                                                                                                 | score              |
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+|    1 | Travel Reimbursement Policy | Employees must submit a reimbursement request within 7 days after the business trip, with invoices and travel approval attached.        | 0.4463210454563673 |
+|    5 | Procurement Request Process | Departments must fill out a procurement request form for purchasing items. If the amount exceeds $5000, financial approval is required. | 0.5726841578491431 |
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+```
 
-- Reaches the time limit defined by `max_batch_interval`.
+2. Problem analysis matching (with `L2_DISTANCE`)
 
-- Reaches the row count defined by `max_batch_rows`.
+```sql
+SELECT 
+    id, title, content,
+    L2_DISTANCE(embedding, EMBED("How to access the company intranet")) AS distance
+FROM knowledge_base
+ORDER BY distance ASC
+LIMIT 2;
+```
 
-- Reaches the byte size defined by `max_batch_size`.
+```text
++------+-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+| id   | title                       | content                                                                                                                                     | distance           |
++------+-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+|    3 | VPN User Guide              | To access the internal network, employees must use VPN. For the first login, download and install the client and configure the certificate. | 0.5838271122253775 |
+|    1 | Travel Reimbursement Policy | Employees must submit a reimbursement request within 7 days after the business trip, with invoices and travel approval attached.            |  1.272394695975331 |
++------+-----------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+```
 
-- Reads Kafka EOF, i.e., consumes to the end of the stream.
+3. Text relevance matching and recommendation based on article content (with `INNER PRODUCT`)
 
-After task completion, the transaction is committed and a new task is immediately generated and placed in the queue for the next scheduling cycle, enabling continuous consumption.
+```sql
+SELECT 
+    id, title, content,
+    INNER_PRODUCT(embedding, EMBED("Leave system request leader approval")) AS score
+FROM knowledge_base
+WHERE id != 2
+ORDER BY score DESC
+LIMIT 2;
+```
 
-### **2.2 Exactly-Once Semantics**
+```text
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+| id   | title                       | content                                                                                                                                 | score               |
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+|    5 | Procurement Request Process | Departments must fill out a procurement request form for purchasing items. If the amount exceeds $5000, financial approval is required. |    0.33268885332504 |
+|    4 | Meeting Room Reservation    | Meeting rooms can be reserved in advance through the OA system, with time and number of participants specified.                         | 0.29224032230852487 |
++------+-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+```
 
-Routine Load ensures Kafka data is neither lost nor duplicated through a dual mechanism of "persistent consumption progress" + "commit validation".
+4. Find content with minimal differences(with `L1_DISTANCE`)
 
-#### **2.2.1 Persistent Consumption Progress**
+```sql
+SELECT 
+    id, title, content,
+    L1_DISTANCE(embedding, EMBED("Procurement application process")) AS distance
+FROM knowledge_base
+ORDER BY distance ASC
+LIMIT 3;
+```
 
-Each task writes consumption progress along with transaction information to the FE's edit log during transaction commit, utilizing Berkeley DB JE to synchronize to all FE Followers. Progress information remains accurate after Master switching/restart.
-
-#### **2.2.2 Commit Validation**
-
-When a Job is rescheduled due to manual pause, master switching, or topic metadata changes, there may be brief scenarios where two tasks concurrently consume the same partition. To prevent duplicate writes:
-
-- Each Job maintains `routineLoadTaskInfoList` in memory.
-
-- Before committing, tasks verify whether they are still in the `routineLoadTaskInfoList`, otherwise the commit is rejected.
-
-### 2.3 Multi-Table Writing from Single Stream
-
-Multi-table writing allows a single Routine Load Job to write to multiple target tables simultaneously. The core process is as follows:
-
-1. Planning Phase: Since target tables cannot be completely determined when creating the Job, execution plans are delayed to runtime, with BE dynamically obtaining them from FE Master.
-
-2. Data Caching: BE first caches data in local multi-table pipes. If 200 records are cached, or 5 new tables that haven't requested execution plans yet, an execution plan request is initiated and executed to prevent data backlog.
-
-3. Execution Plan Reuse: Within the same transaction, cached execution plans are reused; between transactions, new requests are made to ensure metadata timeliness.
-
-## 3) Best Practices
-
-Routine Load default parameters satisfy most scenarios. Manual tuning is needed in the following three situations:
-
-| Scenario                              | Recommended Parameter Modifications                        |
-| ------------------------------------- | ---------------------------------------------------------- |
-| Low latency requirements              | Reduce `max_batch_interval` from default 60s               |
-| Small data volume, resource-sensitive | Reduce `desired_concurrent_number`                         |
-| High throughput                       | Increase `max_batch_interval` from default 60s to 120-180s |
-
-## 4. Common Issue Troubleshooting
-
-### 4.1 Data Backlog
-
-1. Check task status through `SHOW ROUTINE LOAD\G`:
-
-- Whether State is `RUNNING`; if other status, check `ReasonOfStateChanged` field for reasons.
-
-- Whether OtherMsg contains error information.
-
-2. Use BE logs to determine if throughput limit has been reached
-
-   Search for `consumer group done` logs, where `left_time / left_rows / left_bytes` shows the first triggered threshold, allowing targeted increases to `max_batch_size` or `max_batch_rows`:
-
-    ```C++
-    consumer group done: 894fc32d5b9d3e93-7387a02da6dafd88. consume time(ms)=34004, received rows=2679540, received bytes=2147484043, eos: 0, left_time: 25996, left_rows: 17320460, left_bytes: -395, blocking get time(us): 949236, blocking put time(us): 28730419, id=69616a41fc064f1e-a93ff0ddd217f0a0, job_id=48121487, txn_id=61763720, label=ods_hq_market_unique_jobs_0-48121487-69616a41fc064f1e-a93ff0ddd217f0a0-61763720, elapse(s)=34
-    ```
-
-   In the above example, `left_bytes: -395` indicates that the batch ended due to reaching `max_batch_size` limit within 34 seconds. In this case, you can appropriately increase `max_batch_size` to allow single batches to reach full capacity within `max_batch_interval`, thus improving throughput.
-
-3. Increase Concurrency and Throughput
-
-- Increase `desired_concurrent_number` to match the number of Topic Partitions.
-
-- Moderately increase `max_batch_interval` (e.g., 120s ~ 180s) / `max_batch_size` / `max_batch_rows` to improve single transaction data volume, increase single batch data volume, and reduce transaction overhead.
-
-### 4.2 Task Abnormal Pause
-
-Routine Load has built-in auto-recovery mechanisms, and most unexpected pauses will be retried. If tasks remain in PAUSED state and cannot auto-recover, execute `SHOW ROUTINE LOAD` and troubleshoot:
-
-- Whether `PAUSE ROUTINE LOAD` was manually executed.
-
-- Whether data quality issues exist (such as format errors, missing fields).
-
-- Whether Kafka data has expired with `out of range` errors.
+```text
++------+-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+| id   | title                       | content                                                                                                                                        | distance           |
++------+-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+|    5 | Procurement Request Process | Departments must fill out a procurement request form for purchasing items. If the amount exceeds $5000, financial approval is required.        |  18.66882028897362 |
+|    4 | Meeting Room Reservation    | Meeting rooms can be reserved in advance through the OA system, with time and number of participants specified.                                |  30.90449328294426 |
+|    2 | Leave Policy                | Employees must apply for leave in the system in advance. If the leave is longer than three days, approval from the direct manager is required. | 31.060405636536416 |
++------+-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
+```
