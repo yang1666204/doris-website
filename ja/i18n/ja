@@ -1,107 +1,129 @@
 ---
 {
-  "title": "BITMAP_SUBSET_LIMIT",
+  "title": "BITMAP_XOR_COUNT",
   "language": "en",
-  "description": "Extracts a subset of Bitmap elements starting from a specified position, with a limit on the number of elements specified by the cardinality limit,"
+  "description": "Computes the symmetric difference (XOR operation) of two or more Bitmap sets and returns the count of elements in the result set."
 }
 ---
 
 ## Description
 
-Extracts a subset of Bitmap elements starting from a specified position, with a limit on the number of elements specified by the cardinality limit, and returns the subset as a new Bitmap.
+Computes the symmetric difference (XOR operation) of two or more Bitmap sets and returns the count of elements in the result set.
 
 ## Syntax
 
 ```sql
-BITMAP_SUBSET_LIMIT(<bitmap>, <position>, <cardinality_limit>)
+BITMAP_XOR_COUNT(<bitmap1>, <bitmap2>, ..., <bitmapN>)
 ```
 
 ## Parameters
 
-| Parameter             | Description                                          |
-| --------------------- | ---------------------------------------------------- |
-| `<bitmap>`            | The Bitmap value                                     |
-| `<position>`          | The starting position (inclusive) |
-| `<cardinality_limit>` | The maximum number of elements                       |
+| Parameter                                           | Description                                         |
+| --------------------------------------------------- | --------------------------------------------------- |
+| `<bitmap1>`                                         | The first Bitmap                                    |
+| `<bitmap2>`                                         | The second Bitmap                                   |
+| ... | ... |
+| `<bitmapN>`                                         | The N-th Bitmap                                     |
 
 ## Return Value
 
-A subset Bitmap within the specified range and limit.
-
-- If the parameter has a NULL value or invalid value, it returns NULL
+The count of elements in the Bitmap resulting from the XOR operation of multiple Bitmaps.  
+Returns 0 if any of the input Bitmap parameters is `NULL`.
 
 ## Examples
 
-To get a subset of a Bitmap starting from position 0 with a cardinality limit of 3:
+To compute the count of elements in the symmetric difference of two Bitmaps:
 
 ```sql
-select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 0, 3)) value;
+select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5')) res;
 ```
 
 The result will be:
 
 ```text
-+-----------+
-| value     |
-+-----------+
-| 1,2,3     |
-+-----------+
++------+
+| res  |
++------+
+|    4 |
++------+
 ```
 
-To get a subset of a Bitmap starting from position 4 with a cardinality limit of 3:
+To compute the count of elements in the symmetric difference of two identical Bitmaps:
 
 ```sql
-select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 4, 3)) value;
+select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('1,2,3')) res;
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| 4,5   |
-+-------+
++------+
+| res  |
++------+
+|    0 |
++------+
 ```
 
+To compute the count of elements in the symmetric difference of two different Bitmaps:
+
 ```sql
-select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 4, NULL)) value;
+select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('4,5,6')) res;
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| NULL  |
-+-------+
++------+
+| res  |
++------+
+|    6 |
++------+
 ```
 
+To compute the count of elements in the symmetric difference of three Bitmaps:
+
 ```sql
-select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), -4, 3)) value;
+select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5')) res;
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| NULL  |
-+-------+
++------+
+| res  |
++------+
+|    3 |
++------+
 ```
 
+To compute the count of elements in the symmetric difference of multiple Bitmaps, including an empty Bitmap:
+
 ```sql
-select bitmap_to_string(bitmap_subset_limit(bitmap_from_string('1,2,3,4,5'), 4, -3)) value;
+select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), bitmap_empty());
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| NULL  |
-+-------+
++------+
+| res  |
++------+
+|    3 |
++------+
+```
+
+To compute the count of elements in the symmetric difference of multiple Bitmaps, including a `NULL` value:
+
+```sql
+select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), NULL) res;
+```
+
+The result will be:
+
+```text
++------+
+| res  |
++------+
+|    0 |
++------+
 ```
