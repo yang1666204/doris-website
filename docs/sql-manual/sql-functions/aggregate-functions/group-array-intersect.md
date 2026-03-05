@@ -1,57 +1,67 @@
 ---
 {
     "title": "GROUP_ARRAY_INTERSECT",
-    "language": "en"
+    "language": "en",
+    "description": "Calculate the intersection elements of the input array across all rows and return a new array."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Calculate the intersection elements of the input array across all rows and return a new array.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## group_array_intersect
-### description
-#### Syntax
-
-`expr GROUP_ARRAY_INTERSECT(expr)`
-
-calculate the intersect element from all arrays given, return a new array
-
-### example
-
+```sql
+GROUP_ARRAY_INTERSECT(<expr>)
 ```
-mysql> select c_array_string from group_array_intersect_test where id in (18, 20);
-+--------------------------------+
-| c_array_string                 |
-+--------------------------------+
-| ["a", "b", "c", "d", "e", "f"] |
-| ["a", null]                    |
-+--------------------------------+
-2 rows in set (0.02 sec)
 
-mysql> select group_array_intersect(c_array_string) from group_array_intersect_test where id in (18, 20);
+## Parameters
+
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | An expression to calculate intersection, supported type: Array. |
+
+## Return Value
+
+Returns an array containing the intersection results. If there is no valid data in the group, returns an empty array.
+
+## Example
+
+```sql
+-- setup
+CREATE TABLE group_array_intersect_test (
+    id INT,
+    c_array_string ARRAY<STRING>
+) DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO group_array_intersect_test VALUES
+    (1, ['a', 'b', 'c', 'd', 'e']),
+    (2, ['a', 'b']),
+    (3, ['a', null]);
+```
+
+```sql
+select group_array_intersect(c_array_string) from group_array_intersect_test;
+```
+
+```text
 +---------------------------------------+
 | group_array_intersect(c_array_string) |
 +---------------------------------------+
 | ["a"]                                 |
 +---------------------------------------+
-1 row in set (0.03 sec)
 ```
 
-### keywords
-GROUP_ARRAY_INTERSECT, ARRAY
+```sql
+select group_array_intersect(c_array_string) from group_array_intersect_test where id is null;
+```
+
+```text
++---------------------------------------+
+| group_array_intersect(c_array_string) |
++---------------------------------------+
+| []                                    |
++---------------------------------------+
+```
+
