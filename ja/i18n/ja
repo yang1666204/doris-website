@@ -1,15 +1,15 @@
 ---
 {
-  "title": "Alibaba Cloud OSS",
+  "title": "Amazon S3",
   "language": "en",
-  "description": "Doris provides two ways to load files from Alibaba Cloud OSS:"
+  "description": "Doris provides two ways to load files from AWS S3:"
 }
 ---
 
-Doris provides two ways to load files from Alibaba Cloud OSS:
+Doris provides two ways to load files from AWS S3:
 
-- Use S3 Load to load Alibaba Cloud OSS files into Doris, which is an asynchronous load method.
-- Use TVF to load Alibaba Cloud OSS files into Doris, which is a synchronous load method.
+- Use S3 Load to load S3 files into Doris, which is an asynchronous load method.
+- Use TVF to load S3 files into Doris, which is a synchronous load method.
 
 ## load with S3 Load
 
@@ -17,7 +17,7 @@ Use S3 Load to import files on object storage. For detailed steps, please refer 
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on Alibaba Cloud OSS and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on S3 and its content is as follows:
 
 ```
 1,Emily,25
@@ -44,15 +44,7 @@ DUPLICATE KEY(user_id)
 DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 ```
 
-### Step 3: Load data using S3 Load
-
-:::caution Caution
-The endpoint URLs for public and internal access are different.
-If the server and OSS are in the same region, it is recommended to use the internal endpoint link.
-
-- internal endpoint: `oss-cn-hangzhou-internal.aliyuncs.com`
-- public endpoint: `oss-cn-hangzhou.aliyuncs.com`
-  :::
+### Step 3: Load data with S3 Load
 
 ```sql
 LOAD LABEL s3_load_2022_04_01
@@ -65,9 +57,9 @@ LOAD LABEL s3_load_2022_04_01
 )
 WITH S3
 (
-    "provider" = "OSS",
-    "s3.endpoint" = "oss-cn-hangzhou.aliyuncs.com",  
-    "s3.region" = "oss-cn-hangzhou",
+    "provider" = "S3",
+    "s3.endpoint" = "s3.us-west-2.amazonaws.com",  
+    "s3.region" = "us-west-2",
     "s3.access_key" = "<your-ak>",
     "s3.secret_key" = "<your-sk>"
 )
@@ -108,7 +100,7 @@ mysql> select * from test_s3load;
 
 ### Step 1: Prepare the data
 
-Create a CSV file s3load_example.csv The file is stored on Alibaba Cloud OSS and its content is as follows:
+Create a CSV file s3load_example.csv The file is stored on S3 and its content is as follows:
 
 ```
 1,Emily,25
@@ -137,23 +129,14 @@ DISTRIBUTED BY HASH(user_id) BUCKETS 10;
 
 ### Step 3: Load data using TVF
 
-:::caution Caution
-The endpoint URLs for public and internal access are different.
-If the server and OSS are in the same region, it is recommended to use the internal endpoint link.
-
-- internal endpoint: `oss-cn-hangzhou-internal.aliyuncs.com`
-- public endpoint: `oss-cn-hangzhou.aliyuncs.com`
-  :::
-
 ```sql
 INSERT INTO test_s3load
 SELECT * FROM S3
 (
     "uri" = "s3://your_bucket_name/s3load_example.csv",
     "format" = "csv",
-    "provider" = "OSS",
-    "s3.endpoint" = "oss-cn-hangzhou.aliyuncs.com",
-    "s3.region" = "oss-cn-hangzhou",
+    "s3.endpoint" = "s3.us-west-2.amazonaws.com",
+    "s3.region" = "us-west-2",
     "s3.access_key" = "<your-ak>",
     "s3.secret_key" = "<your-sk>",
     "column_separator" = ",",
@@ -187,3 +170,5 @@ mysql> select * from test_s3load;
 +---------+-----------+------+
 10 rows in set (0.04 sec)
 ```
+
+Doris also supported `AWS Assume Role` for S3 Load and TVF, please refer to [AWS intergration](../../../admin-manual/auth/integrations/aws-authentication-and-authorization.md#assumed-role-authentication).
