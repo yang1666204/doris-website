@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 1.2.2", "language": "en" }
+{ "title": "Release 1.2.3", "language": "en" }
 ---
 
 <!--
@@ -21,226 +21,85 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# New Features
-
-### Lakehouse
-
-- Support automatic synchronization of Hive metastore.
-
-- Support reading the Iceberg Snapshot, and viewing the Snapshot history.
-
-- JDBC Catalog supports PostgreSQL, Clickhouse, Oracle, SQLServer
-
-- JDBC Catalog supports Insert operation
-
-Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/)
-
-### Auto Bucket
-
-Set and scale the number of buckets for different partitions to keep the number of tablet in a relatively appropriate range.
-
-### New Functions
-
-Add the new function `width_bucket`.
-
-Reference: [https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/width-bucket/#description](https://doris.apache.org/zh-CN/docs/dev/sql-manual/sql-functions/width-bucket/#description)
-
-# Behavior Changes
-
-- Disable BE's page cache by default: `disable_storage_page_cache=true`
-
-Turn off this configuration to optimize memory usage and reduce the risk of memory OOM.
-But it will reduce the query latency of some small queries.
-If you are sensitive to query latency, or have high concurrency and small query scenarios, you can configure _disable_storage_page_cache=false_ to enable page cache again.
-
-- Add new session variable `group_by_and_having_use_alias_first`, used to control whether the group and having clauses use alias.
-
-Reference: [https://doris.apache.org/docs/dev/advanced/variables](https://doris.apache.org/docs/dev/advanced/variables)
-
 # Improvement
 
-### Compaction
+### JDBC Catalog
 
-- Support `Vertical Compaction`. To optimize the compaction overhead and efficiency of wide tables.
+- Support connecting to Doris clusters through JDBC Catalog.
 
-- Support `Segment ompaction`. Fix -238 and -235 issues with high frequency imports.
+Currently, Jdbc Catalog only support to use 5.x version of JDBC jar package to connect another Doris database. If you use 8.x version of JDBC jar package, the data type of column may not be matched.
 
-### Lakehouse
+Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc/#doris](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc/#doris)
 
-- Hive Catalog can be compatible with Hive version 1/2/3
+- Support to synchronize only the specified database through the `only_specified_database` attribute.
 
-- Hive Catalog can access JuiceFS based HDFS with Broker.
+- Support synchronizing table names in the form of lowercase through `lower_case_table_names` to solve the problem of case sensitivity of table names.
 
-- Iceberg Catalog Support Hive Metastore and Rest Catalog type.
+Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc)
 
-- ES Catalog support _id column mapping.
+- Optimize the read performance of JDBC Catalog.
 
-- Optimize Iceberg V2 read performance with large number of delete rows.
+### Elasticsearch Catalog
 
-- Support for reading Iceberg tables after Schema Evolution
+- Support Array type mapping.
 
-- Parquet Reader handles column name case correctly.
+- Support whether to push down the like expression through the `like_push_down` attribute to control the CPU overhead of the ES cluster.
 
-### Other
+Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/es](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/es)
 
-- Support for accessing Hadoop KMS-encrypted HDFS.
+### Hive Catalog
 
-- Support to cancel the Export export task in progress.
+- Support Hive table default partition `_HIVE_DEFAULT_PARTITION_`.
 
-- Optimize the performance of `explode_split` with 1x.
+- Hive Metastore metadata automatic synchronization supports notification event in compressed format.
 
-- Optimize the read performance of nullable columns with 3x.
+### Dynamic Partition Improvement
 
-- Optimize some problems of Memtracker, improve memory management accuracy, and optimize memory application.
+- Dynamic partition supports specifying the `storage_medium` parameter to control the storage medium of the newly added partition.
 
-# Bug Fix
+Reference: [https://doris.apache.org/docs/dev/advanced/partition/dynamic-partition](https://doris.apache.org/docs/dev/advanced/partition/dynamic-partition)
 
-- Fixed memory leak when loading data with Doris Flink Connector.
+### Optimize BE's Threading Model
 
-- Fixed the possible thread scheduling problem of BE and reduce the `Fragment sent timeout` error caused by BE thread exhaustion.
+- Optimize BE's threading model to avoid stability problems caused by frequent thread creation and destroy.
 
-- Fixed various correctness and precision issues of column type datetimev2/decimalv3.
+# Bugfix
 
-- Fixed the problem data correctness issue with Unique Key Merge-on-Read table.
+- Fixed issues with Merge-On-Write Unique Key tables.
 
-- Fixed various known issues with the Light Schema Change feature.
+- Fixed compaction related issues.
 
-- Fixed various data correctness issues of bitmap type Runtime Filter.
+- Fixed some delete statement issues causing data errors.
 
-- Fixed the problem of poor reading performance of csv reader introduced in version 1.2.1.
+- Fixed several query execution errors.
 
-- Fixed the problem of BE OOM caused by Spark Load data download phase.
+- Fixed the problem of using JDBC catalog to cause BE crash on some operating system.
 
-- Fixed possible metadata compatibility issues when upgrading from version 1.1 to version 1.2.
+- Fixed Multi-Catalog issues.
 
-- Fixed the metadata problem when creating JDBC Catalog with Resource.
+- Fixed memory statistics and optimization issues.
 
-- Fixed the problem of high CPU usage caused by load operation.
+- Fixed decimalV3 and date/datetimev2 related issues.
 
-- Fixed the problem of FE OOM caused by a large number of failed Broker Load jobs.
+- Fixed load transaction stability issues.
 
-- Fixed the problem of precision loss when loading floating-point types.
+- Fixed light-weight schema change issues.
 
-- Fixed the problem of memory leak when useing 2PC stream load
+- Fixed the issue of using `datetime` type for batch partition creation.
 
-# Other
+- Fixed the problem that a large number of failed broker loads would cause the FE memory usage to be too high.
 
-Add metrics to view the total rowset and segment numbers on BE
+- Fixed the problem that stream load cannot be canceled after dropping the table.
 
-- doris_be_all_rowsets_num and doris_be_all_segments_num
+- Fixed querying `information_schema` timeout in some cases.
 
-# Big Thanks
+- Fixed the problem of BE crash caused by concurrent data export using `select outfile`.
 
-Thanks to ALL who contributed to this release!
+- Fixed transactional insert operation memory leak.
 
-@adonis0147
+- Fixed several query/load profile issues, and supports direct download of profiles through FE web ui.
 
-@AshinGau
+- Fixed the problem that the BE tablet GC thread caused the IO util to be too high.
 
-@BePPPower
-
-@BiteTheDDDDt
-
-@ByteYue
-
-@caiconghui
-
-@cambyzju
-
-@chenlinzhong
-
-@DarvenDuan
-
-@dataroaring
-
-@Doris-Extras
-
-@dutyu
-
-@englefly
-
-@freemandealer
-
-@Gabriel39
-
-@HappenLee
-
-@Henry2SS
-
-@htyoung
-
-@isHuangXin
-
-@JackDrogon
-
-@jacktengg
-
-@Jibing-Li
-
-@kaka11chen
-
-@Kikyou1997
-
-@Lchangliang
-
-@LemonLiTree
-
-@liaoxin01
-
-@liqing-coder
-
-@luozenglin
-
-@morningman
-
-@morrySnow
-
-@mrhhsg
-
-@nextdreamblue
-
-@qidaye
-
-@qzsee
-
-@spaces-X
-
-@stalary
-
-@starocean999
-
-@weizuo93
-
-@wsjz
-
-@xiaokang
-
-@xinyiZzz
-
-@xy720
-
-@yangzhg
-
-@yiguolei
-
-@yixiutt
-
-@Yukang-Lian
-
-@Yulei-Yang
-
-@zclllyybb
-
-@zddr
-
-@zhangstar333
-
-@zhannngchen
-
-@zy-kkk
-
-
-
-
-
+- Fixed the problem that the commit offset is inaccurate in Kafka routine load.
 
