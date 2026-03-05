@@ -1,109 +1,137 @@
 ---
 {
-  "title": "Custom Normalizer",
+  "title": "UNICODE_NORMALIZE",
   "language": "en",
-  "description": "Custom Normalizer is used for unified text preprocessing,"
+  "description": "Performs Unicode Normalization on the input string."
 }
 ---
 
-## Overview
+## Description
 
-Custom Normalizer is used for unified text preprocessing, typically in scenarios that do not require tokenization but need normalization (such as keyword search). Unlike an Analyzer, a Normalizer does not split text but processes the entire text as a single complete Token. It supports combining character filters and token filters to achieve functions like case conversion and character normalization.
+Performs [Unicode Normalization](https://unicode-org.github.io/icu/userguide/transforms/normalization/) on the input string.
 
-## Using Custom Normalizer
+Unicode normalization is the process of converting equivalent Unicode character sequences into a unified form. For example, the character "é" can be represented by a single code point (U+00E9) or by "e" + a combining acute accent (U+0065 + U+0301). Normalization ensures that these equivalent representations are handled uniformly.
 
-### Create
-
-A custom normalizer consists mainly of character filters (`char_filter`) and token filters (`token_filter`).
-
-> Note: For detailed creation methods of `char_filter` and `token_filter`, please refer to the [Custom Analyzer] documentation.
+## Syntax
 
 ```sql
-CREATE INVERTED INDEX NORMALIZER IF NOT EXISTS x_normalizer
-PROPERTIES (
-  "char_filter" = "x_char_filter",          -- Optional, one or more character filters
-  "token_filter" = "x_filter1, x_filter2"   -- Optional, one or more token filters, executed in order
-);
+UNICODE_NORMALIZE(<str>, <mode>)
 ```
 
-### View
+## Parameters
+
+| Parameter | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<str>`   | The input string to be normalized. Type: VARCHAR                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `<mode>`  | The normalization mode, must be a constant string (case-insensitive). Supported modes:<br/>- `NFC`: Canonical Decomposition, followed by Canonical Composition<br/>- `NFD`: Canonical Decomposition<br/>- `NFKC`: Compatibility Decomposition, followed by Canonical Composition<br/>- `NFKD`: Compatibility Decomposition<br/>- `NFKC_CF`: NFKC followed by Case Folding |
+
+## Return Value
+
+Returns VARCHAR type, representing the normalized result of the input string.
+
+## Examples
+
+1. Difference between NFC and NFD (composed vs decomposed characters)
 
 ```sql
-SHOW INVERTED INDEX NORMALIZER;
+-- 'Café' where é may be in composed form, NFD will decompose it into e + combining accent
+SELECT length(unicode_normalize('Café', 'NFC')) AS nfc_len, length(unicode_normalize('Café', 'NFD')) AS nfd_len;
 ```
 
-### Drop
+```text
++---------+---------+
+| nfc_len | nfd_len |
++---------+---------+
+|       4 |       5 |
++---------+---------+
+```
+
+2. NFKC_CF for case folding
 
 ```sql
-DROP INVERTED INDEX NORMALIZER IF EXISTS x_normalizer;
+SELECT unicode_normalize('ABC 123', 'nfkc_cf') AS result;
 ```
 
-## Usage in Table Creation
+```text
++---------+
+| result  |
++---------+
+| abc 123 |
++---------+
+```
 
-Specify the custom normalizer using `normalizer` in the inverted index properties.
-
-**Note**: `normalizer` and `analyzer` are mutually exclusive and cannot be specified in the same index simultaneously.
+3. NFKC handling fullwidth characters (compatibility decomposition)
 
 ```sql
-CREATE TABLE tbl (
-    `id` bigint NOT NULL,
-    `code` text NULL,
-    INDEX idx_code (`code`) USING INVERTED PROPERTIES("normalizer" = "x_custom_normalizer")
-)
-...
+-- Fullwidth digits '１２３' will be converted to halfwidth '123'
+SELECT unicode_normalize('１２３ＡＢＣ', 'NFKC') AS result;
 ```
 
-## Limitations
+```text
++--------+
+| result |
++--------+
+| 123ABC |
++--------+
+```
 
-1. The names referenced in `char_filter` and `token_filter` must exist (either built-in or created).
-2. A normalizer can only be dropped if no table is using it.
-3. A `char_filter` or `token_filter` can only be dropped if no normalizer is using it.
-4. After using the custom normalizer syntax, it takes about 10 seconds to sync to the BE, after which import operations will function normally without errors.
-
-## Complete Example
-
-### Example: Ignoring Case and Special Accents
-
-This example demonstrates how to create a normalizer that converts text to lowercase and removes accents (e.g., normalizing `Café` to `cafe`), suitable for exact matching that is case-insensitive and accent-insensitive.
+4. NFKD handling special symbols (compatibility decomposition)
 
 ```sql
--- 1. Create a custom token filter (if specific parameters are needed)
--- Create an ascii_folding filter here
-CREATE INVERTED INDEX TOKEN_FILTER IF NOT EXISTS my_ascii_folding
-PROPERTIES
-(
-    "type" = "ascii_folding",
-    "preserve_original" = "false"
-);
-
--- 2. Create the normalizer
--- Combine lowercase (built-in) and my_ascii_folding
-CREATE INVERTED INDEX NORMALIZER IF NOT EXISTS lowercase_ascii_normalizer
-PROPERTIES
-(
-    "token_filter" = "lowercase, my_ascii_folding"
-);
-
--- 3. Use in table creation
-CREATE TABLE product_table (
-    `id` bigint NOT NULL,
-    `product_name` text NULL,
-    INDEX idx_name (`product_name`) USING INVERTED PROPERTIES("normalizer" = "lowercase_ascii_normalizer")
-) ENGINE=OLAP
-DUPLICATE KEY(`id`)
-DISTRIBUTED BY RANDOM BUCKETS 1
-PROPERTIES (
-"replication_allocation" = "tag.location.default: 1"
-);
-
--- 4. Verify and test
-select tokenize('Café-Products', '"normalizer"="lowercase_ascii_normalizer"');
+-- ℃ (degree Celsius symbol) will be decomposed to °C
+SELECT unicode_normalize('25℃', 'NFKD') AS result;
 ```
 
-Result:
+```text
++--------+
+| result |
++--------+
+| 25°C   |
++--------+
+```
 
-```json
-[
-  {"token":"cafe-products"}
-]
+5. Handling circled numbers
+
+```sql
+-- ① ② ③ circled numbers will be converted to regular digits
+SELECT unicode_normalize('①②③', 'NFKC') AS result;
+```
+
+```text
++--------+
+| result |
++--------+
+| 123    |
++--------+
+```
+
+6. Comparing different modes on the same string
+
+```sql
+SELECT 
+    unicode_normalize('ﬁ', 'NFC') AS nfc_result,
+    unicode_normalize('ﬁ', 'NFKC') AS nfkc_result;
+```
+
+```text
++------------+-------------+
+| nfc_result | nfkc_result |
++------------+-------------+
+| ﬁ          | fi          |
++------------+-------------+
+```
+
+7. String equality comparison scenario
+
+```sql
+-- Use normalization to compare visually identical but differently encoded strings
+SELECT unicode_normalize('café', 'NFC') = unicode_normalize('café', 'NFC') AS is_equal;
+```
+
+```text
++----------+
+| is_equal |
++----------+
+|        1 |
++----------+
 ```
