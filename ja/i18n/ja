@@ -1,24 +1,30 @@
 ---
 {
-  "title": "Check Alive",
+  "title": "View Meta",
   "language": "en",
-  "description": "Provided for the monitoring service to Check whether the BE is alive, Be will respond if alive."
+  "description": "View meta of a tablet"
 }
 ---
 
-# Check Alive
+# View Meta
 
 ## Request
 
-`GET /api/health`
+`GET /api/meta/header/{tablet_id}?byte_to_base64={bool}`
 
 ## Description
 
-Provided for the monitoring service to Check whether the BE is alive, Be will respond if alive.
+View meta of a tablet
+
+## Path parameters
+
+- `tablet_id`
+  ID of the tablet
 
 ## Query parameters
 
-None
+- `byte_to_base64`
+  Whether to encode by base64. Optional with default `false`.
 
 ## Request body
 
@@ -28,7 +34,17 @@ None
 
     ````
     ```
-    {"status": "OK","msg": ""}
+    {
+        "table_id": 148107,
+        "partition_id": 148104,
+        "tablet_id": 148193,
+        "schema_hash": 2090621954,
+        "shard_id": 38,
+        "creation_time": 1673253868,
+        "cumulative_layer_point": -1,
+        "tablet_state": "PB_RUNNING",
+        ...
+    }
     ```
     ````
 
@@ -36,7 +52,8 @@ None
 
     ````
     ```
-    curl http://127.0.0.1:8040/api/health
+    curl "http://127.0.0.1:8040/api/meta/header/148193&byte_to_base64=true"
+    
     ```
     ````
 
