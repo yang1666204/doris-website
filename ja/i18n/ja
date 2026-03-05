@@ -1,178 +1,60 @@
 ---
 {
-  "title": "SUBSTRING_INDEX",
+  "title": "ARRAY_MATCH_ALL",
   "language": "en",
-  "description": "The SUBSTRINGINDEX function is used to extract a portion of a string based on a specified delimiter."
+  "description": "Returns true if all elements in the array match the given condition, false otherwise."
 }
 ---
 
 ## Description
 
-The SUBSTRING_INDEX function is used to extract a portion of a string based on a specified delimiter. By specifying the number of delimiter occurrences, extraction can be performed from either the left or right side.
+Returns true if all elements in the array match the given condition, false otherwise. If the array contains NULL elements and all non-NULL elements match the condition, returns NULL.
 
 ## Syntax
 
 ```sql
-SUBSTRING_INDEX(<content>, <delimiter>, <field>)
+array_match_all(lambda, <arr> [, <arr> ...])
 ```
 
 ## Parameters
 
-| Parameter     | Description                                                                                                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<content>`   | The source string to extract from. Type: VARCHAR                                                                                          |
-| `<delimiter>` | The delimiter string, case-sensitive and supports multi-byte characters. Type: VARCHAR                                                    |
-| `<field>`     | Number of delimiter occurrences. Positive counts from left, negative counts from right, 0 returns empty string. Type: INT |
+- `lambda`: A lambda expression that defines the condition to check for each element
+- `<arr>`: One or more arrays to check. The lambda function will be applied to each element of these arrays
 
-## Return Value
+## Return value
 
-Returns VARCHAR type, representing the extracted substring.
+Returns a nullable boolean value:
 
-Extraction rules:
-
-- When field > 0: returns content before the field-th delimiter from the left
-- When field < 0: returns content after the |field|-th delimiter from the right
-- When field = 0: returns empty string (returns NULL when content is NULL)
-- Case-sensitive exact delimiter matching
-
-Special cases:
-
-- If any parameter is NULL, returns NULL
-- If delimiter doesn't exist in string, returns original string
-- If specified count exceeds actual delimiter occurrences, returns maximum extractable portion
-- If delimiter is empty string, returns empty string
-- If source string is empty, returns empty string
+- `true` if all elements in the array match the condition
+- `false` if any element in the array does not match the condition
+- `NULL` if the array contains NULL elements and all non-NULL elements match the condition
 
 ## Examples
 
-1. Basic left extraction
-
 ```sql
-SELECT SUBSTRING_INDEX('hello world', ' ', 1), SUBSTRING_INDEX('one,two,three', ',', 2);
+-- Check if all numbers in array are greater than 5
+mysql> SELECT array_match_all(x -> x > 5, [1, 2, 3, 4, 7]);
++----------------------------------------------+
+| array_match_all(x -> x > 5, [1, 2, 3, 4, 7]) |
++----------------------------------------------+
+|                                            0 |
++----------------------------------------------+
+
+-- Check if all numbers in array are greater than corresponding numbers in another array
+mysql> SELECT array_match_all((x, i) -> x > i, [1, 2, 3, 4, 5], [1, 2, 3, 4, 7]);
++--------------------------------------------------------------------+
+| array_match_all((x, i) -> x > i, [1, 2, 3, 4, 5], [1, 2, 3, 4, 7]) |
++--------------------------------------------------------------------+
+|                                                                  0 |
++--------------------------------------------------------------------+
 ```
 
-```text
-+----------------------------------------+------------------------------------------+
-| SUBSTRING_INDEX('hello world', ' ', 1) | SUBSTRING_INDEX('one,two,three', ',', 2) |
-+----------------------------------------+------------------------------------------+
-| hello                                  | one,two                                  |
-+----------------------------------------+------------------------------------------+
-```
+## Notes
 
-2. Right extraction (negative count)
+1. The function handles NULL values in the following way:
+   - If there are NULL elements and all non-NULL elements match the condition, returns NULL
+   - If any non-NULL element does not match the condition, returns false regardless of NULL elements
 
-```sql
-SELECT SUBSTRING_INDEX('hello world', ' ', -1), SUBSTRING_INDEX('one,two,three', ',', -1);
-```
-
-```text
-+-----------------------------------------+-------------------------------------------+
-| SUBSTRING_INDEX('hello world', ' ', -1) | SUBSTRING_INDEX('one,two,three', ',', -1) |
-+-----------------------------------------+-------------------------------------------+
-| world                                   | three                                     |
-+-----------------------------------------+-------------------------------------------+
-```
-
-3. NULL value handling
-
-```sql
-SELECT SUBSTRING_INDEX(NULL, ',', 1), SUBSTRING_INDEX('test', NULL, 1);
-```
-
-```text
-+--------------------------------+------------------------------------+
-| SUBSTRING_INDEX(NULL, ',', 1)  | SUBSTRING_INDEX('test', NULL, 1)   |
-+--------------------------------+------------------------------------+
-| NULL                           | NULL                               |
-+--------------------------------+------------------------------------+
-```
-
-4. Zero count handling
-
-```sql
-SELECT SUBSTRING_INDEX('hello world', ' ', 0), SUBSTRING_INDEX('a,b,c', ',', 0);
-```
-
-```text
-+----------------------------------------+----------------------------------+
-| SUBSTRING_INDEX('hello world', ' ', 0) | SUBSTRING_INDEX('a,b,c', ',', 0) |
-+----------------------------------------+----------------------------------+
-|                                        |                                  |
-+----------------------------------------+----------------------------------+
-```
-
-5. Delimiter doesn't exist
-
-```sql
-SELECT SUBSTRING_INDEX('hello world', ',', 1), SUBSTRING_INDEX('no-delimiter', '|', -1);
-```
-
-```text
-+----------------------------------------+------------------------------------------+
-| SUBSTRING_INDEX('hello world', ',', 1) | SUBSTRING_INDEX('no-delimiter', '|', -1) |
-+----------------------------------------+------------------------------------------+
-| hello world                            | no-delimiter                             |
-+----------------------------------------+------------------------------------------+
-```
-
-6. Count exceeds delimiter occurrences
-
-```sql
-SELECT SUBSTRING_INDEX('a,b,c', ',', 5), SUBSTRING_INDEX('a,b,c', ',', -5);
-```
-
-```text
-+----------------------------------+-----------------------------------+
-| SUBSTRING_INDEX('a,b,c', ',', 5) | SUBSTRING_INDEX('a,b,c', ',', -5) |
-+----------------------------------+-----------------------------------+
-| a,b,c                            | a,b,c                             |
-+----------------------------------+-----------------------------------+
-```
-
-7. UTF-8 multi-byte character delimiter
-
-```sql
-SELECT SUBSTRING_INDEX('ṭṛì→ḍḍumai→hello', '→', 1), SUBSTRING_INDEX('ṭṛì→ḍḍumai→hello', '→', -1);
-```
-
-```text
-+-----------------------------------------------+------------------------------------------------+
-| SUBSTRING_INDEX('ṭṛì→ḍḍumai→hello', '→', 1)   | SUBSTRING_INDEX('ṭṛì→ḍḍumai→hello', '→', -1)  |
-+-----------------------------------------------+------------------------------------------------+
-| ṭṛì                                           | hello                                          |
-+-----------------------------------------------+------------------------------------------------+
-```
-
-8. Multi-character delimiter
-
-```sql
-SELECT SUBSTRING_INDEX('data::field::value', '::', 2), SUBSTRING_INDEX('data::field::value', '::', -1);
-```
-
-```text
-+---------------------------------------------+----------------------------------------------+
-| SUBSTRING_INDEX('data::field::value', '::', 2) | SUBSTRING_INDEX('data::field::value', '::', -1) |
-+---------------------------------------------+----------------------------------------------+
-| data::field                                 | value                                        |
-+---------------------------------------------+----------------------------------------------+
-```
-
-9. Empty source string
-
-```sql
-SELECT SUBSTRING_INDEX('', ' ', 1);
-```
-
-```text
-+-----------------------------+
-| SUBSTRING_INDEX('', ' ', 1) |
-+-----------------------------+
-|                             |
-+-----------------------------+
-```
-
-### Keywords
-
-    ```
-    SUBSTRING_INDEX, SUBSTRING
-    ```
+2. This function is useful for:
+   - Validating all elements in an array meet certain criteria
+   - Combining with other array functions for complex array operations
