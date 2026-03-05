@@ -1,108 +1,175 @@
 ---
 {
-  "title": "AVG_WEIGHTED",
+  "title": "AVG",
   "language": "en",
-  "description": "Calculates the weighted arithmetic mean, i.e., the result is the sum of the products of corresponding values and weights,"
+  "description": "Calculates the average of all non-NULL values in a specified column or expression."
 }
 ---
 
 ## Description
 
-Calculates the weighted arithmetic mean, i.e., the result is the sum of the products of corresponding values and weights, divided by the total sum of weights. If the total sum of weights is 0, it will return NaN. The calculation is always performed using Double type.
+Calculates the average of all non-NULL values in a specified column or expression.
 
 ## Syntax
 
 ```sql
-AVG_WEIGHTED(<x>, <weight>)
+AVG([DISTINCT] <expr>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                                                                                                                                               |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<x>`      | It is the numeric expression for which the average needs to be calculated, and can be a column name, constant, or a complex numeric expression. Supported type is Double. |
-| `<weight>` | It is a numeric expression, typically a column name, constant, or the result of another numeric calculation. Supported type is Double.                                    |
+| Parameter    | Description                                                                                                                                                                                                                             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<expr>`     | It is an expression or column, typically a numeric column or an expression that can be converted to a numeric value. Supported types are TinyInt, SmallInt, Integer, BigInt, LargeInt, Double, Decimal. |
+| `[DISTINCT]` | It is an optional keyword that indicates the calculation of the average value after removing duplicate values from expr.                                                                                                |
 
 ## Return Value
 
-The sum of the products of corresponding values and weights is accumulated, divided by the total sum of weights. If the total sum of weights equals 0, NaN will be returned.
-The return type is always Double.
+Returns the average value of the selected column or expression. If all records in the group are NULL, the function returns NULL.
+For decimal type input, return value will be decimal as well, other numric type will return double type.
 
 ## Example
 
 ```sql
 -- setup
 create table t1(
-        k1 int,
-        k2 int,
-        k3 decimal(10, 2),
-        k4 double,
-        category varchar(50)
-) distributed by hash (k1) buckets 1
+        k_tinyint tinyint,
+        k_smallint smallint,
+        k_int int,
+        k_bigint bigint,
+        k_largeint largeint,
+        k_double double,
+        k_decimal decimalv3(10, 5),
+        k_null_int int
+) distributed by hash (k_int) buckets 1
 properties ("replication_num"="1");
 insert into t1 values 
-    (10, 100, 5.5, 1.0, 'A'),
-    (20, 200, 10.0, 2.0, 'A'),
-    (30, 300, 15.5, 3.0, 'B'),
-    (40, 400, 20.0, 4.0, 'B'),
-    (50, 0, 25.0, 0.0, 'C'),
-    (60, 600, 30.0, 5.0, 'C');
+    (1, 10, 100, 1000, 10000, 1.1, 222.222, null),
+    (2, 20, 200, 2000, 20000, 2.2, 444.444, null),
+    (3, 30, 300, 3000, 30000, 3.3, null, null);
 ```
 
 ```sql
-select avg_weighted(k2, k1) from t1;
+select avg(k_tinyint) from t1;
 ```
 
-Calculate the weighted average of all records: (100_10 + 200_20 + 300_30 + 400_40 + 0_50 + 600_60) / (10+20+30+40+50+60) ≈ 314.2857
+TinyInt type average calculation, the average of [1,2,3] is 2.
 
 ```text
-+----------------------+
-| avg_weighted(k2, k1) |
-+----------------------+
-|    314.2857142857143 |
-+----------------------+
++----------------+
+| avg(k_tinyint) |
++----------------+
+|              2 |
++----------------+
 ```
 
 ```sql
-select category, avg_weighted(k2, k1) from t1 group by category;
+select avg(k_smallint) from t1;
 ```
 
-Group by category and calculate the weighted average for each group.
+SmallInt type average calculation, the average of [10,20,30] is 20.
 
 ```text
-+----------+----------------------+
-| category | avg_weighted(k2, k1) |
-+----------+----------------------+
-| A        |   166.66666666666666 |
-| B        |   357.14285714285717 |
-| C        |   327.27272727272725 |
-+----------+----------------------+
++-----------------+
+| avg(k_smallint) |
++-----------------+
+|              20 |
++-----------------+
 ```
 
 ```sql
-select avg_weighted(k2, 0) from t1;
+select avg(k_int) from t1;
 ```
 
-When all weights are 0, returns NaN.
+Integer type average calculation, the average of [100,200,300] is 200.
 
 ```text
-+---------------------+
-| avg_weighted(k2, 0) |
-+---------------------+
-|                 NaN |
-+---------------------+
++------------+
+| avg(k_int) |
++------------+
+|        200 |
++------------+
 ```
 
 ```sql
-select avg_weighted(k2, k1) from t1 where k1 > 100;
+select avg(k_bigint) from t1;
 ```
 
-When the query result is empty, returns NULL.
+BigInt type average calculation, the average of [1000,2000,3000] is 2000.
 
 ```text
-+----------------------+
-| avg_weighted(k2, k1) |
-+----------------------+
-|                 NULL |
-+----------------------+
++---------------+
+| avg(k_bigint) |
++---------------+
+|          2000 |
++---------------+
 ```
+
+```sql
+select avg(k_largeint) from t1;
+```
+
+LargeInt type average calculation, the average of [10000,20000,30000] is 20000.
+
+```text
++-----------------+
+| avg(k_largeint) |
++-----------------+
+|           20000 |
++-----------------+
+```
+
+```sql
+select avg(k_double) from t1;
+```
+
+Double type average calculation, the average of [1.1,2.2,3.3] is approximately 2.2.
+
+```text
+| avg(k_double)      |
++--------------------+
+| 2.1999999999999997 |
+```
+
+```sql
+select avg(k_decimal) from t1;
+```
+
+Decimal type average calculation, the average of [222.222,444.444,null] is 333.333.
+
+```text
++----------------+
+| avg(k_decimal) |
++----------------+
+|      333.33300 |
++----------------+
+```
+
+```sql
+select avg(k_null_int) from t1;
+```
+
+For cases where all input data are NULL values, return NULL value.
+
+```text
++-----------------+
+| avg(k_null_int) |
++-----------------+
+|            NULL |
++-----------------+
+```
+
+```sql
+select avg(distinct k_bigint) from t1;
+```
+
+Using the DISTINCT keyword for deduplication calculation, [1000,2000,3000] after deduplication has an average of 2000.
+
+```text
++-----------------------+
+| avg(distinct k_bigint) |
++-----------------------+
+|                  2000 |
++-----------------------+
+```
+
