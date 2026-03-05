@@ -1,121 +1,88 @@
 ---
 {
-  "title": "CUT_IPV6",
+  "title": "IPV4_CIDR_TO_RANGE",
   "language": "en",
-  "description": "Cuts a specified number of bytes from the end of an IPv6 address based on its type (IPv4-mapped or pure IPv6),"
+  "description": "Calculates the minimum and maximum IPv4 addresses for a network segment based on an IPv4 address and CIDR prefix length,"
 }
 ---
 
-## cut_ipv6
+## ipv4_cidr_to_range
 
 ## Description
 
-Cuts a specified number of bytes from the end of an IPv6 address based on its type (IPv4-mapped or pure IPv6), and returns the truncated IPv6 address string.
+Calculates the minimum and maximum IPv4 addresses for a network segment based on an IPv4 address and CIDR prefix length, returning a struct containing two IPv4 addresses.
 
 ## Syntax
 
 ```sql
-CUT_IPV6(<ipv6_address>, <bytes_to_cut_for_ipv6>, <bytes_to_cut_for_ipv4>)
+IPV4_CIDR_TO_RANGE(<ipv4_address>, <cidr_prefix>)
 ```
 
 ### Parameters
 
-- `<ipv6_address>`: IPv6 type address
-- `<bytes_to_cut_for_ipv6>`: Number of bytes to cut for pure IPv6 addresses (TINYINT type)
-- `<bytes_to_cut_for_ipv4>`: Number of bytes to cut for IPv4-mapped addresses (TINYINT type)
+- `<ipv4_address>`: IPv4 type address
+- `<cidr_prefix>`: CIDR prefix length (SMALLINT type, range 0-32)
 
 ### Return Value
 
-Return Type: VARCHAR
+Return Type: STRUCT<min: IPv4, max: IPv4>
 
 Return Value Meaning:
 
-- Returns the truncated IPv6 address string
-- If input is an IPv4-mapped address, uses the `bytes_to_cut_for_ipv4` parameter
-- If input is a pure IPv6 address, uses the `bytes_to_cut_for_ipv6` parameter
-- Returns NULL if any of the three parameters `<ipv6_address>`, `<bytes_to_cut_for_ipv6>`, `<bytes_to_cut_for_ipv4>` is NULL
+- Returns a struct containing two fields:
+  - `min`: Minimum IPv4 address of the network segment
+  - `max`: Maximum IPv4 address of the network segment
 
 ### Usage Notes
 
-- Automatically detects whether the IPv6 address is an IPv4-mapped address (format `::ffff:IPv4`)
-- Selects the appropriate number of bytes to cut based on the address type
-- Cutting operation starts from the end of the address, setting the specified number of bytes to zero
-- Parameter values cannot exceed 16 (total bytes in an IPv6 address)
+- CIDR prefix length must be within the range 0-32
+- Calculation is based on network mask, setting all host bits to zero for minimum address and all host bits to one for maximum address
+- Supports various combinations of constant parameters and column parameters
 
 ## Examples
 
-Cut trailing bytes from a pure IPv6 address.
+Calculate address range for /24 network segment.
 
 ```sql
-SELECT cut_ipv6(to_ipv6('2001:db8::1'), 4, 4) as cut_result;
-+------------------+
-| cut_result       |
-+------------------+
-| 2001:db8::       |
-+------------------+
+SELECT ipv4_cidr_to_range(INET_ATON('192.168.1.1'), 24) as range;
++----------------------------------------+
+| range                                  |
++----------------------------------------+
+| {"min": "192.168.1.0", "max": "192.168.1.255"} |
++----------------------------------------+
 ```
 
-Cut trailing bytes from an IPv4-mapped address.
+Calculate address range for /16 network segment.
 
 ```sql
-SELECT cut_ipv6(to_ipv6('::ffff:192.168.1.1'), 4, 4) as cut_result;
-+----------------+
-| cut_result     |
-+----------------+
-| ::ffff:0.0.0.0 |
-+----------------+
+SELECT ipv4_cidr_to_range(INET_ATON('10.0.0.1'), 16) as range;
++----------------------------------------+
+| range                                  |
++----------------------------------------+
+| {"min": "10.0.0.0", "max": "10.255.255.255"} |
++----------------------------------------+
 ```
 
-Use different cutting parameters.
+Access specific fields in the struct.
 
 ```sql
 SELECT 
-  cut_ipv6(to_ipv6('2001:db8::1'), 8, 4) as ipv6_cut_8,
-  cut_ipv6(to_ipv6('::ffff:192.168.1.1'), 4, 8) as ipv4_cut_8;
-+------------+------------+
-| ipv6_cut_8 | ipv4_cut_8 |
-+------------+------------+
-| 2001:db8:: | ::         |
-+------------+------------+
+  ipv4_cidr_to_range(INET_ATON('172.16.1.1'), 24).min as min_ip,
+  ipv4_cidr_to_range(INET_ATON('172.16.1.1'), 24).max as max_ip;
++-------------+-------------+
+| min_ip      | max_ip      |
++-------------+-------------+
+| 172.16.1.0  | 172.16.1.255 |
++-------------+-------------+
 ```
 
-Parameters as NULL return NULL
+CIDR prefix out of range throws an exception.
 
 ```sql
-select cut_ipv6(NULL, NULL, NULL);
-+----------------------------+
-| cut_ipv6(NULL, NULL, NULL) |
-+----------------------------+
-| NULL                       |
-+----------------------------+
-
-select cut_ipv6(to_ipv6("::"), NULL, 0);
-+----------------------------------+
-| cut_ipv6(to_ipv6("::"), NULL, 0) |
-+----------------------------------+
-| NULL                             |
-+----------------------------------+
-
-select cut_ipv6(to_ipv6("::"), 4, NULL);
-+----------------------------------+
-| cut_ipv6(to_ipv6("::"), 4, NULL) |
-+----------------------------------+
-| NULL                             |
-+----------------------------------+
-```
-
-Parameter values out of range will throw an exception.
-
-```sql
-SELECT cut_ipv6(to_ipv6('2001:db8::1'), 17, 4);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Illegal value for argument 2 TINYINT of function cut_ipv6
-
-SELECT cut_ipv6(to_ipv6('2001:db8::1'), 4, 122);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Illegal value for argument 3 TINYINT of function cut_ipv6
+SELECT ipv4_cidr_to_range(INET_ATON('192.168.1.1'), 33);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Illegal cidr value '33'
 ```
 
 ### Keywords
 
-CUT_IPV6
-
-
+IPV4_CIDR_TO_RANGE
