@@ -1,119 +1,107 @@
 ---
 {
-  "title": "QUOTE",
+  "title": "RANDOM_BYTES",
   "language": "en",
-  "description": "The QUOTE function is used to wrap a string with single quotes and escape special characters within it, making it safe for use in SQL statements."
+  "description": "The RANDOMBYTES function generates a random byte sequence of specified length. The returned byte sequence is represented as a hexadecimal string."
 }
 ---
 
 ## Description
 
-The QUOTE function is used to wrap a string with single quotes and escape special characters within it, making it safe for use in SQL statements.
+The RANDOM_BYTES function generates a random byte sequence of specified length. The returned byte sequence is represented as a hexadecimal string.
 
 ## Syntax
 
 ```sql
-QUOTE(<str>)
+RANDOM_BYTES(<len>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                  |
-| --------- | ---------------------------------------------------------------------------- |
-| `<str>`   | The input string to be quoted. Type: VARCHAR |
+| Parameter | Description                                                                   |
+| --------- | ----------------------------------------------------------------------------- |
+| `<len>`   | Number of random bytes to generate. Type: INT |
 
 ## Return Value
 
-Returns VARCHAR type, the string wrapped with single quotes and with special characters escaped.
+Returns VARCHAR type, a hexadecimal-encoded random byte sequence (prefixed with `0x`).
 
 Special cases:
 
-- If input is NULL, returns the string 'NULL' (without quotes)
-- Single quotes `'` are escaped to `\'`
-- Backslashes `\` are escaped to `\\`
-- `\\` is escaped to `\`
-- Empty string returns `''`
+- `<len>` must be greater than 0, otherwise returns error
+- If parameter is NULL, returns NULL
+- Each invocation generates a random result
 
 ## Examples
 
-1. Basic string quoting
+1. Basic usage: Generate 8-byte random sequence
 
 ```sql
-SELECT quote('hello');
+SELECT random_bytes(8);
+```
+
+```text
++--------------------+
+| random_bytes(8)    |
++--------------------+
+| 0x1a2b3c4d5e6f7089 |
++--------------------+
+```
+
+2. Generate short sequence
+
+```sql
+SELECT random_bytes(4);
 ```
 
 ```text
 +----------------+
-| quote('hello') |
+| random_bytes(4) |
 +----------------+
-| 'hello'        |
-+----------------+
-```
-
-2. String with single quotes (will be escaped)
-
-```sql
-SELECT quote("It's a test");
-```
-
-```text
-+----------------------+
-| quote("It's a test") |
-+----------------------+
-| 'It's a test'        |
-+----------------------+
-```
-
-3. NULL value handling
-
-```sql
-SELECT quote(NULL);
-```
-
-```text
-+-------------+
-| quote(NULL) |
-+-------------+
-| NULL        |
-+-------------+
-```
-
-4. Empty string handling
-
-```sql
-SELECT quote('');
-```
-
-```text
-+-----------+
-| quote('') |
-+-----------+
-| ''        |
-+-----------+
-```
-
-5. Backslash character
-
-```sql
-SELECT quote('aaa\\');
-```
-
-```text
-+----------------+
-| quote('aaa\\') |
-+----------------+
-| 'aaa\'         |
+| 0xab12cd34     |
 +----------------+
 ```
 
+3. Invalid parameter: Negative number
+
 ```sql
-SELECT quote('aaa\cccb');
+SELECT random_bytes(-1);
 ```
 
 ```text
-+-------------------+
-| quote('aaa\cccb') |
-+-------------------+
-| 'aaacccb'         |
-+-------------------+
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]argument -1 of function random_bytes at row 0 was invalid.
 ```
+
+4. NULL value handling
+
+```sql
+SELECT random_bytes(NULL);
+```
+
+```text
++--------------------+
+| random_bytes(NULL) |
++--------------------+
+| NULL               |
++--------------------+
+```
+
+5. Generate longer sequence (16 bytes)
+
+```sql
+SELECT random_bytes(16);
+```
+
+```text
++------------------------------------+
+| random_bytes(16)                   |
++------------------------------------+
+| 0x1a2b3c4d5e6f708192a3b4c5d6e7f809 |
++------------------------------------+
+```
+
+### Keywords
+
+    ```
+    RANDOM_BYTES
+    ```
