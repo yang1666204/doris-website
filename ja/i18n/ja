@@ -1,79 +1,65 @@
 ---
 {
-  "title": "Duplicate Key Table",
+  "title": "Table Type Overview",
   "language": "en",
-  "description": "The Duplicate Key Table in Doris is the default table type, designed to store individual raw data records."
+  "description": "When creating a table in Doris, you need to specify the table type, which determines how data is stored and managed. In Doris,"
 }
 ---
 
-The **Duplicate Key Table** in Doris is the default table type, designed to store individual raw data records. The `Duplicate Key` specified during table creation determines the columns for sorting and storage, optimizing common queries. It is recommended to choose no more than three columns as the sort key. For more specific selection guidelines, refer to [Sort Key](../index/prefix-index). The Duplicate Key Table has the following characteristics:
+When creating a table in Doris, you need to specify the table type, which determines how data is stored and managed. In Doris, the concept of "Key Model" is used to define the storage and management semantics of keys, and is closely related to the table type. Doris supports three key models (or table types): **Duplicate Key**, **Unique Key**, and **Aggregate Key**. Each key model provides different mechanisms for data deduplication, aggregation, and update handling, and is suitable for different business scenarios. Selecting the appropriate key model (table type) is essential for meeting business requirements while ensuring efficient and flexible data processing.
 
-- **Preserving Raw Data**: The Duplicate Key Table retains all original data, making it ideal for storing and querying raw data. It is recommended for use cases requiring detailed data analysis to avoid data loss.
+## Table Type Classification
 
-- **No Deduplication or Aggregation**: Unlike the Aggregate and Primary Key tables, the Duplicate Key Table does not perform deduplication or aggregation, fully retaining identical records.
+Doris supports three types of table types:
 
-- **Flexible Data Querying**: The Duplicate Key Table retains all original data, enabling detailed extraction and aggregation across any dimension for metadata auditing and fine-grained analysis.
+- [Duplicate Key Model](./duplicate): Allows the specified Key columns to be duplicated, and Doris's storage layer retains all written data. This model is suitable for situations where all original data records must be preserved.
 
-## Use Cases
+- [Unique Key Model](./unique): Ensures that each row has a unique Key value, and guarantees that there are no duplicate rows for a given Key column. The Doris storage layer retains only the latest written data for each key, making this model suitable for scenarios that involve data updates.
 
-In the Duplicate Key Table, data is generally only appended, and old data is not updated. The Duplicate Key Table is ideal for scenarios that require full raw data:
+- [Aggregate Key Model](./aggregate): Allows data to be aggregated based on the Key columns. The Doris storage layer retains aggregated data, reducing storage space and improving query performance. This model is typically used in situations where summary or aggregated information (such as totals or averages) is required.
 
-- **Log Storage**: Used for storing various types of application logs, such as access logs, error logs, etc. Each piece of data needs to be detailed for future auditing and analysis.
+After creating the table, the properties of the table type are confirmed and cannot be modified. Choosing the right model for the business is crucial:
 
-- **User Behavior Data**: When analyzing user behavior, such as click data or user access paths, it is necessary to retain detailed user actions. This helps in building user profiles and conducting detailed analysis of behavior patterns.
+- **Duplicate Key Model** is suitable for ad-hoc queries with any dimensions. Although it cannot leverage the benefits of pre-aggregation, it is not constrained by aggregation models and can take advantage of the columnar storage model (only reading relevant columns without needing to read all key columns).
 
-- **Transaction Data**: For storing transaction or order data, once a transaction is completed, there is typically no need for data changes...
+- **Unique Key Model** is designed for scenarios where a unique key constraint is needed, ensuring the uniqueness of the key. However, it cannot utilize the query benefits brought by pre-aggregations such as ROLLUP.
 
-## Table Creation Instructions
+- **Aggregate Key Model** can greatly reduce the data and computation required for aggregation queries through pre-aggregation, making it ideal for fixed-schema reporting queries. However, this model is not friendly to `count(*)` queries. Also, because the aggregation method for the Value columns is fixed, when performing other types of aggregation queries, semantic correctness must be considered.
 
-When creating a table, the **DUPLICATE KEY** keyword can be used to specify the Duplicate Key Table. The Duplicate Key table must specify the Key columns, which are used to sort the data during storage. In the following example, the Duplicate Key table stores log information and sorts the data based on the `log_time`, `log_type`, and `error_code` columns:
+- **Update partial columns**, please refer to the documentation for [Partial Column Updates in Unique Key Model](../../data-operate/update/update-of-aggregate-model) and [Partial Column Updates in Aggregate Model](../../data-operate/update/update-of-aggregate-model) for relevant usage advice.
 
-```sql
-CREATE TABLE IF NOT EXISTS example_tbl_duplicate
-(
-    log_time        DATETIME       NOT NULL,
-    log_type        INT            NOT NULL,
-    error_code      INT,
-    error_msg       VARCHAR(1024),
-    op_id           BIGINT,
-    op_time         DATETIME
-)
-DUPLICATE KEY(log_time, log_type, error_code)
-DISTRIBUTED BY HASH(log_type) BUCKETS 10;
-```
+## Sort Key
 
-## Data Insertion and Storage
+In Doris, data is stored in a columnar format, and a table can be divided into Key columns and Value columns. The Key columns are used for grouping and sorting, while the Value columns are used for aggregation. Key columns can consist of one or more fields, and when creating a table, data is sorted and stored according to the columns of Aggregate Key, Unique Key, and Duplicate Key models.
 
-In a Duplicate Key table, data is not deduplicated or aggregated; inserting data directly stores it. The Key columns in the Duplicate Key Table are used for sorting.
+Different table types require the specification of Key columns during table creation, each with a different significance: for the Duplicate Key model, the Key columns represent sorting, without any uniqueness constraints. In the Aggregate Key and Unique Key models, aggregation is performed based on the Key columns, which not only have sorting capabilities but also enforce uniqueness constraints.
 
-![columnar_storage](/images/table-desigin/duplicate-table-insert.png)
+Proper use of the Sort Key can provide the following benefits:
 
-In the example above, after inserting 2 rows into the initial 4 rows, the data is appended, resulting in a total of 6 rows.
+- **Accelerated Query Performance**: Sort keys help reduce the amount of data that needs to be scanned. For range queries or filtering queries, the sort key can directly locate the data. For queries that require sorting, the sort key can also accelerate the sorting process.
 
-```sql
--- 4 rows raw data
-INSERT INTO example_tbl_duplicate VALUES
-('2024-11-01 00:00:00', 2, 2, 'timeout', 12, '2024-11-01 01:00:00'),
-('2024-11-02 00:00:00', 1, 2, 'success', 13, '2024-11-02 01:00:00'),
-('2024-11-03 00:00:00', 2, 2, 'unknown', 13, '2024-11-03 01:00:00'),
-('2024-11-04 00:00:00', 2, 2, 'unknown', 12, '2024-11-04 01:00:00');
+- **Data Compression Optimization**: Storing data in an ordered fashion based on the sort key improves compression efficiency, as similar data will be grouped together, significantly increasing the compression ratio and reducing storage space.
 
--- insert into 2 rows
-INSERT INTO example_tbl_duplicate VALUES
-('2024-11-01 00:00:00', 2, 2, 'timeout', 12, '2024-11-01 01:00:00'),
-('2024-11-01 00:00:00', 2, 2, 'unknown', 13, '2024-11-01 01:00:00');
+- **Reduced Deduplication Costs**: When using the Unique Key Model, the sort key allows Doris to perform deduplication more efficiently, ensuring data uniqueness.
 
--- check the rows of table
-SELECT * FROM example_tbl_duplicate;
-+---------------------+----------+------------+-----------+-------+---------------------+
-| log_time            | log_type | error_code | error_msg | op_id | op_time             |
-+---------------------+----------+------------+-----------+-------+---------------------+
-| 2024-11-02 00:00:00 |        1 |          2 | success   |    13 | 2024-11-02 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | timeout   |    12 | 2024-11-01 01:00:00 |
-| 2024-11-03 00:00:00 |        2 |          2 | unknown   |    13 | 2024-11-03 01:00:00 |
-| 2024-11-04 00:00:00 |        2 |          2 | unknown   |    12 | 2024-11-04 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | unknown   |    13 | 2024-11-01 01:00:00 |
-| 2024-11-01 00:00:00 |        2 |          2 | timeout   |    12 | 2024-11-01 01:00:00 |
-+---------------------+----------+------------+-----------+-------+---------------------+
-```
+When selecting a sort key, the following recommendations can be followed:
 
+- The Key columns must come before all Value columns.
+
+- Preferably choose integer types. This is because integer types are much more efficient in computation and lookup than strings.
+
+- For selecting different lengths of integer types, follow the principle of choosing what is sufficient.
+
+- For the length of `VARCHAR` and `STRING` types, follow the principle of choosing enough...
+
+## table type Comparison
+
+|                                 | Duplicate Key Model                          | Unique Key Model | Aggregate Key Model |
+| ------------------------------- | -------------------------------------------- | ---------------- | ------------------- |
+| Key Column Uniqueness           | Not Supported, Key columns can be duplicated | Supported        | Supported           |
+| Synchronous Materialized View   | Supported                                    | Supported        | Supported           |
+| Asynchronous Materialized View  | Supported                                    | Supported        | Supported           |
+| UPDATE Statement                | Not Supported                                | Supported        | Not Supported       |
+| DELETE Statement                | Partially Supported                          | Supported        | Not Supported       |
+| Full Row Update on Import       | Not Supported                                | Supported        | Not Supported       |
+| Partial Column Update on Import | Not Supported                                | Supported        | Partially Supported |
