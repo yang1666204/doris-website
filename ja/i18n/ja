@@ -1,54 +1,67 @@
 ---
 {
-  "title": "BITMAP_COUNT",
+  "title": "BITMAP_FROM_ARRAY",
   "language": "en",
-  "description": "Count the number of elements in the input BITMAP"
+  "description": "Converts an array of TINYINT/SMALLINT/INT/BIGINT type to a BITMAP. When the input field is illegal, the result returns NULL."
 }
 ---
 
 ## Description
 
-Count the number of elements in the input BITMAP
+Converts an array of TINYINT/SMALLINT/INT/BIGINT type to a BITMAP. When the input field is illegal, the result returns NULL.
 
 ## Syntax
 
 ```sql
-BITMAP_COUNT(<bitmap>)
+BITMAP_FROM_ARRAY(<arr>)
 ```
 
 ## Parameters
 
-| Parameter  | Description |
-| ---------- | ----------- |
-| `<bitmap>` | a BITMAP    |
+| Parameter | Description   |
+| --------- | ------------- |
+| `<arr>`   | integer array |
 
 ## Return Value
 
-Returns an integer
+Returns a BITMAP
+
+- When the input field is invalid, the result is NULL
 
 ## Examples
 
 ```sql
-select bitmap_count(to_bitmap(1)) cnt;
+SELECT bitmap_to_string(bitmap_from_array(array(1, 0, 1, 1, 0, 1, 0))) AS bs;
 ```
 
 ```text
 +------+
-| cnt  |
+| bs   |
 +------+
-|    1 |
+| 0,1  |
 +------+
 ```
 
 ```sql
-select bitmap_count(bitmap_empty()) cnt;
+SELECT bitmap_to_string(bitmap_from_array(NULL)) AS bs;
 ```
 
 ```text
 +------+
-| cnt  |
+| bs   |
 +------+
-|    0 |
+| NULL |
 +------+
 ```
 
+```sql
+select bitmap_to_string(bitmap_from_array([1,2,3,-1]));
+```
+
+```text
++-------------------------------------------------+
+| bitmap_to_string(bitmap_from_array([1,2,3,-1])) |
++-------------------------------------------------+
+| NULL                                            |
++-------------------------------------------------+
+```
