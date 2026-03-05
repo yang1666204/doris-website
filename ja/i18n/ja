@@ -1,73 +1,75 @@
 ---
 {
-  "title": "FROM_HEX",
+  "title": "TO_HEX",
   "language": "en",
-  "description": "Convert the input binary data into a string converted using hexadecimal encoding."
+  "description": "Convert the input string into the corresponding byte sequence in hexadecimal."
 }
 ---
 
 ## Description
 
-Convert the input binary data into a string converted using hexadecimal encoding.
+Convert the input string into the corresponding byte sequence in hexadecimal.
 
 ## Alias
 
-FROM_BINARY
+TO_BINARY
 
 ## Syntax
 
 ```sql
-FROM_HEX ( <varbinary> )
+TO_HEX(<str>)
 ```
 
 ## Parameters
 
-| Parameter     | Description                    |
-| ------------- | ------------------------------ |
-| `<varbinary>` | Input parameter is binary data |
+| Parameter | Description                     |
+| --------- | ------------------------------- |
+| `<str>`   | The string data to be converted |
 
-## Return value
+## Return Value
 
-Convert the input binary data into a string using hexadecimal encoding.
+Return the decoded VARBINARY (displayed in hexadecimal format with a 0x prefix).
+Return NULL if any of the following conditions are met:
+The input is NULL;
+The input length is 0;
+The input length is odd;
+The input contains characters other than [0-9a-fA-F];
+The length of the decoded result is 0 (decoding failed).
 
-## Example
+## Examples
 
 ```sql
-SELECT FROM_HEX(NULL);
+select to_hex(NULL),to_hex('a');
 ```
 
 ```text
-+----------------+
-| FROM_HEX(NULL) |
-+----------------+
-| NULL           |
-+----------------+
++----------------------------+--------------------------+
+| to_hex(NULL)               | to_hex('a')              |
++----------------------------+--------------------------+
+| NULL                       | NULL                     |
++----------------------------+--------------------------+
 ```
 
 ```sql
-SELECT FROM_HEX(X'AB');
+select to_hex('ab');
 ```
 
 ```text
-+-----------------+
-| FROM_HEX(X'AB') |
-+-----------------+
-| AB              |
-+-----------------+
++----------------------------+
+| to_hex('ab')               |
++----------------------------+
+| 0xAB                       |
++----------------------------+
 ```
 
 ```sql
-select *, from_binary(varbinary_c) from mysql_all_type_test.test_varbinary_db.test_varbinary
+select to_hex('000A');
 ```
 
 ```text
-+------+----------------------------+--------------------------+
-| id   | varbinary_c                | from_binary(varbinary_c) |
-+------+----------------------------+--------------------------+
-|    1 | 0x48656C6C6F20576F726C64   | 48656C6C6F20576F726C64   |
-|    2 | 0x48656C6C6F20576F726C6421 | 48656C6C6F20576F726C6421 |
-|    3 | 0x48656C6C6F20576F726C6421 | 48656C6C6F20576F726C6421 |
-|    4 | NULL                       | NULL                     |
-|    5 | 0xAB                       | AB                       |
-+------+----------------------------+--------------------------+
++--------------------------------+
+| to_hex('000A')                 |
++--------------------------------+
+| 0x000A                         |
++--------------------------------+
 ```
