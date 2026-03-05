@@ -1,201 +1,78 @@
 ---
 {
-  "title": "Release 3.1.2",
+  "title": "Release 4.0.1",
   "language": "en",
-  "description": "#56276"
+  "description": "Others"
 }
 ---
 
-## New Features
+# Behavior Changes
 
-### Storage and Compression
+- The SHOW PARTITIONS command no longer supports Iceberg tables. Please directly use Iceberg's $partitions system table to view partitions. [#56985](https://github.com/apache/doris/pull/56985)
 
-- **Configurable table compression type** — allows selecting specific compression algorithms per table.
+# New Features
 
-[#56276](https://github.com/apache/doris/pull/56276)
+- Added the mmh64_v2 function to generate hash results consistent with those from other third-party libraries. [#57180](https://github.com/apache/doris/pull/57180)
+- Added the json_hash function to generate hash values for jsonb types. [#56962](https://github.com/apache/doris/pull/56962)
+- Added the binary data type, along with a series of related functions: length, from_base64_binary, to_base64_binary, and sub_binary. [#56648](https://github.com/apache/doris/pull/56648)
+- Added the sort_json_object_keys/normalize_json_numbers_to_double function for sorting the keys of jsonb.
+- Added several MySQL-compatible time functions: UTC_DATE, UTC_TIME, and UTC_TIMESTAMP. [#57443](https://github.com/apache/doris/pull/57443)
+- Added support for MaxCompute Schema hierarchy. [#56874](https://github.com/apache/doris/pull/56874) Documentation: https://doris.apache.org/docs/3.x/lakehouse/catalogs/maxcompute-catalog#hierarchical-mapping
+- The JSON_OBJECT function now supports using \* as a parameter. [#57256](https://github.com/apache/doris/pull/57256)
 
-- **Adaptive compaction write caching** — dynamically tunes write caching during base compaction rowset flush.
+# Improvement
 
-[#56278](https://github.com/apache/doris/pull/56278)
+## AI & Search
 
-### Cloud and Object Storage
+- Added support for phrase queries, wildcard queries, and regular expression queries to the SEARCH function. [#57372](https://github.com/apache/doris/pull/57372) [#57007](https://github.com/apache/doris/pull/57007)
+- Extended the SEARCH function with 2 new parameters: an optional default_field parameter (default column) and a default_operator parameter (specifying the boolean operator for multi-column queries as "and" or "or"). [#57312](https://github.com/apache/doris/pull/57312)
+- The SEARCH function now supports searching sub-columns of the variant type, allowing direct search of specific fields in JSON paths via dot notation (e.g., variantColumn.subcolumn:keyword).
+- Upgraded the default storage format of the inverted index from V2 to V3. [#57140](https://github.com/apache/doris/pull/57140)
+- Enhanced support for custom tokenizer pipelines by adding the char_filter component; introduced two built-in tokenizers (basic tokenizer and ICU tokenizer) in the analyzer framework; added aliases for built-in tokenizers and supported component configuration with the same name to optimize the unified analyzer framework. [#56243](https://github.com/apache/doris/pull/56243) [#57055](https://github.com/apache/doris/pull/57055)
 
-- **Cloud mode query freshness control** — adds user-defined tolerance between data latency and consistency.
+## Lakehouse
 
-[#56390](https://github.com/apache/doris/pull/56390)
+- Added the session variable merge_io_read_slice_size_bytes to address the issue of severe read amplification in external table Merge IO under certain conditions. Documentation: https://doris.apache.org/docs/3.x/lakehouse/best-practices/optimization#merge-io-optimization
 
-- **Object storage endpoint validation relaxed** — enables private or custom storage endpoints.
+## Query
 
-[#56641](https://github.com/apache/doris/pull/56641)
+- Optimized the JOIN shuffle selection algorithm. [#56279](https://github.com/apache/doris/pull/56279)
 
-### Datalake
+Others
 
-- **OSS support for Datalake** **VPC** **Endpoints (**`dlf/datalake-vpc`)\*\*.
+- Optimized the size of Runtime Filter serialization information in physical plans. [#57108](https://github.com/apache/doris/pull/57108) [#56978](https://github.com/apache/doris/pull/56978)
 
-[#56476](https://github.com/apache/doris/pull/56476)
+# Bugfix
 
-- **AWS Glue Catalog** now supports accessing S3 via IAM AssumeRole.
+## AI & Search
 
-[#57036](https://github.com/apache/doris/pull/57036)
+- Fixed the issue with search query results for non-tokenized fields and enabled the execution of the search function on MOW tables. [#56914](https://github.com/apache/doris/pull/56914) [#56927](https://github.com/apache/doris/pull/56927)
+- Fixed the calculation error in the inverted index when filtering with the IS NULL predicate. [#56964](https://github.com/apache/doris/pull/56964)
 
-- **S3 Client** updated to use `CustomAwsCredentialsProviderChain` for improved credential management.
+## Lakehouse
 
-[#56943](https://github.com/apache/doris/pull/56943)
+- Fixed the issue where predicate pushdown could not use the Parquet Page Index under certain conditions. [#55795](https://github.com/apache/doris/pull/55795)
+- Fixed the issue of missing shard reads in external table queries under certain conditions. [#57071](https://github.com/apache/doris/pull/57071)
+- Fixed the issue where modifying Catalog properties did not take effect when the Hadoop file system cache was enabled under certain conditions. [#57063](https://github.com/apache/doris/pull/57063)
+- Fixed the issue of metadata replay failure due to connection property validation during upgrades from older versions under certain conditions. [#56929](https://github.com/apache/doris/pull/56929)
+- Fixed the issue of FE thread deadlock caused by Refresh Catalog under certain conditions. [#56639](https://github.com/apache/doris/pull/56639)
+- Fixed the issue of being unable to read Iceberg tables converted from Hive. [#56918](https://github.com/apache/doris/pull/56918)
+- Fixed the issue of BE crashes caused by collecting Query Profiles under certain conditions. [#56806](https://github.com/apache/doris/pull/56806)
 
-### Functional Enhancements
+## Query
 
-- **Java UDF** now supports IP type.
+- Fixed the incorrect result of datetime type during timezone-related cast operations under boundary conditions. [#57422](https://github.com/apache/doris/pull/57422)
+- Fixed the incorrect precision derivation of results for some datetime-related functions. [#56671](https://github.com/apache/doris/pull/56671)
+- Fixed the core dump issue when inf is used as a predicate condition for float types. [#57100](https://github.com/apache/doris/pull/57100)
+- Fixed the core dump issue of the explode function with variable parameters. [#56991](https://github.com/apache/doris/pull/56991)
+- Fixed the instability issue when casting decimal256 to float types. [#56848](https://github.com/apache/doris/pull/56848)
+- Fixed the potential core dump issue caused by repeated scheduling during spill disk operations. [#56755](https://github.com/apache/doris/pull/56755)
+- Fixed the occasional incorrect adjustment of the order between mark join and other joins. [#56837](https://github.com/apache/doris/pull/56837)
+- Fixed the issue where some commands were not correctly forwarded to the master frontend for execution. [#55185](https://github.com/apache/doris/pull/55185)
+- Fixed the occasional incorrect generation of partition topn by window functions. [#56622](https://github.com/apache/doris/pull/56622)
+- Fixed the potential query error when synchronized mv definitions contain keywords. [#57052](https://github.com/apache/doris/pull/57052)
 
-[#56346](https://github.com/apache/doris/pull/56346)
+## Others
 
-- **BE REST** **API** adds `RunningTasks` output for monitoring.
-
-[#56781](https://github.com/apache/doris/pull/56781)
-
-- **Transaction monitoring** adds BRPC write-amplification metrics.
-
-[#56832](https://github.com/apache/doris/pull/56832)
-
-## Optimizations
-
-### Query Execution and Planner
-
-- **`COUNT(\*)`** optimization\*\* — automatically selects the smallest column to reduce scan load.
-
-[#56483](https://github.com/apache/doris/pull/56483)
-
-- **Compaction** skips empty rowsets to improve throughput.
-
-[#56768](https://github.com/apache/doris/pull/56768)
-
-- **Warmup statistics** add “skipped rowset” metric for better visibility.
-
-[#56373](https://github.com/apache/doris/pull/56373)
-
-### Storage Layer
-
-- **Variant column cache added** for sparse columns to speed up reads.
-
-[#56730](https://github.com/apache/doris/pull/56730)
-
-- **Segment footer** is now cached in Index Page Cache to reduce latency.
-
-[#56459](https://github.com/apache/doris/pull/56459)
-
-- **Recycler** supports parallel cleanup tasks to increase throughput.
-
-[#56573](https://github.com/apache/doris/pull/56573)
-
-### Datalake
-
-- **Paimon Time Travel** improved and schema mismatch fixed.
-
-[#56338](https://github.com/apache/doris/pull/56338)
-
-- **Iceberg scan error messages refined** and nested namespaces supported.
-
-[#56370](https://github.com/apache/doris/pull/56370), [#57035](https://github.com/apache/doris/pull/57035)
-
-- **Legacy DLF catalog properties removed.**
-
-[#56196](https://github.com/apache/doris/pull/56196), [#56505](https://github.com/apache/doris/pull/56505)
-
-- **JSON** **Load** now defaults to row-by-row parsing mode for line-based data.
-
-[#56736](https://github.com/apache/doris/pull/56736)
-
-## Bug Fixes
-
-### Datalake
-
-- Fixed **Iceberg system table classloader** error.
-
-[#56220](https://github.com/apache/doris/pull/56220)
-
-- Fixed **Iceberg partition table** failure when no partition values exist.
-
-[#57043](https://github.com/apache/doris/pull/57043)
-
-- Fixed **S3A catalog** not using IAM AssumeRole profile properly.
-
-[#56250](https://github.com/apache/doris/pull/56250)
-
-- Disabled Hadoop FileSystem cache for multi-config object storage catalogs.
-
-[#57153](https://github.com/apache/doris/pull/57153)
-
-### Query Execution and SQL Engine
-
-- Fixed `COUNT` pushdown logic error.
-
-[#56482](https://github.com/apache/doris/pull/56482)
-
-- Fixed `UNION` local shuffle behavior bug.
-
-[#56556](https://github.com/apache/doris/pull/56556)
-
-- Fixed crash in `IN` predicate for OLAP storage types.
-
-[#56834](https://github.com/apache/doris/pull/56834)
-
-- Fixed `timestampdiff` computation error for `datetimev1`.
-
-[#56893](https://github.com/apache/doris/pull/56893)
-
-- Fixed crash caused by `explode()` function.
-
-[#57002](https://github.com/apache/doris/pull/57002)
-
-### Storage and Load
-
-- Fixed S3 Load check failure when no source file exists.
-
-[#56376](https://github.com/apache/doris/pull/56376)
-
-- Fixed FileCache cleanup crash.
-
-[#56584](https://github.com/apache/doris/pull/56584)
-
-- Fixed delete bitmap not cleared in MOW compression.
-
-[#56785](https://github.com/apache/doris/pull/56785)
-
-- Fixed Outfile bz2 compression failure for small files.
-
-[#57041](https://github.com/apache/doris/pull/57041)
-
-### Cloud and Recycler Mechanism
-
-- Fixed Warmup skipping multi-segment rowsets.
-
-[#56680](https://github.com/apache/doris/pull/56680)
-
-- Fixed CloudTablet Warmup coredump on reference capture.
-
-[#56627](https://github.com/apache/doris/pull/56627)
-
-- Fixed Recycler null pointer crash in cleanup task.
-
-[#56773](https://github.com/apache/doris/pull/56773)
-
-- Fixed uncaught partition boundary error in Cloud mode.
-
-[#56968](https://github.com/apache/doris/pull/56968)
-
-### System and Miscellaneous
-
-- Fixed incorrect Prometheus metric format in FE.
-
-[#57082](https://github.com/apache/doris/pull/57082)
-
-- Fixed auto-increment value incorrect after FE restart.
-
-[#57118](https://github.com/apache/doris/pull/57118)
-
-- Fixed `SHOW CREATE VIEW` missing column definitions.
-
-[#57045](https://github.com/apache/doris/pull/57045)
-
-- Fixed HDFS Reader crash when sampling Profile data.
-
-[#56950](https://github.com/apache/doris/pull/56950)
+- Prohibited creating another synchronized mv based on a synchronized mv. [#56912](https://github.com/apache/doris/pull/56912)
+- Fixed the issue of delayed memory release in profiles. [#57257](https://github.com/apache/doris/pull/57257)
