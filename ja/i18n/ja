@@ -1,67 +1,85 @@
 ---
 {
-  "title": "IFNULL",
+  "title": "LEAST",
   "language": "en",
-  "description": "If the value of <expr1> is not NULL, returns <expr1>; otherwise, returns <expr2>."
+  "description": "Compares multiple expressions and returns the smallest value among them. If any argument is NULL, returns NULL."
 }
 ---
 
 ## Description
 
-If the value of `<expr1>` is not `NULL`, returns `<expr1>`; otherwise, returns `<expr2>`.
-
-## Alias
-
-- NVL
+Compares multiple expressions and returns the smallest value among them. If any argument is `NULL`, returns `NULL`.
 
 ## Syntax
 
 ```sql
-IFNULL(<expr1>, <expr2>)
+LEAST(<expr> [, ...])
 ```
 
 ## Parameters
 
-- `<expr1>`: The expression to be checked for `NULL`.
-- `<expr2>`: The value to return if `<expr1>` is `NULL`.
+### Required Parameter
+
+- `<expr>`: Supports `TINYINT`, `SMALLINT`, `INT`, `BIGINT`, `LARGEINT`, `FLOAT`, `DOUBLE`, `STRING`, `DATETIME`, and `DECIMAL` types.
+
+### Optional Parameters
+
+- Supports multiple arguments.
 
 ## Return Value
 
-- If `<expr1>` is not `NULL`, returns `<expr1>`.
-- Otherwise, returns `<expr2>`.
+- Returns the smallest value among the given expressions.
+- If any argument is `NULL`, returns `NULL`.
+
+## Usage Notes
+
+1. It is recommended to pass arguments of the same type. If argument types differ, the function will attempt to convert them to the same type. For conversion rules, refer to: [Type Conversion](../../../basic-element/sql-data-types/conversion/overview.md)
+2. If any argument is NULL, the result will be NULL.
 
 ## Examples
 
 1. Example 1
     ```sql
-    SELECT IFNULL(1, 0);
+    SELECT LEAST(-1, 0, 5, 8);
     ```
     ```text
-    +--------------+
-    | IFNULL(1, 0) |
-    +--------------+
-    |            1 |
-    +--------------+
+    +--------------------+
+    | LEAST(-1, 0, 5, 8) |
+    +--------------------+
+    |                 -1 |
+    +--------------------+
     ```
-2. Example 2
+2. NULL argument
     ```sql
-    SELECT IFNULL(NULL, 10);
+    SELECT LEAST(-1, 0, 5, NULL);
     ```
     ```text
-    +------------------+
-    | IFNULL(NULL, 10) |
-    +------------------+
-    |               10 |
-    +------------------+
+    +-----------------------+
+    | LEAST(-1, 0, 5, NULL) |
+    +-----------------------+
+    |                  NULL |
+    +-----------------------+
     ```
-3. Both arguments are NULL
+3. Type conversion
     ```sql
-    SELECT IFNULL(NULL, NULL);
+    SELECT LEAST(6, 9.29, 7);
     ```
     ```text
-    +--------------------+
-    | IFNULL(NULL, NULL) |
-    +--------------------+
-    |               NULL |
-    +--------------------+
+    +-------------------+
+    | LEAST(6, 9.29, 7) |
+    +-------------------+
+    |              6.00 |
+    +-------------------+
+    ```
+   > The first argument "6" is converted to Decimal type.
+4. Date type
+    ```sql
+    SELECT LEAST('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11');
+    ```
+    ```text
+    +----------------------------------------------------------------------------+
+    | LEAST('2022-02-26 20:02:11', '2020-01-23 20:02:11', '2020-06-22 20:02:11') |
+    +----------------------------------------------------------------------------+
+    | 2020-01-23 20:02:11                                                        |
+    +----------------------------------------------------------------------------+
     ```
