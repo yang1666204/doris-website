@@ -1,97 +1,95 @@
 ---
 {
-  "title": "CHAR_LENGTH",
+  "title": "CHAR | String Functions",
   "language": "en",
-  "description": "The CHARLENGTH function calculates the number of characters (not bytes) in a string. For multi-byte characters (such as Chinese characters),"
+  "description": "The CHAR function interprets each argument as an integer and returns a string consisting of the characters represented by those integer code values.",
+  "sidebar_label": "CHAR"
 }
 ---
 
+# CHAR
+
 ## Description
 
-The CHAR_LENGTH function calculates the number of characters (not bytes) in a string. For multi-byte characters (such as Chinese characters), it returns the number of characters.
-
-Currently only supports UTF-8 encoding.
-
-## Alias
-
-- CHARACTER_LENGTH
+The CHAR function interprets each argument as an integer and returns a string consisting of the characters represented by those integer code values.
 
 ## Syntax
 
 ```sql
-CHAR_LENGTH(<str>)
+CHAR(<expr>[, <expr> ...] [USING <charset_name>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                             |
-| --------- | --------------------------------------------------------------------------------------- |
-| `<str>`   | The string to calculate character length. Type: VARCHAR |
+| Parameter | Description                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------- |
+| `<expr>`  | Integer code value to be converted to a character. Type: INT |
 
 ## Return Value
 
-Returns INT type, representing the number of characters in the string.
+Returns VARCHAR type, a string composed of characters corresponding to the argument integer code values.
 
 Special cases:
 
-- If the parameter is NULL, returns NULL
-- Empty string returns 0
-- Multi-byte UTF-8 characters each count as 1 character
+- If any argument is NULL, returns an empty string
+- If the result string is illegal for the given character set, returns NULL
+- Arguments greater than 255 are converted to multi-byte characters. For example, `CHAR(15049882)` is equivalent to `CHAR(229, 164, 154)`
 
 ## Examples
 
-1. English characters
+1. Basic usage: ASCII character generation
 
 ```sql
-SELECT CHAR_LENGTH('hello');
+SELECT CHAR(68, 111, 114, 105, 115);
 ```
 
 ```text
-+----------------------+
-| char_length('hello') |
-+----------------------+
-|                    5 |
-+----------------------+
++--------------------------------------+
+| char('utf8', 68, 111, 114, 105, 115) |
++--------------------------------------+
+| Doris                                |
++--------------------------------------+
 ```
 
-2. Chinese characters (each Chinese character counts as one character)
+2. Multi-byte UTF-8 characters (Chinese)
 
 ```sql
-SELECT CHAR_LENGTH('中国');
+SELECT CHAR(15049882, 15179199, 14989469);
 ```
 
 ```text
-+----------------------+
-| char_length('中国')  |
-+----------------------+
-|                    2 |
-+----------------------+
++--------------------------------------------+
+| char('utf8', 15049882, 15179199, 14989469) |
++--------------------------------------------+
+| 多睿丝                                     |
++--------------------------------------------+
 ```
 
-3. NULL value handling
+3. Illegal character returns NULL
 
 ```sql
-SELECT CHAR_LENGTH(NULL);
+SELECT CHAR(255);
 ```
 
 ```text
-+--------------------+
-| char_length(NULL)  |
-+--------------------+
-|               NULL |
-+--------------------+
++-------------------+
+| char('utf8', 255) |
++-------------------+
+| NULL              |
++-------------------+
 ```
 
-4. Comparison with LENGTH function (LENGTH returns byte count)
+4. NULL value handling
 
 ```sql
-SELECT CHAR_LENGTH('中国') AS char_len, LENGTH('中国') AS byte_len;
+SELECT CHAR(NULL);
 ```
 
 ```text
-+----------+----------+
-| char_len | byte_len |
-+----------+----------+
-|        2 |        6 |
-+----------+----------+
++------------+
+| CHAR(NULL) |
++------------+
+|            |
++------------+
 ```
+
