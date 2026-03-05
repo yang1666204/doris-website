@@ -1,93 +1,80 @@
 ---
 {
-  "title": "BITMAP_FROM_STRING",
+  "title": "BITMAP_HAS_ALL",
   "language": "en",
-  "description": "Convert a string into a BITMAP. The string consists of a group of unsigned bigint numbers separated by commas."
+  "description": "Determines whether one Bitmap contains all the elements of another Bitmap."
 }
 ---
 
 ## Description
 
-Convert a string into a BITMAP. The string consists of a group of unsigned bigint numbers separated by commas. (The number values are between: 0 ~ 18446744073709551615)
-For example, the string "0, 1, 2" will be converted into a Bitmap, where the 0th, 1st, and 2nd bits are set. When the input field is invalid, NULL is returned
+Determines whether one Bitmap contains all the elements of another Bitmap.
 
 ## Syntax
 
 ```sql
- BITMAP_FROM_STRING(<str>)
+BITMAP_HAS_ALL(<bitmap1>, <bitmap2>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------- |
-| `<str>`   | Array string, for example "0, 1, 2" string will be converted to a Bitmap with bits 0, 1, 2 set |
+| Parameter   | Description       |
+| ----------- | ----------------- |
+| `<bitmap1>` | The first Bitmap  |
+| `<bitmap2>` | The second Bitmap |
 
 ## Return Value
 
-Returns a BITMAP
+Returns `true` if `<bitmap1>` contains all the elements of `<bitmap2>`;  
+Returns `true` if `<bitmap2>` contains no elements;  
+Otherwise, returns `false`.
 
-- When the input field is invalid, the result is NULL
+- If the parameter has a NULL value, it returns NULL
 
 ## Examples
 
-```sql
-select bitmap_to_string(bitmap_from_string("0, 1, 2")) bts;
-```
-
-```text
-+-------+
-| bts   |
-+-------+
-| 0,1,2 |
-+-------+
-```
+To check if one Bitmap contains all elements of another Bitmap:
 
 ```sql
-select bitmap_to_string(bitmap_from_string("-1, 0, 1, 2")) bfs;
+select bitmap_has_all(bitmap_from_string('0, 1, 2'), bitmap_from_string('1, 2')) as res;
 ```
+
+The result will be:
 
 ```text
 +------+
-| bfs  |
+| res  |
++------+
+|    1 |
++------+
+```
+
+To check if an empty Bitmap contains all elements of another Bitmap:
+
+```sql
+select bitmap_has_all(bitmap_empty(), bitmap_from_string('1, 2')) as res;
+```
+
+The result will be:
+
+```text
++------+
+| res  |
++------+
+|    0 |
++------+
+```
+
+```sql
+select bitmap_has_all(bitmap_empty(), NULL) as res;
+```
+
+The result will be:
+
+```text
++------+
+| res  |
 +------+
 | NULL |
 +------+
 ```
-
-```sql
-select bitmap_to_string(bitmap_from_string(NULL)) bfs;
-```
-
-```text
-+------+
-| bfs  |
-+------+
-| NULL |
-+------+
-```
-
-```sql
-select bitmap_to_string(bitmap_from_string("18446744073709551616, 1")) bfs;
-```
-
-```text
-+------+
-| bfs  |
-+------+
-| NULL |
-+------+
-```
-
-```sql
-select bitmap_to_string(bitmap_from_string("0, 1, 18446744073709551615")) bts;
-```
-
-```text
-+--------------------------+
-| bts                      |
-+--------------------------+
-| 0,1,18446744073709551615 |
-+--------------------------+
-```
-
