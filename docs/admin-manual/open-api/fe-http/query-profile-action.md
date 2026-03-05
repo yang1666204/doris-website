@@ -1,30 +1,13 @@
 ---
 {
-    "title": "Query Profile Action",
-    "language": "en"
+    "title": "Query Profile Action | Fe Http",
+    "language": "en",
+    "description": "Doris FE Query Profile REST API 文档，支持通过 HTTP 接口获取查询信息、执行 Profile、实时统计数据，并对正在运行的查询进行监控与控制。",
+    "sidebar_label": "Query Profile Action"
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-
+# Query Profile Action
 
 ## Request
 
@@ -45,6 +28,8 @@ under the License.
 `GET /rest/v2/manager/query/current_queries`
 
 `GET /rest/v2/manager/query/kill/{query_id}`
+
+`GET /rest/v2/manager/query/statistics/{trace_id}` (4.0.0+)
 
 ## Get the query information
 
@@ -496,6 +481,44 @@ Cancel query of specified connection.
     "msg": "success",
     "code": 0,
     "data": null,
+    "count": 0
+}
+```
+
+## Get Query Progress by Trace ID
+
+`GET /rest/v2/manager/query/statistics/{trace_id}` (4.0.0+)
+
+### Description
+
+Retrieve the statistics of a currently running query by Trace ID. You can call this API periodically to obtain the progress of the query.
+
+### Path parameters
+
+* `{trace_id}`
+
+    Trace ID. The user-defined Trace ID set via `SET session_context="trace_id:xxxx"`.
+
+### Response
+
+```json
+{
+    "msg": "success",
+    "code": 0,
+    "data": {
+        "scanRows": 1234567,
+        "scanBytes": 987654321,
+        "returnedRows": 12345,
+        "cpuMs": 15600,
+        "maxPeakMemoryBytes": 536870912,
+        "currentUsedMemoryBytes": 268435456,
+        "shuffleSendBytes": 104857600,
+        "shuffleSendRows": 50000,
+        "scanBytesFromLocalStorage": 734003200,
+        "scanBytesFromRemoteStorage": 253651121,
+        "spillWriteBytesToLocalStorage": 0,
+        "spillReadBytesFromLocalStorage": 0
+    },
     "count": 0
 }
 ```
