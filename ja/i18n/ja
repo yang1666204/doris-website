@@ -1,109 +1,93 @@
 ---
 {
-  "title": "IPV4_STRING_TO_NUM",
+  "title": "IPV4_TO_IPV6",
   "language": "en",
-  "description": "Takes a string containing an IPv4 address in A.B.C.D format (dot-separated decimal numbers)."
+  "description": "Converts an IPv4 address to an IPv6 address. The converted IPv6 address is an IPv4-mapped address in the format ::ffff:IPv4."
 }
 ---
 
-## ipv4_string_to_num
+## ipv4_to_ipv6
 
 ## Description
 
-Takes a string containing an IPv4 address in A.B.C.D format (dot-separated decimal numbers). Returns the the numeric value of the address in network byte order (big endian) integer corresponding IPv4 address.
+Converts an IPv4 address to an IPv6 address. The converted IPv6 address is an IPv4-mapped address in the format `::ffff:IPv4`.
 
 ## Syntax
 
 ```sql
-IPV4_STRING_TO_NUM(<ipv4_string>)
+IPV4_TO_IPV6(<ipv4_address>)
 ```
 
 ### Parameters
 
-- `<ipv4_string>`: IPv4 string address (format A.B.C.D)
+- `<ipv4_address>`: IPv4 type address
 
 ### Return Value
 
-Return Type: BIGINT
+Return Type: IPv6
 
 Return Value Meaning:
 
-- Returns the the numeric value of the address in network byte order (big endian) integer representation of the corresponding IPv4 address
-- Throws an exception for invalid IPv4 strings or `NULL` input
+- Returns the corresponding IPv6 address in the format `::ffff:IPv4`
+- This is the standard IPv4-mapped IPv6 address format
 
 ### Usage Notes
 
-- Only supports standard IPv4 text, does not support CIDR (like `/24`), ports (like `:80`), or other extended formats
-- Does not perform implicit trimming or type conversion, strings with leading/trailing whitespace are considered invalid
-- Commonly used with `inet_ntoa`, `to_ipv4` for mutual conversion
+- Embeds the IPv4 address into an IPv6 address using the standard IPv4-mapped format
+- The converted address can be used for IPv4 compatibility in IPv6 networks
+- Supports all valid IPv4 addresses
+- Returns NULL when input parameter is NULL
 
 ## Examples
 
-Convert IPv4 text `192.168.0.1` to the corresponding the the numeric value of the address in network byte order (big endian) integer.
+Convert IPv4 address to IPv6 address.
 
 ```sql
-select ipv4_string_to_num('192.168.0.1');
-+-----------------------------------+
-| ipv4_string_to_num('192.168.0.1') |
-+-----------------------------------+
-| 3232235521                        |
-+-----------------------------------+
+SELECT ipv4_to_ipv6(to_ipv4('192.168.1.1')) as ipv6_address;
++--------------------+
+| ipv6_address       |
++--------------------+
+| ::ffff:192.168.1.1 |
++--------------------+
 ```
 
-IPv4 boundary values (minimum and maximum).
+Convert multiple IPv4 addresses.
 
 ```sql
-select
-  ipv4_string_to_num('0.0.0.0')             as min_v4,
-  ipv4_string_to_num('255.255.255.255')     as max_v4;
-+--------+-----------+
-| min_v4| max_v4    |
-+--------+-----------+
-| 0      | 4294967295|
-+--------+-----------+
+SELECT 
+  ipv4_to_ipv6(to_ipv4('10.0.0.1')) as private_ip,
+  ipv4_to_ipv6(to_ipv4('8.8.8.8')) as public_ip;
++-----------------+----------------+
+| private_ip      | public_ip      |
++-----------------+----------------+
+| ::ffff:10.0.0.1 | ::ffff:8.8.8.8 |
++-----------------+----------------+
 ```
 
-Invalid input triggers exceptions (segment value out of range/contains whitespace/NULL).
+Convert boundary value IPv4 addresses.
 
 ```sql
-select ipv4_string_to_num('256.0.0.1');
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Invalid IPv4 value
-
-select ipv4_string_to_num(' 1.1.1.1 ');
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Invalid IPv4 value
-
-select ipv4_string_to_num(NULL);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Null Input, you may consider convert it to a valid default IPv4 value like '0.0.0.0' first
+SELECT 
+  ipv4_to_ipv6(to_ipv4('0.0.0.0')) as min_ip,
+  ipv4_to_ipv6(to_ipv4('255.255.255.255')) as max_ip;
++----------------+------------------------+
+| min_ip         | max_ip                 |
++----------------+------------------------+
+| ::ffff:0.0.0.0 | ::ffff:255.255.255.255 |
++----------------+------------------------+
 ```
 
-Mutual conversion examples with `inet_ntoa`/`ipv4_num_to_string` and `to_ipv4`: IPv4 text → integer → IPv4 text → IPv4 type.
+Input parameter as NULL returns NULL.
 
 ```sql
--- Step 1: IPv4 text to integer
-SELECT ipv4_string_to_num('192.168.1.1') as ipv4_int;
-+------------+
-| ipv4_int   |
-+------------+
-| 3232235777 |
-+------------+
-
--- Step 2: Integer back to IPv4 text
-SELECT ipv4_num_to_string(ipv4_string_to_num('192.168.1.1')) as back_to_text;
-+----------------+
-| back_to_text   |
-+----------------+
-| 192.168.1.1    |
-+----------------+
-
--- Step 3: IPv4 text to IPv4 type
-SELECT to_ipv4(ipv4_num_to_string(ipv4_string_to_num('192.168.1.1'))) as ipv4_type;
+SELECT ipv4_to_ipv6(NULL) as null_result;
 +-------------+
-| ipv4_type   |
+| null_result |
 +-------------+
-| 192.168.1.1 |
+| NULL        |
 +-------------+
 ```
 
 ### Keywords
 
-IPV4_STRING_TO_NUM
+IPV4_TO_IPV6
