@@ -1,60 +1,83 @@
 ---
 {
     "title": "TOPN_WEIGHTED",
-    "language": "en"
+    "language": "en",
+    "description": "The TOPNWEIGHTED function returns the N most frequent values in the specified column with weighted counting. Unlike the regular TOPN function,"
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+The TOPN_WEIGHTED function returns the N most frequent values in the specified column with weighted counting. Unlike the regular TOPN function, TOPN_WEIGHTED allows adjusting the importance of values through weights.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## TOPN_WEIGHTED
-### description
-#### Syntax
-
-`ARRAY<T> topn_weighted(expr, BigInt weight, INT top_num[, INT space_expand_rate])`
-
-The topn_weighted function is calculated using the Space-Saving algorithm, and the sum of the weights in expr is the result of the top n numbers, which is an approximate value
-
-The space_expand_rate parameter is optional and is used to set the number of counters used in the Space-Saving algorithm
+```sql
+TOPN_WEIGHTED(<expr>, <weight>, <top_num> [, <space_expand_rate>])
 ```
-counter numbers = top_num * space_expand_rate
-```
-The higher value of space_expand_rate, the more accurate result will be. The default value is 50
 
-### example
-```
-mysql> select topn_weighted(k5,k1,3) from baseall;
-+------------------------------+
-| topn_weighted(`k5`, `k1`, 3) |
-+------------------------------+
-| [0, 243.325, 100.001]        |
-+------------------------------+
-1 row in set (0.02 sec)
+## Parameters
 
-mysql> select topn_weighted(k5,k1,3,100) from baseall;
-+-----------------------------------+
-| topn_weighted(`k5`, `k1`, 3, 100) |
-+-----------------------------------+
-| [0, 243.325, 100.001]             |
-+-----------------------------------+
-1 row in set (0.02 sec)
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | The column or expression to be counted. Supported types: TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, IPV4, IPV6, String. |
+| `<weight>` | The column or expression used to adjust the weight. Supported type: Double.|
+| `<top_num>` | The number of most frequent values to return. Must be a positive integer. Supported type: Integer. |
+| `<space_expand_rate>` | Optional. Sets the number of counters used in the Space-Saving algorithm: `counter_numbers = top_num * space_expand_rate`. The larger the value, the more accurate the result. Default is 50. Supported type: Integer. |
+
+## Return Value
+
+Returns an array containing the N values with the highest weighted counts.
+If there is no valid data in the group, returns NULL.
+
+## Example
+```sql
+-- setup
+CREATE TABLE product_sales (
+    product_id INT,
+    sale_amount DECIMAL(10,2),
+    sale_date DATE
+) DISTRIBUTED BY HASH(product_id)
+PROPERTIES (
+    "replication_num" = "1"
+);
+INSERT INTO product_sales VALUES
+(1, 100.00, '2024-01-01'),
+(2, 50.00, '2024-01-01'),
+(1, 150.00, '2024-01-01'),
+(3, 75.00, '2024-01-01'),
+(1, 200.00, '2024-01-01'),
+(2, 80.00, '2024-01-01'),
+(1, 120.00, '2024-01-01'),
+(4, 90.00, '2024-01-01');
 ```
-### keywords
-TOPN, TOPN_WEIGHTED
+
+```sql
+SELECT TOPN_WEIGHTED(product_id, sale_amount, 3) as top_products
+FROM product_sales;
+```
+
+Find the top 3 products by sales amount (weighted).
+
+```text
++--------------+
+| top_products |
++--------------+
+| [1, 2, 4]    |
++--------------+
+```
+
+```sql
+SELECT TOPN_WEIGHTED(product_id, sale_amount, 3) as top_products
+FROM product_sales where product_id is null;
+```
+
+Find the top 3 products by sales amount (weighted).
+
+```text
++--------------+
+| top_products |
++--------------+
+| NULL         |
++--------------+
+```
