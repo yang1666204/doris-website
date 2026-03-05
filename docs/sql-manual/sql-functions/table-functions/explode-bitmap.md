@@ -1,155 +1,75 @@
 ---
 {
     "title": "EXPLODE_BITMAP",
-    "language": "en"
+    "language": "en",
+    "description": "The explodebitmap table function accepts a bitmap type data and maps each bit in the bitmap to a separate row."
 }
 ---
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
+The `explode_bitmap` table function accepts a bitmap type data and maps each bit in the bitmap to a separate row.
+It is commonly used to process bitmap data, expanding each element in the bitmap into a separate record. It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md).
+`explode_bitmap_outer` is similar to `explode_bitmap`, but behaves differently when handling empty or NULL values. It allows records with empty or NULL bitmaps to exist and expands them into NULL rows in the result.
 
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-## explode_bitmap
-
-### description
-
-Table functions must be used in conjunction with Lateral View.
-
-Expand a bitmap type.
-
-#### syntax
-
-`explode_bitmap(bitmap)`
-
-### example
-
-Original table data:
-
-```
-mysql> select k1 from example1 order by k1;
-+------+
-| k1   |
-+------+
-|    1 |
-|    2 |
-|    3 |
-|    4 |
-|    5 |
-|    6 |
-+------+
+## Syntax
+```sql
+EXPLODE_BITMAP(<bitmap>)
 ```
 
-Lateral View:
+## Parameters
+- `<bitmap>` [`BITMAP`](../../basic-element/sql-data-types/aggregate/BITMAP.md) type
 
-```
-mysql> select k1, e1 from example1 lateral view explode_bitmap(bitmap_empty()) tmp1 as e1 order by k1, e1;
-+------+------+
-| k1   | e1   |
-+------+------+
-|    1 | NULL |
-|    2 | NULL |
-|    3 | NULL |
-|    4 | NULL |
-|    5 | NULL |
-|    6 | NULL |
-+------+------+
+## Return Value
+- Returns a row for each bit in `<bitmap>`, with each row containing a bit value.
 
-mysql> select k1, e1 from example1 lateral view explode_bitmap(bitmap_from_string("1")) tmp1 as e1 order by k1, e1;
-+------+------+
-| k1   | e1   |
-+------+------+
-|    1 |    1 |
-|    2 |    1 |
-|    3 |    1 |
-|    4 |    1 |
-|    5 |    1 |
-|    6 |    1 |
-+------+------+
+## Usage Notes
+1. If the `<bitmap>` parameter is not of type [`BITMAP`](../../basic-element/sql-data-types/aggregate/BITMAP.md), an error will be reported.
 
-mysql> select k1, e1 from example1 lateral view explode_bitmap(bitmap_from_string("1,2")) tmp1 as e1 order by k1, e1;
-+------+------+
-| k1   | e1   |
-+------+------+
-|    1 |    1 |
-|    1 |    2 |
-|    2 |    1 |
-|    2 |    2 |
-|    3 |    1 |
-|    3 |    2 |
-|    4 |    1 |
-|    4 |    2 |
-|    5 |    1 |
-|    5 |    2 |
-|    6 |    1 |
-|    6 |    2 |
-+------+------+
+## Examples
+0. Prepare data
+    ```sql
+    create table example(
+        k1 int
+    ) properties(
+        "replication_num" = "1"
+    );
 
-mysql> select k1, e1 from example1 lateral view explode_bitmap(bitmap_from_string("1,1000")) tmp1 as e1 order by k1, e1;
-+------+------+
-| k1   | e1   |
-+------+------+
-|    1 |    1 |
-|    1 | 1000 |
-|    2 |    1 |
-|    2 | 1000 |
-|    3 |    1 |
-|    3 | 1000 |
-|    4 |    1 |
-|    4 | 1000 |
-|    5 |    1 |
-|    5 | 1000 |
-|    6 |    1 |
-|    6 | 1000 |
-+------+------+
-
-mysql> select k1, e1, e2 from example1
-lateral view explode_bitmap(bitmap_from_string("1,1000")) tmp1 as e1
-lateral view explode_split("a,b", ",") tmp2 as e2 order by k1, e1, e2;
-+------+------+------+
-| k1   | e1   | e2   |
-+------+------+------+
-|    1 |    1 | a    |
-|    1 |    1 | b    |
-|    1 | 1000 | a    |
-|    1 | 1000 | b    |
-|    2 |    1 | a    |
-|    2 |    1 | b    |
-|    2 | 1000 | a    |
-|    2 | 1000 | b    |
-|    3 |    1 | a    |
-|    3 |    1 | b    |
-|    3 | 1000 | a    |
-|    3 | 1000 | b    |
-|    4 |    1 | a    |
-|    4 |    1 | b    |
-|    4 | 1000 | a    |
-|    4 | 1000 | b    |
-|    5 |    1 | a    |
-|    5 |    1 | b    |
-|    5 | 1000 | a    |
-|    5 | 1000 | b    |
-|    6 |    1 | a    |
-|    6 |    1 | b    |
-|    6 | 1000 | a    |
-|    6 | 1000 | b    |
-+------+------+------+
-```
-
-### keywords
-
-explode,bitmap,explode_bitmap
+    insert into example values(1);
+    ```
+1. Regular parameters
+    ```sql
+    select k1, e1 from example lateral view explode_bitmap(bitmap_from_string("1,3,4,5,6,10")) t2 as e1 order by k1, e1;
+    ```
+    ```text
+    +------+------+
+    | k1   | e1   |
+    +------+------+
+    |    1 |    1 |
+    |    1 |    3 |
+    |    1 |    4 |
+    |    1 |    5 |
+    |    1 |    6 |
+    |    1 |   10 |
+    +------+------+
+    ```
+2. Empty BITMAP
+    ```sql
+    select k1, e1 from example lateral view explode_bitmap(bitmap_from_string("")) t2 as e1 order by k1, e1;
+    ```
+    ```text
+    Empty set (0.03 sec)
+    ```
+3. NULL parameter
+    ```sql
+    select  * from example lateral view explode_bitmap(NULL) t2 as c;
+    ```
+    ```text
+    Empty set (0.03 sec)
+    ```
+4. Non-array parameter
+    ```sql
+    select  * from example lateral view explode_bitmap('abc') t2 as c;
+    ```
+    ```text
+    ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: explode_bitmap(VARCHAR(3))
+    ```
