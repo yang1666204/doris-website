@@ -1,96 +1,308 @@
 ---
 {
-  "title": "Kyuubi",
+  "title": "Seatunnel Doris Sink",
   "language": "en",
-  "description": "Apache Kyuubi is a distributed and multi-tenant gateway to provide serverless SQL on Data Warehouses and Lakehouses."
+  "toc_min_heading_level": 2,
+  "toc_max_heading_level": 4,
+  "description": "SeaTunnel is a very easy-to-use ultra-high-performance distributed data integration platform that supports real-time synchronization of massive data."
 }
 ---
 
-# Use Kyuubi with Doris
+## About SeaTunnel
 
-## Introduction
+SeaTunnel is a very easy-to-use ultra-high-performance distributed data integration platform that supports real-time synchronization of massive data. It can synchronize tens of billions of data stably and efficiently every day.
 
-[Apache Kyuubi](https://kyuubi.apache.org/) is a distributed and multi-tenant gateway to provide serverless SQL on Data
-Warehouses and Lakehouses.
-Apache Kyuubi is providing varied protocols like Thrift, Trino, MySQL etc., to the engines including Spark, Flink, Hive,
-JDBC, etc.
-Doris could be connected as JDBC data source with Doris dialect supported in Apache Kyuubi.
-Apache Kyuubi also provides a series of useful features including HA, service discovery,
-unified authentication, engine lifecycle management, etc.
+## Connector-V2
 
-## Usage
+The connector-v2 for SeaTunnel supports Doris Sink since version 2.3.1 and supports exactly-once write and CDC data synchronization
 
-### Download Apache Kyuubi
+### Plugin Code
 
-Download Apache Kyuubi from <https://kyuubi.apache.org/zh/releases.html>
+SeaTunnel Doris Sink [Plugin Code](https://github.com/apache/incubator-seatunnel/tree/dev/seatunnel-connectors-v2/connector-doris)
 
-Get Apache Kyuubi 1.6.0 or above and extract it to folder.
+### Options
 
-### Config Doris as Kyuubi data source
+| name                               | type   | required | default value |
+| ---------------------------------- | ------ | -------- | ------------- |
+| fenodes                            | string | yes      | -             |
+| username                           | string | yes      | -             |
+| password                           | string | yes      | -             |
+| table.identifier   | string | yes      | -             |
+| sink.label-prefix  | string | yes      | -             |
+| sink.enable-2pc    | bool   | no       | true          |
+| sink.enable-delete | bool   | no       | false         |
+| doris.config       | map    | yes      | -             |
 
-- Update Kyuubi configurations in `$KYUUBI_HOME/conf/kyuubi-defaults.conf`
+`fenodes [string]`
 
-```properties
-kyuubi.engine.type=jdbc
-kyuubi.engine.jdbc.type=doris
-kyuubi.engine.jdbc.driver.class=com.mysql.cj.jdbc.Driver
-kyuubi.engine.jdbc.connection.url=jdbc:mysql://xxx:xxx
-kyuubi.engine.jdbc.connection.user=***
-kyuubi.engine.jdbc.connection.password=***
+Doris cluster FE Nodes address, the format is `"fe_ip:fe_http_port, ..."`
+
+`username [string]`
+
+Doris user username
+
+`password [string]`
+
+Doris\`user password
+
+`table.identifier [string]`
+
+The name of Doris table,The format is DBName.TableName
+
+`sink.label-prefix [string]`
+
+The label prefix used by stream load imports. In the 2pc scenario, global uniqueness is required to ensure the EOS semantics of SeaTunnel.
+
+`sink.enable-2pc [bool]`
+
+Whether to enable two-phase commit (2pc), the default is true, to ensure Exactly-Once semantics. For two-phase commit, please refer to [here](../data-operate/import/import-way/stream-load-manual).
+
+`sink.enable-delete [bool]`
+
+Whether to enable deletion. This option requires Doris table to enable batch delete function (0.15+ version is enabled by default), and only supports Unique model. you can get more detail at this link:
+
+[batch delete](../data-operate/delete/batch-delete-manual.md)
+
+`doris.config [map]`
+
+The parameter of the stream load `data_desc`, you can get more detail at this link:
+
+[More Stream Load parameters](../data-operate/import/import-way/stream-load-manual)
+
+### Example
+
+Use JSON format to import data
+
+```
+sink {
+    Doris {
+        fenodes = "doris_fe:8030"
+        username = root
+        password = ""
+        table.identifier = "test.table_sink"
+        sink.enable-2pc = "true"
+        sink.label-prefix = "test_json"
+        doris.config = {
+            format="json"
+            read_json_by_line="true"
+        }
+    }
+}
+
 ```
 
-| Configuration                                                                                          | Description                                                   |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| kyuubi.engine.type                                                     | Engine Type, specify to `jdbc`                                |
-| kyuubi.engine.jdbc.type                                | JDBC service type, specify to `doris`                         |
-| kyuubi.engine.jdbc.driver.class        | JDBC driver class name, specify to `com.mysql.cj.jdbc.Driver` |
-| kyuubi.engine.jdbc.connection.url      | JDBC url to Doris FE                                          |
-| kyuubi.engine.jdbc.connection.user     | JDBC username                                                 |
-| kyuubi.engine.jdbc.connection.password | JDBC password                                                 |
+Use CSV format to import data
 
-- For other configuration in Apache Kyuubi, please refer
-  to [Apache Kyuubi Configuration Docs](https://kyuubi.readthedocs.io/en/master/configuration/settings.html).
-
-### Add MySQL JDBC Driver
-
-Copy the Mysql JDBC Driver `mysql-connector-j-8.X.X.jar` to `$KYUUBI_HOME/externals/engines/jdbc`.
-
-### Start Kyuubi Server
-
-Run `$KYUUBI_HOME/bin/kyuubi start`.
-After started, port 10009 by default is listened by Kyuubi Server with Thrift protocol.
-
-## Example
-
-The following example shows basic example of querying Doris with Kyuubi with beeline CLI in Thrift protocol.
-
-### Connect to Kyuubi with Beeline
-
-```shell
-$ $KYUUBI_HOME/bin/beeline -u "jdbc:hive2://xxxx:10009/"
+```
+sink {
+    Doris {
+        fenodes = "doris_fe:8030"
+        username = root
+        password = ""
+        table.identifier = "test.table_sink"
+        sink.enable-2pc = "true"
+        sink.label-prefix = "test_csv"
+        doris.config = {
+          format = "csv"
+          column_separator = ","
+        }
+    }
+}
 ```
 
-### Execute Query to Kyuubi
+## Connector-V1
 
-Execute query statement `select * from demo.expamle_tbl;` with query results returned.
+### Flink Sink Doris
 
-```shell
-0: jdbc:hive2://xxxx:10009/> select * from demo.example_tbl;  
-  
-2023-03-07 09:29:14.771 INFO org.apache.kyuubi.operation.ExecuteStatement: Processing anonymous's query[bdc59dd0-ceea-4c02-8c3a-23424323f5db]: PENDING_STATE -> RUNNING_STATE, statement:  
-select * from demo.example_tbl  
-2023-03-07 09:29:14.786 INFO org.apache.kyuubi.operation.ExecuteStatement: Query[bdc59dd0-ceea-4c02-8c3a-23424323f5db] in FINISHED_STATE  
-2023-03-07 09:29:14.787 INFO org.apache.kyuubi.operation.ExecuteStatement: Processing anonymous's query[bdc59dd0-ceea-4c02-8c3a-23424323f5db]: RUNNING_STATE -> FINISHED_STATE, time taken: 0.015 seconds  
-+----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
-| user_id  |    date     | city  | age  | sex  |    last_visit_date     | cost  | max_dwell_time  | min_dwell_time  |  
-+----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
-| 10000    | 2017-10-01  | Beijing | 20   | 0    | 2017-10-01 07:00:00.0  | 70    | 10              | 2               |  
-| 10001    | 2017-10-01  | Beijing | 30   | 1    | 2017-10-01 17:05:45.0  | 4     | 22              | 22              |  
-| 10002    | 2017-10-02  | Shanghai| 20   | 1    | 2017-10-02 12:59:12.0  | 400   | 5               | 5               |  
-| 10003    | 2017-10-02  | Guangzhou| 32   | 0    | 2017-10-02 11:20:00.0  | 60    | 11              | 11              |  
-| 10004    | 2017-10-01  | Shenzhen| 35   | 0    | 2017-10-01 10:00:15.0  | 200   | 3               | 3               |  
-| 10004    | 2017-10-03  | Shenzhen| 35   | 0    | 2017-10-03 10:20:22.0  | 22    | 6               | 6               |  
-+----------+-------------+-------+------+------+------------------------+-------+-----------------+-----------------+  
-6 rows selected (0.068 seconds)
+#### Plugin Code
 
+Seatunnel Flink Sink Doris [plugin code](https://github.com/apache/incubator-seatunnel)
+
+#### Options
+
+| name                             | type   | required | default value | engine |
+| -------------------------------- | ------ | -------- | ------------- | ------ |
+| fenodes                          | string | yes      | -             | Flink  |
+| database                         | string | yes      | -             | Flink  |
+| table                            | string | yes      | -             | Flink  |
+| user                             | string | yes      | -             | Flink  |
+| password                         | string | yes      | -             | Flink  |
+| batch_size  | int    | no       | 100           | Flink  |
+| interval                         | int    | no       | 1000          | Flink  |
+| max_retries | int    | no       | 1             | Flink  |
+| doris.\*         | -      | no       | -             | Flink  |
+
+`fenodes [string]`
+
+Doris Fe http url, eg: 127.0.0.1:8030
+
+`database [string]`
+
+Doris database
+
+`table [string]`
+
+Doris table
+
+`user [string]`
+
+Doris user
+
+`password [string]`
+
+Doris password
+
+`batch_size [int]`
+
+The maximum number of lines to write to Doris at a time, the default value is 100
+
+`interval [int]`
+
+The flush interval (in milliseconds), after which the asynchronous thread writes the data in the cache to Doris. Set to 0 to turn off periodic writes.
+
+`max_retries [int]`
+
+Number of retries after writing to Doris fails
+
+`doris.* [string]`
+
+Import parameters for Stream load. For example: 'doris.column_separator' = ', ' etc.
+
+[More Stream Load parameter configuration](../data-operate/import/import-way/stream-load-manual)
+
+#### Examples
+
+Socket To Doris
+
+```
+env {
+  execution.parallelism = 1
+}
+source {
+    SocketStream {
+      host = 127.0.0.1
+      port = 9999
+      result_table_name = "socket"
+      field_name = "info"
+    }
+}
+transform {
+}
+sink {
+  DorisSink {
+      fenodes = "127.0.0.1:8030"
+      user = root
+      password = 123456
+      database = test
+      table = test_tbl
+      batch_size = 5
+      max_retries = 1
+      interval = 5000
+    }
+}
+
+```
+
+#### Start command
+
+```
+sh bin/start-seatunnel-flink.sh --config config/flink.streaming.conf
+```
+
+### Spark Sink Doris
+
+#### Plugin Code
+
+Seatunnel Spark Sink Doris [plugin code](https://github.com/apache/incubator-seatunnel)
+
+#### Options
+
+| name                            | type   | required | default value | engine |
+| ------------------------------- | ------ | -------- | ------------- | ------ |
+| fenodes                         | string | yes      | -             | Spark  |
+| database                        | string | yes      | -             | Spark  |
+| table                           | string | yes      | -             | Spark  |
+| user                            | string | yes      | -             | Spark  |
+| password                        | string | yes      | -             | Spark  |
+| batch_size | int    | yes      | 100           | Spark  |
+| doris.\*        | string | no       | -             | Spark  |
+
+`fenodes [string]`
+
+Doris FE address:8030
+
+`database [string]`
+
+Doris target database name
+
+`table [string]`
+
+Doris target table name
+
+`user [string]`
+
+Doris user name
+
+`password [string]`
+
+Doris user's password
+
+`batch_size [string]`
+
+Doris number of submissions per batch
+
+`doris. [string]`
+Doris stream_load properties,you can use 'doris.' prefix + stream_load properties
+
+[More Doris stream_load Configurations](../data-operate/import/import-way/stream-load-manual)
+
+#### Examples
+
+Hive to Doris
+
+Config properties
+
+```
+env{
+  spark.app.name = "hive2doris-template"
+}
+
+spark {
+  spark.sql.catalogImplementation = "hive"
+}
+
+source {
+  hive {
+    preSql = "select * from tmp.test"
+    result_table_name = "test"
+  }
+}
+
+transform {
+}
+
+
+sink {
+
+Console {
+
+  }
+
+Doris {
+   fenodes="xxxx:8030"
+   database="gl_mint_dim"
+   table="dim_date"
+   user="root"
+   password="root"
+   batch_size=1000
+   doris.column_separator="\t"
+   doris.columns="date_key,date_value,day_in_year,day_in_month"
+   }
+}
+```
+
+#### Start command
+
+```
+sh bin/start-waterdrop-spark.sh --master local[4] --deploy-mode client --config ./config/spark.conf
 ```
