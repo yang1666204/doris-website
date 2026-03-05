@@ -1,54 +1,76 @@
 ---
 {
     "title": "EXPLODE_NUMBERS",
-    "language": "en"
+    "language": "en",
+    "description": "The explodenumbers function accepts an integer and maps each number in the range to a separate row."
 }
 ---
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
+The `explode_numbers` function accepts an integer and maps each number in the range to a separate row. It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md) to flatten nested data structures into a standard flat table format. The main difference between `explode_numbers` and [`explode_numbers_outer`](./explode-numbers-outer.md) is how they handle null values.
 
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-## explode_numbers
-
-### description
-
-Table functions must be used in conjunction with Lateral View.
-
-Get a number sequence [0,n).
-
-#### syntax
-
-`explode_numbers(n)`
-
-### example
+## Syntax
+```sql
+EXPLODE_NUMBERS(<int>)
 ```
-mysql> select e1 from (select 1 k1) as t lateral view explode_numbers(5) tmp1 as e1;
-+------+
-| e1   |
-+------+
-|    0 |
-|    1 |
-|    2 |
-|    3 |
-|    4 |
-+------+
-```
-### keywords
 
-explode,numbers,explode_numbers
+## Parameters
+- `<int>` Integer type
+
+## Return Value
+- Returns an integer column `[0, n)`, with column type `INT`.
+- If `<int>` is NULL or 0 or negative, 0 rows are returned.
+
+
+## Examples
+0. Prepare data
+    ```sql
+    create table example(
+        k1 int
+    ) properties(
+        "replication_num" = "1"
+    );
+
+    insert into example values(1);
+    ```
+1. Regular parameters
+    ```sql
+    select  * from example lateral view explode_numbers(10) t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | c    |
+    +------+------+
+    |    1 |    0 |
+    |    1 |    1 |
+    |    1 |    2 |
+    |    1 |    3 |
+    |    1 |    4 |
+    |    1 |    5 |
+    |    1 |    6 |
+    |    1 |    7 |
+    |    1 |    8 |
+    |    1 |    9 |
+    +------+------+
+    ```
+2. Parameter 0
+    ```sql
+    select  * from example lateral view explode_numbers(0) t2 as c;
+    ```
+    ```text
+    Empty set (0.03 sec)
+    ```
+3. NULL parameter
+    ```sql
+    select  * from example lateral view explode_numbers(NULL) t2 as c;
+    ```
+    ```text
+    Empty set (0.03 sec)
+    ```
+4. Negative parameter
+    ```sql
+    select  * from example lateral view explode_numbers(-1) t2 as c;
+    ```
+    ```text
+    Empty set (0.04 sec)
+    ```
