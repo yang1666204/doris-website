@@ -1,100 +1,76 @@
 ---
 {
-  "title": "IS_IPV6_STRING",
+  "title": "TO_IPV4_OR_DEFAULT",
   "language": "en",
-  "description": "Checks if the input string is a valid IPv6 address format. Returns 1 if it is a valid IPv6 address, returns 0 if it is not."
+  "description": "Takes the string form of an IPv4 address and returns a value of IPv4 type. For invalid input or NULL input, returns the default value 0.0.0.0."
 }
 ---
 
-## is_ipv6_string
+## to_ipv4_or_default
 
 ## Description
 
-Checks if the input string is a valid IPv6 address format. Returns 1 if it is a valid IPv6 address, returns 0 if it is not.
-
-## Alias
-
-- IS_IPV6
+Takes the string form of an IPv4 address and returns a value of IPv4 type. For invalid input or NULL input, returns the default value `0.0.0.0`.
 
 ## Syntax
 
 ```sql
-IS_IPV6_STRING(<ipv6_str>)
+TO_IPV4_OR_DEFAULT(<ipv4_str>)
 ```
 
 ### Parameters
 
-- `<ipv6_str>`: String to check
+- `<ipv4_str>`: String type IPv4 address
 
 ### Return Value
 
-Return Type: TINYINT
+Return Type: IPv4
 
 Return Value Meaning:
 
-- Returns 1: indicates the input is a valid IPv6 address format
-- Returns 0: indicates the input is not a valid IPv6 address format
-- Returns NULL when input is NULL
+- Returns IPv4 type value, whose binary form is equivalent to the return value of `ipv4_string_to_num`
+- Returns `0.0.0.0` when input is NULL or invalid IPv4 address
 
 ### Usage Notes
 
-- Only checks if the string format conforms to IPv6 address specification
-- Does not perform actual IP address conversion, only format validation
-- Supports NULL input, returns NULL
+- Equivalent to `to_ipv4_or_default` → `IPv4` type, suitable for scenarios where tables are created with `IPv4` columns
+- Does not throw exceptions for invalid input, instead returns the default value `0.0.0.0`
 
 ## Examples
 
-Check valid IPv6 address format.
+Convert IPv4 text `255.255.255.255` to `IPv4` type.
 
 ```sql
-SELECT is_ipv6_string('2001:db8::1') as is_valid;
-+----------+
-| is_valid |
-+----------+
-| 1        |
-+----------+
+SELECT to_ipv4_or_default('255.255.255.255') as v4;
++-----------------+
+| v4              |
++-----------------+
+| 255.255.255.255 |
++-----------------+
 ```
 
-Check various IPv6 address formats.
+Input NULL returns default value `0.0.0.0`.
 
 ```sql
-SELECT 
-  is_ipv6_string('::1') as localhost,
-  is_ipv6_string('2001:db8::1') as standard,
-  is_ipv6_string('2001:db8:0:0:0:0:0:1') as expanded;
-+-----------+----------+----------+
-| localhost | standard | expanded |
-+-----------+----------+----------+
-| 1         | 1        | 1        |
-+-----------+----------+----------+
+SELECT to_ipv4_or_default(NULL) as v4;
++---------+
+| v4      |
++---------+
+| 0.0.0.0 |
++---------+
 ```
 
-Check invalid IPv6 address formats.
+Invalid IPv4 text returns default value `0.0.0.0`.
 
 ```sql
-SELECT 
-  is_ipv6_string('2001:db8::1::2') as double_colon,
-  is_ipv6_string('2001:db8:1') as too_short,
-  is_ipv6_string('2001:db8:1:2:3:4:5:6:7') as too_long,
-  is_ipv6_string('not-an-ipv6') as not_ipv6;
-+--------------+-----------+----------+----------+
-| double_colon | too_short | too_long | not_ipv6 |
-+--------------+-----------+----------+----------+
-| 0            | 0         | 0        | 0        |
-+--------------+-----------+----------+----------+
-```
-
-Check NULL input.
-
-```sql
-SELECT is_ipv6_string(NULL) as null_check;
-+------------+
-| null_check |
-+------------+
-| NULL       |
-+------------+
+SELECT to_ipv4_or_default('256.1.1.1') as v4;
++---------+
+| v4      |
++---------+
+| 0.0.0.0 |
++---------+
 ```
 
 ### Keywords
 
-IS_IPV6_STRING
+TO_IPV4_OR_DEFAULT
