@@ -1,20 +1,20 @@
 ---
 {
-  "title": "Health Action",
+  "title": "Help Action",
   "language": "en",
-  "description": "Returns the number of BE nodes currently surviving in the cluster and the number of BE nodes that are down."
+  "description": "Used to obtain help through fuzzy query."
 }
 ---
 
-# Health Action
+# Help Action
 
 ## Request
 
-`GET /api/health`
+`GET /rest/v1/help`
 
 ## Description
 
-Returns the number of BE nodes currently surviving in the cluster and the number of BE nodes that are down.
+Used to obtain help through fuzzy query.
 
 ## Path parameters
 
@@ -22,7 +22,9 @@ None
 
 ## Query parameters
 
-None
+- `query`
+
+  Keywords to be matched, such as array and select.
 
 ## Request body
 
@@ -32,12 +34,10 @@ None
 
 ```
 {
-	"msg": "success",
-	"code": 0,
-	"data": {
-		"online_backend_num": 10,
-		"total_backend_num": 10
-	},
-	"count": 0
+    "msg":"success",
+    "code":0,
+    "data":{"fuzzy":"No Fuzzy Matching Topic","matching":"No Matching Category"},
+    "count":0
 }
 ```
+
