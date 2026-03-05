@@ -1,149 +1,119 @@
 ---
 {
-  "title": "PARSE_DATA_SIZE",
+  "title": "QUOTE",
   "language": "en",
-  "description": "The PARSEDATASIZE function parses a string with storage units (such as \"1.5GB\") and converts it to a numeric value in bytes."
+  "description": "The QUOTE function is used to wrap a string with single quotes and escape special characters within it, making it safe for use in SQL statements."
 }
 ---
 
 ## Description
 
-The PARSE_DATA_SIZE function parses a string with storage units (such as "1.5GB") and converts it to a numeric value in bytes.
+The QUOTE function is used to wrap a string with single quotes and escape special characters within it, making it safe for use in SQL statements.
 
 ## Syntax
 
 ```sql
-PARSE_DATA_SIZE(<str>)
+QUOTE(<str>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                                           |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<str>`   | Data size string with unit (e.g., "100MB", "2.5GB"). Type: VARCHAR |
+| Parameter | Description                                                                  |
+| --------- | ---------------------------------------------------------------------------- |
+| `<str>`   | The input string to be quoted. Type: VARCHAR |
 
 ## Return Value
 
-Returns BIGINT type, representing the numeric value converted to bytes.
+Returns VARCHAR type, the string wrapped with single quotes and with special characters escaped.
 
 Special cases:
 
-- Supported units (case-insensitive): B, kB, MB, GB, TB, PB, EB, ZB, YB
-- Units use base 1024 (e.g., 1kB = 1024B)
-- Supports decimals (e.g., "2.5MB")
-- If parameter format is invalid, returns error
-- If parameter is NULL, returns NULL
-
-**Supported Units Table:**
-
-| Unit | Name      | Bytes |
-| ---- | --------- | ----- |
-| B    | Bytes     | 1     |
-| kB   | Kilobytes | 1024  |
-| MB   | Megabytes | 1024² |
-| GB   | Gigabytes | 1024³ |
-| TB   | Terabytes | 1024⁴ |
-| PB   | Petabytes | 1024⁵ |
-| EB   | Exabytes  | 1024⁶ |
+- If input is NULL, returns the string 'NULL' (without quotes)
+- Single quotes `'` are escaped to `\'`
+- Backslashes `\` are escaped to `\\`
+- `\\` is escaped to `\`
+- Empty string returns `''`
 
 ## Examples
 
-1. Basic usage: Parse bytes
+1. Basic string quoting
 
 ```sql
-SELECT parse_data_size('1024B');
+SELECT quote('hello');
 ```
 
 ```text
-+--------------------------+
-| parse_data_size('1024B') |
-+--------------------------+
-| 1024                     |
-+--------------------------+
++----------------+
+| quote('hello') |
++----------------+
+| 'hello'        |
++----------------+
 ```
 
-2. Parse kilobytes
+2. String with single quotes (will be escaped)
 
 ```sql
-SELECT parse_data_size('1kB');
+SELECT quote("It's a test");
 ```
 
 ```text
-+------------------------+
-| parse_data_size('1kB') |
-+------------------------+
-| 1024                   |
-+------------------------+
++----------------------+
+| quote("It's a test") |
++----------------------+
+| 'It's a test'        |
++----------------------+
 ```
 
-3. Parse megabytes with decimals
+3. NULL value handling
 
 ```sql
-SELECT parse_data_size('2.5MB');
+SELECT quote(NULL);
 ```
 
 ```text
-+--------------------------+
-| parse_data_size('2.5MB') |
-+--------------------------+
-| 2621440                  |
-+--------------------------+
++-------------+
+| quote(NULL) |
++-------------+
+| NULL        |
++-------------+
 ```
 
-4. Parse gigabytes
+4. Empty string handling
 
 ```sql
-SELECT parse_data_size('1GB');
+SELECT quote('');
 ```
 
 ```text
-+------------------------+
-| parse_data_size('1GB') |
-+------------------------+
-| 1073741824             |
-+------------------------+
++-----------+
+| quote('') |
++-----------+
+| ''        |
++-----------+
 ```
 
-5. Parse terabytes
+5. Backslash character
 
 ```sql
-SELECT parse_data_size('1TB');
+SELECT quote('aaa\\');
 ```
 
 ```text
-+------------------------+
-| parse_data_size('1TB') |
-+------------------------+
-| 1099511627776          |
-+------------------------+
++----------------+
+| quote('aaa\\') |
++----------------+
+| 'aaa\'         |
++----------------+
 ```
 
-6. Unsupported unit, error
-
 ```sql
-SELECT parse_data_size('1iB');
+SELECT quote('aaa\cccb');
 ```
 
 ```text
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]Invalid Input argument "1iB" of function parse_data_size
++-------------------+
+| quote('aaa\cccb') |
++-------------------+
+| 'aaacccb'         |
++-------------------+
 ```
-
-7. Input NULL
-
-```sql
-SELECT parse_data_size(NULL);
-```
-
-```text
-+-----------------------+
-| parse_data_size(NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
-```
-
-### Keywords
-
-    ```
-    PARSE_DATA_SIZE
-    ```
