@@ -1,154 +1,93 @@
 ---
 {
-  "title": "ARRAY | Array Functions",
-  "language": "en-US",
-  "description": "Creates an array. The function accepts zero or more parameters and returns an array containing all input elements.",
-  "sidebar_label": "ARRAY"
+  "title": "QUANTILE_UNION",
+  "language": "en",
+  "description": "The QUANTILEUNION function is used to merge multiple intermediate results of quantile calculations."
 }
 ---
 
-# ARRAY
-
-## array
-
-<version since="2.0.0">
-
-</version>
-
 ## Description
 
-Creates an array. The function accepts zero or more parameters and returns an array containing all input elements.
+The `QUANTILE_UNION` function is used to merge multiple intermediate results of quantile calculations. This function is usually used together with `QUANTILE_STATE`, especially suitable for scenarios requiring multi-stage quantile calculation.
 
 ## Syntax
 
 ```sql
-array([element1, element2, ...])
+QUANTILE_UNION(<query_state>)
 ```
 
-### Parameters
+## Parameters
 
-- `element1, element2, ...`：Any type, elements to be included in the array. Supports zero or more parameters.
+| Parameter       | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `<query_state>` | The data to be aggregated, type QuantileState supported. |
 
-**Supported element types:**
+## Return Value
 
-- Numeric types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT, FLOAT, DOUBLE, DECIMAL
-- String types: CHAR, VARCHAR, STRING
-- Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
-- Boolean type: BOOLEAN
-- IP types: IPV4, IPV6
-- Complex types: ARRAY, MAP, STRUCT
+Returns an aggregation state for further quantile calculation, type QuantileState.
+Returns NULL if there is no valid data in the group.
 
-### Return Value
-
-Return type: ARRAY<T>
-
-Return value meaning:
-
-- Returns an array containing all input elements
-- Empty array: if no input parameters
-
-Usage notes:
-
-- The function combines all input elements of the same data type into an array. If element types are incompatible, it will attempt type conversion
-- Complex types and basic types cannot be compatibly combined into an array, and complex types cannot be compatibly combined with each other
-- Supports zero or more parameters
-
-**Query Examples:**
-
-Create an array with multiple elements:
+## Example
 
 ```sql
-SELECT array(1, 2, 3, 4, 5);
-+----------------------+
-| array(1, 2, 3, 4, 5) |
-+----------------------+
-| [1, 2, 3, 4, 5]     |
-+----------------------+
+-- setup
+CREATE TABLE response_times (
+    request_id INT,
+    response_time DOUBLE,
+    region STRING
+) DUPLICATE KEY(request_id)
+DISTRIBUTED BY HASH(request_id) BUCKETS AUTO
+PROPERTIES (
+    "replication_allocation" = "tag.location.default: 1"
+);
+INSERT INTO response_times VALUES
+(1, 10.5, 'east'),
+(2, 15.2, 'east'),
+(3, 20.1, 'west'),
+(4, 25.8, 'east'),
+(5, 30.3, 'west'),
+(6, 35.7, 'east'),
+(7, 40.2, 'west'),
+(8, 45.9, 'east'),
+(9, 50.4, 'west'),
+(10, 100.6, 'east');
 ```
-
-Create an array with elements of different types:
 
 ```sql
-SELECT array(1, 'hello', 3.14, true);
-+----------------------------------+
-| array(1, 'hello', 3.14, true)    |
-+----------------------------------+
-| ["1", "hello", "3.14", "true"]   |
-+----------------------------------+
+SELECT 
+    region,
+    QUANTILE_PERCENT(
+        QUANTILE_UNION(
+            TO_QUANTILE_STATE(response_time, 2048)
+        ),
+        0.5
+    ) AS median_response_time
+FROM response_times
+GROUP BY region;
 ```
 
-Create an empty array:
+Calculate the 50th percentile of response times by region.
+
+```text
++--------+----------------------+
+| region | median_response_time |
++--------+----------------------+
+| west   |                35.25 |
+| east   |                30.75 |
++--------+----------------------+
+```
 
 ```sql
-SELECT array();
-+----------+
-| array()  |
-+----------+
-| []       |
-+----------+
+SELECT QUANTILE_UNION(TO_QUANTILE_STATE(response_time, 2048))
+FROM response_times where response_time is null;
 ```
 
-Create an array with null elements:
+Returns NULL if there is no valid data in the group.
 
-```sql
-SELECT array(1, null, 3, null, 5);
-+--------------------------------+
-| array(1, null, 3, null, 5)    |
-+--------------------------------+
-| [1, null, 3, null, 5]         |
-+--------------------------------+
+```text
++--------------------------------------------------------+
+| QUANTILE_UNION(TO_QUANTILE_STATE(response_time, 2048)) |
++--------------------------------------------------------+
+| NULL                                                   |
++--------------------------------------------------------+
 ```
-
-### Complex Type Examples
-
-Create an array containing arrays:
-
-```sql
-SELECT array([1,2], [3,4], [5,6]);
-+----------------------------+
-| array([1,2], [3,4], [5,6]) |
-+----------------------------+
-| [[1, 2], [3, 4], [5, 6]]   |
-+----------------------------+
-```
-
-Create an array containing maps:
-
-```sql
-SELECT array({'a':1}, {'b':2}, {'c':3});
-+----------------------------------+
-| array({'a':1}, {'b':2}, {'c':3}) |
-+----------------------------------+
-| [{"a":1}, {"b":2}, {"c":3}]      |
-+----------------------------------+
-```
-
-Create an array containing structs:
-
-```sql
-SELECT array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30));
-+-----------------------------------------------------------------------------------+
-| array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30)) |
-+-----------------------------------------------------------------------------------+
-| [{"name":"Alice", "age":20}, {"name":"Bob", "age":30}]                            |
-+-----------------------------------------------------------------------------------+
-```
-
-Mixing complex types with basic types will cause an error:
-
-```sql
-SELECT array([1,2], 'hello');
-ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<TINYINT> to target type=TEXT
-```
-
-Mixing different complex types will cause an error:
-
-```sql
-SELECT array([1,2], named_struct('name','Alice','age',20));
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array(ARRAY<TINYINT>, STRUCT<name:VARCHAR(5),age:TINYINT>)
-```
-
-### Keywords
-
-ARRAY
-
