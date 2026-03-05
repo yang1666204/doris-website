@@ -1,46 +1,32 @@
 ---
 {
-    "title": "Table Model Overview",
-    "language": "en"
+    "title": "Table Type Overview",
+    "language": "en",
+    "description": "When creating a table in Doris, you need to specify the table type, which determines how data is stored and managed. In Doris,"
 }
 ---
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+When creating a table in Doris, you need to specify the table type, which determines how data is stored and managed. In Doris, the concept of "Key Model" is used to define the storage and management semantics of keys, and is closely related to the table type. Doris supports three key models (or table types): **Duplicate Key**, **Unique Key**, and **Aggregate Key**. Each key model provides different mechanisms for data deduplication, aggregation, and update handling, and is suitable for different business scenarios. Selecting the appropriate key model (table type) is essential for meeting business requirements while ensuring efficient and flexible data processing.
 
-  http://www.apache.org/licenses/LICENSE-2.0
+## Table Type Classification
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+Doris supports three types of table types:
 
-When creating a table in Doris, it is necessary to specify the table model to define how data is stored and managed. Doris provides three table models: the **Detail Model**, **Aggregation Model**, and **Primary Key Model**, which cater to different application scenarios. Each model has corresponding mechanisms for data deduplication, aggregation, and updates. Choosing the appropriate table model helps achieve business objectives while ensuring flexibility and efficiency in data processing.
+* [Duplicate Key Model](./duplicate): Allows the specified Key columns to be duplicated, and Doris's storage layer retains all written data. This model is suitable for situations where all original data records must be preserved.
 
-## Table Model Classification
+* [Unique Key Model](./unique): Ensures that each row has a unique Key value, and guarantees that there are no duplicate rows for a given Key column. The Doris storage layer retains only the latest written data for each key, making this model suitable for scenarios that involve data updates.
 
-Doris supports three types of table models:
+* [Aggregate Key Model](./aggregate): Allows data to be aggregated based on the Key columns. The Doris storage layer retains aggregated data, reducing storage space and improving query performance. This model is typically used in situations where summary or aggregated information (such as totals or averages) is required.
 
-* **Detail Model (Duplicate Key Model)**: Allows the specified Key columns to be duplicated, and Doris's storage layer retains all written data. This model is suitable for situations where all original data records must be preserved.
+After creating the table, the properties of the table type are confirmed and cannot be modified. Choosing the right model for the business is crucial:
 
-* **Primary Key Model (Unique Key Model)**: Ensures that each row has a unique Key value, and guarantees that there are no duplicate rows for a given Key column. The Doris storage layer retains only the latest written data for each key, making this model suitable for scenarios that involve data updates.
+* **Duplicate Key Model** is suitable for ad-hoc queries with any dimensions. Although it cannot leverage the benefits of pre-aggregation, it is not constrained by aggregation models and can take advantage of the columnar storage model (only reading relevant columns without needing to read all key columns).
 
-* **Aggregate Model (Aggregate Key Model)**: Allows data to be aggregated based on the Key columns. The Doris storage layer retains aggregated data, reducing storage space and improving query performance. This model is typically used in situations where summary or aggregated information (such as totals or averages) is required.
+* **Unique Key Model** is designed for scenarios where a unique key constraint is needed, ensuring the uniqueness of the key. However, it cannot utilize the query benefits brought by pre-aggregations such as ROLLUP. 
 
-Once the table is created, the table model attributes are confirmed and cannot be modified. It is crucial to choose the appropriate model based on business requirements:
+* **Aggregate Key Model** can greatly reduce the data and computation required for aggregation queries through pre-aggregation, making it ideal for fixed-schema reporting queries. However, this model is not friendly to `count(*)` queries. Also, because the aggregation method for the Value columns is fixed, when performing other types of aggregation queries, semantic correctness must be considered.
 
-* The **Aggregate** model can significantly reduce the amount of data that needs to be scanned and the computational load during aggregation queries, making it ideal for reporting scenarios with fixed patterns. However, this model is not very friendly for `count(*)` queries. Additionally, since aggregation is fixed on the Value columns, other types of aggregation queries require careful consideration of semantic correctness.
-
-* The **Unique** model is suitable for scenarios where a unique primary key constraint is required...
+* **Update partial columns**, please refer to the documentation for [Partial Column Updates in Unique Key Model](../../data-operate/update/update-of-aggregate-model) and [Partial Column Updates in Aggregate Model](../../data-operate/update/update-of-aggregate-model) for relevant usage advice.
 
 
 
@@ -48,7 +34,7 @@ Once the table is created, the table model attributes are confirmed and cannot b
 
 In Doris, data is stored in a columnar format, and a table can be divided into Key columns and Value columns. The Key columns are used for grouping and sorting, while the Value columns are used for aggregation. Key columns can consist of one or more fields, and when creating a table, data is sorted and stored according to the columns of Aggregate Key, Unique Key, and Duplicate Key models.
 
-Different table models require the specification of Key columns during table creation, each with a different significance: for the Duplicate Key model, the Key columns represent sorting, without any uniqueness constraints. In the Aggregate Key and Unique Key models, aggregation is performed based on the Key columns, which not only have sorting capabilities but also enforce uniqueness constraints.
+Different table types require the specification of Key columns during table creation, each with a different significance: for the Duplicate Key model, the Key columns represent sorting, without any uniqueness constraints. In the Aggregate Key and Unique Key models, aggregation is performed based on the Key columns, which not only have sorting capabilities but also enforce uniqueness constraints.
 
 Proper use of the Sort Key can provide the following benefits:
 
@@ -56,7 +42,7 @@ Proper use of the Sort Key can provide the following benefits:
 
 * **Data Compression Optimization**: Storing data in an ordered fashion based on the sort key improves compression efficiency, as similar data will be grouped together, significantly increasing the compression ratio and reducing storage space.
 
-* **Reduced Deduplication Costs**: When using the `UNIQUE KEY` model, the sort key allows Doris to perform deduplication more efficiently, ensuring data uniqueness.
+* **Reduced Deduplication Costs**: When using the Unique Key Model, the sort key allows Doris to perform deduplication more efficiently, ensuring data uniqueness.
 
 When selecting a sort key, the following recommendations can be followed:
 
@@ -68,9 +54,9 @@ When selecting a sort key, the following recommendations can be followed:
 
 * For the length of `VARCHAR` and `STRING` types, follow the principle of choosing enough...
 
-## Table Model Comparison
+## table type Comparison
 
-|           | Detail Model       | Primary Key Model | Aggregate Model |
+|           | Duplicate Key Model       | Unique Key Model | Aggregate Key Model |
 | --------- | ------------------ | ----------------- | --------------- |
 | Key Column Uniqueness | Not Supported, Key columns can be duplicated | Supported | Supported |
 | Synchronous Materialized View | Supported | Supported | Supported |
