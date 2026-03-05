@@ -1,14 +1,14 @@
 ---
 {
-  "title": "UNHEX",
+  "title": "FORMAT_ROUND",
   "language": "en",
-  "description": "The UNHEX function converts a hexadecimal string back to the original string, serving as the inverse operation of the HEX function."
+  "description": "Formats a number in a format similar to \"#,###,###.##\", rounds to the specified decimal places, and returns the result as a string."
 }
 ---
 
 ## Description
 
-The UNHEX function converts a hexadecimal string back to the original string, serving as the inverse operation of the HEX function. This function converts every two hexadecimal characters (0-9, A-F, a-f) into one byte. The UNHEX_NULL function works identically but returns NULL instead of an empty string when encountering invalid input. These functions are useful when handling binary data, encrypted data, or data requiring hexadecimal representation.
+Formats a number in a format similar to "#,###,###.##", rounds to the specified decimal places, and returns the result as a string.
 
 :::tip
 This function is supported since version 3.0.6.
@@ -17,131 +17,101 @@ This function is supported since version 3.0.6.
 ## Syntax
 
 ```sql
-UNHEX(<str>)
+FORMAT_ROUND(<number>, <D>)
 ```
 
 ## Parameters
 
-| Parameter | Description                      |
-| --------- | -------------------------------- |
-| `<str>`   | The hexadecimal character string |
+| Parameter  | Description                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------- |
+| `<number>` | The number to be formatted                                                                    |
+| `<D>`      | Number of decimal places, range [0, 1024] |
 
 ## Return Value
 
-Returns VARCHAR type, representing the decoded original string from hexadecimal.
+Returns the formatted string. Special cases:
 
-Decoding rules:
-
-- Accepts character range: 0-9, a-f, A-F
-- Every two hexadecimal characters convert to one byte
-- Result may contain unprintable characters
-
-Special cases (UNHEX):
-
-- If input is NULL, returns empty string
-- If string length is 0 or odd, returns empty string
-- If contains non-hexadecimal characters, returns empty string
-
-Special cases (UNHEX_NULL):
-
-- If input is NULL, returns NULL
-- If string length is 0 or odd, returns NULL
-- If contains non-hexadecimal characters, returns NULL
+- Returns NULL when the parameter is NULL
+- If D is 0, the result will have no decimal point or decimal part.
+- If D is not in [0, 1024], an error is returned indicating the argument should be within this range.
 
 ## Examples
 
 ```sql
-select unhex('@');
-```
-
-```text
-+------------+
-| unhex('@') |
-+------------+
-|            |
-+------------+
+mysql> select format_round(17014116, 2);
++---------------------------+
+| format_round(17014116, 2) |
++---------------------------+
+| 17,014,116.00             |
++---------------------------+
 ```
 
 ```sql
-select unhex_null('@');
-```
-
-```text
-+-----------------+
-| unhex_null('@') |
-+-----------------+
-| NULL            |
-+-----------------+
+mysql> select format_round(1123.456, 2);
++---------------------------+
+| format_round(1123.456, 2) |
++---------------------------+
+| 1,123.46                  |
++---------------------------+
 ```
 
 ```sql
-select unhex('41');
-```
-
-```text
-+-------------+
-| unhex('41') |
-+-------------+
-| A           |
-+-------------+
+mysql> select format_round(1123.4, 2);
++-------------------------+
+| format_round(1123.4, 2) |
++-------------------------+
+| 1,123.40                |
++-------------------------+
 ```
 
 ```sql
-select unhex('4142'), unhex('48656C6C6F');
+mysql> select format_round(123456, 0);
++-------------------------+
+| format_round(123456, 0) |
++-------------------------+
+| 123,456                 |
++-------------------------+
 ```
-
-```text
-+---------------+----------------------+
-| unhex('4142') | unhex('48656C6C6F')  |
-+---------------+----------------------+
-| AB            | Hello                |
-+---------------+----------------------+
-```
-
-5. NULL handling comparison
 
 ```sql
-SELECT UNHEX(NULL), UNHEX_NULL(NULL);
+mysql> select format_round(123456, 3);
++-------------------------+
+| format_round(123456, 3) |
++-------------------------+
+| 123,456.000             |
++-------------------------+
 ```
-
-```text
-+-------------+-----------------+
-| UNHEX(NULL) | UNHEX_NULL(NULL) |
-+-------------+-----------------+
-|             | NULL            |
-+-------------+-----------------+
-```
-
-6. UTF-8 character decoding
 
 ```sql
-SELECT UNHEX('E4B8AD'), UNHEX('E69687');
+mysql> select format_round(123456.123456, 0);
++--------------------------------+
+| format_round(123456.123456, 0) |
++--------------------------------+
+| 123,456                        |
++--------------------------------+
 ```
-
-```text
-+-----------------+-----------------+
-| UNHEX('E4B8AD') | UNHEX('E69687') |
-+-----------------+-----------------+
-| 中              | 文              |
-+-----------------+-----------------+
-```
-
-7. Hexadecimal encoding-decoding cycle verification
 
 ```sql
-SELECT UNHEX(HEX('Hello')), UNHEX(HEX('Test123'));
+mysql> select format_round(123456.123456, 3);
++--------------------------------+
+| format_round(123456.123456, 3) |
++--------------------------------+
+| 123,456.123                    |
++--------------------------------+
 ```
 
-```text
-+---------------------+------------------------+
-| UNHEX(HEX('Hello')) | UNHEX(HEX('Test123'))  |
-+---------------------+------------------------+
-| Hello               | Test123                |
-+---------------------+------------------------+
+```sql
+mysql> select format_round(123456.123456, 6);
++--------------------------------+
+| format_round(123456.123456, 6) |
++--------------------------------+
+| 123,456.123456                 |
++--------------------------------+
 ```
 
-### Keywords
-
-    ```
-    UNHEX, UNHEX_NULL, HEX
-    ```
+```sql
+mysql> SELECT format_round(-0.01, -1);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (127.0.0.1)[INVALID_ARGUMENT]The second argument is -1, it should be in range [0, 1024].
+mysql> SELECT format_round(-0.01, -1500);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (127.0.0.1)[INVALID_ARGUMENT]The second argument is -1500, it should be in range [0, 1024].
+```
