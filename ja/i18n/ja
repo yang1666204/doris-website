@@ -1,18 +1,18 @@
 ---
 {
-  "title": "SMALLINT",
+  "title": "TINYINT",
   "language": "en",
-  "description": "SMALLINT 2-byte signed integer, range [-32768, 32767]"
+  "description": "TINYINT 1 byte signed integer, range [-128, 127]"
 }
 ---
 
-## SMALLINT
+## TINYINT
 
 ### Description
 
-SMALLINT
-2-byte signed integer, range [-32768, 32767]
+TINYINT
+1 byte signed integer, range [-128, 127]
 
 ### keywords
 
-SMALLINT
+TINYINT
