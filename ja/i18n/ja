@@ -1,312 +1,269 @@
 ---
 {
-  "title": "File Path Pattern",
+  "title": "LDAP",
   "language": "en",
-  "description": "File path patterns and wildcards supported by Doris for accessing files in remote storage systems like S3, HDFS, and other object storage."
+  "description": "Detailed guide on Apache Doris federated authentication: unified identity verification and group authorization through LDAP integration, covering configuration steps, login methods, permission mapping rules, and common troubleshooting."
 }
 ---
 
-## Description
+Doris supports integration with third-party LDAP services, providing two core functionalities:
 
-When accessing files from remote storage systems (S3, HDFS, and other S3-compatible object storage), Doris supports flexible file path patterns including wildcards and range expressions. This document describes the supported path formats and pattern matching syntax.
+- **Authentication**: Use LDAP passwords instead of Doris passwords for identity verification.
+- **Group Authorization**: Map LDAP `groups` to Doris `roles` for unified permission management.
 
-These path patterns are supported by:
+## LDAP Basic Concepts
 
-- [S3 TVF](../sql-functions/table-valued-functions/s3)
-- [HDFS TVF](../sql-functions/table-valued-functions/hdfs)
-- [Broker Load](../../data-operate/import/import-way/broker-load-manual)
-- INSERT INTO SELECT from TVF
+In LDAP, data is organized in a tree structure. Here's an example of a typical LDAP directory tree:
 
-## Supported URI Formats
-
-### S3-Style URIs
-
-| Style                                           | Format                                 | Example                                                      |
-| ----------------------------------------------- | -------------------------------------- | ------------------------------------------------------------ |
-| AWS Client Style (Hadoop S3) | `s3://bucket/path/to/file`             | `s3://my-bucket/data/file.csv`                               |
-| S3A Style                                       | `s3a://bucket/path/to/file`            | `s3a://my-bucket/data/file.csv`                              |
-| S3N Style                                       | `s3n://bucket/path/to/file`            | `s3n://my-bucket/data/file.csv`                              |
-| Virtual Host Style                              | `https://bucket.endpoint/path/to/file` | `https://my-bucket.s3.us-west-1.amazonaws.com/data/file.csv` |
-| Path Style                                      | `https://endpoint/bucket/path/to/file` | `https://s3.us-west-1.amazonaws.com/my-bucket/data/file.csv` |
-
-### Other Cloud Storage URIs
-
-| Provider             | Scheme              | Example                           |
-| -------------------- | ------------------- | --------------------------------- |
-| Alibaba Cloud OSS    | `oss://`            | `oss://my-bucket/data/file.csv`   |
-| Tencent Cloud COS    | `cos://`, `cosn://` | `cos://my-bucket/data/file.csv`   |
-| Baidu Cloud BOS      | `bos://`            | `bos://my-bucket/data/file.csv`   |
-| Huawei Cloud OBS     | `obs://`            | `obs://my-bucket/data/file.csv`   |
-| Google Cloud Storage | `gs://`             | `gs://my-bucket/data/file.csv`    |
-| Azure Blob Storage   | `azure://`          | `azure://container/data/file.csv` |
-
-### HDFS URIs
-
-| Style    | Format                              | Example                                   |
-| -------- | ----------------------------------- | ----------------------------------------- |
-| Standard | `hdfs://namenode:port/path/to/file` | `hdfs://namenode:8020/user/data/file.csv` |
-| HA Mode  | `hdfs://nameservice/path/to/file`   | `hdfs://my-ha-cluster/user/data/file.csv` |
-
-## Wildcard Patterns
-
-Doris uses glob-style pattern matching for file paths. The following wildcards are supported:
-
-### Basic Wildcards
-
-| Pattern  | Description                                           | Example          | Matches                                        |
-| -------- | ----------------------------------------------------- | ---------------- | ---------------------------------------------- |
-| `*`      | Matches zero or more characters within a path segment | `*.csv`          | `file.csv`, `data.csv`, `a.csv`                |
-| `?`      | Matches exactly one character                         | `file?.csv`      | `file1.csv`, `fileA.csv`, but not `file10.csv` |
-| `[abc]`  | Matches any single character in brackets              | `file[123].csv`  | `file1.csv`, `file2.csv`, `file3.csv`          |
-| `[a-z]`  | Matches any single character in the range             | `file[a-c].csv`  | `filea.csv`, `fileb.csv`, `filec.csv`          |
-| `[!abc]` | Matches any single character NOT in brackets          | `file[!0-9].csv` | `filea.csv`, `fileb.csv`, but not `file1.csv`  |
-
-### Range Expansion (Brace Patterns)
-
-Doris supports numeric range expansion using brace patterns `{start..end}`:
-
-| Pattern         | Expansion         | Matches                                                                      |
-| --------------- | ----------------- | ---------------------------------------------------------------------------- |
-| `{1..3}`        | `{1,2,3}`         | `1`, `2`, `3`                                                                |
-| `{01..05}`      | `{1,2,3,4,5}`     | `1`, `2`, `3`, `4`, `5` (leading zeros are NOT preserved) |
-| `{3..1}`        | `{1,2,3}`         | `1`, `2`, `3` (reverse ranges supported)                  |
-| `{a,b,c}`       | `{a,b,c}`         | `a`, `b`, `c` (enumeration)                               |
-| `{1..3,5,7..9}` | `{1,2,3,5,7,8,9}` | Mixed ranges and values                                                      |
-
-:::caution Note
-
-- Doris tries to match as many files as possible. Invalid parts in brace expressions are silently skipped, and valid parts are still expanded. For example, `file_{a..b,-1..3,4..5}` will match `file_4` and `file_5` (the invalid `a..b` and negative range `-1..3` are skipped, but `4..5` is expanded normally).
-- If the entire range is negative (e.g., `{-1..2}`), the range is skipped. If mixed with valid ranges (e.g., `{-1..2,1..3}`), only the valid range `1..3` is expanded.
-- When using comma-separated values with ranges, only numbers are allowed. For example, in `{1..4,a}`, the non-numeric `a` will be ignored, resulting in `{1,2,3,4}`.
-- Pure enumeration patterns like `{a,b,c}` (without `..` ranges) are passed directly to glob matching and work as expected.
-  :::
-
-### Combining Patterns
-
-Multiple patterns can be combined in a single path:
-
-```
-s3://bucket/data_{1..3}/file_*.csv
+```text
+- dc=example,dc=com
+ - ou = ou1
+   - cn = group1
+   - cn = user1
+ - ou = ou2
+   - cn = group2
+     - cn = user2
+ - cn = user3
 ```
 
-This matches:
+### Terminology
 
-- `s3://bucket/data_1/file_a.csv`
-- `s3://bucket/data_1/file_b.csv`
-- `s3://bucket/data_2/file_a.csv`
-- ... and so on
+| Term          | Full Name                   | Description                                                                                                                                                                                                                                             |
+| ------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dc`          | Domain Component            | Organization's domain name, serving as the root node of the tree                                                                                                                                                                                        |
+| `dn`          | Distinguished Name          | Unique name. For example, user1's `dn` is `cn=user1,ou=ou1,dc=example,dc=com`, user2's `dn` is `cn=user2,cn=group2,ou=ou2,dc=example,dc=com`                                                                                            |
+| `rdn`         | Relative Distinguished Name | Part of the `dn`. user1's four `rdns` are `cn=user1`, `ou=ou1`, `dc=example`, and `dc=com`                                                                                                                                              |
+| `ou`          | Organization Unit           | Sub-organization. `users` can be placed in `ou` or directly under the example.com domain                                                                                                                                |
+| `cn`          | Common Name                 | Name                                                                                                                                                                                                                                                    |
+| `group`       | -                           | Group, corresponding to Doris roles                                                                                                                                                                                                                     |
+| `user`        | -                           | User, equivalent to Doris users                                                                                                                                                                                                                         |
+| `objectClass` | -                           | Data type. Used to distinguish whether a node is a `group` or `user`. `group` requires `cn` and `member` (list of `users`) attributes, `user` requires `cn`, `password`, `uid`, etc. |
 
-## Examples
+## Quick Start
 
-### S3 TVF Examples
+### Step 1: Configure Doris
 
-**Match all CSV files in a directory:**
+1. Set the authentication method in `fe/conf/fe.conf`: `authentication_type=ldap`.
+
+2. Configure LDAP service connection information in `fe/conf/ldap.conf`:
+
+    ```
+    ldap_authentication_enabled = true
+    ldap_host = ladp-host
+    ldap_port = 389
+    ldap_admin_name = uid=admin,o=emr
+    ldap_user_basedn = ou=people,o=emr
+    ldap_user_filter = (&(uid={login}))
+    ldap_group_basedn = ou=group,o=emr
+    ```
+
+3. After starting `fe`, log in to Doris with `root` or `admin` account and set the LDAP admin password:
+
+    ```sql
+    set ldap_admin_password = password('<ldap_admin_password>');
+    ```
+
+### Step 2: Client Connection
+
+LDAP authentication requires clients to send passwords in plaintext, so cleartext authentication plugins must be enabled.
+
+**MySQL Client**
+
+You can enable the cleartext authentication plugin using either method:
+
+- **Method 1**: Set environment variable (permanent)
+
+    ```shell
+    echo "export LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1" >> ~/.bash_profile && source ~/.bash_profile
+    ```
+
+- **Method 2**: Add parameter when logging in (one-time)
+
+    ```shell
+    mysql -hDORIS_HOST -PDORIS_PORT -u user -p --enable-cleartext-plugin
+    ```
+
+**JDBC Client**
+
+1. Doris SSL Not Enabled
+
+   When Doris SSL is not enabled, you need to create a custom authentication plugin to bypass SSL restrictions when using JDBC connections:
+
+   1. Create a custom plugin class that extends `MysqlClearPasswordPlugin` and overrides the `requiresConfidentiality()` method:
+
+        ```java
+        public class MysqlClearPasswordPluginWithoutSSL extends MysqlClearPasswordPlugin {
+          @Override
+          public boolean requiresConfidentiality() {
+            return false;
+          }
+        }
+        ```
+
+   2. Configure the custom plugin in the JDBC connection URL (replace `xxx` with your actual package name):
+
+        ```sql
+        jdbcUrl = "jdbc:mysql://localhost:9030/mydatabase?authenticationPlugins=xxx.xxx.xxx.MysqlClearPasswordPluginWithoutSSL&defaultAuthenticationPlugin=xxx.xxx.xxx.MysqlClearPasswordPluginWithoutSSL&disabledAuthenticationPlugins=com.mysql.jdbc.authentication.MysqlClearPasswordPlugin";
+        ```
+
+      Description of the three required properties:
+
+      | Property                        | Description                                                                                  |
+      | ------------------------------- | -------------------------------------------------------------------------------------------- |
+      | `authenticationPlugins`         | Register the custom cleartext authentication plugin                                          |
+      | `defaultAuthenticationPlugin`   | Set the custom plugin as the default authentication plugin                                   |
+      | `disabledAuthenticationPlugins` | Disable the original cleartext authentication plugin (which mandates SSL) |
+
+   > You can refer to the examples in [this code repository](https://github.com/morningman/doris-debug-tools/tree/main/jdbc-test). Or execute `build-auth-plugin.sh` to directly generate the plugin JAR file, then place it in the client's specified location.
+
+2. Doris SSL Enabled
+
+   When Doris SSL is enabled (`enable_ssl=true` added in `fe.conf`):
+
+    ```sql
+    jdbcUrl = "jdbc:mysql://localhost:9030/mydatabase?useSSL=true&sslMode=REQUIRED
+    ```
+
+## Authentication
+
+LDAP authentication means password verification through LDAP service to supplement Doris's native authentication mechanism. Password verification priority is as follows:
+
+1. Doris first uses LDAP to verify user passwords.
+2. If the user doesn't exist in LDAP, it falls back to Doris local password verification.
+3. If the LDAP password is correct but there's no corresponding account in Doris, a temporary user is created for login.
+
+### Login Behavior Overview
+
+After enabling LDAP, login behaviors under different user states are as follows:
+
+| LDAP User  | Doris User | Password Used  | Login Result | Login Identity      |
+| ---------- | ---------- | -------------- | ------------ | ------------------- |
+| Exists     | Exists     | LDAP password  | Success      | Doris user          |
+| Exists     | Exists     | Doris password | Failed       | -                   |
+| Not exists | Exists     | Doris password | Success      | Doris user          |
+| Exists     | Not exists | LDAP password  | Success      | LDAP temporary user |
+
+> **About Temporary Users:**
+>
+> - Temporary accounts are only valid for the current connection and are automatically destroyed when disconnected.
+> - Doris doesn't create persistent user metadata for temporary users.
+> - Temporary user permissions are determined by LDAP group authorization (see "Group Authorization" section below).
+> - If temporary users have no corresponding group permissions, they default to `select_priv` on `information_schema`.
+
+### Login Examples
+
+The following examples assume LDAP authentication is enabled, configured with `ldap_user_filter = (&(uid={login}))`, and the client has set `LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1`.
+
+**Scenario 1: Account exists in both Doris and LDAP**
+
+- Doris account: `jack@'172.10.1.10'`, password: `123456`
+- LDAP user attributes: `uid: jack`, password: `abcdef`
+
+Login with LDAP password, success:
 
 ```sql
-SELECT * FROM S3(
-    "uri" = "s3://my-bucket/data/*.csv",
-    "s3.access_key" = "xxx",
-    "s3.secret_key" = "xxx",
-    "s3.region" = "us-east-1",
-    "format" = "csv"
-);
+mysql -hDoris_HOST -PDoris_PORT -ujack -p abcdef
 ```
 
-**Match files with numeric range:**
+Login with Doris password, failed (after enabling LDAP, LDAP users must use LDAP passwords):
 
 ```sql
-SELECT * FROM S3(
-    "uri" = "s3://my-bucket/logs/data_{1..10}.csv",
-    "s3.access_key" = "xxx",
-    "s3.secret_key" = "xxx",
-    "s3.region" = "us-east-1",
-    "format" = "csv"
-);
+mysql -hDoris_HOST -PDoris_PORT -ujack -p 123456
 ```
 
-**Match files in date-partitioned directories:**
+**Scenario 2: User exists only in LDAP**
+
+- LDAP user attributes: `uid: jack`, password: `abcdef`
+
+Login with LDAP password, Doris automatically creates temporary user `jack@'%'` and logs in. Temporary user has basic permission `DatabasePrivs`: `Select_priv`, automatically destroyed after disconnection:
 
 ```sql
-SELECT * FROM S3(
-    "uri" = "s3://my-bucket/logs/year=2024/month=*/day=*/data.parquet",
-    "s3.access_key" = "xxx",
-    "s3.secret_key" = "xxx",
-    "s3.region" = "us-east-1",
-    "format" = "parquet"
-);
+mysql -hDoris_HOST -PDoris_PORT -ujack -p abcdef
 ```
 
-:::caution Zero-Padded Directories
-For zero-padded directory names like `month=01`, `month=02`, use wildcards (`*`) instead of range patterns. The pattern `{01..12}` expands to `{1,2,...,12}` which won't match `month=01`.
-:::
+**Scenario 3: Account exists only in Doris**
 
-**Match numbered file splits (e.g., Spark output):**
+- Doris account: `jack@'172.10.1.10'`, password: `123456`
+
+User doesn't exist in LDAP, falls back to Doris local authentication, login succeeds with Doris password:
 
 ```sql
-SELECT * FROM S3(
-    "uri" = "s3://my-bucket/output/part-{00000..00099}.csv",
-    "s3.access_key" = "xxx",
-    "s3.secret_key" = "xxx",
-    "s3.region" = "us-east-1",
-    "format" = "csv"
-);
+mysql -hDoris_HOST -PDoris_PORT -ujack -p 123456
 ```
 
-### Broker Load Examples
+## Group Authorization
 
-**Load all CSV files matching a pattern:**
+LDAP group authorization maps LDAP `groups` to Doris `roles` to achieve centralized permission management. The core mechanism is:
 
-```sql
-LOAD LABEL db.label_wildcard
-(
-    DATA INFILE("s3://my-bucket/data/file_*.csv")
-    INTO TABLE my_table
-    COLUMNS TERMINATED BY ","
-    FORMAT AS "CSV"
-    (col1, col2, col3)
-)
-WITH S3 (
-    "provider" = "S3",
-    "AWS_ENDPOINT" = "s3.us-west-2.amazonaws.com",
-    "AWS_ACCESS_KEY" = "xxx",
-    "AWS_SECRET_KEY" = "xxx",
-    "AWS_REGION" = "us-west-2"
-);
+- If an LDAP user's `dn` appears in the `member` attribute of an LDAP group node, Doris considers the user belongs to that group.
+- When users log in, Doris automatically grants them the `role` permissions corresponding to their LDAP groups.
+- After users log out, Doris automatically revokes these `role` permissions.
+
+> **Prerequisite:** Before using LDAP group authorization, you need to create `roles` in Doris with the same names as LDAP `groups` and grant permissions to these `roles`.
+
+### Permission Merging Rules
+
+The final permissions of a logged-in user depend on their status in both LDAP and Doris:
+
+| LDAP User  | Doris User | Final Permissions                               |
+| ---------- | ---------- | ----------------------------------------------- |
+| Exists     | Exists     | LDAP group permissions + Doris user permissions |
+| Not exists | Exists     | Doris user permissions                          |
+| Exists     | Not exists | LDAP group permissions                          |
+
+### Group Name Mapping Rules
+
+Doris extracts the first `Rdn` of the LDAP group `dn` as the group name and maps it to a `role` with the same name in Doris.
+
+For example, if user `dn` is `uid=jack,ou=aidp,dc=domain,dc=com`, and the group information is:
+
+```text
+dn: cn=doris_rd,ou=group,dc=domain,dc=com  
+objectClass: groupOfNames  
+member: uid=jack,ou=aidp,dc=domain,dc=com  
 ```
 
-**Load files using numeric range expansion:**
+The first `Rdn` of this group `dn` is `cn=doris_rd`, so the group name is `doris_rd`, corresponding to the `role` `doris_rd` in Doris.
 
-```sql
-LOAD LABEL db.label_range
-(
-    DATA INFILE("s3://my-bucket/exports/data_{1..5}.csv")
-    INTO TABLE my_table
-    COLUMNS TERMINATED BY ","
-    FORMAT AS "CSV"
-    (col1, col2, col3)
-)
-WITH S3 (
-    "provider" = "S3",
-    "AWS_ENDPOINT" = "s3.us-west-2.amazonaws.com",
-    "AWS_ACCESS_KEY" = "xxx",
-    "AWS_SECRET_KEY" = "xxx",
-    "AWS_REGION" = "us-west-2"
-);
-```
+### Group Authorization Example
 
-**Load from HDFS with wildcards:**
+If user jack belongs to LDAP groups `doris_rd`, `doris_qa`, `doris_pm`, and Doris has `roles` with the same names: `doris_rd`, `doris_qa`, `doris_pm`. After jack logs in, in addition to the original permissions of their Doris account, they will also receive the permissions of these three `roles`.
 
-```sql
-LOAD LABEL db.label_hdfs_wildcard
-(
-    DATA INFILE("hdfs://namenode:8020/user/data/2024-*/*.csv")
-    INTO TABLE my_table
-    COLUMNS TERMINATED BY ","
-    FORMAT AS "CSV"
-    (col1, col2, col3)
-)
-WITH HDFS (
-    "fs.defaultFS" = "hdfs://namenode:8020",
-    "hadoop.username" = "user"
-);
-```
+> **Note:**
+>
+> - Which `group` a `user` belongs to is independent of the LDAP tree's organizational structure. `user2` in the example above doesn't necessarily belong to `group2`.
+> - To make `user2` belong to `group2`, you need to explicitly add `user2` to the `member` attribute of `group2`.
 
-**Load from HDFS with numeric range:**
+## Cache Management
 
-```sql
-LOAD LABEL db.label_hdfs_range
-(
-    DATA INFILE("hdfs://namenode:8020/data/file_{1..3,5,7..9}.csv")
-    INTO TABLE my_table
-    COLUMNS TERMINATED BY ","
-    FORMAT AS "CSV"
-    (col1, col2, col3)
-)
-WITH HDFS (
-    "fs.defaultFS" = "hdfs://namenode:8020",
-    "hadoop.username" = "user"
-);
-```
+To avoid frequent access to LDAP services, Doris caches LDAP information in memory.
 
-### INSERT INTO SELECT Examples
+| Configuration               | Description                                                       | Default Value                       |
+| --------------------------- | ----------------------------------------------------------------- | ----------------------------------- |
+| `ldap_user_cache_timeout_s` | Cache time for LDAP user information (seconds) | 43200 (12 hours) |
 
-**Insert from S3 with wildcards:**
+In the following scenarios, you may need to manually refresh the cache to make changes take effect immediately:
 
-```sql
-INSERT INTO my_table (col1, col2, col3)
-SELECT * FROM S3(
-    "uri" = "s3://my-bucket/data/part-*.parquet",
-    "s3.access_key" = "xxx",
-    "s3.secret_key" = "xxx",
-    "s3.region" = "us-east-1",
-    "format" = "parquet"
-);
-```
+- Modified user or group information in the LDAP service.
+- Modified the `Role` permissions corresponding to LDAP user groups in Doris.
 
-## Performance Considerations
+You can refresh the cache with the `refresh ldap` statement. See [REFRESH-LDAP](../../../sql-manual/sql-statements/account-management/REFRESH-LDAP) for details.
 
-### Use Specific Prefixes
+## Known Limitations
 
-Doris extracts the longest non-wildcard prefix from your path pattern to optimize S3/HDFS listing operations. More specific prefixes result in faster file discovery.
+- Currently, Doris's LDAP functionality only supports cleartext password verification, meaning that when users log in, passwords are transmitted in plaintext between `client` and `fe`, and between `fe` and LDAP service.
 
-```sql
--- Good: specific prefix reduces listing scope
-"uri" = "s3://bucket/data/2024/01/15/*.csv"
+## FAQ
 
--- Less optimal: broad wildcard at early path segment
-"uri" = "s3://bucket/data/**/file.csv"
-```
+**Q: How to check which roles an LDAP user has in Doris?**
 
-### Prefer Range Patterns for Known Sequences
+After logging into Doris with an LDAP user, execute `show grants;` to view all roles of the current user. `ldapDefaultRole` is the default role that every LDAP user has.
 
-When you know the exact file numbering, use range patterns instead of wildcards:
+**Q: An LDAP user has fewer roles in Doris than expected, how to troubleshoot?**
 
-```sql
--- Better: explicit range
-"uri" = "s3://bucket/data/part-{0001..0100}.csv"
+Check the following items step by step:
 
--- Less optimal: wildcard matches unknown files
-"uri" = "s3://bucket/data/part-*.csv"
-```
-
-### Avoid Deep Recursive Wildcards
-
-Deep recursive patterns like `**` can cause slow file listing on large buckets:
-
-```sql
--- Avoid when possible
-"uri" = "s3://bucket/**/*.csv"
-
--- Prefer explicit path structure
-"uri" = "s3://bucket/data/year=*/month=*/day=*/*.csv"
-```
-
-## Troubleshooting
-
-| Issue             | Cause                                | Solution                                                          |
-| ----------------- | ------------------------------------ | ----------------------------------------------------------------- |
-| No files found    | Pattern doesn't match any files      | Verify the path and pattern syntax; test with a single file first |
-| Slow file listing | Wildcard too broad or too many files | Use more specific prefix; limit wildcard scope                    |
-| Invalid URI error | Malformed path syntax                | Check URI scheme and bucket name format                           |
-| Access denied     | Credentials or permissions issue     | Verify S3/HDFS credentials and bucket policies                    |
-
-### Testing Path Patterns
-
-Before running a large load job, test your pattern with a limited query:
-
-```sql
--- Test if files exist and match pattern
-SELECT * FROM S3(
-    "uri" = "s3://bucket/your/pattern/*.csv",
-    ...
-) LIMIT 1;
-```
-
-Use `DESC FUNCTION` to verify the schema of matched files:
-
-```sql
-DESC FUNCTION S3(
-    "uri" = "s3://bucket/your/pattern/*.csv",
-    ...
-);
-```
+1. Execute `show roles;` to confirm whether the expected roles exist in Doris. If not, create them with `CREATE ROLE role_name;`.
+2. Check whether the expected `group` is located under the organizational structure corresponding to `ldap_group_basedn`.
+3. Check whether the expected `group` contains the `member` attribute.
+4. Check whether the `member` attribute of the expected `group` contains the current user's `dn`.
