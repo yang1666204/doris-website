@@ -1,57 +1,90 @@
 ---
 {
-  "title": "FluentBit",
+  "title": "Logstash",
   "language": "en",
-  "description": "Fluent Bit is a fast log processor and forwarder that supports custom output plugins to write data into storage systems,"
+  "description": "Logstash is a log ETL framework (collect, preprocess, send to storage systems) that supports custom output plugins to write data into storage systems."
 }
 ---
 
-[Fluent Bit](https://fluentbit.io/) is a fast log processor and forwarder that supports custom output plugins to write data into storage systems, with the Fluent Bit Doris output plugin being the one for outputting to Doris.
+# Logstash Doris output plugin
 
-By invoking the [Doris Stream Load](../../data-operate/import/import-way/stream-load-manual) HTTP interface, the Fluent Bit Doris output plugin writes data into Doris in real-time, offering capabilities such as multi-threaded concurrency, failure retries, custom Stream Load formats and parameters, and output write speed.
+## Introduction
 
-To use the Fluent Bit Doris output plugin, there are three main steps:
+Logstash is a log ETL framework (collect, preprocess, send to storage systems) that supports custom output plugins to write data into storage systems. The Logstash Doris output plugin is a plugin for outputting data to Doris.
 
-1. Download or compile the Fluent Bit binary program that includes the Doris output plugin.
-2. Configure the Fluent Bit output address and other parameters.
-3. Start Fluent Bit to write data into Doris in real-time.
+The Logstash Doris output plugin calls the [Doris Stream Load](../../data-operate/import/import-way/stream-load-manual) HTTP interface to write data into Doris in real-time, offering capabilities such as multi-threaded concurrency, failure retries, custom Stream Load formats and parameters, and output write speed.
 
-## Installation (alpha)
+Using the Logstash Doris output plugin mainly involves three steps:
 
-### Download
+1. Install the plugin into Logstash
+2. Configure the Doris output address and other parameters
+3. Start Logstash to write data into Doris in real-time
 
-https://download.selectdb.com/integrations/fluent-bit-doris-3.1.9
+## Installation
 
-### Compile from Source Code
+### Obtaining the Plugin
 
-Clone the dev branch of https://github.com/joker-star-l/fluent-bit and run the following commands in the build/ directory
+You can download the plugin from the official website or compile it from the source code yourself.
+
+- Download from the official website
+
+```shell
+# Installation package with dependencies
+wget https://apache-doris-releases.oss-cn-beijing.aliyuncs.com/extension/logstash-output-doris-1.2.0-java.gem
+```
+
+- Compile from source code
 
 ```
-cmake -DFLB_RELEASE=ON ..
-make
+cd extension/logstash/
+
+gem build logstash-output-doris.gemspec
 ```
 
-The build output is build/bin/fluent-bit.
+### Installing the Plugin
+
+- Standard Installation
+
+`${LOGSTASH_HOME}` is the installation directory of Logstash. Run the `bin/logstash-plugin` command under it to install the plugin.
+
+```
+${LOGSTASH_HOME}/bin/logstash-plugin install logstash-output-doris-1.2.0.gem
+
+Validating logstash-output-doris-1.2.0.gem
+Installing logstash-output-doris
+Installation successful
+```
+
+The standard installation mode will automatically install the ruby modules that the plugin depends on. In cases where the network is not available, it will get stuck and cannot complete. In such cases, you can download the zip installation package with dependencies for a completely offline installation, noting that you need to use `file://` to specify the local file system.
+
+- Offline Installation
+
+```shell
+
+export JARS_SKIP="true"
+
+${LOGSTASH_HOME}/bin/logstash-plugin install logstash-output-doris-1.2.0.gem
+
+```
 
 ## Configuration
 
-The configuration for the Fluent Bit Doris output plugin is as follows:
+The configuration for the Logstash Doris output plugin is as follows:
 
-| Configuration           | Description                                                                                                                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `host`                  | Stream Load HTTP host                                                                                                                                                                                             |
-| `port`                  | Stream Load HTTP port                                                                                                                                                                                             |
-| `user`                  | Doris username, this user needs to have import permissions for the corresponding Doris database and table                                                                                                         |
-| `password`              | Doris user's password                                                                                                                                                                                             |
-| `database`              | The Doris database name to write into                                                                                                                                                                             |
-| `table`                 | The Doris table name to write into                                                                                                                                                                                |
-| `label_prefix`          | Doris Stream Load Label prefix，the final generated Label is _{label_prefix}\_{timestamp}\_{uuid}_ ，the default value is fluentbit. If set to false, no Label will be added |
-| `time_key`              | The name of the timestamp column to add to the data. The default value is date. If set to false, the column will not be added                                                     |
-| `header`                | Doris Stream Load headers parameter, can be set more than one                                                                                                                                                     |
-| `log_request`           | Whether to output Doris Stream Load request and response metadata in logs for troubleshooting, default is true                                                                                                    |
-| `log_progress_interval` | Time interval for outputting speed in logs, unit is seconds, default is 10, setting to 0 can disable this type of logging                                                                                         |
-| `retry_limit`           | Doris Stream Load request failure retry number, default value is 1, if set to false will not limit the number of retries                                                                                          |
-| `workers`               | Number of workers to perform Doris Stream Load, default value is 2                                                                                                                                                |
+| Configuration        | Description                                                                                                                                                                                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http_hosts`         | Stream Load HTTP address, formatted as a string array, can have one or more elements, each element is host:port. For example: ["http://fe1:8030", "http://fe2:8030"] |
+| `user`               | Doris username, this user needs to have import permissions for the corresponding Doris database and table                                                                                                                                                                                                                                |
+| `password`           | Password for the Doris user                                                                                                                                                                                                                                                                                                              |
+| `db`                 | The Doris database name to write into                                                                                                                                                                                                                                                                                                    |
+| `table`              | The Doris table name to write into                                                                                                                                                                                                                                                                                                       |
+| `label_prefix`       | Doris Stream Load Label prefix, the final generated Label is _{label_prefix}_{db}_{table}_{yyyymmdd_hhmmss}_{uuid}_, the default value is logstash                                                                                                                                             |
+| `headers`            | Doris Stream Load headers parameter, the syntax format is a ruby map, for example: headers => { "format" => "json", "read_json_by_line" => "true" }                                                                                                       |
+| `mapping`            | Mapping from Logstash fields to Doris table fields, refer to the usage examples in the subsequent sections                                                                                                                                                                                                                               |
+| `message_only`       | A special form of mapping, only outputs the Logstash @message field to Doris, default is false                                                                                                                                                                                                                              |
+| `max_retries`        | Number of retries for Doris Stream Load requests on failure, default is -1 for infinite retries to ensure data reliability                                                                                                                                                                                                               |
+| `log_request`        | Whether to output Doris Stream Load request and response metadata in logs for troubleshooting, default is false                                                                                                                                                                                                                          |
+| `log_speed_interval` | Time interval for outputting speed in logs, unit is seconds, default is 10, setting to 0 can disable this type of logging                                                                                                                                                                                                                |
 
 ## Usage Example
 
@@ -111,120 +144,113 @@ PROPERTIES (
 );
 ```
 
-**3. Configuration**
+**3. Logstash Configuration**
 
-The configuration file of Fluent Bit log collection is as follows, doris_log.conf is used to define various parts of ETL components, and parsers.conf is used to define different log parsers.
+Logstash mainly has two types of configuration files: one for the entire Logstash system and another for a specific log collection.
 
-doris_log.conf:
-
-```
-# config for Fluent Bit service
-[SERVICE]
-    log_level info
-    # parsers file
-    parsers_file parsers.conf
-
-# use input tail
-[INPUT]
-    name tail
-    path /path/to/your/log
-    # add log file name to the record, key is 'path'
-    path_key path
-    # set multiline parser
-    multiline.parser multiline_java 
-
-# parse log
-[FILTER]
-    match *
-    name parser
-    key_name log
-    parser fe_log
-    reserve_data true
-
-# add host info
-[FILTER]
-    name sysinfo
-    match *
-    # add hostname to the record, key is 'host'
-    hostname_key host
-
-# output to doris
-[OUTPUT]
-    name doris
-    match *
-    host fehost
-    port feport
-    user your_username
-    password your_password
-    database your_db
-    table your_table
-    # add 'collect_time' to the record
-    time_key collect_time
-    # 'collect_time' is timestamp, change it to datatime
-    header columns collect_time=from_unixtime(collect_time)
-    log_request true
-    log_progress_interval 10
-```
-
-parsers.conf:
+The configuration file for the entire Logstash system is usually located at config/logstash.yml. To improve performance when writing to Doris, it is necessary to modify the batch size and batch delay. For logs with an average size of a few hundred bytes per line, a batch size of 1,000,000 lines and a batch delay of 10 seconds are recommended.
 
 ```
-[MULTILINE_PARSER]
-    name          multiline_java
-    type          regex
-    flush_timeout 1000
-    # Regex rules for multiline parsing
-    # ---------------------------------
-    #
-    # configuration hints:
-    #
-    #  - first state always has the name: start_state
-    #  - every field in the rule must be inside double quotes
-    #
-    # rules   |   state name   | regex pattern | next state name
-    # --------|----------------|---------------|-----------------
-    rule         "start_state"   "/(^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})(.*)/"  "cont"
-    rule         "cont"          "/(^(?![0-9]{4}-[0-9]{2}-[0-9]{2}))(.*)/"     "cont"
-
-
-[PARSER]
-    name        fe_log
-    format      regex
-    # parse and add 'log_time', 'level', 'thread', 'position', 'message' to the record
-    regex       ^(?<log_time>[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}) (?<level>[^ ]+) \((?<thread>[^\)]+)\) \[(?<position>[^\]]+)\] (?<message>(\n|.)*)\n$
+pipeline.batch.size: 1000000
+pipeline.batch.delay: 10000
 ```
 
-**4. Running Fluent Bit**
+The configuration file for a specific log collection, such as logstash_doris_log.conf, mainly consists of three parts corresponding to the various stages of ETL:
+
+1. Input is responsible for reading the raw data.
+2. Filter is responsible for data transformation.
+3. Output is responsible for sending the data to the output destination.
 
 ```
-fluent-bit -c doris_log.conf
+# 1. input is responsible for reading raw data
+# File input is an input plugin that can be configured to read the log file of the configured path. It uses the multiline codec to concatenate lines that do not start with a timestamp to the end of the previous line, achieving the effect of merging stacktraces with the main log. File input saves the log content in the @message field, and there are also some metadata fields such as host, log.file.path. Here, we manually add a field named type through add_field, with its value set to fe.log.
+input {
+    file {
+        path => "/mnt/disk2/xiaokang/opt/doris_master/fe/log/fe.log"
+        add_field => {"type" => "fe.log"}
+        codec => multiline {
+            # valid line starts with timestamp
+            pattern => "^%{TIMESTAMP_ISO8601} "
+            # any line not starting with a timestamp should be merged with the previous line
+            negate => true
+            what => "previous"
+        }
+    }
+}
 
-# log stream load response
+# 2. filter section is responsible for data transformation
+# grok is a commonly used data transformation plugin that has some built-in patterns, such as TIMESTAMP_ISO8601 for parsing timestamps, and also supports writing regular expressions to extract fields.
+filter {
+    grok {
+        match => {
+            # parse log_time, level, thread, position fields from message
+            "message" => "%{TIMESTAMP_ISO8601:log_time} (?<level>[A-Z]+) \((?<thread>[^\[]*)\) \[(?<position>[^\]]*)\]"
+        }
+    }
+}
 
-[2024/10/31 18:39:55] [ info] [output:doris:doris.1] 127.0.0.1:8040, HTTP status=200
+# 3. output section is responsible for data output
+# Doris output sends data to Doris using the Stream Load HTTP interface. The data format for Stream Load is specified as JSON through the headers parameter, and the mapping parameter specifies the mapping from Logstash fields to JSON fields. Since headers specify "format" => "json", Stream Load will automatically parse the JSON fields and write them into the corresponding fields of the Doris table.
+output {
+    doris {
+        http_hosts => ["http://localhost:8630"]
+        user => "root"
+        password => ""
+        db => "log_db"
+        table => "doris_log"
+        headers => {
+          "format" => "json"
+          "read_json_by_line" => "true"
+          "load_to_single_tablet" => "true"
+        }
+        mapping => {
+          "log_time" => "%{log_time}"
+          "collect_time" => "%{@timestamp}"
+          "host" => "%{[host][name]}"
+          "path" => "%{[log][file][path]}"
+          "type" => "%{type}"
+          "level" => "%{level}"
+          "thread" => "%{thread}"
+          "position" => "%{position}"
+          "message" => "%{message}"
+        }
+        log_request => true
+    }
+}
+
+```
+
+**4. Running Logstash**
+
+```
+
+${LOGSTASH_HOME}/bin/logstash -f config/logstash_doris_log.conf
+
+# When log_request is set to true, the log will output the request parameters and response results of each Stream Load.
+[2024-07-08T22:35:34,772][INFO ][logstash.outputs.doris   ][main][e44d2a24f17d764647ce56f5fed24b9bbf08d3020c7fddcc3298800daface80a] doris stream load response:
 {
-    "TxnId": 32155,
-    "Label": "fluentbit_1730371195_91cca1aa-c15f-45d2-b503-fe7d2e839c2a",
+    "TxnId": 45464,
+    "Label": "logstash_log_db_doris_log_20240708_223532_539_6c20a0d1-dcab-4b8e-9bc0-76b46a929bd1",
     "Comment": "",
     "TwoPhaseCommit": "false",
     "Status": "Success",
     "Message": "OK",
-    "NumberTotalRows": 1,
-    "NumberLoadedRows": 1,
+    "NumberTotalRows": 452,
+    "NumberLoadedRows": 452,
     "NumberFilteredRows": 0,
     "NumberUnselectedRows": 0,
-    "LoadBytes": 836,
-    "LoadTimeMs": 298,
+    "LoadBytes": 277230,
+    "LoadTimeMs": 1797,
     "BeginTxnTimeMs": 0,
-    "StreamLoadPutTimeMs": 3,
-    "ReadDataTimeMs": 0,
-    "WriteDataTimeMs": 268,
-    "CommitAndPublishTimeMs": 25
+    "StreamLoadPutTimeMs": 18,
+    "ReadDataTimeMs": 9,
+    "WriteDataTimeMs": 1758,
+    "CommitAndPublishTimeMs": 18
 }
 
-# log speed info
+# By default, speed information is logged every 10 seconds, including the amount of data since startup (in MB and ROWS), the total speed (in MB/s and R/s), and the speed in the last 10 seconds.
 
-[2024/10/31 18:40:13] [ info] [output:doris:doris.1] total 0 MB 2 ROWS, total speed 0 MB/s 0 R/s, last 10 seconds speed 0 MB/s 0 R/s
+[2024-07-08T22:35:38,285][INFO ][logstash.outputs.doris   ][main] total 11 MB 18978 ROWS, total speed 0 MB/s 632 R/s, last 10 seconds speed 1 MB/s 1897 R/s
 ```
 
 ### JSON Log Collection Example
@@ -285,13 +311,26 @@ CREATE TABLE github_events
   `id` BIGINT,
   `type` TEXT,
   `public` BOOLEAN,
-  `actor` VARIANT,
-  `repo` VARIANT,
+  `actor.id` BIGINT,
+  `actor.login` TEXT,
+  `actor.display_login` TEXT,
+  `actor.gravatar_id` TEXT,
+  `actor.url` TEXT,
+  `actor.avatar_url` TEXT,
+  `repo.id` BIGINT,
+  `repo.name` TEXT,
+  `repo.url` TEXT,
   `payload` TEXT,
+  `host` TEXT,
+  `path` TEXT,
   INDEX `idx_id` (`id`) USING INVERTED,
   INDEX `idx_type` (`type`) USING INVERTED,
-  INDEX `idx_actor` (`actor`) USING INVERTED,
-  INDEX `idx_host` (`repo`) USING INVERTED,
+  INDEX `idx_actor.id` (`actor.id`) USING INVERTED,
+  INDEX `idx_actor.login` (`actor.login`) USING INVERTED,
+  INDEX `idx_repo.id` (`repo.id`) USING INVERTED,
+  INDEX `idx_repo.name` (`repo.name`) USING INVERTED,
+  INDEX `idx_host` (`host`) USING INVERTED,
+  INDEX `idx_path` (`path`) USING INVERTED,
   INDEX `idx_payload` (`payload`) USING INVERTED PROPERTIES("parser" = "unicode", "support_phrase" = "true")
 )
 ENGINE = OLAP
@@ -313,46 +352,59 @@ PROPERTIES (
 );
 ```
 
-**3. Configuration**
+**3. Logstash Configuration**
 
-In contrast to the previous TEXT log collection, this configuration does not use FILTER because no additional processing transformations are required.
+The configuration file differs from the previous TEXT log collection in the following aspects:
 
-github_events.conf:
-
-```
-[SERVICE]
-    log_level info
-    parsers_file github_parsers.conf
-
-[INPUT]
-    name tail
-    parser github
-    path /path/to/your/log
-
-[OUTPUT]
-    name doris
-    match *
-    host fehost
-    port feport
-    user your_username
-    password your_password
-    database your_db
-    table your_table
-    time_key false
-    log_request true
-    log_progress_interval 10
-```
-
-github_parsers.conf:
+1. The codec parameter for file input is json. Logstash will parse each line of text as JSON format and use the parsed fields for subsequent processing.
+2. No filter plugin is used because no additional processing or transformation is needed.
 
 ```
-[PARSER]
-    name github
-    format json
+input {
+    file {
+        path => "/tmp/github_events/2024-04-01-23.json"
+        codec => json
+    }
+}
+
+output {
+    doris {
+        http_hosts => ["http://fe1:8630", "http://fe2:8630", "http://fe3:8630"]
+        user => "root"
+        password => ""
+        db => "log_db"
+        table => "github_events"
+        headers => {
+          "format" => "json"
+          "read_json_by_line" => "true"
+          "load_to_single_tablet" => "true"
+        }
+        mapping => {
+          "created_at" => "%{created_at}"
+          "id" => "%{id}"
+          "type" => "%{type}"
+          "public" => "%{public}"
+          "actor.id" => "%{[actor][id]}"
+          "actor.login" => "%{[actor][login]}"
+          "actor.display_login" => "%{[actor][display_login]}"
+          "actor.gravatar_id" => "%{[actor][gravatar_id]}"
+          "actor.url" => "%{[actor][url]}"
+          "actor.avatar_url" => "%{[actor][avatar_url]}"
+          "repo.id" => "%{[repo][id]}"
+          "repo.name" => "%{[repo][name]}"
+          "repo.url" => "%{[repo][url]}"
+          "payload" => "%{[payload]}"
+          "host" => "%{[host][name]}"
+          "path" => "%{[log][file][path]}"
+        }
+        log_request => true
+    }
+}
+
 ```
 
-**4. Running Fluent Bit**
+**4. Running Logstash**
 
 ```
-fluent-bit -c github_events.conf
+${LOGSTASH_HOME}/bin/logstash -f logstash_github_events.conf
 ```
