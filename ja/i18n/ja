@@ -1,38 +1,34 @@
 ---
 {
-  "title": "EXPLODE_SPLIT",
+  "title": "EXPLODE",
   "language": "en",
-  "description": "The explodesplit table function is used to split a string into multiple substrings according to the specified delimiter,"
+  "description": "The explode function accepts one or more arrays and maps each element of the arrays to a separate row."
 }
 ---
 
 ## Description
 
-The `explode_split` table function is used to split a string into multiple substrings according to the specified delimiter, and expand each substring into a separate row.
-It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md) to flatten nested data structures into a standard flat table format.
-The main difference between `explode_split` and [`explode_split_outer`](./explode-split-outer.md) is how they handle null values.
+The `explode` function accepts one or more arrays and maps each element of the arrays to a separate row. It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md) to flatten nested data structures into a standard flat table format. The main difference between `explode` and [`explode_outer`](./explode-outer.md) is how they handle null values.
 
 ## Syntax
 
 ```sql
-EXPLODE_SPLIT(<str>, <delimiter>)
+EXPLODE(<array>[, ...])
 ```
 
-## Parameters
+## Variadic Parameters
 
-- `<str>` String type, the string to be split.
-- `<delimiter>` String type, the delimiter.
+- `<array>` Array type.
 
 ## Return Value
 
-- Returns a column composed of the split substrings, with column type String.
+- Returns a single-column, multi-row result composed of all elements in `<array>`.
+- If `<array>` is NULL or an empty array (number of elements is 0), 0 rows are returned.
 
 ## Usage Notes
 
-1. If `<str>` is NULL, 0 rows are returned.
-2. If `<str>` is an empty string ("") or cannot be split, 1 row is returned.
-3. If `<delimiter>` is NULL, 0 rows are returned.
-4. If `<delimiter>` is an empty string (""), `<str>` will be split by bytes([`SPLIT_BY_STRING`](../scalar-functions/string-functions/split-by-string.md)).
+1. If the `<array>` parameter is not of type [`Array`](../../basic-element/sql-data-types/semi-structured/ARRAY.md), an error will be reported.
+2. If there are multiple array parameters, the number of expanded rows is determined by the array with the most elements. Arrays with fewer elements will be padded with NULLs.
 
 ## Examples
 
@@ -48,62 +44,55 @@ EXPLODE_SPLIT(<str>, <delimiter>)
     ```
 1. Regular parameters
     ```sql
-    select  * from example lateral view explode_split("ab,cd,ef", ",") t2 as c;
+    select  * from example lateral view explode([1, 2, null, 4, 5]) t2 as c;
     ```
     ```text
     +------+------+
     | k1   | c    |
     +------+------+
-    |    1 | ab   |
-    |    1 | cd   |
-    |    1 | ef   |
+    |    1 |    1 |
+    |    1 |    2 |
+    |    1 | NULL |
+    |    1 |    4 |
+    |    1 |    5 |
     +------+------+
     ```
-2. Empty string and unsplittable cases
+2. Multiple parameters
     ```sql
-    select  * from example lateral view explode_split("", ",") t2 as c;
+    select  * from example lateral view explode([], [1, 2, null, 4, 5], ["ab", "cd", "ef"], [null, null, 1, 2, 3, 4, 5]) t2 as c0, c1, c2, c3;
     ```
     ```text
-    +------+------+
-    | k1   | c    |
-    +------+------+
-    |    1 |      |
-    +------+------+
+    +------+------+------+------+------+
+    | k1   | c0   | c1   | c2   | c3   |
+    +------+------+------+------+------+
+    |    1 | NULL |    1 | ab   | NULL |
+    |    1 | NULL |    2 | cd   | NULL |
+    |    1 | NULL | NULL | ef   |    1 |
+    |    1 | NULL |    4 | NULL |    2 |
+    |    1 | NULL |    5 | NULL |    3 |
+    |    1 | NULL | NULL | NULL |    4 |
+    |    1 | NULL | NULL | NULL |    5 |
+    +------+------+------+------+------+
     ```
+   > The array with the most rows after expansion is `[null, null, 1, 2, 3, 4, 5]` (c3), which has 7 rows. Therefore, the final result has 7 rows, and the other three arrays (c0, c1, c2) are padded with NULLs for missing rows.
+3. Empty array
     ```sql
-    select  * from example lateral view explode_split("abc", ",") t2 as c;
-    ```
-    ```text
-    +------+------+
-    | k1   | c    |
-    +------+------+
-    |    1 | abc  |
-    +------+------+
-    ```
-3. NULL parameter
-    ```sql
-    select  * from example lateral view explode_split(NULL, ',') t2 as c;
+    select  * from example lateral view explode([]) t2 as c;
     ```
     ```text
     Empty set (0.03 sec)
     ```
-4. Empty delimiter
+4. NULL parameter
     ```sql
-    select  * from example lateral view explode_split('abc', '') t2 as c;
-    ```
-    ```text
-    +------+------+
-    | k1   | c    |
-    +------+------+
-    |    1 | a    |
-    |    1 | b    |
-    |    1 | c    |
-    +------+------+
-    ```
-5. Delimiter is NULL
-    ```sql
-    select  * from example lateral view explode_split('abc', null) t2 as c;
+    select  * from example lateral view explode(NULL) t2 as c;
     ```
     ```text
     Empty set (0.03 sec)
+    ```
+5. Non-array parameter
+    ```sql
+    select  * from example lateral view explode('abc') t2 as c;
+    ```
+    ```text
+    ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: explode(VARCHAR(3))
     ```
