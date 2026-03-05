@@ -1,30 +1,30 @@
 ---
 {
-  "title": "BITMAP_UNION_COUNT",
+  "title": "BITMAP-UNION-INT",
   "language": "en",
-  "description": "Calculates the union of input Bitmaps and returns its cardinality."
+  "description": "Counts the number of distinct values in the input expression. The return value is the same as COUNT(DISTINCT expr)."
 }
 ---
 
 ## Description
 
-Calculates the union of input Bitmaps and returns its cardinality.
+Counts the number of distinct values in the input expression. The return value is the same as COUNT(DISTINCT expr).
 
 ## Syntax
 
 ```sql
-BITMAP_UNION_COUNT(<expr>)
+BITMAP_UNION_INT(<expr>)
 ```
 
 ## Arguments
 
-| Argument | Description                 |
-| -------- | --------------------------- |
-| `<expr>` | Data type supporting Bitmap |
+| Argument | Description                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `<expr>` | The input expression. Supported types: TinyInt, SmallInt, Integer. |
 
 ## Return Value
 
-Returns the size of the Bitmap union, i.e., the number of distinct elements. If there is no valid data in the group, returns 0.
+Returns the number of distinct values in the column. If there is no valid data in the group, returns 0.
 
 ## Example
 
@@ -40,31 +40,30 @@ INSERT INTO pv_bitmap VALUES
     (1, 100, to_bitmap(100)),
     (1, 100, to_bitmap(200)),
     (1, 100, to_bitmap(300)),
+    (1, 300, to_bitmap(300)),
     (2, 200, to_bitmap(300));
 ```
 
 ```sql
-select bitmap_union_count(user_id) from pv_bitmap;
+select bitmap_union_int(dt) from pv_bitmap;
 ```
 
-Counts the number of distinct user_id values.
-
 ```text
-+-----------------------------+
-| bitmap_union_count(user_id) |
-+-----------------------------+
-|                           3 |
-+-----------------------------+
++----------------------+
+| bitmap_union_int(dt) |
++----------------------+
+|                    2 |
++----------------------+
 ```
 
 ```sql
-select bitmap_union_count(user_id) from pv_bitmap where user_id is null;
+select bitmap_union_int(dt) from pv_bitmap where dt is null;
 ```
 
 ```text
-+-----------------------------+
-| bitmap_union_count(user_id) |
-+-----------------------------+
-|                           0 |
-+-----------------------------+
++----------------------+
+| bitmap_union_int(dt) |
++----------------------+
+|                    0 |
++----------------------+
 ```
