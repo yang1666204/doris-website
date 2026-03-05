@@ -1,142 +1,207 @@
 ---
 {
-  "title": "Load FAQ",
+  "title": "Release 3.0.5",
   "language": "en",
-  "description": "Problem Description: Data quality error during loading."
+  "description": "Dear community members, the Apache Doris 3.0.5 version was officially released on Apr 28, 2025."
 }
 ---
 
-## General Load FAQ
+Dear community members, the Apache Doris 3.0.5 version was officially released on Apr 28, 2025.
 
-### Error "[DATA_QUALITY_ERROR] Encountered unqualified data"
+**Quick Download:** https://doris.apache.org/download/
 
-**Problem Description**: Data quality error during loading.
+**GitHub Release:** https://github.com/apache/doris/releases
 
-**Solution**:
+## New Features
 
-- Stream Load and Insert Into operations will return an error URL, while for Broker Load you can check the error URL through the `Show Load` command.
-- Use a browser or curl command to access the error URL to view the specific data quality error reasons.
-- Use the strict_mode and max_filter_ratio parameters to control the acceptable error rate.
+### Lakehouse
 
-### Error "[E-235] Failed to init rowset builder"
+- Added Catalog/Database/Table quantity monitoring metrics to FE Metrics ([#47891](https://github.com/apache/doris/pull/47891))
+- MaxCompute Catalog now supports Timestamp type ([#48768](https://github.com/apache/doris/pull/48768))
 
-**Problem Description**: Error -235 occurs when the load frequency is too high and data hasn't been compacted in time, exceeding version limits.
+### Query Execution
 
-**Solution**:
+- Added URL processing functions: `top_level_domain`, `first_significant_subdomain`, `cut_to_first_significant_subdomain` ([#42488](https://github.com/apache/doris/pull/42488))
+- Added `year_of_week` function with Trino-compatible implementation ([#48870](https://github.com/apache/doris/pull/48870))
+- `percentile_array` function now supports Float and Double data types ([#48094](https://github.com/apache/doris/pull/48094))
 
-- Increase the batch size of data loading and reduce loading frequency.
-- Increase the `max_tablet_version_num` parameter in `be.conf`, it is recommended not to exceed 5000.
+### Storage-Compute Separation
 
-### Error "[E-238] Too many segments in rowset"
+- Added compute group renaming support ([#46221](https://github.com/apache/doris/pull/46221))
 
-**Problem Description**: Error -238 occurs when the number of segments under a single rowset exceeds the limit.
+## Improvements
 
-**Common Causes**:
+### Storage
 
-- The bucket number configured during table creation is too small.
-- Data skew occurs; consider using more balanced bucket keys.
+- Accelerated Compaction task generation to improve performance ([#49547](https://github.com/apache/doris/pull/49547))
+- Stream Load now supports compressed JSON file ingestion ([#49044](https://github.com/apache/doris/pull/49044))
+- Enhanced error messages for various ingestion scenarios ([#48436](https://github.com/apache/doris/pull/48436) [#47721](https://github.com/apache/doris/pull/47721) [#47804](https://github.com/apache/doris/pull/47804) [#48638](https://github.com/apache/doris/pull/48638) [#48344](https://github.com/apache/doris/pull/48344) [#49287](https://github.com/apache/doris/pull/49287) [#48009](https://github.com/apache/doris/pull/48009))
+- Added multiple metrics for Routine Load ([#49045](https://github.com/apache/doris/pull/49045) [#48764](https://github.com/apache/doris/pull/48764))
+- Optimized Routine Load scheduling algorithm to prevent single job failure from affecting overall scheduling ([#47847](https://github.com/apache/doris/pull/47847))
+- Added Routine Load system table ([#49284](https://github.com/apache/doris/pull/49284))
+- Improved query performance for Merge-On-Write (MOW) tables under high-frequency ingestion ([#48968](https://github.com/apache/doris/pull/48968))
+- Enhanced Profile information display for Key Range queries ([#48191](https://github.com/apache/doris/pull/48191))
 
-### Error "Transaction commit successfully, BUT data will be visible later"
+### Compute-Storage Decoupled
 
-**Problem Description**: Data load is successful but temporarily not visible.
+- Fixed multiple File Cache stability and performance issues ([#48786](https://github.com/apache/doris/pull/48786) [#48623](https://github.com/apache/doris/pull/48623) [#48687](https://github.com/apache/doris/pull/48687) [#49050](https://github.com/apache/doris/pull/49050) [#48318](https://github.com/apache/doris/pull/48318))
+- Improved validation logic for Storage Vault creation ([#48073](https://github.com/apache/doris/pull/48073) [#48369](https://github.com/apache/doris/pull/48369))
 
-**Cause**: Usually due to transaction publish delay caused by system resource pressure.
+### Lakehouse
 
-### Error "Failed to commit kv txn [...] Transaction exceeds byte limit"
+- Optimized BE Scanner closure logic for Trino Connector Catalog to accelerate memory release ([#47857](https://github.com/apache/doris/pull/47857))
+- ClickHouse JDBC Catalog now auto-adapts to different driver versions ([#46026](https://github.com/apache/doris/pull/46026))
 
-**Problem Description**: In shared-nothing mode, too many partitions and tablets are involved in a single load, exceeding the transaction size limit.
+### Asynchronous Materialized Views
 
-**Solution**:
+- Enhanced planning performance for transparent rewrite ([#48782](https://github.com/apache/doris/pull/48782))
+- Optimized `tvf mv_infos` performance ([#47415](https://github.com/apache/doris/pull/47415))
+- Disabled catalog metadata refresh during external table-based MV construction to reduce memory usage ([#48767](https://github.com/apache/doris/pull/48767))
 
-- Load data by partition in batches to reduce the number of partitions involved in a single load.
-- Optimize table structure to reduce the number of partitions and tablets.
+### Query Optimizer
 
-### Extra "\r" in the last column of CSV file
+- Improved statistics collection performance for key columns and partition columns ([#46534](https://github.com/apache/doris/pull/46534))
+- Query result aliases now strictly match user input ([#47093](https://github.com/apache/doris/pull/47093))
+- Enhanced column pruning after common subexpression extraction in aggregation operators ([#46627](https://github.com/apache/doris/pull/46627))
+- Improved error messages for function binding failures and unsupported subqueries ([#47919](https://github.com/apache/doris/pull/47919) [#47985](https://github.com/apache/doris/pull/47985))
 
-**Problem Description**: Usually caused by Windows line endings.
+### Semi-structured Data Management
 
-**Solution**:
-Specify the correct line delimiter: `-H "line_delimiter:\r\n"`
+- `json_object` function now supports complex type parameters ([#47779](https://github.com/apache/doris/pull/47779))
+- Added support for writing UInt128 to IPv6 type ([#48802](https://github.com/apache/doris/pull/48802))
+- Enabled inverted index support for ARRAY fields in VARIANT type ([#47688](https://github.com/apache/doris/pull/47688) [#48117](https://github.com/apache/doris/pull/48117))
 
-### CSV data with quotes imported as null
+### Security
 
-**Problem Description**: CSV data with quotes becomes null after import.
+- Improved Ranger authorization performance ([#49352](https://github.com/apache/doris/pull/49352))
 
-**Solution**:
-Use the `trim_double_quotes` parameter to remove double quotes around fields.
+### Others
 
-## Stream Load
+- Optimized JVM Metrics interface performance ([#49380](https://github.com/apache/doris/pull/49380))
 
-### Reasons for Slow Loading
+## Bug Fixes
 
-- Bottlenecks in CPU, IO, memory, or network card resources.
-- Slow network between client machine and BE machines, can be initially diagnosed through ping latency from client to BE machines.
-- Webserver thread count bottleneck, too many concurrent Stream Loads on a single BE (exceeding be.conf webserver_num_workers configuration) may cause thread count bottleneck.
-- Memtable Flush thread count bottleneck, check BE metrics doris_be_flush_thread_pool_queue_size to see if queuing is severe. Can be resolved by increasing the be.conf flush_thread_num_per_store parameter.
+### Storage
 
-### Handling Special Characters in Column Names
+- Fixed data correctness issues in several edge cases ([#48056](https://github.com/apache/doris/pull/48056) [#48399](https://github.com/apache/doris/pull/48399) [#48400](https://github.com/apache/doris/pull/48400) [#48748](https://github.com/apache/doris/pull/48748) [#48775](https://github.com/apache/doris/pull/48775) [#48867](https://github.com/apache/doris/pull/48867) [#49165](https://github.com/apache/doris/pull/49165) [#49193](https://github.com/apache/doris/pull/49193) [#49350](https://github.com/apache/doris/pull/49350) [#49710](https://github.com/apache/doris/pull/49710) [#49825](https://github.com/apache/doris/pull/49825))
+- Fixed untimely cleanup of completed transactions ([#49564](https://github.com/apache/doris/pull/49564))
+- Changed JSONB default value to `{}` for partial column updates ([#49066](https://github.com/apache/doris/pull/49066))
+- Fixed delete bitmap update lock release issue in Storage-Compute Separation model ([#47766](https://github.com/apache/doris/pull/47766))
+- Fixed data loss in Stream Load on ARM architecture ([#49666](https://github.com/apache/doris/pull/49666))
+- Fixed missing error URL return for data quality issues in Insert Into Select ([#49687](https://github.com/apache/doris/pull/49687))
+- Fixed error URL reporting for multi-table Routine Load data quality issues ([#49130](https://github.com/apache/doris/pull/49130))
+- Fixed incorrect results when using Insert Into Values during Schema Change ([#49338](https://github.com/apache/doris/pull/49338))
+- Fixed core dump caused by tablet commit info reporting ([#48732](https://github.com/apache/doris/pull/48732))
+- Added Azure China region support for S3 Load ([#48642](https://github.com/apache/doris/pull/48642))
+- Fixed "get image failed" error in K8s environment ([#49072](https://github.com/apache/doris/pull/49072))
+- Reduced CPU consumption in dynamic partition scheduling ([#48577](https://github.com/apache/doris/pull/48577))
+- Fixed column exception after materialized view renaming ([#48328](https://github.com/apache/doris/pull/48328))
+- Fixed memory and file cache leakage after failed Schema Change ([#48426](https://github.com/apache/doris/pull/48426))
+- Fixed base compaction failure for tables with empty partitions ([#49062](https://github.com/apache/doris/pull/49062))
+- Fixed data correctness issues in complex type modifications ([#49452](https://github.com/apache/doris/pull/49452))
+- Fixed core dump in cold compaction ([#48329](https://github.com/apache/doris/pull/48329))
+- Fixed cumulative point stagnation with delete operations ([#47282](https://github.com/apache/doris/pull/47282))
+- Fixed memory insufficiency in large-scale full compaction ([#48958](https://github.com/apache/doris/pull/48958))
 
-When column names contain special characters, use single quotes with backticks to specify the columns parameter:
+### Compute-Storage Decoupled
 
-```shell
-curl --location-trusted -u root:"" \
-    -H 'columns:`@coltime`,colint,colvar' \
-    -T a.csv \
-    -H "column_separator:," \
-    http://127.0.0.1:8030/api/db/loadtest/_stream_load
-```
+- Fixed file cache cleanup failure in K8s environment ([#49199](https://github.com/apache/doris/pull/49199))
+- Fixed FE CPU spike caused by read-write locks during high-frequency ingestion ([#48564](https://github.com/apache/doris/pull/48564))
 
-## Routine Load
+### Lakehouse
 
-### Major Bug Fixes
+**Data Lakes**
 
-| Issue Description                                                                                                                                         | Trigger Conditions                                                                                   | Impact Scope                      | Temporary Solution                                                                                                                                                     | Affected Versions                                                                                                               | Fixed Versions                                                              | Fix PR                                                                                                                                                           |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| When at least one job times out while connecting to Kafka, it affects the import of other jobs, slowing down global Routine Load imports. | At least one job times out while connecting to Kafka.                                | Shared-nothing and shared-storage | Stop or manually pause the job to resolve the issue.                                                                                                   | <2.1.9 <3.0.5 | 2.1.9 3.0.5 | [#47530](https://github.com/apache/doris/pull/47530)                                                                                                             |
-| User data may be lost after restarting the FE Master.                                                                                     | The job's offset is set to OFFSET_END, and the FE is restarted. | Shared-storage                    | Change the consumption mode to OFFSET_BEGINNING.                                                                                  | 3.0.2-3.0.4                                                     | 3.0.5                                       | [#46149](https://github.com/apache/doris/pull/46149)                                                                                                             |
-| A large number of small transactions are generated during import, causing compaction to fail and resulting in continuous -235 errors.     | Doris consumes data too quickly, or Kafka data flow is in small batches.             | Shared-nothing and shared-storage | Pause the Routine Load job and execute the following command: `ALTER ROUTINE LOAD FOR jobname FROM kafka ("property.enable.partition.eof" = "false");` | <2.1.8 <3.0.4 | 2.1.8 3.0.4 | [#45528](https://github.com/apache/doris/pull/45528), [#44949](https://github.com/apache/doris/pull/44949), [#39975](https://github.com/apache/doris/pull/39975) |
-| Kafka third-party library destructor hangs, causing data consumption to fail.                                                             | Kafka topic deletion (possibly other conditions).                 | Shared-nothing and shared-storage | Restart all BE nodes.                                                                                                                                  | <2.1.8 <3.0.4 | 2.1.8 3.0.4 | [#44913](https://github.com/apache/doris/pull/44913)                                                                                                             |
-| Routine Load scheduling hangs.                                                                                                            | Timeout occurs when FE aborts a transaction in Meta Service.                         | Shared-storage                    | Restart the FE node.                                                                                                                                   | <3.0.2                                                                 | 3.0.2                                       | [#41267](https://github.com/apache/doris/pull/41267)                                                                                                             |
-| Routine Load restart issue.                                                                                                               | Restarting BE nodes.                                                                 | Shared-nothing and shared-storage | Manually resume the job.                                                                                                                               | <2.1.7 <3.0.2 | 2.1.7 3.0.2 | [#3727](https://github.com/apache/doris/pull/40728)                                                                                                              |
+- Fixed BE core dump during concurrent writes to Hive/Iceberg tables ([#49842](https://github.com/apache/doris/pull/49842))
+- Fixed write failures to Hive/Iceberg tables on AWS S3 ([#47162](https://github.com/apache/doris/pull/47162))
+- Fixed incorrect Iceberg Position Deletion reads ([#47977](https://github.com/apache/doris/pull/47977))
+- Added Tencent Cloud COS support for Iceberg table creation ([#49885](https://github.com/apache/doris/pull/49885))
+- Fixed Kerberos authentication for Paimon data on HDFS ([#47192](https://github.com/apache/doris/pull/47192))
+- Fixed memory leak in Hudi Jni Scanner ([#48955](https://github.com/apache/doris/pull/48955))
+- Fixed multi-partition list reading in MaxCompute Catalog ([#48325](https://github.com/apache/doris/pull/48325))
 
-### Default Configuration Optimizations
+**JDBC**
 
-| Optimization Content                                                                  | Applied Versions                                                            | Corresponding PR                                                                                           |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Increased the timeout duration for Routine Load.                      | 2.1.7 3.0.3 | [#42042](https://github.com/apache/doris/pull/42042), [#40818](https://github.com/apache/doris/pull/40818) |
-| Adjusted the default value of `max_batch_interval`.                   | 2.1.8 3.0.3 | [#42491](https://github.com/apache/doris/pull/42491)                                                       |
-| Removed the restriction on `max_batch_interval`.                      | 2.1.5 3.0.0 | [#29071](https://github.com/apache/doris/pull/29071)                                                       |
-| Adjusted the default values of `max_batch_rows` and `max_batch_size`. | 2.1.5 3.0.0 | [#36632](https://github.com/apache/doris/pull/36632)                                                       |
+- Fixed NPE when fetching row count from JDBC Catalog ([#49442](https://github.com/apache/doris/pull/49442))
+- Fixed OceanBase Oracle mode connection test ([#49442](https://github.com/apache/doris/pull/49442))
+- Fixed column type length inconsistency in concurrent JDBC Catalog access ([#48541](https://github.com/apache/doris/pull/48541))
+- Fixed Classloader leak in JDBC Catalog BE ([#46912](https://github.com/apache/doris/pull/46912))
+- Fixed connection thread leak in PostgreSQL JDBC Catalog ([#49568](https://github.com/apache/doris/pull/49568))
 
-### Observability Optimizations
+**Export**
 
-| Optimization Content                                 | Applied Versions                      | Corresponding PR                                                                                                                                                 |
-| ---------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Added observability-related metrics. | 3.0.5 | [#48209](https://github.com/apache/doris/pull/48209), [#48171](https://github.com/apache/doris/pull/48171), [#48963](https://github.com/apache/doris/pull/48963) |
+- Fixed EXPORT job stuck in EXPORTING state ([#47974](https://github.com/apache/doris/pull/47974))
+- Disabled OUTFILE auto-retry to prevent duplicate files ([#48095](https://github.com/apache/doris/pull/48095))
 
-### Error "failed to get latest offset"
+**Others**
 
-**Problem Description**: Routine Load cannot get the latest Kafka offset.
+- Fixed NPE when executing TVF queries via FE WebUI ([#49213](https://github.com/apache/doris/pull/49213))
+- Fixed Hadoop Libhdfs thread local null pointer exception ([#48280](https://github.com/apache/doris/pull/48280))
+- Fixed "Filesystem already closed" error in FE Hadoop access ([#48351](https://github.com/apache/doris/pull/48351))
+- Fixed Catalog comment persistence issue ([#46946](https://github.com/apache/doris/pull/46946))
+- Fixed Parquet complex type reading errors ([#47734](https://github.com/apache/doris/pull/47734))
 
-**Common Causes**:
+### Asynchronous Materialized Views
 
-- Usually due to network connectivity issues with Kafka. Verify by pinging or using telnet to test the Kafka domain name.
-- Timeout caused by third-party library bug, error: java.util.concurrent.TimeoutException: Waited X seconds
+- Fixed slow MV construction in extreme scenarios ([#48074](https://github.com/apache/doris/pull/48074))
+- Fixed nested MV transparent rewrite failure ([#48222](https://github.com/apache/doris/pull/48222))
 
-### Error "failed to get partition meta: Local:'Broker transport failure"
+### Query Optimizer
 
-**Problem Description**: Routine Load cannot get Kafka Topic Partition Meta.
+- Fixed constant folding calculation errors ([#49225](https://github.com/apache/doris/pull/49225) [#47966](https://github.com/apache/doris/pull/47966) [#49416](https://github.com/apache/doris/pull/49416) [#49087](https://github.com/apache/doris/pull/49087) [#49033](https://github.com/apache/doris/pull/49033) [#49061](https://github.com/apache/doris/pull/49061) [#48895](https://github.com/apache/doris/pull/48895) [#48957](https://github.com/apache/doris/pull/48957) [#47288](https://github.com/apache/doris/pull/47288) [#48641](https://github.com/apache/doris/pull/48641) [#49413](https://github.com/apache/doris/pull/49413) [#48783](https://github.com/apache/doris/pull/48783))
+- Fixed unexpected errors with ORDER BY in nested window functions ([#48492](https://github.com/apache/doris/pull/48492))
 
-**Common Causes**:
+### Query Execution
 
-- Usually due to network connectivity issues with Kafka. Verify by pinging or using telnet to test the Kafka domain name.
-- If using domain names, try configuring domain name mapping in /etc/hosts
+- Fixed pipeline task scheduling deadlocks/performance issues ([#49976](https://github.com/apache/doris/pull/49976) [#49007](https://github.com/apache/doris/pull/49007))
+- Fixed memory corruption on FE connection failure ([#48370](https://github.com/apache/doris/pull/48370) [#48313](https://github.com/apache/doris/pull/48313))
+- Fixed memory corruption with lambda and array functions ([#49140](https://github.com/apache/doris/pull/49140))
+- Fixed BE core caused by null string-to-JSONB conversion ([#49810](https://github.com/apache/doris/pull/49810))
+- Standardized undefined behaviors in `parse_url` ([#49149](https://github.com/apache/doris/pull/49149))
+- Fixed `array_overlap` null handling ([#49403](https://github.com/apache/doris/pull/49403))
+- Fixed case conversion errors for non-ASCII characters ([#49763](https://github.com/apache/doris/pull/49763))
+- Fixed BE core in `percentile` function ([#48563](https://github.com/apache/doris/pull/48563))
+- Fixed multiple memory corruption issues ([#48288](https://github.com/apache/doris/pull/48288) [#49737](https://github.com/apache/doris/pull/49737) [#48018](https://github.com/apache/doris/pull/48018) [#47964](https://github.com/apache/doris/pull/47964))
+- Fixed incorrect SET operator results ([#48001](https://github.com/apache/doris/pull/48001))
+- Reduced default Arrow Flight thread pool size to prevent FD exhaustion ([#48530](https://github.com/apache/doris/pull/48530))
+- Fixed window function memory corruption ([#48458](https://github.com/apache/doris/pull/48458))
 
-### Error "Broker: Offset out of range"
+### Semi-structured Data Management
 
-**Problem Description**: The consumed offset doesn't exist in Kafka, possibly because it has been cleaned up by Kafka.
+- Fixed chunked Stream Load JSON import ([#48474](https://github.com/apache/doris/pull/48474))
+- Enhanced JSONB format validation ([#48731](https://github.com/apache/doris/pull/48731))
+- Fixed crash with large STRUCT fields ([#49552](https://github.com/apache/doris/pull/49552))
+- Extended VARCHAR length support in complex types ([#48025](https://github.com/apache/doris/pull/48025))
+- Fixed `array_avg` crash with specific parameters ([#48691](https://github.com/apache/doris/pull/48691))
+- Fixed `ColumnObject::pop_back` crash in VARIANT type ([#48935](https://github.com/apache/doris/pull/48935) [#48978](https://github.com/apache/doris/pull/48978))
+- Disabled index building on VARIANT type ([#49844](https://github.com/apache/doris/pull/49844))
+- Disabled inverted index v1 format for VARIANT type ([#49890](https://github.com/apache/doris/pull/49890))
+- Fixed multi-layer CAST errors in VARIANT type ([#47954](https://github.com/apache/doris/pull/47954))
+- Optimized inverted index metadata lookup for VARIANT with many subcolumns ([#48153](https://github.com/apache/doris/pull/48153))
+- Reduced VARIANT schema memory consumption in Storage-Compute Separation mode ([#47629](https://github.com/apache/doris/pull/47629) [#48463](https://github.com/apache/doris/pull/48463))
+- Fixed PreparedStatement ID overflow ([#48116](https://github.com/apache/doris/pull/48116))
+- Fixed row storage with DELETE operations ([#49609](https://github.com/apache/doris/pull/49609))
 
-**Solution**:
+### Inverted Index
 
-- Need to specify a new offset for consumption, for example, set offset to OFFSET_BEGINNING.
-- Need to set appropriate Kafka log cleanup parameters based on import speed: log.retention.hours, log.retention.bytes, etc.
+- Fixed ARRAY type null bitmap handling ([#48052](https://github.com/apache/doris/pull/48052))
+- Fixed Date/Datetimev1 Bloomfilter comparison ([#47005](https://github.com/apache/doris/pull/47005))
+- Fixed UTF-8 4-byte character truncation ([#48792](https://github.com/apache/doris/pull/48792))
+- Fixed index loss after immediate column addition ([#48547](https://github.com/apache/doris/pull/48547))
+- Fixed empty data handling in ARRAY inverted index ([#48264](https://github.com/apache/doris/pull/48264))
+- Improved FE metadata upgrade compatibility ([#49283](https://github.com/apache/doris/pull/49283))
+- Fixed `match_phrase_prefix` cache error ([#46517](https://github.com/apache/doris/pull/46517))
+- Fixed file cache cleanup after compaction ([#49738](https://github.com/apache/doris/pull/49738))
+
+### Security
+
+- Removed Select_Priv check for DELETE operations ([#49239](https://github.com/apache/doris/pull/49239))
+- Prevented non-root users from modifying root privileges ([#48752](https://github.com/apache/doris/pull/48752))
+- Fixed intermittent LDAP PartialResultException ([#47858](https://github.com/apache/doris/pull/47858))
+
+### Others
+
+- Fixed JAVA_OPTS_FOR_JDK_17 recognition ([#48170](https://github.com/apache/doris/pull/48170))
+- Fixed BDB metadata write failure caused by InterruptException ([#47874](https://github.com/apache/doris/pull/47874))
+- Improved SQL hash generation for multi-statement requests ([#48242](https://github.com/apache/doris/pull/48242))
+- User attribute variables now override session variables ([#48548](https://github.com/apache/doris/pull/48548))
