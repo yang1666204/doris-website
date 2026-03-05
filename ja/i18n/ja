@@ -1,26 +1,26 @@
 ---
 {
-  "title": "DROP JOB",
+  "title": "PAUSE JOB",
   "language": "en",
-  "description": "The user deletes a JOB job. The job will be stopped and deleted immediately."
+  "description": "When a user pauses a job in the RUNNING state, the running task will be interrupted and the job state will be changed to PAUSED."
 }
 ---
 
 ## Description
 
-The user deletes a JOB job. The job will be stopped and deleted immediately.
+When a user pauses a job in the RUNNING state, the running task will be interrupted and the job state will be changed to PAUSED. The stopped job can be resumed by the RESUME operation.
 
 ## Syntax
 
 ```sql
-DROP JOB where jobName = <job_name> ;
+PAUSE JOB WHERE jobname = <job_name> ;
 ```
 
 ## Required parameters
 
 **1. `<job_name>`**
 
-> The `<job_name>` of the task to be deleted.
+> The name of the job to be paused.
 
 ## Access Control Requirements
 
@@ -33,8 +33,8 @@ The user who executes this SQL command must have at least the following permissi
 
 ## Examples
 
-- Delete the job named example.
+- Pause the job named example.
 
-    ```sql
-    DROP JOB where jobName='example';
-    ```
+   ```sql
+   PAUSE JOB where jobname='example'; 
+   ```
