@@ -1,83 +1,87 @@
 ---
 {
     "title": "MAP_AGG",
-    "language": "en"
+    "language": "en",
+    "description": "The MAPAGG function is used to form a mapping structure based on key-value pairs from multiple rows of data."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+The MAP_AGG function is used to form a mapping structure based on key-value pairs from multiple rows of data.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## MAP_AGG
-### description
-#### Syntax
+`MAP_AGG(<expr1>, <expr2>)`
 
-`MAP_AGG(expr1, expr2)`
+## Parameters
 
+| Parameter | Description |
+| -- | -- |
+| `<expr1>` | The expression used as the key. Supported types: Bool, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, String. |
+| `<expr2>` | The expression used as the value. Supported types: Bool, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, String. |
 
-Returns a map consists of expr1 as the key and expr2 as the corresponding value.
+## Return Value
 
-### example
+Returns a value of the Map type. If there is no valid data in the group, returns an empty Map.
+
+## Example
+
+```sql
+-- setup
+CREATE TABLE nation (
+    n_nationkey INT,
+    n_name STRING,
+    n_regionkey INT
+) DISTRIBUTED BY HASH(n_nationkey) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO nation VALUES
+    (0, 'ALGERIA', 0),
+    (1, 'ARGENTINA', 1),
+    (2, 'BRAZIL', 1),
+    (3, 'CANADA', 1);
 ```
-MySQL > select `n_nationkey`, `n_name`, `n_regionkey` from `nation`;
-+-------------+----------------+-------------+
-| n_nationkey | n_name         | n_regionkey |
-+-------------+----------------+-------------+
-|           0 | ALGERIA        |           0 |
-|           1 | ARGENTINA      |           1 |
-|           2 | BRAZIL         |           1 |
-|           3 | CANADA         |           1 |
-|           4 | EGYPT          |           4 |
-|           5 | ETHIOPIA       |           0 |
-|           6 | FRANCE         |           3 |
-|           7 | GERMANY        |           3 |
-|           8 | INDIA          |           2 |
-|           9 | INDONESIA      |           2 |
-|          10 | IRAN           |           4 |
-|          11 | IRAQ           |           4 |
-|          12 | JAPAN          |           2 |
-|          13 | JORDAN         |           4 |
-|          14 | KENYA          |           0 |
-|          15 | MOROCCO        |           0 |
-|          16 | MOZAMBIQUE     |           0 |
-|          17 | PERU           |           1 |
-|          18 | CHINA          |           2 |
-|          19 | ROMANIA        |           3 |
-|          20 | SAUDI ARABIA   |           4 |
-|          21 | VIETNAM        |           2 |
-|          22 | RUSSIA         |           3 |
-|          23 | UNITED KINGDOM |           3 |
-|          24 | UNITED STATES  |           1 |
-+-------------+----------------+-------------+
 
-MySQL > select `n_regionkey`, map_agg(`n_nationkey`, `n_name`) from `nation` group by `n_regionkey`;
-+-------------+---------------------------------------------------------------------------+
-| n_regionkey | map_agg(`n_nationkey`, `n_name`)                                          |
-+-------------+---------------------------------------------------------------------------+
-|           1 | {1:"ARGENTINA", 2:"BRAZIL", 3:"CANADA", 17:"PERU", 24:"UNITED STATES"}    |
-|           0 | {0:"ALGERIA", 5:"ETHIOPIA", 14:"KENYA", 15:"MOROCCO", 16:"MOZAMBIQUE"}    |
-|           3 | {6:"FRANCE", 7:"GERMANY", 19:"ROMANIA", 22:"RUSSIA", 23:"UNITED KINGDOM"} |
-|           4 | {4:"EGYPT", 10:"IRAN", 11:"IRAQ", 13:"JORDAN", 20:"SAUDI ARABIA"}         |
-|           2 | {8:"INDIA", 9:"INDONESIA", 12:"JAPAN", 18:"CHINA", 21:"VIETNAM"}          |
-+-------------+---------------------------------------------------------------------------+
+```sql
+select `n_regionkey`, map_agg(`n_nationkey`, `n_name`) from `nation` group by `n_regionkey`;
+```
 
-MySQL > select n_regionkey, map_agg(`n_name`, `n_nationkey` % 5) from `nation` group by `n_regionkey`;
+```text
++-------------+-----------------------------------------+
+| n_regionkey | map_agg(`n_nationkey`, `n_name`)        |
++-------------+-----------------------------------------+
+|           0 | {0:"ALGERIA"}                           |
+|           1 | {1:"ARGENTINA", 2:"BRAZIL", 3:"CANADA"} |
++-------------+-----------------------------------------+
+```
+
+```sql
+select map_agg(`n_name`, `n_nationkey` % 5) from `nation`;
+```
+
+```text
++------------------------------------------------------+
+| map_agg(`n_name`, `n_nationkey` % 5)                 |
++------------------------------------------------------+
+| {"ALGERIA":0, "ARGENTINA":1, "BRAZIL":2, "CANADA":3} |
++------------------------------------------------------+
+```
+
+```sql
+select map_agg(`n_name`, `n_nationkey` % 5) from `nation` where n_nationkey is null;
+```
+
+```text
++--------------------------------------+
+| map_agg(`n_name`, `n_nationkey` % 5) |
++--------------------------------------+
+| {}                                   |
++--------------------------------------+
+```
+select n_regionkey, map_agg(`n_name`, `n_nationkey` % 5) from `nation` group by `n_regionkey`;
+```
+
+```text
 +-------------+------------------------------------------------------------------------+
 | n_regionkey | map_agg(`n_name`, (`n_nationkey` % 5))                                 |
 +-------------+------------------------------------------------------------------------+
@@ -88,5 +92,3 @@ MySQL > select n_regionkey, map_agg(`n_name`, `n_nationkey` % 5) from `nation` g
 |           4 | {"EGYPT":4, "IRAN":0, "IRAQ":1, "JORDAN":3, "SAUDI ARABIA":0}          |
 +-------------+------------------------------------------------------------------------+
 ```
-### keywords
-MAP_AGG
