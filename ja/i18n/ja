@@ -1,178 +1,142 @@
 ---
 {
-  "title": "TRANSLATE",
+  "title": "TRIM_IN",
   "language": "en",
-  "description": "The TRANSLATE function performs character-by-character string replacement, converting characters in the source string according to mapping rules."
+  "description": "The TRIMIN function is used to remove leading and trailing specified characters from a string. If no character set is specified,"
 }
 ---
 
 ## Description
 
-The TRANSLATE function performs character-by-character string replacement, converting characters in the source string according to mapping rules. This function replaces each character in the source string that appears in the 'from' string with the corresponding character at the same position in the 'to' string.
+The TRIM_IN function is used to remove leading and trailing specified characters from a string. If no character set is specified, it removes leading and trailing spaces by default. When a character set is specified, it removes all specified characters from both ends (regardless of their order in the set).
+
+The key feature of TRIM_IN is that it removes any combination of characters from the specified set, while the TRIM function removes characters based on exact string matching.
 
 ## Syntax
 
 ```sql
-TRANSLATE(<source>, <from>, <to>)
+TRIM_IN(<str>[, <rhs>])
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                         |
-| ---------- | ----------------------------------------------------------------------------------- |
-| `<source>` | The source string to be converted. Type: VARCHAR    |
-| `<from>`   | The set of characters to be replaced. Type: VARCHAR |
-| `<to>`     | The set of replacement characters. Type: VARCHAR    |
+| Parameter | Description                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------ |
+| `<str>`   | The string to be processed. Type: VARCHAR                              |
+| `<rhs>`   | Optional parameter, the set of characters to be removed. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the string transformed according to character mapping rules.
-
-Character mapping rules:
-
-- Establishes one-to-one character mapping based on positions in 'from' and 'to' strings
-- 1st character in 'from' maps to 1st character in 'to', 2nd to 2nd, and so on
-- If 'from' contains duplicate characters, uses the first occurrence's mapping and ignores subsequent duplicates
-- Characters in source string not in 'from' string remain unchanged
+Returns VARCHAR type, representing the processed string.
 
 Special cases:
 
-- Returns NULL if any parameter is NULL
-- Returns empty string if source is empty string
-- Returns original source string if 'from' is empty string
-- Deletes all characters from source that appear in 'from' if 'to' is empty string
-- If 'to' string is shorter than 'from', characters in source corresponding to excess 'from' characters are deleted
+- If str is NULL, returns NULL
+- If rhs is not specified, removes all leading and trailing spaces
+- If rhs is specified, removes all characters from both ends that appear in rhs until encountering characters not in rhs
 
 ## Examples
 
-1. Basic character replacement
+1. Remove leading and trailing spaces
 
 ```sql
-SELECT translate('abcd', 'a', 'z');
+SELECT trim_in('   ab d   ') str;
 ```
 
 ```text
-+---------------------------+
-| translate('abcd', 'a', 'z') |
-+---------------------------+
-| zbcd                      |
-+---------------------------+
++------+
+| str  |
++------+
+| ab d |
++------+
 ```
 
-2. Multiple replacements of the same character
+2. Remove specified character set
 
 ```sql
-SELECT translate('abcda', 'a', 'z');
+SELECT trim_in('ababccaab', 'ab') str;
 ```
 
 ```text
-+----------------------------+
-| translate('abcda', 'a', 'z') |
-+----------------------------+
-| zbcdz                      |
-+----------------------------+
++------+
+| str  |
++------+
+| cc   |
++------+
 ```
 
-3. Special character replacement
+3. Comparison with TRIM function
 
 ```sql
-SELECT translate('Palhoça', 'ç', 'c');
+SELECT trim_in('ababccaab', 'ab'), trim('ababccaab', 'ab');
+```
+
+```text
++-----------------------------+--------------------------+
+| trim_in('ababccaab', 'ab')  | trim('ababccaab', 'ab')  |
++-----------------------------+--------------------------+
+| cc                          | ababccaab                |
++-----------------------------+--------------------------+
+```
+
+4. Character set order does not matter
+
+```sql
+SELECT trim_in('abcHelloabc', 'cba');
 ```
 
 ```text
 +--------------------------------+
-| translate('Palhoça', 'ç', 'c') |
+| trim_in('abcHelloabc', 'cba')  |
 +--------------------------------+
-| Palhoca                        |
+| Hello                          |
 +--------------------------------+
 ```
 
-4. Character deletion (empty 'to' string)
+5. UTF-8 character support
 
 ```sql
-SELECT translate('abcd', 'a', '');
+SELECT trim_in('+++ṭṛì ḍḍumai+++', '+');
 ```
 
 ```text
-+----------------------------+
-| translate('abcd', 'a', '') |
-+----------------------------+
-| bcd                        |
-+----------------------------+
++--------------------------------------+
+| trim_in('+++ṭṛì ḍḍumai+++', '+')    |
++--------------------------------------+
+| ṭṛì ḍḍumai                           |
++--------------------------------------+
 ```
 
-5. Duplicate characters in 'from' string (uses first mapping only)
+6. NULL value handling
 
 ```sql
-SELECT TRANSLATE('abacad', 'aac', 'zxy');
+SELECT trim_in(NULL, 'abc');
 ```
 
 ```text
-+-----------------------------------+
-| TRANSLATE('abacad', 'aac', 'zxy') |
-+-----------------------------------+
-| zbzyzd                            |
-+-----------------------------------+
++-----------------------+
+| trim_in(NULL, 'abc')  |
++-----------------------+
+| NULL                  |
++-----------------------+
 ```
 
-6. 'to' string shorter than 'from' (deletes excess characters)
+7. Empty character handling
 
 ```sql
-SELECT TRANSLATE('abcde', 'ace', 'xy');
+SELECT trim_in('', 'abc'), trim_in('abc', '');
 ```
 
 ```text
-+-------------------------------+
-| TRANSLATE('abcde', 'ace', 'xy') |
-+-------------------------------+
-| xbyd                          |
-+-------------------------------+
-```
-
-7. UTF-8 character replacement
-
-```sql
-SELECT TRANSLATE('ṭṛì ḍḍumai', 'ṭṛ', 'ab');
-```
-
-```text
-+-----------------------------------+
-| TRANSLATE('ṭṛì ḍḍumai', 'ṭṛ', 'ab') |
-+-----------------------------------+
-| abì ḍḍumai                        |
-+-----------------------------------+
-```
-
-8. Numeric character replacement
-
-```sql
-SELECT TRANSLATE('a1b2c3', '123', 'xyz');
-```
-
-```text
-+----------------------------------+
-| TRANSLATE('a1b2c3', '123', 'xyz') |
-+----------------------------------+
-| axbycz                           |
-+----------------------------------+
-```
-
-9. Special symbol replacement
-
-```sql
-SELECT TRANSLATE('hello@world.com', '@.', '-_');
-```
-
-```text
-+--------------------------------------------+
-| TRANSLATE('hello@world.com', '@.', '-_')   |
-+--------------------------------------------+
-| hello-world_com                            |
-+--------------------------------------------+
++--------------------+--------------------+
+| trim_in('', 'abc') | trim_in('abc', '') |
++--------------------+--------------------+
+|                    | abc                |
++--------------------+--------------------+
 ```
 
 ### Keywords
 
     ```
-    TRANSLATE
+    TRIM_IN, TRIM
     ```
