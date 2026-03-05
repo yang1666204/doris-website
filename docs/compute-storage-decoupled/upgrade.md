@@ -1,28 +1,10 @@
 ---
 {
-   "title": "Upgrade",
-   "language": "en"
+    "title": "Upgrade",
+    "language": "en",
+    "description": "This guide provides step-by-step instructions for upgrading Doris using a storage-compute decoupling architecture (a.k.a. Cloud Mode)."
 }
 ---
-
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements. See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership. The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied. See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 ## Overview
 
@@ -53,7 +35,7 @@ In principle, Doris supports upgrading from a lower version to a higher version 
 
 ### Upgrade Instructions
 
-1. Make sure that your Doris is started in cloud mode. If you are not sure about the current deployment mode of Doris, refer to the instructions in the [previous section](#Doris-Version-Description).
+1. Make sure that your Doris is started in cloud mode. If you are not sure about the current deployment mode of Doris, refer to the instructions in the [previous section](#doris-version-description).
    For Doris in local mode, refer to [Cluster Upgrade](../admin-manual/cluster-management/upgrade) for upgrade steps.
 2. Make sure that your Doris data import tasks have a retry mechanism to avoid task failures due to node restarts during the upgrade process.
 3. Before upgrading, we recommend checking the status of all Doris components (MetaService, Recycler, Frontend and Backend) to ensure they are operating normally and without exception logs to avoid affecting the upgrade process.
