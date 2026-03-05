@@ -1,88 +1,93 @@
 ---
 {
-  "title": "IPV4_CIDR_TO_RANGE",
+  "title": "IPV4_STRING_TO_NUM_OR_DEFAULT",
   "language": "en",
-  "description": "Calculates the minimum and maximum IPv4 addresses for a network segment based on an IPv4 address and CIDR prefix length,"
+  "description": "Takes a string containing an IPv4 address in A.B.C.D format (dot-separated decimal numbers)."
 }
 ---
 
-## ipv4_cidr_to_range
+## ipv4_string_to_num_or_default
 
 ## Description
 
-Calculates the minimum and maximum IPv4 addresses for a network segment based on an IPv4 address and CIDR prefix length, returning a struct containing two IPv4 addresses.
+Takes a string containing an IPv4 address in A.B.C.D format (dot-separated decimal numbers). Returns a BIGINT number representing the corresponding the numeric value of the address in network byte order (big endian) IPv4 address.
 
 ## Syntax
 
 ```sql
-IPV4_CIDR_TO_RANGE(<ipv4_address>, <cidr_prefix>)
+IPV4_STRING_TO_NUM_OR_DEFAULT(<ipv4_string>)
 ```
 
 ### Parameters
 
-- `<ipv4_address>`: IPv4 type address
-- `<cidr_prefix>`: CIDR prefix length (SMALLINT type, range 0-32)
+- `<ipv4_string>`: IPv4 string address (format A.B.C.D)
 
 ### Return Value
 
-Return Type: STRUCT<min: IPv4, max: IPv4>
+Return Type: BIGINT
 
 Return Value Meaning:
 
-- Returns a struct containing two fields:
-  - `min`: Minimum IPv4 address of the network segment
-  - `max`: Maximum IPv4 address of the network segment
+- Returns the the numeric value of the address in network byte order (big endian) integer representation of the corresponding IPv4 address
+- Returns `0` for invalid IPv4 strings or `NULL` input
 
 ### Usage Notes
 
-- CIDR prefix length must be within the range 0-32
-- Calculation is based on network mask, setting all host bits to zero for minimum address and all host bits to one for maximum address
-- Supports various combinations of constant parameters and column parameters
+- This function does not throw exceptions, invalid input uniformly returns 0 (corresponding to `0.0.0.0`)
+- Leading/trailing whitespace in input strings is not allowed
+- Commonly used in fault-tolerant conversion scenarios, such as cleaning dirty data
 
 ## Examples
 
-Calculate address range for /24 network segment.
+Convert IPv4 text `192.168.0.1` to the corresponding the numeric value of the address in network byte order (big endian) integer.
 
 ```sql
-SELECT ipv4_cidr_to_range(INET_ATON('192.168.1.1'), 24) as range;
-+----------------------------------------+
-| range                                  |
-+----------------------------------------+
-| {"min": "192.168.1.0", "max": "192.168.1.255"} |
-+----------------------------------------+
+select ipv4_string_to_num_or_default('192.168.0.1');
++----------------------------------------------+
+| ipv4_string_to_num_or_default('192.168.0.1') |
++----------------------------------------------+
+|                                   3232235521 |
++----------------------------------------------+
 ```
 
-Calculate address range for /16 network segment.
+IPv4 boundary values (minimum and maximum).
 
 ```sql
-SELECT ipv4_cidr_to_range(INET_ATON('10.0.0.1'), 16) as range;
-+----------------------------------------+
-| range                                  |
-+----------------------------------------+
-| {"min": "10.0.0.0", "max": "10.255.255.255"} |
-+----------------------------------------+
+select
+  ipv4_string_to_num_or_default('0.0.0.0')         as min_v4,
+  ipv4_string_to_num_or_default('255.255.255.255') as max_v4;
++--------+-----------+
+| min_v4| max_v4    |
++--------+-----------+
+| 0      | 4294967295|
++--------+-----------+
 ```
 
-Access specific fields in the struct.
+Returns 0 for invalid input (no exception thrown).
 
 ```sql
-SELECT 
-  ipv4_cidr_to_range(INET_ATON('172.16.1.1'), 24).min as min_ip,
-  ipv4_cidr_to_range(INET_ATON('172.16.1.1'), 24).max as max_ip;
-+-------------+-------------+
-| min_ip      | max_ip      |
-+-------------+-------------+
-| 172.16.1.0  | 172.16.1.255 |
-+-------------+-------------+
-```
+select ipv4_string_to_num_or_default('256.0.0.1');
++--------------------------------------------+
+| ipv4_string_to_num_or_default('256.0.0.1') |
++--------------------------------------------+
+|                                          0 |
++--------------------------------------------+
 
-CIDR prefix out of range throws an exception.
+select ipv4_string_to_num_or_default(' 1.1.1.1 ');
++--------------------------------------------+
+| ipv4_string_to_num_or_default(' 1.1.1.1 ') |
++--------------------------------------------+
+|                                          0 |
++--------------------------------------------+
 
-```sql
-SELECT ipv4_cidr_to_range(INET_ATON('192.168.1.1'), 33);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Illegal cidr value '33'
+select ipv4_string_to_num_or_default(NULL);
++-------------------------------------+
+| ipv4_string_to_num_or_default(NULL) |
++-------------------------------------+
+|                                   0 |
++-------------------------------------+
 ```
 
 ### Keywords
 
-IPV4_CIDR_TO_RANGE
+IPV4_STRING_TO_NUM_OR_DEFAULT
