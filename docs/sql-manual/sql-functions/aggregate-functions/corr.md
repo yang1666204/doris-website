@@ -1,49 +1,84 @@
 ---
 {
     "title": "CORR",
-    "language": "en"
+    "language": "en",
+    "description": "Calculates the Pearson correlation coefficient between two random variables."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Calculates the Pearson correlation coefficient between two random variables.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## CORR
-### Description
-#### Syntax
-
-` double corr(x, y)`
-
-Calculate the Pearson correlation coefficient, which is returned as the covariance of x and y divided by the product of the standard deviations of x and y. 
-If the standard deviation of x or y is 0, the result will be 0.
-
-### example
-
+```sql
+CORR(<expr1>, <expr2>)
 ```
-mysql> select corr(x,y) from baseall;
-+---------------------+
-| corr(x, y)          |
-+---------------------+
-| 0.89442719099991586 |
-+---------------------+
-1 row in set (0.21 sec)
 
+## Parameters
+
+| Parameters | Description |
+| -- | -- |
+| `<expr1>` | Expression for calculation. Supported type is Double. |
+| `<expr2>` | Expression for calculation. Supported type is Double. |
+
+## Return Value
+
+Returns a DOUBLE type value, which is the covariance of expr1 and expr2 divided by the product of their standard deviations. Special cases:
+
+- If the standard deviation of expr1 or expr2 is 0, returns 0.
+- If expr1 or expr2 contains NULL values, those rows are excluded from the calculation.
+- If there is no valid data in the group, returns NULL.
+
+## Example
+
+```sql
+-- setup
+create table test_corr(
+    id int,
+    k1 double,
+    k2 double
+) distributed by hash (id) buckets 1
+properties ("replication_num"="1");
+
+insert into test_corr values 
+    (1, 20, 22),
+    (1, 10, 20),
+    (2, 36, 21),
+    (2, 30, 22),
+    (2, 25, 20),
+    (3, 25, NULL),
+    (4, 25, 21),
+    (4, 25, 22),
+    (4, 25, 20);
 ```
-### keywords
-CORR
+
+```sql
+select id,corr(k1,k2) from test_corr group by id;
+```
+
+```text
++------+--------------------+
+| id   | corr(k1, k2)       |
++------+--------------------+
+|    4 |                  0 |
+|    1 |                  1 |
+|    3 |               NULL |
+|    2 | 0.4539206495016019 |
++------+--------------------+
+```
+
+```sql
+select corr(k1,k2) from test_corr where id=999;
+```
+
+When the query result is empty, returns NULL.
+
+```text
++-------------+
+| corr(k1,k2) |
++-------------+
+|        NULL |
++-------------+
+```
