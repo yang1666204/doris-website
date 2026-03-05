@@ -1,46 +1,44 @@
 ---
 {
-  "title": "TRIM_IN",
+  "title": "TRIM",
   "language": "en",
-  "description": "The TRIMIN function is used to remove leading and trailing specified characters from a string. If no character set is specified,"
+  "description": "The TRIM function is used to remove consecutive spaces or specified strings from both ends of a string. If the second parameter is not specified,"
 }
 ---
 
 ## Description
 
-The TRIM_IN function is used to remove leading and trailing specified characters from a string. If no character set is specified, it removes leading and trailing spaces by default. When a character set is specified, it removes all specified characters from both ends (regardless of their order in the set).
-
-The key feature of TRIM_IN is that it removes any combination of characters from the specified set, while the TRIM function removes characters based on exact string matching.
+The TRIM function is used to remove consecutive spaces or specified strings from both ends of a string. If the second parameter is not specified, leading and trailing spaces are removed; if specified, the function removes the specified complete string from both ends.
 
 ## Syntax
 
 ```sql
-TRIM_IN(<str>[, <rhs>])
+TRIM(<str>[, <rhs>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------ |
-| `<str>`   | The string to be processed. Type: VARCHAR                              |
-| `<rhs>`   | Optional parameter, the set of characters to be removed. Type: VARCHAR |
+| Parameter | Description                                                                                                |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| `<str>`   | The string to be processed. Type: VARCHAR                                  |
+| `<rhs>`   | Optional parameter, characters to be trimmed from both ends. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the processed string.
+Returns a value of type VARCHAR.
 
 Special cases:
 
-- If str is NULL, returns NULL
-- If rhs is not specified, removes all leading and trailing spaces
-- If rhs is specified, removes all characters from both ends that appear in rhs until encountering characters not in rhs
+- If any parameter is NULL, NULL is returned
+- If rhs is not specified, removes leading and trailing spaces
+- If rhs is specified, removes the complete rhs string from both ends (not character-by-character)
 
 ## Examples
 
 1. Remove leading and trailing spaces
 
 ```sql
-SELECT trim_in('   ab d   ') str;
+SELECT trim('   ab d   ') str;
 ```
 
 ```text
@@ -51,92 +49,106 @@ SELECT trim_in('   ab d   ') str;
 +------+
 ```
 
-2. Remove specified character set
+2. Remove specified strings from both ends
 
 ```sql
-SELECT trim_in('ababccaab', 'ab') str;
+SELECT trim('ababccaab', 'ab') str;
 ```
 
 ```text
-+------+
-| str  |
-+------+
-| cc   |
-+------+
++---------+
+| str     |
++---------+
+| ababcca |
++---------+
 ```
 
-3. Comparison with TRIM function
+3. UTF-8 character support
 
 ```sql
-SELECT trim_in('ababccaab', 'ab'), trim('ababccaab', 'ab');
+SELECT trim('   ṭṛì ḍḍumai   ');
 ```
 
 ```text
-+-----------------------------+--------------------------+
-| trim_in('ababccaab', 'ab')  | trim('ababccaab', 'ab')  |
-+-----------------------------+--------------------------+
-| cc                          | ababccaab                |
-+-----------------------------+--------------------------+
++------------------------------+
+| trim('   ṭṛì ḍḍumai   ')     |
++------------------------------+
+| ṭṛì ḍḍumai                   |
++------------------------------+
 ```
 
-4. Character set order does not matter
+4. No matching prefix/suffix, return original string
 
 ```sql
-SELECT trim_in('abcHelloabc', 'cba');
+SELECT trim('Hello World', 'xyz');
 ```
 
 ```text
 +--------------------------------+
-| trim_in('abcHelloabc', 'cba')  |
+| trim('Hello World', 'xyz')     |
++--------------------------------+
+| Hello World                    |
++--------------------------------+
+```
+
+5. NULL value handling
+
+```sql
+SELECT trim(NULL), trim('Hello', NULL);
+```
+
+```text
++------------+-----------------------+
+| trim(NULL) | trim('Hello', NULL)   |
++------------+-----------------------+
+| NULL       | NULL                  |
++------------+-----------------------+
+```
+
+6. Empty string handling
+
+```sql
+SELECT trim(''), trim('abc', '');
+```
+
+```text
++----------+------------------+
+| trim('') | trim('abc', '')  |
++----------+------------------+
+|          | abc              |
++----------+------------------+
+```
+
+7. Repeated pattern removal from both ends
+
+```sql
+SELECT trim('abcabcabc', 'abc');
+```
+
+```text
++------------------------------+
+| trim('abcabcabc', 'abc')     |
++------------------------------+
+|                              |
++------------------------------+
+```
+
+8. Asymmetric removal
+
+```sql
+SELECT trim('abcHelloabc', 'abc');
+```
+
+```text
++--------------------------------+
+| trim('abcHelloabc', 'abc')     |
 +--------------------------------+
 | Hello                          |
 +--------------------------------+
 ```
 
-5. UTF-8 character support
-
-```sql
-SELECT trim_in('+++ṭṛì ḍḍumai+++', '+');
-```
-
-```text
-+--------------------------------------+
-| trim_in('+++ṭṛì ḍḍumai+++', '+')    |
-+--------------------------------------+
-| ṭṛì ḍḍumai                           |
-+--------------------------------------+
-```
-
-6. NULL value handling
-
-```sql
-SELECT trim_in(NULL, 'abc');
-```
-
-```text
-+-----------------------+
-| trim_in(NULL, 'abc')  |
-+-----------------------+
-| NULL                  |
-+-----------------------+
-```
-
-7. Empty character handling
-
-```sql
-SELECT trim_in('', 'abc'), trim_in('abc', '');
-```
-
-```text
-+--------------------+--------------------+
-| trim_in('', 'abc') | trim_in('abc', '') |
-+--------------------+--------------------+
-|                    | abc                |
-+--------------------+--------------------+
-```
-
 ### Keywords
 
     ```
-    TRIM_IN, TRIM
+    TRIM
     ```
