@@ -1,68 +1,71 @@
 ---
 {
-  "title": "BITMAP_UNION",
+  "title": "COLLECT_LIST",
   "language": "en",
-  "description": "Calculates the union of input Bitmaps and returns a new Bitmap."
+  "description": "Aggregation function, used to aggregate all values of a column into an array."
 }
 ---
 
 ## Description
 
-Calculates the union of input Bitmaps and returns a new Bitmap.
+Aggregation function, used to aggregate all values of a column into an array.
+
+## Alias
+
+- GROUP_ARRAY
 
 ## Syntax
 
 ```sql
-BITMAP_UNION(<expr>)
+COLLECT_LIST(<expr> [,<max_size>])
 ```
 
-## Arguments
+## Parameters
 
-| Argument | Description                 |
-| -------- | --------------------------- |
-| `<expr>` | Data type supporting Bitmap |
+| Parameter    | Description                                                                                                                                                                                                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<expr>`     | An expression to determine the values to be placed into the array. Supported types: Bool, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, Timestamptz, IPV4, IPV6, String, Array, Map, Struct. |
+| `<max_size>` | Optional parameter to limit the result array size to max_size elements. Supported type: Integer.                                                                                                                |
 
 ## Return Value
 
-Returns a value of Bitmap type. If there is no valid data in the group, returns an empty Bitmap.
+Returns ARRAY type, containing all non-NULL values. If there is no valid data in the group, returns an empty array.
 
 ## Example
 
 ```sql
 -- setup
-CREATE TABLE pv_bitmap (
-  dt INT,
-  page INT,
-  user_id BITMAP
-) DISTRIBUTED BY HASH(dt) BUCKETS 1
+CREATE TABLE collect_list_test (
+	k1 INT,
+	k2 INT,
+	k3 STRING
+) DISTRIBUTED BY HASH(k1) BUCKETS 1
 PROPERTIES ("replication_num" = "1");
-INSERT INTO pv_bitmap VALUES
-  (1, 100, to_bitmap(100)),
-  (1, 100, to_bitmap(200)),
-  (1, 100, to_bitmap(300)),
-  (2, 200, to_bitmap(300));
+INSERT INTO collect_list_test VALUES (1, 10, 'a'), (1, 20, 'b'), (1, 30, 'c'), (2, 100, 'x'), (2, 200, 'y'), (3, NULL, NULL);
 ```
 
 ```sql
-select bitmap_to_string(bitmap_union(user_id)) from pv_bitmap;
+select collect_list(k1),collect_list(k1,3) from collect_list_test;
 ```
 
 ```text
-+-----------------------------------------+
-| bitmap_to_string(bitmap_union(user_id)) |
-+-----------------------------------------+
-| 100,200,300                             |
-+-----------------------------------------+
++--------------------+--------------------+
+| collect_list(k1)   | collect_list(k1,3) |
++--------------------+--------------------+
+| [1, 1, 1, 2, 2, 3] | [1, 1, 1]          |
++--------------------+--------------------+
 ```
 
 ```sql
-select bitmap_to_string(bitmap_union(user_id)) from pv_bitmap where user_id is null;
+select k1,collect_list(k2),collect_list(k3,1) from collect_list_test group by k1 order by k1;
 ```
 
 ```text
-+-----------------------------------------+
-| bitmap_to_string(bitmap_union(user_id)) |
-+-----------------------------------------+
-|                                         |
-+-----------------------------------------+
++------+------------------+--------------------+
+| k1   | collect_list(k2) | collect_list(k3,1) |
++------+------------------+--------------------+
+|    1 | [10, 20, 30]     | ["a"]              |
+|    2 | [100, 200]       | ["x"]              |
+|    3 | []               | []                 |
++------+------------------+--------------------+
 ```
