@@ -1,14 +1,14 @@
 ---
 {
-  "title": "active_queries",
+  "title": "backend_active_tasks",
   "language": "en",
-  "description": "Used to view currently executing queries"
+  "description": "View the resource usage of Query or Load tasks currently running on Backends."
 }
 ---
 
 ## Overview
 
-Used to view currently executing queries
+View the resource usage of Query or Load tasks currently running on Backends.
 
 ## Database
 
@@ -16,15 +16,17 @@ Used to view currently executing queries
 
 ## Table Information
 
-| Column Name                                                 | Type                            | Description                                                             |
-| ----------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------- |
-| QUERY_ID                               | varchar(256) | The ID of the query                                                     |
-| QUERY_START_TIME  | varchar(256) | The start time of the query                                             |
-| QUERY_TIME_MS     | bigint                          | The execution time of the query                                         |
-| WORKLOAD_GROUP_ID | bigint                          | The ID of the Workload Group to which the query belongs                 |
-| DATABASE                                                    | varchar(256) | The Database where the query was executed                               |
-| FRONTEND_INSTANCE                      | varchar(256) | The IP address of the Frontend instance that received the query request |
-| QUEUE_START_TIME  | varchar(256) | The start time of queuing; empty if not queued                          |
-| QUEUE_END_TIME    | varchar(256) | The end time of queuing; empty if not queued                            |
-| QUERY_STATUS                           | varchar(256) | The status of the query                                                 |
-| SQL                                                         | text                            | The text of the query statement                                         |
+| Column Name                                                                              | Type                            | Description                                      |
+| ---------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------ |
+| BE_ID                                                               | bigint                          | The ID of the Backend executing the task         |
+| FE_HOST                                                             | varchar(256) | The address of the Frontend that issued the task |
+| QUERY_ID                                                            | varchar(256) | The ID of the query                              |
+| TASK_TIME_MS                                   | bigint                          | The task execution time                          |
+| TASK_CPU_TIME_MS          | bigint                          | The CPU time used by the task                    |
+| SCAN_ROWS                                                           | bigint                          | The number of rows scanned                       |
+| SCAN_BYTES                                                          | bigint                          | The number of bytes scanned                      |
+| BE_PEAK_MEMORY_BYTES      | bigint                          | The peak memory usage                            |
+| CURRENT_USED_MEMORY_BYTES | bigint                          | The current memory usage                         |
+| SHUFFLE_SEND_BYTES                             | bigint                          | The number of bytes shuffled and sent            |
+| SHUFFLE_SEND_ROWS                              | bigint                          | The number of rows shuffled and sent             |
+| QUERY_TYPE                                                          | varchar(256) | The type of query                                |
