@@ -1,173 +1,275 @@
 ---
 {
-  "title": "ALTER TABLE DISTRIBUTION",
+  "title": "ALTER TABLE PROPERTY",
   "language": "en",
-  "description": "This statement is used to modify the default distribution bucket configuration of a partitioned table."
+  "description": "This statement is used to modify the properties of an existing table. This operation is synchronous,"
 }
 ---
 
+:::caution
+Differences between Partition Attributes and Table Attributes
+
+- Partition attributes generally focus on the number of buckets (buckets), storage medium (storage_medium), replication num (replication_num), and hot/cold data separation policies (storage_policy).
+  - For existing partitions, you can use ALTER TABLE {tableName} MODIFY PARTITION ({partitionName}) SET ({key}={value}) to modify them, but the number of buckets (buckets) cannot be changed.
+  - For not-created dynamic partitions, you can use ALTER TABLE {tableName} SET (dynamic_partition.{key} = {value}) to modify their attributes.
+  - For not-created auto partitions, you can use ALTER TABLE {tableName} SET ({key} = {value}) to modify their attributes.
+  - If users want to modify partition attributes, they need to modify the attributes of the already created partitions, as well as the attributes of not-created partitions.
+- Aside from the above attributes, all others are at the table level.
+- For the specific attributes, please refer to [create table attributes](../../../../sql-manual/sql-statements/table-and-view/table/CREATE-TABLE.md#properties)
+  :::
+
 ## Description
 
-This statement is used to modify the default distribution bucket configuration of a partitioned table. This operation is synchronous, and the return of the command indicates the completion of the execution.
+This statement is used to modify the properties of an existing table. This operation is synchronous, and the return of the command indicates the completion of the execution.
 
-This statement only changes the default bucket count for **newly created partitions**. Existing partitions retain their original bucket count unchanged.
+Modify the properties of the table, currently supports modifying the bloom filter column, the colocate_with attribute and the dynamic_partition attribute,  the replication_num and default.replication_num.
 
 grammar:
 
 ```sql
-ALTER TABLE [database.]table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(column1[, column2, ...]) BUCKETS { num | AUTO };
-ALTER TABLE [database.]table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS { num | AUTO };
+ALTER TABLE [database.]table alter_clause;
+```
+
+The alter_clause of property supports the following modification methods.
+
+Note:
+
+Can also be merged into the above schema change operation to modify, see the example below
+
+1. Modify the bloom filter column of the table
+
+```sql
+ALTER TABLE example_db.my_table SET ("bloom_filter_columns"="k1,k2,k3");
+```
+
+Can also be incorporated into the schema change operation above (note that the syntax for multiple clauses is slightly different)
+
+```sql
+ALTER TABLE example_db.my_table
+DROP COLUMN col2
+PROPERTIES ("bloom_filter_columns"="k1,k2,k3");
+```
+
+2. Modify the Colocate property of the table
+
+```sql
+ALTER TABLE example_db.my_table set ("colocate_with" = "t1");
+```
+
+3. Change the bucketing method of the table from Hash Distribution to Random Distribution
+
+```sql
+ALTER TABLE example_db.my_table set ("distribution_type" = "random");
+```
+
+4. Modify the dynamic partition attribute of the table (support adding dynamic partition attribute to the table without dynamic partition attribute)
+
+```sql
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "false");
+```
+
+If you need to add dynamic partition attributes to tables without dynamic partition attributes, you need to specify all dynamic partition attributes
+(Note: adding dynamic partition attributes is not supported for non-partitioned tables)
+
+```sql
+ALTER TABLE example_db.my_table set (
+  "dynamic_partition.enable" = "true", 
+  "dynamic_partition.time_unit" = "DAY", 
+  "dynamic_partition.end" = "3", 
+  "dynamic_partition.prefix" = "p", 
+  "dynamic_partition. buckets" = "32"
+);
+```
+
+5. Modify the in_memory attribute of the table, only can set value 'false'
+
+```sql
+ALTER TABLE example_db.my_table set ("in_memory" = "false");
+```
+
+6. Enable batch delete function
+
+```sql
+ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE";
 ```
 
 Note:
 
-- `num`: A positive integer specifying a fixed number of buckets for new partitions.
-- `AUTO`: Let the system automatically determine the number of buckets for new partitions based on data volume and cluster configuration.
-- The distribution type (HASH or RANDOM) and distribution columns must remain the same as the original table definition. Only the bucket count can be changed.
-- This statement only applies to **partitioned tables** (RANGE or LIST partitioned). Unpartitioned tables are not supported.
-- This statement is not supported on **Colocate** tables.
-- You can switch freely between a fixed bucket count and `AUTO`, and perform multiple modifications in sequence.
+- Only support unique tables
+- Batch deletion is supported for old tables, while new tables are already supported when they are created
 
-### Interaction with AUTO PARTITION
+7. Enable the function of ensuring the import order according to the value of the sequence column
 
-For tables using [AUTO PARTITION](../../../../table-design/data-partitioning/auto-partitioning), new partitions that are automatically created by data insertion after executing `ALTER TABLE MODIFY DISTRIBUTION` will use the new bucket configuration. Partitions that were already auto-created before the modification remain unchanged.
+```sql
+ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES (
+  "function_column.sequence_type" = "Date"
+);
+```
 
-For example, if an AUTO PARTITION table originally uses `BUCKETS 5` and you modify it to `BUCKETS 8`, any subsequent INSERT that triggers the creation of a new auto partition will assign 8 buckets to that partition. If you further modify it to `BUCKETS AUTO`, newly auto-created partitions will have their bucket count determined automatically by the system.
+Note:
 
-### Interaction with Dynamic Partition
+- Only support unique tables
+- The sequence_type is used to specify the type of the sequence column, which can be integral and time type
+- Only the orderliness of newly imported data is supported. Historical data cannot be changed
 
-For tables using [Dynamic Partition](../../../../table-design/data-partitioning/dynamic-partitioning), new partitions that are automatically created by the dynamic partition scheduler after executing `ALTER TABLE MODIFY DISTRIBUTION` will use the new bucket configuration. Existing dynamic partitions remain unchanged.
+8. Change the default number of buckets for the table to 50
 
-Note that Dynamic Partition tables also support the `dynamic_partition.buckets` property. If both are configured, the `dynamic_partition.buckets` property takes precedence for dynamically created partitions. To use the table-level default bucket count (set by `MODIFY DISTRIBUTION`) for dynamic partitions, ensure that `dynamic_partition.buckets` is not explicitly set, or update it accordingly via `ALTER TABLE ... SET ("dynamic_partition.buckets" = "...")`.
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50;
+```
+
+Note:
+
+- Only support partitioned non-Colocate tables. See [ALTER TABLE DISTRIBUTION](./ALTER-TABLE-DISTRIBUTION) for more details.
+
+9. Modify table comments
+
+```sql
+ALTER TABLE example_db.my_table MODIFY COMMENT "new comment";
+```
+
+10. Modify column comments
+
+```sql
+ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2";
+```
+
+11. Modify the engine type
+
+Only the MySQL type can be changed to the ODBC type. The value of driver is the name of the driver in the odbc.init configuration.
+
+```sql
+ALTER TABLE example_db.mysql_table MODIFY ENGINE TO odbc PROPERTIES("driver" = "MySQL");
+```
+
+12. Modify the number of copies
+
+```sql
+ALTER TABLE example_db.mysql_table SET ("replication_num" = "2");
+ALTER TABLE example_db.mysql_table SET ("default.replication_num" = "2");
+ALTER TABLE example_db.mysql_table SET ("replication_allocation" = "tag.location.default: 1");
+ALTER TABLE example_db.mysql_table SET ("default.replication_allocation" = "tag.location.default: 1");
+```
+
+Note:
+
+1. The property with the default prefix indicates the default replica distribution for the modified table. This modification does not modify the current actual replica distribution of the table, but only affects the replica distribution of newly created partitions on the partitioned table.
+2. For non-partitioned tables, modifying the replica distribution property without the default prefix will modify both the default replica distribution and the actual replica distribution of the table. That is, after the modification, through the `show create table` and `show partitions from tbl` statements, you can see that the replica distribution has been modified.
+   changed.
+3. For partitioned tables, the actual replica distribution of the table is at the partition level, that is, each partition has its own replica distribution, which can be viewed through the `show partitions from tbl` statement. If you want to modify the actual replica distribution, see `ALTER TABLE PARTITION`.
+
+13\. **[Experimental]** turn on `light_schema_change`
+
+For tables that were not created with light_schema_change enabled, you can enable it by using the following statement.
+
+```sql
+ALTER TABLE example_db.mysql_table SET ("light_schema_change" = "true");
+```
 
 ## Example
 
-1. Modify the default bucket count of a RANGE partitioned table with HASH distribution from the original value to 10
+1. Modify the bloom filter column of the table
 
 ```sql
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+ALTER TABLE example_db.my_table SET ("bloom_filter_columns"="k1,k2,k3");
 ```
 
-After this, any newly added partition will use 10 buckets:
+Can also be incorporated into the schema change operation above (note that the syntax for multiple clauses is slightly different)
 
 ```sql
-ALTER TABLE example_db.my_table ADD PARTITION p3 VALUES LESS THAN ('30');
--- p3 will have 10 buckets; existing partitions remain unchanged
+ALTER TABLE example_db.my_table
+DROP COLUMN col2
+PROPERTIES ("bloom_filter_columns"="k1,k2,k3");
 ```
 
-2. Switch from a fixed bucket count to AUTO
+2. Modify the Colocate property of the table
 
 ```sql
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
+ALTER TABLE example_db.my_table set ("colocate_with" = "t1");
 ```
 
-After this, newly created partitions will have their bucket count automatically determined by the system.
-
-3. Switch from AUTO back to a fixed bucket count
+3. Change the bucketing method of the table from Hash Distribution to Random Distribution
 
 ```sql
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 3;
+ALTER TABLE example_db.my_table set ("distribution_type" = "random");
 ```
 
-4. Modify the default bucket count of a LIST partitioned table
+4. Modify the dynamic partition attribute of the table (support adding dynamic partition attribute to the table without dynamic partition attribute)
 
 ```sql
-ALTER TABLE example_db.my_list_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 8;
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "false");
 ```
 
-5. Modify the default bucket count of a table with RANDOM distribution
+If you need to add dynamic partition attributes to tables without dynamic partition attributes, you need to specify all dynamic partition attributes
+(Note: adding dynamic partition attributes is not supported for non-partitioned tables)
 
 ```sql
-ALTER TABLE example_db.my_random_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS 12;
+ALTER TABLE example_db.my_table set ("dynamic_partition.enable" = "true", "dynamic_partition.time_unit" = "DAY", "dynamic_partition.end" = "3", "dynamic_partition.prefix" = "p", "dynamic_partition. buckets" = "32");
 ```
 
-6. Switch a RANDOM distribution table to AUTO buckets
+5. Modify the in_memory attribute of the table, only can set value 'false'
 
 ```sql
-ALTER TABLE example_db.my_random_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS AUTO;
+ALTER TABLE example_db.my_table set ("in_memory" = "false");
 ```
 
-7. Modify the default bucket count of an AUTO PARTITION table (RANGE)
+6. Enable batch delete function
 
 ```sql
--- Original table uses AUTO PARTITION BY RANGE with BUCKETS 5
-ALTER TABLE example_db.my_auto_range_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 8;
-
--- New auto-created partitions from subsequent INSERT will use 8 buckets
-INSERT INTO example_db.my_auto_range_table VALUES ('2024-01-03', 3);
+ALTER TABLE example_db.my_table ENABLE FEATURE "BATCH_DELETE";
 ```
 
-8. Modify the default bucket count of an AUTO PARTITION table (LIST)
+7. Enable the function of ensuring the import order according to the value of the sequence column
 
 ```sql
--- Original table uses AUTO PARTITION BY LIST with BUCKETS 4
-ALTER TABLE example_db.my_auto_list_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 7;
-
--- New auto-created partitions from subsequent INSERT will use 7 buckets
-INSERT INTO example_db.my_auto_list_table VALUES ('ccc', 3);
+ALTER TABLE example_db.my_table ENABLE FEATURE "SEQUENCE_LOAD" WITH PROPERTIES ("function_column.sequence_type" = "Date");
 ```
 
-9. Switch an AUTO PARTITION table from AUTO buckets to fixed, and back
+8. Change the default number of buckets for the table to 50
 
 ```sql
--- Table originally created with BUCKETS AUTO
-ALTER TABLE example_db.my_auto_auto_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 5;
--- New partitions will use 5 buckets
-
-ALTER TABLE example_db.my_auto_auto_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
--- New partitions will return to system-determined bucket count
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 50;
 ```
 
-10. Multiple sequential modifications
+9. Modify table comments
 
 ```sql
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 4;
-ALTER TABLE example_db.my_table ADD PARTITION p2 VALUES LESS THAN ('20');
--- p2 has 4 buckets
-
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
-ALTER TABLE example_db.my_table ADD PARTITION p3 VALUES LESS THAN ('30');
--- p3 has system-determined bucket count
-
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 6;
-ALTER TABLE example_db.my_table ADD PARTITION p4 VALUES LESS THAN ('40');
--- p4 has 6 buckets
+ALTER TABLE example_db.my_table MODIFY COMMENT "new comment";
 ```
 
-11. Error cases
-
-Colocate tables are not supported:
+10. Modify column comments
 
 ```sql
--- This will fail with: "Cannot change default bucket number of colocate table"
-ALTER TABLE example_db.my_colocate_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+ALTER TABLE example_db.my_table MODIFY COLUMN k1 COMMENT "k1", MODIFY COLUMN k2 COMMENT "k2";
 ```
 
-Unpartitioned tables are not supported:
+11. Modify the engine type
 
 ```sql
--- This will fail with: "Only support change partitioned table's distribution"
-ALTER TABLE example_db.my_unpartitioned_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+ALTER TABLE example_db.mysql_table MODIFY ENGINE TO odbc PROPERTIES("driver" = "MySQL");
 ```
 
-Cannot change the distribution type:
+12. Add a cold and hot separation data migration strategy to the table
 
 ```sql
--- Original table uses HASH distribution; changing to RANDOM will fail
--- Error: "Cannot change distribution type"
-ALTER TABLE example_db.my_hash_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS 10;
+ ALTER TABLE create_table_not_have_policy set ("storage_policy" = "created_create_table_alter_policy");
 ```
 
-Cannot change the distribution columns:
+NOTE: The table can be successfully added only if it hasn't been associated with a storage policy. A table just can have one storage policy.
+
+13. Add a hot and cold data migration strategy to the partition of the table
 
 ```sql
--- Original table uses HASH(k1); changing to HASH(k2) will fail
--- Error: "Cannot assign hash distribution with different distribution cols"
-ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k2) BUCKETS 10;
+ALTER TABLE create_table_partition MODIFY PARTITION (*) SET("storage_policy"="created_create_table_partition_alter_policy");
 ```
+
+NOTE: The table's partition can be successfully added only if it hasn't been associated with a storage policy. A table just can have one storage policy.
 
 ## Keywords
 
 ```text
-ALTER, TABLE, DISTRIBUTION, MODIFY DISTRIBUTION, BUCKETS, ALTER TABLE
+ALTER, TABLE, PROPERTY, ALTER TABLE
 ```
+
+## Best Practice
+
