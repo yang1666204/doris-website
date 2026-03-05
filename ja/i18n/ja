@@ -1,14 +1,14 @@
 ---
 {
-  "title": "STR_TO_MAP",
+  "title": "PRINTF",
   "language": "en",
-  "description": "Constructs a Map<String, String> from a string."
+  "description": "Returns a formatted string using the specified printf string and arguments."
 }
 ---
 
 ## Description
 
-Constructs a `Map<String, String>` from a string.
+Returns a formatted string using the specified [printf](https://pubs.opengroup.org/onlinepubs/009695399/functions/fprintf.html) string and arguments.
 
 :::tip
 This function is supported since version 3.0.6.
@@ -17,29 +17,54 @@ This function is supported since version 3.0.6.
 ## Syntax
 
 ```sql
-STR_TO_MAP(<str> [, <pair_delimiter> [, <key_value_delimiter>]])
+PRINTF(<format>, [<args>, ...])
 ```
 
 ## Parameters
 
-- `<str>` The string to be converted to a map.
-- `<pair_delimiter>` The delimiter for the pairs in the string, default is `,`.
-- `<key_value_delimiter>` The delimiter for the keys and values in the string, default is `:`.
+| Parameter  | Description                                    |
+| ---------- | ---------------------------------------------- |
+| `<format>` | The printf format string.      |
+| `<args>`   | The arguments to be formatted. |
 
 ## Return Value
 
-Returns a `Map<String, String>` constructed from a string.
+The formatted string using a printf mode.
 
 ## Example
 
 ```sql
-select str_to_map('a=1&b=2&c=3', '&', '=') as map1, str_to_map('x:10|y:20|z:30', '|', ':') as map2;
+select printf("hello world");
 ```
 
 ```text
-+-----------------------------+--------------------------------+
-| map1                        | map2                           |
-+-----------------------------+--------------------------------+
-| {"a":"1", "b":"2", "c":"3"} | {"x":"10", "y":"20", "z":"30"} |
-+-----------------------------+--------------------------------+
++-----------------------+
+| printf("hello world") |
++-----------------------+
+| hello world           |
++-----------------------+
+```
+
+```sql
+select printf('%d-%s-%.2f', 100, 'test', 3.14);
+```
+
+```text
++-----------------------------------------+
+| printf('%d-%s-%.2f', 100, 'test', 3.14) |
++-----------------------------------------+
+| 100-test-3.14                           |
++-----------------------------------------+
+```
+
+```sql
+select printf('Int: %d, Str: %s, Float: %.2f, Hex: %x', 255, 'test', 3.14159, 255);
+```
+
+```text
++-----------------------------------------------------------------------------+
+| printf('Int: %d, Str: %s, Float: %.2f, Hex: %x', 255, 'test', 3.14159, 255) |
++-----------------------------------------------------------------------------+
+| Int: 255, Str: test, Float: 3.14, Hex: ff                                   |
++-----------------------------------------------------------------------------+
 ```
