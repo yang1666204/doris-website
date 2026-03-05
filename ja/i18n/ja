@@ -1,393 +1,174 @@
 ---
 {
-  "title": "Authentication and Authorization",
+  "title": "MySQL Secure Transport",
   "language": "en",
-  "description": "The Doris permission management system is modeled after the MySQL permission management mechanism."
+  "description": "Apache Doris SSL/TLS encrypted connection configuration guide: supports MySQL client secure transport, provides one-way authentication and mTLS mutual authentication, includes certificate generation, configuration details, and best practices."
 }
 ---
 
-The Doris permission management system is modeled after the MySQL permission management mechanism. It supports fine-grained permission control at the row and column level, role-based access control, and also supports a whitelist mechanism.
+This document describes how to configure SSL/TLS encryption for communication between Doris and MySQL clients to protect data transmission security.
 
-## Glossary
+## Overview
 
-1. User Identity
+Doris supports SSL-based encrypted connections and currently supports TLS1.2 and TLS1.3 protocols. By enabling SSL, you can ensure that data transmission between clients and Doris FE is encrypted, preventing data from being intercepted or tampered with during transmission.
 
-   Within a permission system, a user is identified as a User Identity. A User Identity consists of two parts: `username` and `host`. The `username` is the user's name, consisting of English letters (both uppercase and lowercase). `host` represents the IP from which the user connection originates. User Identity is represented as `username@'host'`, indicating `username` from `host`.
+Doris provides two SSL authentication modes:
 
-   Another representation of User Identity is `username@['domain']`, where `domain` refers to a domain name that can be resolved into a set of IPs through DNS. Eventually, this is represented as a set of `username@'host'`, hence moving forward, we uniformly use `username@'host'` to denote it.
+| Authentication Mode                                 | Description                                | Use Case                               |
+| --------------------------------------------------- | ------------------------------------------ | -------------------------------------- |
+| One-way Authentication (Default) | Verify server certificate only             | General security requirement scenarios |
+| Mutual Authentication (mTLS)     | Verify both server and client certificates | High security requirement scenarios    |
 
-2. Privilege
+## Quick Start
 
-   Privileges apply to nodes, data directories, databases, or tables. Different privileges represent different operation permissions.
+Enable SSL encrypted connection in just two steps:
 
-3. Role
+**1. Enable SSL on FE**
 
-   Doris allows the creation of custom-named roles. A role can be viewed as a collection of privileges. Newly created users can be assigned a role, automatically inheriting the privileges of that role. Subsequent changes to the role's privileges will also reflect on the permissions of all users associated with that role.
+Modify the FE configuration file `conf/fe.conf`, add the following configuration and restart FE:
 
-4. User Property
-
-   User properties are directly affiliated with a user, not the User Identity. Meaning, both `user@'192.%'` and `user@['domain']` share the same set of user properties, which belong to the user `user`, not to `user@'192.%'` or `user@['domain']`.
-
-   User properties include but are not limited to: maximum number of user connections, import cluster configurations, etc.
-
-## Authentication and Authorization Framework
-
-The process of a user logging into Apache Doris is divided into two parts: **Authentication** and **Authorization**.
-
-- Authentication: Identity verification is conducted based on the credentials provided by the user (such as username, client IP, password). Once verified, the individual user is mapped to a system-defined User Identity.
-- Authorization: Based on the acquired User Identity, it checks whether the user has the necessary permissions for the intended operations, according to the privileges associated with that User Identity.
-
-## Authentication
-
-Doris supports built-in authentication schemes as well as LDAP authentication.
-
-### Doris Built-in Authentication Scheme
-
-Authentication is based on usernames, passwords, and other information stored within Doris itself.
-
-Administrators create users with the `CREATE USER` command and view all created users with the `SHOW ALL GRANTS` command.
-
-When a user logs in, the system verifies whether the username, password, and client IP address are correct.
-
-#### Password Policy
-
-Doris supports the following password policies to assist users in better password management.
-
-1. `PASSWORD_HISTORY`
-
-   Determines whether a user can reuse a historical password when resetting their current password. For example, `PASSWORD_HISTORY 10` means the last 10 passwords cannot be reused as a new password. Setting `PASSWORD_HISTORY DEFAULT` will use the value from the global variable `PASSWORD_HISTORY`. A setting of 0 disables this feature. The default is 0.
-
-   Examples:
-
-   - Set a global variable: `SET GLOBAL password_history = 10`
-   - Set for a user: `ALTER USER user1@'ip' PASSWORD_HISTORY 10`
-
-2. `PASSWORD_EXPIRE`
-
-   Sets the expiration time for the current user's password. For instance, `PASSWORD_EXPIRE INTERVAL 10 DAY` means the password will expire after 10 days. `PASSWORD_EXPIRE NEVER` indicates the password never expires. Setting `PASSWORD_EXPIRE DEFAULT` will use the value from the global variable `default_password_lifetime` (in days). The default is NEVER (or 0), indicating it does not expire.
-
-   Examples:
-
-   - Set a global variable: `SET GLOBAL default_password_lifetime = 1`
-   - Set for a user: `ALTER USER user1@'ip' PASSWORD_EXPIRE INTERVAL 10 DAY`
-
-3. `FAILED_LOGIN_ATTEMPTS` and `PASSWORD_LOCK_TIME`
-
-   Configures the number of incorrect password attempts after which the user account will be locked and sets the lock duration. For example, `FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY` means if there are 3 incorrect logins, the account will be locked for one day. Administrators can unlock the account using the `ALTER USER` statement.
-
-   Example:
-
-   - Set for a user: `ALTER USER user1@'ip' FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY`
-
-4. Password Strength
-
-   This is controlled by the global variable `validate_password_policy`. The default is `NONE/0`, which means no password strength checking. If set to `STRONG/2`, the password must include at least three of the following: uppercase letters, lowercase letters, numbers, and special characters, and must be at least 8 characters long.
-
-   Example:
-
-   - `SET validate_password_policy=STRONG`
-
-   Since Doris 4.0.4, the password strength validation policy has been enhanced as follows:
-
-   1. When `validate_password_policy` is set to `STRONG/2`, the password must **contain all 4 character types** (uppercase letters, lowercase letters, numbers, and special characters), instead of the previous "3 out of 4" requirement.
-
-   2. Added **dictionary word check**: passwords cannot contain common weak words (such as password, admin, test, root, etc.). The system includes a built-in dictionary of common weak words, and passwords containing these words will be rejected.
-
-   3. Support for **custom dictionary files**: you can specify a custom dictionary filename via the global variable `validate_password_dictionary_file`. The dictionary file should be placed in the `${DORIS_HOME}/plugins/security/` directory. The file format is one word per line; empty lines and lines starting with `#` are ignored.
-
-      Example:
-
-      - `SET GLOBAL validate_password_dictionary_file = 'my_dictionary.txt'`
-
-For more help, please refer to [ALTER USER](../../sql-manual/sql-statements/account-management/ALTER-USER.md).
-
-### LDAP-based Authentication Scheme
-
-Please refer to [LDAP-based Authentication Scheme](./ldap.md).
-
-## Authorization
-
-### Permission Operations
-
-- Create user: [CREATE USER](../../sql-manual/sql-statements/account-management/CREATE-USER)
-- Modify user: [ALTER USER](../../sql-manual/sql-statements/account-management/ALTER-USER.md)
-- Delete user: [DROP USER](../../sql-manual/sql-statements/account-management/DROP-USER.md)
-- Grant/Assign role: [GRANT](../../sql-manual/sql-statements/account-management/GRANT-TO)
-- Revoke/Withdraw role: [REVOKE](../../sql-manual/sql-statements/account-management/REVOKE-FROM.md)
-- Create role: [CREATE ROLE](../../sql-manual/sql-statements/account-management/CREATE-ROLE.md)
-- Delete role: [DROP ROLE](../../sql-manual/sql-statements/account-management/DROP-ROLE.md)
-- Modify role: [ALTER ROLE](../../sql-manual/sql-statements/account-management/ALTER-ROLE.md)
-- View current user's permissions and roles: [SHOW GRANTS](../../sql-manual/sql-statements/account-management/SHOW-GRANTS.md)
-- View all users' permissions and roles: [SHOW ALL GRANTS](../../sql-manual/sql-statements/account-management/SHOW-GRANTS.md)
-- View created roles: [SHOW ROLES](../../sql-manual/sql-statements/account-management/SHOW-ROLES.md)
-- Set user property: [SET PROPERTY](../../sql-manual/sql-statements/account-management/SET-PROPERTY.md)
-- View user property: [SHOW PROPERTY](../../sql-manual/sql-statements/account-management/SHOW-PROPERTY.md)
-- Change password: [SET PASSWORD](../../sql-manual/sql-statements/account-management/SET-PASSWORD.md)
-- View all supported privileges: [SHOW PRIVILEGES]
-- View row policy: [SHOW ROW POLICY]
-- Create row policy: [CREATE ROW POLICY]
-
-### Types of Permissions
-
-Doris currently supports the following permissions:
-
-1. `Node_priv`
-
-   Node modification permission. Includes adding, deleting, and offlining FE, BE, BROKER nodes.
-
-   Root users have this permission by default. Users who possess both `Grant_priv` and `Node_priv` can grant this permission to other users.
-
-   This permission can only be granted at the Global level.
-
-2. `Grant_priv`
-
-   Permission modification authority. Allows execution of operations including granting, revoking, adding/deleting/modifying users/roles.
-
-   Before version 2.1.2, when granting permissions to other users/roles, the current user only needed the respective level's `Grant_priv` permission. After version 2.1.2, the current user also needs permission for the resource they wish to grant.
-
-   When assigning roles to other users, Global level `Grant_priv` permission is required.
-
-3. `Select_priv`
-
-   Read-only permission for data directories, databases, and tables.
-
-4. `Load_priv`
-
-   Write permission for data directories, databases, and tables. Includes Load, Insert, Delete, etc.
-
-5. `Alter_priv`
-
-   Alteration permissions for data directories, databases, and tables. Includes renaming libraries/tables, adding/deleting/modifying columns, adding/deleting partitions, etc.
-
-6. `Create_priv`
-
-   Permission to create data directories, databases, tables, and views.
-
-7. `Drop_priv`
-
-   Permission to delete data directories, databases, tables, and views.
-
-8. `Usage_priv`
-
-   Usage permissions for Resources and Workload Groups.
-
-9. `Show_view_priv`
-
-   Permission to execute `SHOW CREATE VIEW`.
-
-### Permission Levels
-
-#### Global Permissions
-
-Permissions granted through the GRANT statement with `*.*.*` scope. These permissions apply to any table within any catalog.
-
-#### Catalog Permissions
-
-Permissions granted through the GRANT statement with `ctl.*.*` scope. These permissions apply to any table within the specified catalog.
-
-#### Database Permissions
-
-Permissions granted through the GRANT statement with `ctl.db.*` scope. These permissions apply to any table within the specified database.
-
-#### Table Permissions
-
-Permissions granted through the GRANT statement with `ctl.db.tbl` scope. These permissions apply to any column within the specified table.
-
-#### Column Permissions
-
-Column permissions are primarily used to restrict user access to certain columns within a table. Specifically, column permissions allow administrators to set viewing, editing, and other rights for certain columns, controlling user access and manipulation of specific column data.
-
-Permissions for specific columns of a table can be granted with `GRANT Select_priv(col1,col2) ON ctl.db.tbl TO user1`.
-
-Currently, column permissions support only `Select_priv`.
-
-#### Row-Level Permissions
-
-Row Policies enable administrators to define access policies based on fields within the data, controlling which users can access which rows.
-
-Specifically, Row Policies allow administrators to create rules that can filter or restrict user access to rows based on actual values stored in the data.
-
-From version 1.2, row-level permissions can be created with the `CREATE ROW POLICY` command.
-
-From version 2.1.2, support for setting row-level permissions through Apache Ranger's `Row Level Filter` is available.
-
-#### Usage Permissions
-
-- Resource Permissions
-
-  Resource permissions are set specifically for Resources, unrelated to permissions for databases or tables, and can only assign `Usage_priv` and `Grant_priv`.
-
-  Permissions for all Resources can be granted with the `GRANT USAGE_PRIV ON RESOURCE '%' TO user1`.
-
-- Workload Group Permissions
-
-  Workload Group permissions are set specifically for Workload Groups, unrelated to permissions for databases or tables, and can only assign `Usage_priv` and `Grant_priv`.
-
-  Permissions for all Workload Groups can be granted with `GRANT USAGE_PRIV ON WORKLOAD GROUP '%' TO user1`.
-
-### Data Masking
-
-Data masking is a method to protect sensitive data by modifying, replacing, or hiding the original data, such that the masked data retains certain formats and characteristics while no longer containing sensitive information.
-
-For example, administrators may choose to replace part or all of the digits of sensitive fields like credit card numbers or ID numbers with asterisks `*` or other characters, or replace real names with pseudonyms.
-
-From version 2.1.2, support for setting data masking policies for certain columns through Apache Ranger's Data Masking is available, currently only configurable via [Apache Ranger](./ranger.md).
-
-### Doris Built-in Authorization Scheme
-
-Doris's permission design is based on the RBAC (Role-Based Access Control) model, where users are associated with roles, and roles are associated with permissions. Users are indirectly linked to permissions through their roles.
-
-When a role is deleted, users automatically lose all permissions associated with that role.
-
-When a user is disassociated from a role, they automatically lose all permissions of that role.
-
-When permissions are added to or removed from a role, the permissions of the users associated with that role change accordingly.
-
-```
-┌────────┐        ┌────────┐         ┌────────┐
-│  user1 ├────┬───►  role1 ├────┬────►  priv1 │
-└────────┘    │   └────────┘    │    └────────┘
-              │                 │
-              │                 │
-              │   ┌────────┐    │
-              │   │  role2 ├────┤
-┌────────┐    │   └────────┘    │    ┌────────┐
-│  user2 ├────┘                 │  ┌─►  priv2 │
-└────────┘                      │  │ └────────┘
-                  ┌────────┐    │  │
-           ┌──────►  role3 ├────┘  │
-           │      └────────┘       │
-           │                       │
-           │                       │
-┌────────┐ │      ┌────────┐       │ ┌────────┐
-│  userN ├─┴──────►  roleN ├───────┴─►  privN │
-└────────┘        └────────┘         └────────┘
+```properties
+enable_ssl = true
 ```
 
-As shown above:
+**2. Connect Using MySQL Client**
 
-User1 and user2 both have permission `priv1` through `role1`.
+```shell
+mysql --ssl-mode=REQUIRED -uroot -P9030 -h127.0.0.1
+```
 
-UserN has permission `priv1` through `role3`, and permissions `priv2` and `privN` through `roleN`. Thus, userN has permissions `priv1`, `priv2`, and `privN` simultaneously.
+Doris has built-in default key certificate files, so SSL can be used without additional configuration.
 
-For ease of user operations, it is possible to directly grant permissions to a user. Internally, a unique default role is created for each user. When permissions are granted to a user, it is essentially granting permissions to the user's default role.
+## Client Connection Methods
 
-The default role cannot be deleted, nor can it be assigned to someone else. When a user is deleted, their default role is automatically deleted as well.
+When connecting to Doris through MySQL client, you can choose the following SSL modes:
 
-### Authorization Scheme Based on Apache Ranger
+| SSL Mode                               | Description                                                            | Command Example                                       |
+| -------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
+| PREFERRED (Default) | Attempt SSL connection first, fall back to normal connection if failed | `mysql -uroot -P9030 -h127.0.0.1`                     |
+| DISABLE                                | Disable SSL, use normal connection                                     | `mysql --ssl-mode=DISABLE -uroot -P9030 -h127.0.0.1`  |
+| REQUIRED                               | Force SSL connection                                                   | `mysql --ssl-mode=REQUIRED -uroot -P9030 -h127.0.0.1` |
 
-Please refer to [Authorization Scheme Based on Apache Ranger](./ranger.md).
+:::note Note
+The `--ssl-mode` parameter was introduced in MySQL 5.7.11. For MySQL clients lower than this version, please refer to [MySQL official documentation](https://dev.mysql.com/doc/connector-j/en/connector-j-connp-props-security.html).
+:::
 
-## Common Questions
+## Configure Mutual Authentication (mTLS)
 
-### Explanation of Permissions
+If you need a higher security level, you can enable mTLS mutual authentication, which requires the client to provide a certificate for authentication as well.
 
-1. Users with ADMIN privileges or GRANT privileges at the GLOBAL level can perform the following operations:
+### Enable mTLS
 
-   - CREATE USER
-   - DROP USER
-   - ALTER USER
-   - SHOW GRANTS
-   - CREATE ROLE
-   - DROP ROLE
-   - ALTER ROLE
-   - SHOW ROLES
-   - SHOW PROPERTY FOR USER
+Modify the FE configuration file `conf/fe.conf`, add the following configuration and restart FE:
 
-2. GRANT/REVOKE
+```properties
+enable_ssl = true
+ssl_force_client_auth = true
+```
 
-   - Users with ADMIN privileges can grant or revoke permissions for any user.
-   - Users with ADMIN or GLOBAL level GRANT privileges can assign roles to users.
-   - Users who have the corresponding level of GRANT privilege and the permissions to be assigned can distribute those permissions to users/roles.
+### Client Connection
 
-3. SET PASSWORD
+When connecting with mTLS, the client needs to specify the CA certificate, client certificate, and private key:
 
-   - Users with ADMIN privileges or GLOBAL level GRANT privileges can set passwords for non-root users.
-   - Ordinary users can set the password for their corresponding User Identity. Their corresponding User Identity can be viewed with the `SELECT CURRENT_USER()` command.
-   - ROOT users can change their own password.
+```shell
+mysql --ssl-mode=VERIFY_CA -uroot -P9030 -h127.0.0.1 \
+    --tls-version=TLSv1.2 \
+    --ssl-ca=/path/to/your/ca.pem \
+    --ssl-cert=/path/to/your/client-cert.pem \
+    --ssl-key=/path/to/your/client-key.pem
+```
 
-### Additional Information
+Doris provides default client certificate files located in the `Doris/conf/mysql_ssl_default_certificate/client_certificate/` directory:
 
-1. When Doris is initialized, the following users and roles are automatically created:
+| File Name         | Description        |
+| ----------------- | ------------------ |
+| `ca.pem`          | CA certificate     |
+| `client-cert.pem` | Client certificate |
+| `client-key.pem`  | Client private key |
 
-   - operator role: This role has `Node_priv` and `Admin_priv`, i.e., all permissions in Doris.
-   - admin role: This role has `Admin_priv`, i.e., all permissions except for node changes.
-   - root@'%': root user, allowed to log in from any node, with the operator role.
-   - admin@'%': admin user, allowed to log in from any node, with the admin role.
+## Certificate Configuration Details
 
-2. Deleting or altering the permissions of default created users, roles, or users is not supported.
-   - Deleting the users root@'%' and admin@'%' is not supported, but creating and deleting root@'xxx' and admin@'xxx' users (where xxx refers to any host except %) is allowed (Doris treats these users as regular users).
-   - Revoking the default roles of root@'%' and admin@'%' is not supported.
-   - Deleting the roles operator and admin is not supported.
-   - Modifying the permissions of the roles operator and admin is not supported.
+To enable SSL functionality in Doris, you need to configure CA key certificates and Server-side key certificates. If mutual authentication is enabled, Client-side key certificates are also required.
 
-3. There is only one user with the operator role, which is Root. There can be multiple users with the admin role.
+### Default Certificates
 
-4. Some potentially conflicting operations are explained as follows:
+Doris has built-in default certificate files that can be used directly:
 
-   1. Domain and IP conflict:
+| Certificate Type   | Default Path                                                    | Default Password |
+| ------------------ | --------------------------------------------------------------- | ---------------- |
+| CA Certificate     | `Doris/fe/mysql_ssl_default_certificate/ca_certificate.p12`     | `doris`          |
+| Server Certificate | `Doris/fe/mysql_ssl_default_certificate/server_certificate.p12` | `doris`          |
+| Client Certificate | `Doris/fe/mysql_ssl_default_certificate/client_certificate/`    | -                |
 
-      Suppose the following user is created:
+### Custom Certificates
 
-      `CREATE USER user1@['domain'];`
+If you need to use custom certificates, you can add the following configuration in the FE configuration file `conf/fe.conf`:
 
-      And granted:
+**CA Certificate Configuration**
 
-      `GRANT SELECT_PRIV ON *.* TO user1@['domain']`
+```properties
+mysql_ssl_default_ca_certificate = /path/to/your/ca_certificate.p12
+mysql_ssl_default_ca_certificate_password = your_password
+```
 
-      This domain is resolved to two IPs: ip1 and ip2.
+**Server Certificate Configuration**
 
-      Suppose later, we grant a separate permission to `user1@'ip1'`:
+```properties
+mysql_ssl_default_server_certificate = /path/to/your/server_certificate.p12
+mysql_ssl_default_server_certificate_password = your_password
+```
 
-      `GRANT ALTER_PRIV ON . TO user1@'ip1';`
+## Generate Custom Certificates
 
-      Then `user1@'ip1'` will have permissions for both Select_priv and Alter_priv. And when we change the permissions for `user1@['domain']` again, `user1@'ip1'` will not follow the change.
+If you need to use your own certificates, you can generate them using OpenSSL. For detailed steps, please refer to [MySQL Official Documentation: Creating SSL Certificates Using OpenSSL](https://dev.mysql.com/doc/refman/8.0/en/creating-ssl-files-using-openssl.html).
 
-   2. Duplicate IP conflict:
+### Step 1: Generate CA, Server, and Client Keys and Certificates
 
-      Suppose the following users are created:
+```shell
+# Generate CA certificate
+openssl genrsa 2048 > ca-key.pem
+openssl req -new -x509 -nodes -days 3600 \
+    -key ca-key.pem -out ca.pem
 
-        ```
-        CREATE USER user1@'%' IDENTIFIED BY "12345";
-        CREATE USER user1@'192.%' IDENTIFIED BY "abcde";
-        ```
+# Generate Server certificate and sign with the above CA
+# server-cert.pem = public key, server-key.pem = private key
+openssl req -newkey rsa:2048 -days 3600 \
+    -nodes -keyout server-key.pem -out server-req.pem
+openssl rsa -in server-key.pem -out server-key.pem
+openssl x509 -req -in server-req.pem -days 3600 \
+    -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out server-cert.pem
 
-      In terms of priority, `'192.%'` takes precedence over `'%'`, so when user `user1` from machine `192.168.1.1` tries to log into Doris using password `'12345'`, access will be denied.
+# Generate Client certificate and sign with the above CA
+# client-cert.pem = public key, client-key.pem = private key
+openssl req -newkey rsa:2048 -days 3600 \
+    -nodes -keyout client-key.pem -out client-req.pem
+openssl rsa -in client-key.pem -out client-key.pem
+openssl x509 -req -in client-req.pem -days 3600 \
+    -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out client-cert.pem
+```
 
-5. Forgotten Password
+### Step 2: Verify Certificates
 
-   If you forget the password and cannot log into Doris, you can add `skip_localhost_auth_check=true` to the FE's config file and restart the FE, thus logging into Doris as root without a password from the local machine.
+```shell
+openssl verify -CAfile ca.pem server-cert.pem client-cert.pem
+```
 
-   After logging in, you can reset the password using the `SET PASSWORD` command.
+### Step 3: Package to PKCS#12 Format
 
-6. No user can reset the root user's password except for the root user themselves.
+Merge the CA key and certificate, Server key and certificate separately into PKCS#12 (P12) format for use by Doris:
 
-7. `Admin_priv` permissions can only be granted or revoked at the GLOBAL level.
+```shell
+# Package CA key and certificate
+openssl pkcs12 -inkey ca-key.pem -in ca.pem -export -out ca_certificate.p12
 
-8. `current_user()` and `user()`
+# Package Server key and certificate
+openssl pkcs12 -inkey server-key.pem -in server-cert.pem -export -out server_certificate.p12
+```
 
-   Users can view their `current_user` and `user` by executing `SELECT current_user()` and `SELECT user()` respectively. Here, `current_user` indicates the identity the user authenticated with, while `user` is the actual User Identity at the moment.
+:::tip Tip
+You can also specify other certificate formats by modifying the `conf/fe.conf` configuration file and adding the `ssl_trust_store_type` parameter. The default is PKCS12.
+:::
 
-   For example:
-
-   Suppose `user1@'192.%'` is created, and then user `user1` logs in from `192.168.10.1`, then the `current_user` would be `user1@'192.%'`, and `user` would be `user1@'192.168.10.1'`.
-
-   All permissions are granted to a specific `current_user`, and the real user has all the permissions of the corresponding `current_user`.
-
-## Best Practices
-
-Here are some examples of use cases for the Doris permission system.
-
-1. Scenario 1
-
-   Users of the Doris cluster are divided into administrators (Admin), development engineers (RD), and users (Client). Administrators have all permissions over the entire cluster, primarily responsible for cluster setup and node management. Development engineers are responsible for business modeling, including creating databases and tables, importing, and modifying data. Users access different databases and tables to retrieve data.
-
-   In this scenario, administrators can be granted ADMIN or GRANT privileges. RDs can be granted CREATE, DROP, ALTER, LOAD, and SELECT permissions for any or specific databases and tables. Clients can be granted SELECT permissions for any or specific databases and tables. Additionally, different roles can be created to simplify the authorization process for multiple users.
-
-2. Scenario 2
-
-   A cluster may contain multiple businesses, each potentially using one or more datasets. Each business needs to manage its users. In this scenario, an administrative user can create a user with DATABASE-level GRANT privileges for each database. This user can only authorize users for the specified database.
-
-3. Blacklist
-
-   Doris itself does not support a blacklist, only a whitelist, but we can simulate a blacklist through certain means. Suppose a user named `user@'192.%'` is created, allowing users from `192.*` to log in. If you want to prohibit a user from `192.168.10.1` from logging in, you can create another user `cmy@'192.168.10.1'` with a new password. Since `192.168.10.1` has higher priority than `192.%`, the user from `192.168.10.1` will no longer be able to log in with the old password.
+:::info More Information
+For more information about generating self-signed certificates using OpenSSL, please refer to [IBM Official Documentation](https://www.ibm.com/docs/en/api-connect/2018.x?topic=overview-generating-self-signed-certificate-using-openssl).
+:::
