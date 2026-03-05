@@ -1,26 +1,26 @@
 ---
 {
-  "title": "PAUSE JOB",
+  "title": "RESUME JOB",
   "language": "en",
-  "description": "When a user pauses a job in the RUNNING state, the running task will be interrupted and the job state will be changed to PAUSED."
+  "description": "Restore the PAUSED job to the RUNNING state. The RUNNING job will be executed according to the scheduled period."
 }
 ---
 
 ## Description
 
-When a user pauses a job in the RUNNING state, the running task will be interrupted and the job state will be changed to PAUSED. The stopped job can be resumed by the RESUME operation.
+Restore the PAUSED job to the RUNNING state. The RUNNING job will be executed according to the scheduled period.
 
 ## Syntax
 
 ```sql
-PAUSE JOB WHERE jobname = <job_name> ;
+RESUME JOB where jobName = <job_name> ;
 ```
 
 ## Required parameters
 
 **1. `<job_name>`**
 
-> The name of the job to be paused.
+> The `<job_name>` of the recovery task.
 
 ## Access Control Requirements
 
@@ -31,10 +31,10 @@ The user who executes this SQL command must have at least the following permissi
 | ADMIN_PRIV | Database | NO Streaming | Currently only supports **ADMIN** permissions to perform this operation |
 | LOAD_PRIV  | Database | Streaming    | Supports **LOAD** permissions to perform this operation                 |
 
-## Examples
+## Example
 
-- Pause the job named example.
+- Resume the job named example.
 
    ```sql
-   PAUSE JOB where jobname='example'; 
+   RESUME JOB where jobName= 'example';
    ```
