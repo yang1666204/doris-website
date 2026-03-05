@@ -1,88 +1,107 @@
 ---
 {
-  "title": "DEGREES",
+  "title": "SIN",
   "language": "en",
-  "description": "Input a double-precision floating-point number and convert it from radians to degrees."
+  "description": "Calculate the sine of the parameter"
 }
 ---
 
 ## Description
 
-Input a double-precision floating-point number and convert it from radians to degrees.
-
-- When the parameter is NULL, return NULL.
+Calculate the sine of the parameter
 
 ## Syntax
 
 ```sql
-DEGREES(<a>)
+SIN(<a>)
 ```
 
 ## Parameters
 
-| parameter | explain                                                                       |
-| --------- | ----------------------------------------------------------------------------- |
-| `<a>`     | The value that needs to be converted from radians to degrees. |
+| Parameter | Description                                                           |
+| --------- | --------------------------------------------------------------------- |
+| `<a>`     | floating point number, the radian value of the parameter to calculate |
 
 ## Return Value
 
-The angle of parameter a.
-
-- When the parameter is NULL, return NULL.
+The sine of the parameter `<a>`, expressed in radians.
 
 ## Special Cases
 
 - When `a` is NaN, returns NaN
-- When `a` is positive infinity, returns Infinity
-- When `a` is negative infinity, returns -Infinity
+- When `a` is positive or negative infinity, returns NaN
 - When `a` is NULL, returns NULL
 
 ## Examples
 
 ```sql
-select degrees(3.14),degrees(1),degrees(-1),degrees(NULL)
+select sin(1);
 ```
 
 ```text
-+-------------------------------+----------------------------+-----------------------------+---------------+
-| degrees(cast(3.14 as DOUBLE)) | degrees(cast(1 as DOUBLE)) | degrees(cast(-1 as DOUBLE)) | degrees(NULL) |
-+-------------------------------+----------------------------+-----------------------------+---------------+
-|             179.9087476710785 |          57.29577951308232 |          -57.29577951308232 |          NULL |
-+-------------------------------+----------------------------+-----------------------------+---------------+
++------------------------+
+| sin(cast(1 as DOUBLE)) |
++------------------------+
+|     0.8414709848078965 |
++------------------------+
 ```
 
 ```sql
-select degrees(cast('nan' as double));
+select sin(0);
 ```
 
 ```text
-+-------------------------------+
-| degrees(cast('nan' AS DOUBLE))|
-+-------------------------------+
-| NaN                           |
-+-------------------------------+
++------------------------+
+| sin(cast(0 as DOUBLE)) |
++------------------------+
+|                    0.0 |
++------------------------+
 ```
 
 ```sql
-select degrees(cast('inf' as double));
+select sin(Pi());
 ```
 
 ```text
-+-------------------------------+
-| degrees(cast('inf' AS DOUBLE))|
-+-------------------------------+
-| Infinity                      |
-+-------------------------------+
++------------------------------------+
+| sin(pi())                          |
++------------------------------------+
+| 0.00000000000000012246467991473532 |
++------------------------------------+
 ```
 
 ```sql
-select degrees(cast('-inf' as double));
+select sin(cast('nan' as double));
 ```
 
 ```text
-+--------------------------------+
-| degrees(cast('-inf' AS DOUBLE))|
-+--------------------------------+
-| -Infinity                      |
-+--------------------------------+
++----------------------------+
+| sin(cast('nan' AS DOUBLE)) |
++----------------------------+
+| NaN                        |
++----------------------------+
+```
+
+```sql
+select sin(cast('inf' as double));
+```
+
+```text
++----------------------------+
+| sin(cast('inf' AS DOUBLE)) |
++----------------------------+
+| NaN                        |
++----------------------------+
+```
+
+```sql
+select sin(cast('-inf' as double));
+```
+
+```text
++-----------------------------+
+| sin(cast('-inf' AS DOUBLE)) |
++-----------------------------+
+| NaN                         |
++-----------------------------+
 ```
