@@ -1,251 +1,356 @@
 ---
 {
-  "title": "Using Doris and Paimon",
+  "title": "Data Catalog Overview",
   "language": "en",
-  "description": "As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of data warehouses with the "
+  "description": "Learn about Apache Doris Data Catalog concepts and usage. Create external data catalogs to connect to Hive, Iceberg, Paimon, PostgreSQL, and other data sources for federated cross-source queries, data ingestion, and write-back."
 }
 ---
 
-As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of data warehouses with the low cost and flexibility of data lakes, helping users more conveniently meet various data processing and analysis needs. It has been increasingly applied in enterprise big data systems.
+A Data Catalog describes the properties of a data source.
 
-In recent versions, Apache Doris has deepened its integration with data lakes and has evolved a mature Data Lakehouse solution.
+In Doris, you can create multiple data catalogs pointing to different data sources (such as Hive, Iceberg, Paimon, PostgreSQL). Doris automatically retrieves databases, tables, schemas, partitions, and data locations from the corresponding data source through data catalogs. Users can access these data catalogs for data analysis using standard SQL statements, and perform join queries across data from multiple data catalogs.
 
-- Since version 0.15, Apache Doris has introduced Hive and Iceberg external tables, exploring the capabilities of combining with Apache Iceberg for data lakes.
-- Starting from version 1.2, Apache Doris officially introduced the Multi-Catalog feature, achieving automatic metadata mapping and data access for various data sources, along with many performance optimizations for external data reading and query execution. It now fully possesses the ability to build a high-speed and user-friendly Lakehouse architecture.
-- In version 2.1, Apache Doris' Data Lakehouse architecture was significantly enhanced, strengthening the reading and writing capabilities of mainstream data lake formats (Hudi, Iceberg, Paimon, etc.), introducing compatibility with multiple SQL dialects, and seamless migration from existing systems to Apache Doris. For data science and large-scale data reading scenarios, Doris integrated the Arrow Flight high-speed reading interface, achieving a 100-fold improvement in data transfer efficiency.
+There are two types of data catalogs in Doris:
 
-![Building lakehouse using Doris and Paimon](/images/lakehouse-architecture-for-doris-and-paimon.png)
+| Type             | Description                                                                                                                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Internal Catalog | The built-in data catalog with a fixed name of `internal`, used to store Doris internal table data. It cannot be created, modified, or dropped.    |
+| External Catalog | External data catalogs, referring to all data catalogs other than the Internal Catalog. Users can create, modify, and drop external data catalogs. |
 
-## Apache Doris & Paimon
+Data catalogs are primarily applicable to the following three types of scenarios, but different data catalogs have different applicable scenarios. Refer to the corresponding data catalog documentation for details.
 
-Apache Paimon is a data lake format that innovatively combines the advantages of data lake formats and LSM structures, successfully introducing efficient real-time streaming update capabilities into data lake architecture. This enables Paimon to efficiently manage data and perform real-time analysis, providing strong support for building real-time Data Lakehouse architecture.
+| Scenario           | Description                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Query Acceleration | Directly accelerate queries on lakehouse data such as Hive, Iceberg, Paimon, etc.                                                                  |
+| Data Integration   | ZeroETL approach to directly access different data sources to generate result data, or enable convenient data flow between different data sources. |
+| Data Write-Back    | Process and transform data through Doris, then write it back to external data sources.                                                             |
 
-To fully leverage Paimon's capabilities and improve query efficiency for Paimon data, Apache Doris provides native support for several of Paimon's latest features:
+This article uses [Iceberg Catalog](./catalogs/iceberg-catalog) as an example to introduce the basic operations of data catalogs. For detailed introductions to different data catalogs, please refer to the corresponding data catalog documentation.
 
-- Supports various types of Paimon Catalogs such as Hive Metastore and FileSystem.
-- Native support for Paimon 0.6's Primary Key Table Read Optimized feature.
-- Native support for Paimon 0.8's Primary Key Table Deletion Vector feature.
+## Creating a Data Catalog
 
-With Apache Doris' high-performance query engine and Apache Paimon's efficient real-time streaming update capabilities, users can achieve:
+Create an Iceberg Catalog using the `CREATE CATALOG` statement.
 
-- Real-time data ingestion into the lake: Leveraging Paimon's LSM-Tree model, data ingestion into the lake can be reduced to a minute-level timeliness. Additionally, Paimon supports various data update capabilities including aggregation, deduplication, and partial column updates, making data flow more flexible and efficient.
-- High-performance data processing and analysis: Paimon's technologies such as Append Only Table, Read Optimized, and Deletion Vector can be seamlessly integrated with Doris' powerful query engine, enabling fast querying and analysis responses for lake data.
-
-In the future, Apache Doris will gradually support more advanced features of Apache Paimon, including Time Travel and incremental data reading, to jointly build a unified, high-performance, real-time lakehouse platform.
-
-This article will explain how to quickly set up an Apache Doris + Apache Paimon testing & demonstration environment in a Docker environment and demonstrate the usage of various features.
-
-For more information, please refer to [Paimon Catalog](../catalogs/paimon-catalog.mdx)
-
-## User Guide
-
-All scripts and code mentioned in this article can be obtained from the following address: [https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon](https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon)
-
-### 01 Environment Preparation
-
-This article uses Docker Compose for deployment, with the following components and versions:
-
-| Component     | Version                                                        |
-| ------------- | -------------------------------------------------------------- |
-| Apache Doris  | Default 2.1.5, can be modified |
-| Apache Paimon | 0.8                                            |
-| Apache Flink  | 1.18                                           |
-| MinIO         | RELEASE.2024-04-29T09-56-05Z                   |
-
-### 02 Environment Deployment
-
-1. Start all components
-
-   `bash ./start_all.sh`
-
-2. After starting, you can use the following scripts to log in to the Flink command line or Doris command line:
-
-   ```
-   -- login flink
-   bash ./start_flink_client.sh
-
-   -- login doris
-   bash ./start_doris_client.sh
-   ```
-
-### 03 Data Preparation
-
-After logging into the Flink command line, you can see a pre-built table. The table already contains some data that can be viewed using Flink SQL.
-
-```
-Flink SQL> use paimon.db_paimon;
-[INFO] Execute statement succeed.
-
-Flink SQL> show tables;
-+------------+
-| table name |
-+------------+
-|   customer |
-+------------+
-1 row in set
-
-Flink SQL> show create table customer;
-+------------------------------------------------------------------------+
-|                                                                 result |
-+------------------------------------------------------------------------+
-| CREATE TABLE `paimon`.`db_paimon`.`customer` (
-  `c_custkey` INT NOT NULL,
-  `c_name` VARCHAR(25),
-  `c_address` VARCHAR(40),
-  `c_nationkey` INT NOT NULL,
-  `c_phone` CHAR(15),
-  `c_acctbal` DECIMAL(12, 2),
-  `c_mktsegment` CHAR(10),
-  `c_comment` VARCHAR(117),
-  CONSTRAINT `PK_c_custkey_c_nationkey` PRIMARY KEY (`c_custkey`, `c_nationkey`) NOT ENFORCED
-) PARTITIONED BY (`c_nationkey`)
-WITH (
-  'bucket' = '1',
-  'path' = 's3://warehouse/wh/db_paimon.db/customer',
-  'deletion-vectors.enabled' = 'true'
-)
- |
-+-------------------------------------------------------------------------+
-1 row in set
-
-Flink SQL> desc customer;
-+--------------+----------------+-------+-----------------------------+--------+-----------+
-|         name |           type |  null |                         key | extras | watermark |
-+--------------+----------------+-------+-----------------------------+--------+-----------+
-|    c_custkey |            INT | FALSE | PRI(c_custkey, c_nationkey) |        |           |
-|       c_name |    VARCHAR(25) |  TRUE |                             |        |           |
-|    c_address |    VARCHAR(40) |  TRUE |                             |        |           |
-|  c_nationkey |            INT | FALSE | PRI(c_custkey, c_nationkey) |        |           |
-|      c_phone |       CHAR(15) |  TRUE |                             |        |           |
-|    c_acctbal | DECIMAL(12, 2) |  TRUE |                             |        |           |
-| c_mktsegment |       CHAR(10) |  TRUE |                             |        |           |
-|    c_comment |   VARCHAR(117) |  TRUE |                             |        |           |
-+--------------+----------------+-------+-----------------------------+--------+-----------+
-8 rows in set
-
-Flink SQL> select * from customer order by c_custkey limit 4;
-+-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
-| c_custkey |             c_name |                      c_address | c_nationkey |         c_phone | c_acctbal | c_mktsegment |                      c_comment |
-+-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
-|         1 | Customer#000000001 |              IVhzIApeRb ot,c,E |          15 | 25-989-741-2988 |    711.56 |     BUILDING | to the even, regular platel... |
-|         2 | Customer#000000002 | XSTf4,NCwDVaWNe6tEgvwfmRchLXak |          13 | 23-768-687-3665 |    121.65 |   AUTOMOBILE | l accounts. blithely ironic... |
-|         3 | Customer#000000003 |                   MG9kdTD2WBHm |           1 | 11-719-748-3364 |   7498.12 |   AUTOMOBILE |  deposits eat slyly ironic,... |
-|        32 | Customer#000000032 | jD2xZzi UmId,DCtNBLXKj9q0Tl... |          15 | 25-430-914-2194 |   3471.53 |     BUILDING | cial ideas. final, furious ... |
-+-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
-4 rows in set
-```
-
-### 04 Data Query
-
-As shown below, a Catalog named `paimon` has been created in the Doris cluster (can be viewed using SHOW CATALOGS). The following is the statement for creating this Catalog:
-
-```
--- 已创建，无需执行
-CREATE CATALOG `paimon` PROPERTIES (
-    "type" = "paimon",
-    "warehouse" = "s3://warehouse/wh/",
-    "s3.endpoint"="http://minio:9000",
-    "s3.access_key"="admin",
-    "s3.secret_key"="password",
-    "s3.region"="us-east-1"
+```sql
+CREATE CATALOG iceberg_catalog PROPERTIES (
+    'type' = 'iceberg',
+    'iceberg.catalog.type' = 'hadoop',
+    'warehouse' = 's3://bucket/dir/key',
+    's3.endpoint' = 's3.us-east-1.amazonaws.com',
+    's3.access_key' = 'ak',
+    's3.secret_key' = 'sk'
 );
 ```
 
-You can query Paimon's data in Doris:
+Essentially, a data catalog created in Doris acts as a "proxy" to access the metadata service (such as Hive Metastore) and storage service (such as HDFS/S3) of the corresponding data source. Doris only stores connection properties and other information about the data catalog, not the actual metadata or data of the corresponding data source.
 
-```
-mysql> use paimon.db_paimon;
-Reading table information for completion of table and column names
-You can turn off this feature to get a quicker startup with -A
+### Common Properties
 
-Database changed
-mysql> show tables;
-+---------------------+
-| Tables_in_db_paimon |
-+---------------------+
-| customer            |
-+---------------------+
-1 row in set (0.00 sec)
+In addition to the property set specific to each data catalog, this section introduces the common properties `{CommonProperties}` shared by all data catalogs.
 
-mysql> select * from customer order by c_custkey limit 4;
-+-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-| c_custkey | c_name             | c_address                             | c_nationkey | c_phone         | c_acctbal | c_mktsegment | c_comment                                                                                              |
-+-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-|         1 | Customer#000000001 | IVhzIApeRb ot,c,E                     |          15 | 25-989-741-2988 |    711.56 | BUILDING     | to the even, regular platelets. regular, ironic epitaphs nag e                                         |
-|         2 | Customer#000000002 | XSTf4,NCwDVaWNe6tEgvwfmRchLXak        |          13 | 23-768-687-3665 |    121.65 | AUTOMOBILE   | l accounts. blithely ironic theodolites integrate boldly: caref                                        |
-|         3 | Customer#000000003 | MG9kdTD2WBHm                          |           1 | 11-719-748-3364 |   7498.12 | AUTOMOBILE   |  deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov |
-|        32 | Customer#000000032 | jD2xZzi UmId,DCtNBLXKj9q0Tlp2iQ6ZcO3J |          15 | 25-430-914-2194 |   3471.53 | BUILDING     | cial ideas. final, furious requests across the e                                                       |
-+-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-4 rows in set (1.89 sec)
-```
+| Property                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Example                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `include_database_list`     | Specifies multiple databases to synchronize, separated by `,`. By default, all databases are synchronized. Database names are case-sensitive. When the external data source has a large number of databases but only a few need to be accessed, this parameter can be used to avoid synchronizing a large amount of metadata.                                                               | `'include_database_list' = 'db1,db2'`                 |
+| `exclude_database_list`     | Specifies multiple databases to exclude from synchronization, separated by `,`. By default, no filtering is applied and all databases are synchronized. Database names are case-sensitive. Applicable to the same scenario as above, but for inversely excluding databases that do not need to be accessed. In case of conflict, `exclude` takes precedence over `include`. | `'exclude_database_list' = 'db1,db2'`                 |
+| `include_table_list`        | Specifies multiple tables to synchronize, in `db.tbl` format, separated by `,`. When set, listing tables under a database will only return the specified tables, rather than fetching the full table list from the remote metadata service. Applicable when the external data source has a large number of tables and fetching the full table list may time out.                                            | `'include_table_list' = 'db1.tbl1,db1.tbl2,db2.tbl3'` |
+| `lower_case_table_names`    | Catalog-level table name case control. See the [Table Name Case Sensitivity](#table-name-case-sensitivity-lower_case_table_names) section below for values and their meanings. The default value inherits from the global variable `lower_case_table_names`.                                                                                                                                                | `'lower_case_table_names' = '1'`                      |
+| `lower_case_database_names` | Catalog-level database name case control. See the [Database Name Case Sensitivity](#database-name-case-sensitivity-lower_case_database_names) section below for values and their meanings. The default value is `0` (case-sensitive).                                                                                                                                                    | `'lower_case_database_names' = '2'`                   |
 
-### 05 Read Incremental Data
+### Specifying Table List
 
-You can update the data in the Paimon table using Flink SQL:
+This feature is supported since version 4.1.0.
 
-```
-Flink SQL> update customer set c_address='c_address_update' where c_nationkey = 1;
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] SQL update statement has been successfully submitted to the cluster:
-Job ID: ff838b7b778a94396b332b0d93c8f7ac
+When the external data source (such as Hive Metastore) contains a large number of tables, fetching the full table list from the remote metadata service can be very time-consuming or even time out. By setting the `include_table_list` property, you can specify the tables to synchronize and avoid fetching the full table list from the remote.
+
+`include_table_list` uses the `db.tbl` format, with multiple tables separated by commas `,`.
+
+```sql
+CREATE CATALOG hive_catalog PROPERTIES (
+    'type' = 'hms',
+    'hive.metastore.uris' = 'thrift://hms-host:9083',
+    'include_table_list' = 'db1.table1,db1.table2,db2.table3'
+);
 ```
 
-After the Flink SQL execution is complete, you can directly view the latest data in Doris:
+Behavior after setting:
 
-```
-mysql> select * from customer where c_nationkey=1 limit 2;
-+-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-| c_custkey | c_name             | c_address       | c_nationkey | c_phone         | c_acctbal | c_mktsegment | c_comment                                                                                              |
-+-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-|         3 | Customer#000000003 | c_address_update |           1 | 11-719-748-3364 |   7498.12 | AUTOMOBILE   |  deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov |
-|       513 | Customer#000000513 | c_address_update |           1 | 11-861-303-6887 |    955.37 | HOUSEHOLD    | press along the quickly regular instructions. regular requests against the carefully ironic s          |
-+-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
-2 rows in set (0.19 sec)
-```
+- When listing tables under `db1`, only `table1` and `table2` are returned, without calling the remote metadata service's full table list API.
+- When listing tables under `db2`, only `table3` is returned.
+- For databases not included in `include_table_list` (such as `db3`), the full table list will still be fetched from the remote metadata service.
+- Incorrectly formatted entries in `include_table_list` (not in `db.tbl` format) will be ignored.
 
-### Benchmark
+:::tip
+This property can be used in combination with `include_database_list`. For example, first filter the required databases using `include_database_list`, then further specify the required tables using `include_table_list`.
+:::
 
-We conducted a simple test on the TPCDS 1000 dataset in Paimon (0.8) version, using Apache Doris 2.1.5 version and Trino 422 version, both with the Primary Key Table Read Optimized feature enabled.
+### Table Name Case Sensitivity
 
-![](/images/quick-start/lakehouse-paimon-benchmark.PNG)
+This feature is supported since version 4.1.0.
 
-From the test results, it can be seen that Doris' average query performance on the standard static test set is 3-5 times that of Trino. In the future, we will optimize the Deletion Vector to further improve query efficiency in real business scenarios.
+The `lower_case_table_names` property allows you to control table name case handling at the Catalog level. This property supports three modes:
 
-## Query Optimization
+| Value | Mode                                        | Description                                                                                                                                                                                                                                                                                                            |
+| ----- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`   | Case-sensitive (default) | Table names are stored and compared with their original case. When referencing a table name, it must exactly match the case in the remote metadata.                                                                                                                                    |
+| `1`   | Stored as lowercase                         | Table names are stored in lowercase in Doris. Suitable for scenarios where you want to uniformly use lowercase table names to access external data sources.                                                                                                                            |
+| `2`   | Case-insensitive comparison                 | Table names are compared in a case-insensitive manner, but the original case from the remote metadata is preserved when displayed. Suitable for scenarios where table name cases are inconsistent in the external data source and you want to access tables in a case-insensitive way. |
 
-For baseline data, after introducing the Primary Key Table Read Optimized feature in Apache Paimon version 0.6, the query engine can directly access the underlying Parquet/ORC files, significantly improving the reading efficiency of baseline data. For unmerged incremental data (data increments generated by INSERT, UPDATE, or DELETE), they can be read through Merge-on-Read. In addition, Paimon introduced the Deletion Vector feature in version 0.8, which further enhances the query engine's efficiency in reading incremental data.
-Apache Doris supports reading Deletion Vector through native Reader and performing Merge on Read. We demonstrate the query methods for baseline data and incremental data in a query using Doris' EXPLAIN statement.
+If this property is not set, it inherits the value of the global variable `lower_case_table_names` by default.
 
-```
-mysql> explain verbose select * from customer where c_nationkey < 3;
-+------------------------------------------------------------------------------------------------------------------------------------------------+
-| Explain String(Nereids Planner)                                                                                                                |
-+------------------------------------------------------------------------------------------------------------------------------------------------+
-| ...............                                                                                                                                |
-|                                                                                                                                                |
-|   0:VPAIMON_SCAN_NODE(68)                                                                                                                      |
-|      table: customer                                                                                                                           |
-|      predicates: (c_nationkey[#3] < 3)                                                                                                         |
-|      inputSplitNum=4, totalFileSize=238324, scanRanges=4                                                                                       |
-|      partition=3/0                                                                                                                             |
-|      backends:                                                                                                                                 |
-|        10002                                                                                                                                   |
-|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=1/bucket-0/data-15cee5b7-1bd7-42ca-9314-56d92c62c03b-0.orc start: 0 length: 66600 |
-|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=1/bucket-0/data-5d50255a-2215-4010-b976-d5dc656f3444-0.orc start: 0 length: 44501 |
-|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=2/bucket-0/data-e98fb7ef-ec2b-4ad5-a496-713cb9481d56-0.orc start: 0 length: 64059 |
-|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=0/bucket-0/data-431be05d-50fa-401f-9680-d646757d0f95-0.orc start: 0 length: 63164 |
-|      cardinality=18751, numNodes=1                                                                                                             |
-|      pushdown agg=NONE                                                                                                                         |
-|      paimonNativeReadSplits=4/4                                                                                                                |
-|      PaimonSplitStats:                                                                                                                         |
-|        SplitStat [type=NATIVE, rowCount=1542, rawFileConvertable=true, hasDeletionVector=true]                                                 |
-|        SplitStat [type=NATIVE, rowCount=750, rawFileConvertable=true, hasDeletionVector=false]                                                 |
-|        SplitStat [type=NATIVE, rowCount=750, rawFileConvertable=true, hasDeletionVector=false]                                                 |
-|      tuple ids: 0
-| ...............                                                                                                           |                                                                                                  |
-+------------------------------------------------------------------------------------------------------------------------------------------------+
-67 rows in set (0.23 sec)
+```sql
+CREATE CATALOG hive_catalog PROPERTIES (
+    'type' = 'hms',
+    'hive.metastore.uris' = 'thrift://hms-host:9083',
+    'lower_case_table_names' = '2'
+);
 ```
 
-It can be seen that the table just updated by Flink SQL contains 4 shards, and all shards can be accessed through Native Reader (paimonNativeReadSplits=4/4). In addition, the hasDeletionVector property of the first shard is true, indicating that the shard has a corresponding Deletion Vector, and data will be filtered according to the Deletion Vector when reading.
+:::caution
+When `lower_case_table_names` is set to `1` or `2`, if tables with names that differ only in case exist in the remote metadata (such as `MyTable` and `mytable`), conflicts may occur. Doris will detect such conflicts and report an error.
+:::
 
+### Database Name Case Sensitivity
+
+This feature is supported since version 4.1.0.
+
+The `lower_case_database_names` property allows you to control database name case handling at the Catalog level. This property supports three modes:
+
+| Value | Mode                                        | Description                                                                                                                                                                                                                                                                                                                     |
+| ----- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`   | Case-sensitive (default) | Database names are stored and compared with their original case. When referencing a database name, it must exactly match the case in the remote metadata.                                                                                                                                       |
+| `1`   | Stored as lowercase                         | Database names are stored in lowercase in Doris. Suitable for scenarios where you want to uniformly use lowercase database names to access external data sources.                                                                                                                               |
+| `2`   | Case-insensitive comparison                 | Database names are compared in a case-insensitive manner, but the original case from the remote metadata is preserved when displayed. Suitable for scenarios where database name cases are inconsistent in the external data source and you want to access databases in a case-insensitive way. |
+
+The default value is `0` (case-sensitive).
+
+```sql
+CREATE CATALOG hive_catalog PROPERTIES (
+    'type' = 'hms',
+    'hive.metastore.uris' = 'thrift://hms-host:9083',
+    'lower_case_database_names' = '2',
+    'lower_case_table_names' = '2'
+);
+```
+
+:::caution
+When `lower_case_database_names` is set to `1` or `2`, if databases with names that differ only in case exist in the remote metadata (such as `MyDB` and `mydb`), conflicts may occur. Doris will detect such conflicts and report an error.
+:::
+
+:::info
+`lower_case_database_names` and `lower_case_table_names` can be set independently without affecting each other. For example, you can set database names to be case-sensitive (`0`) while setting table names to be case-insensitive (`2`).
+:::
+
+### Column Type Mapping
+
+After a user creates a data catalog, Doris automatically synchronizes the databases, tables, and schemas of the data catalog. For column type mapping rules of different data catalogs, please refer to the corresponding data catalog documentation.
+
+For external data types that cannot currently be mapped to Doris column types, such as `UNION`, `INTERVAL`, etc., Doris maps the column type to `UNSUPPORTED`. For queries involving `UNSUPPORTED` types, see the following examples:
+
+Assume the synchronized table schema is:
+
+```text
+k1 INT,
+k2 INT,
+k3 UNSUPPORTED,
+k4 INT
+```
+
+The query behavior is as follows:
+
+```sql
+SELECT * FROM table;                -- Error: Unsupported type 'UNSUPPORTED_TYPE' in 'k3'
+SELECT * EXCEPT(k3) FROM table;     -- Query OK.
+SELECT k1, k3 FROM table;           -- Error: Unsupported type 'UNSUPPORTED_TYPE' in 'k3'
+SELECT k1, k4 FROM table;           -- Query OK.
+```
+
+### Nullable Property
+
+Doris currently has special limitations on the Nullable property support for external table columns. The specific behavior is as follows:
+
+| Source Type | Doris Read Behavior                                                                     | Doris Write Behavior                                                                                                                                                                                |
+| ----------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nullable    | Nullable                                                                                | Allows writing Null values                                                                                                                                                                          |
+| Not Null    | Nullable, i.e., still read as a column that allows NULL | Allows writing Null values, i.e., no strict check on Null values. Users need to ensure data integrity and consistency on their own. |
+
+## Using Data Catalogs
+
+### Viewing Data Catalogs
+
+After creation, you can view the catalog using the `SHOW CATALOGS` command:
+
+```text
+mysql> SHOW CATALOGS;
++-----------+-----------------+----------+-----------+-------------------------+---------------------+------------------------+
+| CatalogId | CatalogName     | Type     | IsCurrent | CreateTime              | LastUpdateTime      | Comment                |
++-----------+-----------------+----------+-----------+-------------------------+---------------------+------------------------+
+|     10024 | iceberg_catalog | hms      | yes       | 2023-12-25 16:11:41.687 | 2023-12-25 20:43:18 | NULL                   |
+|         0 | internal        | internal |           | NULL                    | NULL                | Doris internal catalog |
++-----------+-----------------+----------+-----------+-------------------------+---------------------+------------------------+
+```
+
+You can view the CREATE CATALOG statement using [SHOW CREATE CATALOG](../sql-manual/sql-statements/catalog/SHOW-CREATE-CATALOG).
+
+### Switching Data Catalogs
+
+Doris provides the `SWITCH` statement to switch the connection session context to the corresponding data catalog, similar to using the `USE` statement to switch databases.
+
+After switching to a data catalog, you can use the `USE` statement to further switch to a specific database, or use `SHOW DATABASES` to view the databases under the current data catalog.
+
+```sql
+SWITCH iceberg_catalog;
+
+SHOW DATABASES;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| test               |
+| iceberg_db         |
++--------------------+
+
+USE iceberg_db;
+```
+
+You can also use the `USE` statement with the fully qualified name `catalog_name.database_name` to directly switch to a specific database under a specific data catalog:
+
+```sql
+USE iceberg_catalog.iceberg_db;
+```
+
+The fully qualified name can also be used in MySQL command line or JDBC connection strings to be compatible with the MySQL connection protocol.
+
+```sql
+# Command line tool
+mysql -h host -P9030 -uroot -Diceberg_catalog.iceberg_db
+
+# JDBC url
+jdbc:mysql://host:9030/iceberg_catalog.iceberg_db
+```
+
+The built-in data catalog has a fixed name of `internal`. The switching method is the same as for external data catalogs.
+
+### Default Data Catalog
+
+Use the user property `default_init_catalog` to set the default data catalog for a specific user. Once set, when the specified user connects to Doris, the session will automatically switch to the configured data catalog.
+
+```sql
+SET PROPERTY default_init_catalog=hive_catalog;
+```
+
+Note 1: If a data catalog is explicitly specified in the MySQL command line or JDBC connection string, the specified one takes precedence and the `default_init_catalog` user property does not take effect.
+
+Note 2: If the data catalog set by the user property `default_init_catalog` no longer exists, the session will automatically switch to the default `internal` data catalog.
+
+Note 3: This feature is available starting from version 3.1.x.
+
+### Simple Queries
+
+You can query tables in external data catalogs using any SQL statement supported by Doris.
+
+```sql
+SELECT id, SUM(cost) FROM iceberg_db.table1
+GROUP BY id ORDER BY id;
+```
+
+### Cross-Catalog Queries
+
+Doris supports join queries across data catalogs.
+
+Here we create another [MySQL Catalog](./catalogs/jdbc-mysql-catalog.md):
+
+```sql
+CREATE CATALOG mysql_catalog properties(
+    'type' = 'jdbc',
+    'user' = 'root',
+    'password' = '123456',
+    'jdbc_url' = 'jdbc:mysql://host:3306/mysql_db',
+    'driver_url' = 'mysql-connector-java-8.0.25.jar',
+    'driver_class' = 'com.mysql.cj.jdbc.Driver'
+);
+```
+
+Then perform a join query between the Iceberg table and the MySQL table using SQL:
+
+```sql
+SELECT * FROM
+iceberg_catalog.iceberg_db.table1 tbl1 JOIN mysql_catalog.mysql_db.dim_table tbl2
+ON tbl1.id = tbl2.id;
+```
+
+### Data Ingestion
+
+You can import data from data sources into Doris using the `INSERT` command.
+
+```sql
+INSERT INTO internal.doris_db.tbl1
+SELECT * FROM iceberg_catalog.iceberg_db.table1;
+```
+
+You can also use the `CTAS (Create Table As Select)` statement to create a Doris internal table from an external data source and import the data:
+
+```sql
+CREATE TABLE internal.doris_db.tbl1
+PROPERTIES('replication_num' = '1')
+AS
+SELECT * FROM iceberg_catalog.iceberg_db.table1;
+```
+
+### Data Write-Back
+
+Doris supports writing data back to external data sources directly using the `INSERT` statement. For details, refer to:
+
+- [Hive Catalog](./catalogs/hive-catalog.mdx)
+
+- [Iceberg Catalog](./catalogs/iceberg-catalog.mdx)
+
+- [JDBC Catalog](./catalogs/jdbc-catalog-overview.md)
+
+## Refreshing Data Catalogs
+
+Data catalogs created in Doris act as "proxies" to access the metadata service of the corresponding data source. Doris caches some metadata. Caching can improve metadata access performance and avoid frequent cross-network requests. However, caching also has timeliness issues — if the cache is not refreshed, the latest metadata cannot be accessed. Therefore, Doris provides multiple ways to refresh data catalogs.
+
+```sql
+-- Refresh catalog
+REFRESH CATALOG catalog_name;
+
+-- Refresh specified database
+REFRESH DATABASE catalog_name.db_name;
+
+-- Refresh specified table
+REFRESH TABLE catalog_name.db_name.table_name;
+```
+
+Doris also supports disabling metadata caching to enable real-time access to the latest metadata.
+
+For detailed information and configuration of metadata caching, please refer to: [Metadata Cache](./meta-cache.md)
+
+## Modifying Data Catalogs
+
+You can modify the properties or name of a data catalog using `ALTER CATALOG`:
+
+```sql
+-- Rename a catalog
+ALTER CATALOG iceberg_catalog RENAME iceberg_catalog2;
+
+-- Modify properties of a catalog
+ALTER CATALOG iceberg_catalog SET PROPERTIES ('key1' = 'value1' [, 'key' = 'value2']); 
+
+-- Modify the comment of a catalog
+ALTER CATALOG iceberg_catalog MODIFY COMMENT 'my iceberg catalog';
+```
+
+## Dropping Data Catalogs
+
+You can drop a specified external data catalog using `DROP CATALOG`.
+
+```sql
+DROP CATALOG [IF EXISTS] iceberg_catalog;
+```
+
+Dropping an external data catalog from Doris does not delete the actual data. It only removes the data catalog mapping stored in Doris.
+
+## Permission Management
+
+Permission management for databases and tables in external data catalogs is the same as for internal tables. For details, refer to the [Authentication and Authorization](../admin-manual/auth/authentication-and-authorization.md) documentation.
