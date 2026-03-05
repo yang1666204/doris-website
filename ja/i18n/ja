@@ -1,11 +1,11 @@
 ---
 {
-  "title": "GET_JSON_BIGINT",
+  "title": "GET_JSON_DOUBLE",
   "language": "en",
-  "description": "Alias of function JSONEXTRACTBIGINT."
+  "description": "Alias of function JSONEXTRACTDOUBLE."
 }
 ---
 
 ## Description
 
-Alias of function [`JSON_EXTRACT_BIGINT`](./json-extract-bigint.md).
+Alias of function [`JSON_EXTRACT_DOUBLE`](./json-extract-double.md).
