@@ -1,76 +1,48 @@
 ---
 {
-  "title": "CREATE ROW POLICY",
+  "title": "SHOW CREATE USER",
   "language": "en",
-  "description": "Explain can view the rewritten execution plan."
+  "description": "SHOW CREATE USER statement is used to display the creation statement of a user in a database system."
 }
 ---
 
 ## Description
 
-Explain can view the rewritten execution plan.
+`SHOW CREATE USER` statement is used to display the creation statement of a user in a database system. It helps administrators manage accounts more effectively.
 
 ## Syntax
 
 ```sql
-CREATE ROW POLICY [ IF NOT EXISTS ] <policy_name> 
-ON <table_name> 
-AS { RESTRICTIVE | PERMISSIVE } 
-TO { <user_name> | ROLE <role_name> } 
-USING (<filter>);
+SHOW CREATE USER '<user_identity>'
 ```
 
-## Required Parameters
+## Return Value
 
-**<policy_name>**
-
-> Row security policy name
-
-**<table_name>**
-
-> Table name
-
-**<filter_type>**
-
-> RESTRICTIVE combines a set of policies with AND, PERMISSIVE combines a set of policies with OR
-
-> Equivalent to the filter condition of a query statement, for example: id=1
-
-## Optional Parameters
-
-**<user_name>**
-
-> User name, cannot be created for root and admin users
-
-**<role_name>**
-
-> Role name
+| Column        | Description                              |
+| :------------ | :--------------------------------------- |
+| User Identity | specified user identity                  |
+| Create Stmt   | creation statement of the specified user |
 
 ## Access Control Requirements
 
-The user executing this SQL command must have at least the following privileges:
+Users executing this SQL command must have at least the following privileges:
 
-| Privilege                                                          | Object | Notes |
-| ------------------------------------------------------------------ | ------ | ----- |
-| ADMIN_PRIV or GRANT_PRIV | Global |       |
+| Privilege                       | Object       | Notes                                                                                                                    |
+| :------------------------------ | :----------- | :----------------------------------------------------------------------------------------------------------------------- |
+| ADMIN_PRIV | User or Role | This `SHOW CREATE USER` operation can only be performed by users or roles with `ADMIN_PRIV` permissions. |
 
 ## Examples
 
-1. Create a set of row security policies
+To view the creation statement of a specified user.
 
-  ```sql
-  CREATE ROW POLICY test_row_policy_1 ON test.table1 
-  AS RESTRICTIVE TO test USING (c1 = 'a');
-  CREATE ROW POLICY test_row_policy_2 ON test.table1 
-  AS RESTRICTIVE TO test USING (c2 = 'b');
-  CREATE ROW POLICY test_row_policy_3 ON test.table1 
-  AS PERMISSIVE TO test USING (c3 = 'c');
-  CREATE ROW POLICY test_row_policy_3 ON test.table1 
-  AS PERMISSIVE TO test USING (c4 = 'd');
-  ```
+```sql
+SHOW CREATE USER '<user_identity>'
+```
 
-When we execute a query on table1, the rewritten SQL is:
-
-  ```sql
-  SELECT * FROM (SELECT * FROM table1 WHERE (c1 = 'a' AND c2 = 'b') AND (c3 = 'c' OR c4 = 'd'))
-  ```
+```text
++---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| User Identity | Create Stmt                                                                                                                                                                     |
++---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| xxxxxxx       | CREATE USER 'xxxxxxx'@'%' IDENTIFIED BY ***  PASSWORD_HISTORY DEFAULT PASSWORD_EXPIRE INTERVAL 864000 SECOND FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 86400 SECOND COMMENT "" |
++---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
