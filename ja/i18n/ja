@@ -1,134 +1,92 @@
 ---
 {
-  "title": "IS_IP_ADDRESS_IN_RANGE",
+  "title": "IS_IPV4_COMPAT",
   "language": "en",
-  "description": "Checks if a specified IP address is within a given CIDR network range. Supports both IPv4 and IPv6 addresses."
+  "description": "Checks if an IPv6 address is an IPv4-compatible address."
 }
 ---
 
-## is_ip_address_in_range
+## is_ipv4_compat
 
 ## Description
 
-Checks if a specified IP address is within a given CIDR network range. Supports both IPv4 and IPv6 addresses.
+Checks if an IPv6 address is an IPv4-compatible address. IPv4-compatible addresses are a special IPv6 address format used to represent IPv4 addresses in IPv6 networks.
 
 ## Syntax
 
 ```sql
-IS_IP_ADDRESS_IN_RANGE(<ip_address>, <cidr_range>)
+IS_IPV4_COMPAT(<ipv6_address>)
 ```
 
 ### Parameters
 
-- `<ip_address>`: IP address to check (IPv4, IPv6 type or string)
-- `<cidr_range>`: CIDR network range (string format, such as "192.168.1.0/24")
+- `<ipv6_address>`: Binary representation of IPv6 address (VARCHAR type, 16 bytes)
 
 ### Return Value
 
 Return Type: TINYINT
 
-Return Value Meaning:
-
-- Returns 1: indicates the IP address is within the specified CIDR range
-- Returns 0: indicates the IP address is not within the specified CIDR range
-- Returns NULL when input is NULL
+Return Value Meaning: 1 indicates it is an IPv4-compatible address, 0 indicates it is not an IPv4-compatible address
 
 ### Usage Notes
 
-- Supports checking both IPv4 and IPv6 addresses
-- CIDR range must be in valid format (such as "192.168.1.0/24" or "2001:db8::/64")
-- Supports inverted index optimization, can use index acceleration when CIDR parameter is constant
-- Returns 0 for invalid CIDR formats
+- IPv4-compatible address format is `::IPv4`, where the first 12 bytes are 0 and the last 4 bytes contain the IPv4 address
+- Input must be 16-byte IPv6 binary data
+- This format is defined in RFC 4291 for IPv6 transition period
+- The last 4 bytes cannot be 0, so `::0.0.0.0` is not a valid IPv4-compatible address, as 0.0.0.0 is not an IPv4 unicast address and does not satisfy the RFC 4291 IPv4-Mapped IPv6 Address definition
 - Returns NULL when input parameter is NULL
 
 ## Examples
 
-Check if IPv4 address is within specified network segment.
+Check IPv4-compatible address.
 
 ```sql
-SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_range;
-+----------+
-| in_range |
-+----------+
-| 1        |
-+----------+
+SELECT is_ipv4_compat(INET6_ATON('::192.168.1.1')) as is_compat;
++-----------+
+| is_compat |
++-----------+
+| 1         |
++-----------+
 ```
 
-Check if IPv6 address is within specified network segment.
-
-```sql
-SELECT is_ip_address_in_range(INET6_ATON('2001:db8::100'), '2001:db8::/64') as in_range;
-+----------+
-| in_range |
-+----------+
-| 1        |
-+----------+
-```
-
-Check if multiple addresses are within specified network segment.
+Check non-IPv4-compatible addresses.
 
 ```sql
 SELECT 
-  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_192_168_1,
-  is_ip_address_in_range(to_ipv4('192.168.2.100'), '192.168.1.0/24') as in_192_168_2,
-  is_ip_address_in_range(to_ipv4('10.0.0.1'), '192.168.1.0/24') as in_10_0_0;
-+-------------+-------------+----------+
-| in_192_168_1| in_192_168_2| in_10_0_0|
-+-------------+-------------+----------+
-| 1           | 0           | 0        |
-+-------------+-------------+----------+
+  is_ipv4_compat(INET6_ATON('2001:db8::1')) as standard_ipv6,
+  is_ipv4_compat(INET6_ATON('::ffff:192.168.1.1')) as ipv4_mapped,
+  is_ipv4_compat(INET6_ATON('::0.0.0.0')) as zero_ip;
++--------------+------------+---------+
+| standard_ipv6| ipv4_mapped| zero_ip |
++--------------+------------+---------+
+| 0            | 0          | 0       |
++--------------+------------+---------+
 ```
 
-Check ranges with different CIDR prefix lengths.
+Check boundary values.
 
 ```sql
 SELECT 
-  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.0.0/16') as in_16,
-  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_24,
-  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.100/32') as in_32;
-+--------+--------+--------+
-| in_16  | in_24  | in_32  |
-+--------+--------+--------+
-| 1      | 1      | 1      |
-+--------+--------+--------+
-```
-
-Invalid CIDR format returns 0.
-
-```sql
-SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), 'invalid-cidr') as in_range;
-+----------+
-| in_range |
-+----------+
-| 0        |
-+----------+
+  is_ipv4_compat(INET6_ATON('::0.0.0.0')) as min_ip,
+  is_ipv4_compat(INET6_ATON('::255.255.255.255')) as max_ip;
++--------+--------+
+| min_ip | max_ip |
++--------+--------+
+| 0      | 1      |
++--------+--------+
 ```
 
 Input parameter as NULL returns NULL.
 
 ```sql
-SELECT is_ip_address_in_range(NULL, '192.168.1.0/24') as null_ip;
-+---------+
-| null_ip |
-+---------+
-| NULL    |
-+---------+
-
-SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), NULL) as null_cidr;
-+-----------+
-| null_cidr |
-+-----------+
-| NULL      |
-+-----------+
-
-SELECT is_ip_address_in_range(NULL, NULL) as both_null;
-+-----------+
-| both_null |
-+-----------+
-| NULL      |
-+-----------+
+SELECT is_ipv4_compat(NULL) as null_result;
++-------------+
+| null_result |
++-------------+
+| NULL        |
++-------------+
 ```
 
 ### Keywords
 
-IS_IP_ADDRESS_IN_RANGE
+IS_IPV4_COMPAT
