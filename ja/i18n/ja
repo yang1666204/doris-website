@@ -1,82 +1,91 @@
 ---
 {
-  "title": "ARRAY_ZIP",
+  "title": "EXPLODE_BITMAP_OUTER",
   "language": "en",
-  "description": "The ARRAYZIP function combines multiple ARRAYs (e.g., arr1, arr2, ... , arrN) element-wise into a single ARRAY<STRUCT>,"
+  "description": "The explodebitmapouter table function accepts a bitmap type data and maps each bit in the bitmap to a separate row."
 }
 ---
 
-## Function
+## Description
 
-The `ARRAY_ZIP` function combines multiple `ARRAY`s (e.g., `arr1, arr2, ... , arrN`) element-wise into a single `ARRAY<STRUCT>`, where each `STRUCT` contains the corresponding elements from each input array.
+The `explode_bitmap_outer` table function accepts a bitmap type data and maps each bit in the bitmap to a separate row.
+It is commonly used to process bitmap data, expanding each element in the bitmap into a separate record. It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md).
+`explode_bitmap_outer` is similar to `explode_bitmap`, but behaves differently when handling empty or NULL values. It allows records with empty or NULL bitmaps to exist and expands them into NULL rows in the result.
 
 ## Syntax
 
-```SQL
-ARRAY_ZIP(arr1, arr2, ... , arrN)
+```sql
+EXPLODE_BITMAP_OUTER(<bitmap>)
 ```
 
 ## Parameters
 
-- `arr1, arr2, ..., arrN`: The N input arrays, with types `ARRAY<T1>, ARRAY<T2>, ..., ARRAY<Tn>`.
+- `<bitmap>` [`BITMAP`](../../basic-element/sql-data-types/aggregate/BITMAP.md) type
 
 ## Return Value
 
-- The return type is `ARRAY<STRUCT<col1 T1, col2 T2, ..., colN Tn>>`, where each `STRUCT` represents the combination of elements at the same index from the input arrays.
+- Returns a row for each bit in `<bitmap>`, with each row containing a bit value.
+- If `<bitmap>` is NULL, 1 row with NULL is returned.
+- If `<bitmap>` is empty, 1 row with NULL is returned.
 
 ## Usage Notes
 
-1. **If the arrays have different lengths, the function fails with `RUNTIME_ERROR`**.
-2. Supports input arrays of different types; the resulting struct fields correspond one-to-one with the input array types.
-3. Useful for combining multiple parallel arrays into a structured format for easier processing or analysis.
+1. If the `<bitmap>` parameter is not of type [`BITMAP`](../../basic-element/sql-data-types/aggregate/BITMAP.md), an error will be reported.
 
 ## Examples
 
-1. Combine multiple arrays
-
-    ```SQL
-    SELECT ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"), ARRAY(true, false, true));
-    +-------------------------------------------------------------------------------------------------------------------+
-    | ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"), ARRAY(true, false, true))                              |
-    +-------------------------------------------------------------------------------------------------------------------+
-    | [{"col1":23, "col2":"John", "col3":1}, {"col1":24, "col2":"Jane", "col3":0}, {"col1":25, "col2":"Jim", "col3":1}] |
-    +-------------------------------------------------------------------------------------------------------------------+
+0. Prepare data
+    ```sql
+    create table example(
+        k1 int
+    ) properties(
+        "replication_num" = "1"
+    );
+    
+    insert into example values(1);
     ```
-
-   - The first `STRUCT` in the return value contains the first element from each input `ARRAY`.
-   - The second `STRUCT` contains the second element from each input `ARRAY`.
-   - The third `STRUCT` contains the third element from each input `ARRAY`.
-
-2. Access the return value
-
-    ```SQL
-    -- Access the returned ARRAY
-    SELECT ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"))[1];
-    +---------------------------------------------------------------+
-    | ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"))[1] |
-    +---------------------------------------------------------------+
-    | {"col1":23, "col2":"John"}                                    |
-    +---------------------------------------------------------------+
+1. Regular parameters
+    ```sql
+    select k1, e1 from example lateral view explode_bitmap_outer(bitmap_from_string("1,3,4,5,6,10")) t2 as e1 order by k1, e1;
     ```
-
-3. If one of the arrays is `NULL`, returns `NULL`
-
-    ```SQL
-    SELECT ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"), NULL) ;
-    +------------------------------------------------------------------+
-    | ARRAY_ZIP(ARRAY(23, 24, 25), ARRAY("John", "Jane", "Jim"), NULL) |
-    +------------------------------------------------------------------+
-    | NULL                                                             |
-    +------------------------------------------------------------------+
+    ```text
+    +------+------+
+    | k1   | e1   |
+    +------+------+
+    |    1 |    1 |
+    |    1 |    3 |
+    |    1 |    4 |
+    |    1 |    5 |
+    |    1 |    6 |
+    |    1 |   10 |
+    +------+------+
     ```
-
-4. If an element in an `ARRAY` is `NULL`, the corresponding field in the `STRUCT` is `NULL`
-
-    ```SQL
-     SELECT ARRAY_ZIP(ARRAY(23, NULL, 25), ARRAY("John", "Jane", NULL), ARRAY(NULL, false, true));
-    +-----------------------------------------------------------------------------------------------------------------------+
-    | ARRAY_ZIP(ARRAY(23, NULL, 25), ARRAY("John", "Jane", NULL), ARRAY(NULL, false, true))                                 |
-    +-----------------------------------------------------------------------------------------------------------------------+
-    | [{"col1":23, "col2":"John", "col3":null}, {"col1":null, "col2":"Jane", "col3":0}, {"col1":25, "col2":null, "col3":1}] |
-    +-----------------------------------------------------------------------------------------------------------------------+
+2. Empty BITMAP
+    ```sql
+    select k1, e1 from example lateral view explode_bitmap_outer(bitmap_from_string("")) t2 as e1 order by k1, e1;
+    ```
+    ```text
+    +------+------+
+    | k1   | e1   |
+    +------+------+
+    |    1 | NULL |
+    +------+------+
+    ```
+3. NULL parameter
+    ```sql
+    select  * from example lateral view explode_bitmap_outer(NULL) t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | e1   |
+    +------+------+
+    |    1 | NULL |
+    +------+------+
+    ```
+4. Non-array parameter
+    ```sql
+    select  * from example lateral view explode_bitmap_outer('abc') t2 as c;
+    ```
+    ```text
+    ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: explode_bitmap_outer(VARCHAR(3))
     ```
