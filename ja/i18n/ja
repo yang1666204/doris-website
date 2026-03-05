@@ -1,208 +1,142 @@
 ---
 {
-  "title": "Redshift",
+  "title": "Load FAQ",
   "language": "en",
-  "description": "During the process of migrating Redshift, it is usually necessary to use object storage as an intermediate medium."
+  "description": "Problem Description: Data quality error during loading."
 }
 ---
 
-During the process of migrating Redshift, it is usually necessary to use object storage as an intermediate medium. The core process is as follows: First, use the [UNLOAD](https://docs.aws.amazon.com/zh_cn/redshift/latest/dg/r_UNLOAD.html) statement of Redshift to export data to the object storage; then, use the S3 Load function of Doris to read data from the object storage and import it into Doris. For details, please refer to [S3 Load](./amazon-s3.md)。
+## General Load FAQ
 
-## Considerations
+### Error "[DATA_QUALITY_ERROR] Encountered unqualified data"
 
-1. Before the migration, it is necessary to select Doris' [Data Model](../../../table-design/data-model/overview.md), as well as the strategies for [Partitioning](../../../table-design/data-partitioning/dynamic-partitioning.md) and [Bucketing](../../../table-design/data-partitioning/data-bucketing.md) according to the table structure of Redshift. For more table creation strategies, please refer to [Load Best Practices](../load-best-practices.md).
-2. When Redshift exports data of the Time type, it is necessary to export it after casting it to the Varchar type.
+**Problem Description**: Data quality error during loading.
 
-## Data type mapping
+**Solution**:
 
-| Redshift         | Doris          | Comment                         |
-| ---------------- | -------------- | ------------------------------- |
-| SMALLINT         | SMALLINT       |                                 |
-| INTEGER          | INT            |                                 |
-| BIGINT           | BIGINT         |                                 |
-| DECIMAL          | DECIMAL        |                                 |
-| REAL             | FLOAT          |                                 |
-| DOUBLE PRECISION | DOUBLE         |                                 |
-| BOOLEAN          | BOOLEAN        |                                 |
-| CHAR             | CHAR           |                                 |
-| VARCHAR          | VARCHAR/STRING | VARCHAR maximum length is 65535 |
-| DATE             | DATE           |                                 |
-| TIMESTAMP        | DATETIME       |                                 |
-| TIME/TIMEZ       | STRING         |                                 |
-| SUPER            | VARIANT        |                                 |
-| OTHER            | UNSUPPORTED    |                                 |
+- Stream Load and Insert Into operations will return an error URL, while for Broker Load you can check the error URL through the `Show Load` command.
+- Use a browser or curl command to access the error URL to view the specific data quality error reasons.
+- Use the strict_mode and max_filter_ratio parameters to control the acceptable error rate.
 
-## 1. Create Table
+### Error "[E-235] Failed to init rowset builder"
 
-To migrate a Redshift table to Doris, first create the Doris table.
+**Problem Description**: Error -235 occurs when the load frequency is too high and data hasn't been compacted in time, exceeding version limits.
 
-Assume we have the following table and data in Redshift:
+**Solution**:
 
-```SQL
-CREATE TABLE sales_data (
-    order_id      INTEGER,
-    customer_name VARCHAR(128),
-    order_date    DATE,
-    amount        DECIMAL(10,2),
-    country       VARCHAR(48)
-)
-DISTSTYLE AUTO
+- Increase the batch size of data loading and reduce loading frequency.
+- Increase the `max_tablet_version_num` parameter in `be.conf`, it is recommended not to exceed 5000.
 
-INSERT INTO sales_data VALUES
-(1, 'Alice', '2025-04-08', 99.99, 'USA'),
-(2, 'Bob', '2025-04-08', 149.50, 'Canada'),
-(3, 'Charlie', '2025-04-09', 75.00, 'UK'),
-(4, 'Diana', '2025-04-10', 200.00, 'Australia');
+### Error "[E-238] Too many segments in rowset"
+
+**Problem Description**: Error -238 occurs when the number of segments under a single rowset exceeds the limit.
+
+**Common Causes**:
+
+- The bucket number configured during table creation is too small.
+- Data skew occurs; consider using more balanced bucket keys.
+
+### Error "Transaction commit successfully, BUT data will be visible later"
+
+**Problem Description**: Data load is successful but temporarily not visible.
+
+**Cause**: Usually due to transaction publish delay caused by system resource pressure.
+
+### Error "Failed to commit kv txn [...] Transaction exceeds byte limit"
+
+**Problem Description**: In shared-nothing mode, too many partitions and tablets are involved in a single load, exceeding the transaction size limit.
+
+**Solution**:
+
+- Load data by partition in batches to reduce the number of partitions involved in a single load.
+- Optimize table structure to reduce the number of partitions and tablets.
+
+### Extra "\r" in the last column of CSV file
+
+**Problem Description**: Usually caused by Windows line endings.
+
+**Solution**:
+Specify the correct line delimiter: `-H "line_delimiter:\r\n"`
+
+### CSV data with quotes imported as null
+
+**Problem Description**: CSV data with quotes becomes null after import.
+
+**Solution**:
+Use the `trim_double_quotes` parameter to remove double quotes around fields.
+
+## Stream Load
+
+### Reasons for Slow Loading
+
+- Bottlenecks in CPU, IO, memory, or network card resources.
+- Slow network between client machine and BE machines, can be initially diagnosed through ping latency from client to BE machines.
+- Webserver thread count bottleneck, too many concurrent Stream Loads on a single BE (exceeding be.conf webserver_num_workers configuration) may cause thread count bottleneck.
+- Memtable Flush thread count bottleneck, check BE metrics doris_be_flush_thread_pool_queue_size to see if queuing is severe. Can be resolved by increasing the be.conf flush_thread_num_per_store parameter.
+
+### Handling Special Characters in Column Names
+
+When column names contain special characters, use single quotes with backticks to specify the columns parameter:
+
+```shell
+curl --location-trusted -u root:"" \
+    -H 'columns:`@coltime`,colint,colvar' \
+    -T a.csv \
+    -H "column_separator:," \
+    http://127.0.0.1:8030/api/db/loadtest/_stream_load
 ```
 
-According to this table structure, a Doris primary key partitioned table can be created. The partition field should be selected according to the business scenario. Here, the partition field is "order_date", and it is partitioned on a daily basis.
+## Routine Load
 
-```sql
-CREATE TABLE `sales_data` (
-  order_id      INT,
-  order_date    DATE NOT NULL,
-  customer_name VARCHAR(128),
-  amount        DECIMAL(10,2),
-  country       VARCHAR(48)
-) ENGINE=OLAP
-UNIQUE KEY(`order_id`,`order_date`)
-PARTITION BY RANGE(`order_date`) (
-PARTITION p20250408 VALUES [('2025-04-08'), ('2025-04-09')),
-PARTITION p20250409 VALUES [('2025-04-09'), ('2025-04-10')),
-PARTITION p20250410 VALUES [('2025-04-10'), ('2025-04-11'))
-)
-DISTRIBUTED BY HASH(`order_id`) BUCKETS 16
-PROPERTIES (
- "dynamic_partition.enable" = "true",
- "dynamic_partition.time_unit" = "DAY",
- "dynamic_partition.end" = "5",
- "dynamic_partition.prefix" = "p",
- "dynamic_partition.buckets" = "16",
- "replication_num" = "1"
-);
-```
+### Major Bug Fixes
 
-## 2. Export Data from Redshift
+| Issue Description                                                                                                                                         | Trigger Conditions                                                                                   | Impact Scope                      | Temporary Solution                                                                                                                                                     | Affected Versions                                                                                                               | Fixed Versions                                                              | Fix PR                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| When at least one job times out while connecting to Kafka, it affects the import of other jobs, slowing down global Routine Load imports. | At least one job times out while connecting to Kafka.                                | Shared-nothing and shared-storage | Stop or manually pause the job to resolve the issue.                                                                                                   | <2.1.9 <3.0.5 | 2.1.9 3.0.5 | [#47530](https://github.com/apache/doris/pull/47530)                                                                                                             |
+| User data may be lost after restarting the FE Master.                                                                                     | The job's offset is set to OFFSET_END, and the FE is restarted. | Shared-storage                    | Change the consumption mode to OFFSET_BEGINNING.                                                                                  | 3.0.2-3.0.4                                                     | 3.0.5                                       | [#46149](https://github.com/apache/doris/pull/46149)                                                                                                             |
+| A large number of small transactions are generated during import, causing compaction to fail and resulting in continuous -235 errors.     | Doris consumes data too quickly, or Kafka data flow is in small batches.             | Shared-nothing and shared-storage | Pause the Routine Load job and execute the following command: `ALTER ROUTINE LOAD FOR jobname FROM kafka ("property.enable.partition.eof" = "false");` | <2.1.8 <3.0.4 | 2.1.8 3.0.4 | [#45528](https://github.com/apache/doris/pull/45528), [#44949](https://github.com/apache/doris/pull/44949), [#39975](https://github.com/apache/doris/pull/39975) |
+| Kafka third-party library destructor hangs, causing data consumption to fail.                                                             | Kafka topic deletion (possibly other conditions).                 | Shared-nothing and shared-storage | Restart all BE nodes.                                                                                                                                  | <2.1.8 <3.0.4 | 2.1.8 3.0.4 | [#44913](https://github.com/apache/doris/pull/44913)                                                                                                             |
+| Routine Load scheduling hangs.                                                                                                            | Timeout occurs when FE aborts a transaction in Meta Service.                         | Shared-storage                    | Restart the FE node.                                                                                                                                   | <3.0.2                                                                 | 3.0.2                                       | [#41267](https://github.com/apache/doris/pull/41267)                                                                                                             |
+| Routine Load restart issue.                                                                                                               | Restarting BE nodes.                                                                 | Shared-nothing and shared-storage | Manually resume the job.                                                                                                                               | <2.1.7 <3.0.2 | 2.1.7 3.0.2 | [#3727](https://github.com/apache/doris/pull/40728)                                                                                                              |
 
-**2.1 Export to S3 Parquet Files via UNLOAD**
+### Default Configuration Optimizations
 
-When exporting to S3, export according to the **Partition field of Doris**, as follows:
+| Optimization Content                                                                  | Applied Versions                                                            | Corresponding PR                                                                                           |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Increased the timeout duration for Routine Load.                      | 2.1.7 3.0.3 | [#42042](https://github.com/apache/doris/pull/42042), [#40818](https://github.com/apache/doris/pull/40818) |
+| Adjusted the default value of `max_batch_interval`.                   | 2.1.8 3.0.3 | [#42491](https://github.com/apache/doris/pull/42491)                                                       |
+| Removed the restriction on `max_batch_interval`.                      | 2.1.5 3.0.0 | [#29071](https://github.com/apache/doris/pull/29071)                                                       |
+| Adjusted the default values of `max_batch_rows` and `max_batch_size`. | 2.1.5 3.0.0 | [#36632](https://github.com/apache/doris/pull/36632)                                                       |
 
-```sql
-unload ('select * from sales_data')
-to 's3://mybucket/redshift/sales_data/'
-iam_role 'arn:aws:iam::0123456789012:role/MyRedshiftRole'
-PARQUET
-PARTITION BY (order_date) INCLUDE
-```
+### Observability Optimizations
 
-**2.2 Verify Exported Files on S3**
+| Optimization Content                                 | Applied Versions                      | Corresponding PR                                                                                                                                                 |
+| ---------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Added observability-related metrics. | 3.0.5 | [#48209](https://github.com/apache/doris/pull/48209), [#48171](https://github.com/apache/doris/pull/48171), [#48963](https://github.com/apache/doris/pull/48963) |
 
-Exported files are organized into **subdirectories by partition** on S3:
+### Error "failed to get latest offset"
 
-![redshift_out](/images/data-operate/redshift_out.png)
+**Problem Description**: Routine Load cannot get the latest Kafka offset.
 
-![redshift_out2](/images/data-operate/redshift_out2.png)
+**Common Causes**:
 
-## 3. Load Data to Doris
+- Usually due to network connectivity issues with Kafka. Verify by pinging or using telnet to test the Kafka domain name.
+- Timeout caused by third-party library bug, error: java.util.concurrent.TimeoutException: Waited X seconds
 
-S3 Load is an asynchronous data load method. After execution, Doris actively pulls data from the data source. The data source supports object storage compatible with the S3 protocol, including ([AWS S3](./amazon-s3.md)，[GCS](./google-cloud-storage.md)，[AZURE](./azure-storage.md)，etc)
+### Error "failed to get partition meta: Local:'Broker transport failure"
 
-This method is suitable for scenarios involving large volumes of data that require asynchronous processing in the background. For data imports that need to be handled synchronously, refer to  [TVF Load](./amazon-s3.md#load-with-tvf)。
+**Problem Description**: Routine Load cannot get Kafka Topic Partition Meta.
 
-_Note: For **Parquet/ORC format files that contain complex types (Struct/Array/Map)**, TVF Load must be used._
+**Common Causes**:
 
-**3.1 Load a Single Partition**
+- Usually due to network connectivity issues with Kafka. Verify by pinging or using telnet to test the Kafka domain name.
+- If using domain names, try configuring domain name mapping in /etc/hosts
 
-```sql
-LOAD LABEL sales_data_2025_04_08
-(
-    DATA INFILE("s3://mybucket/redshift/sales_data/order_date=2025-04-08/*")
-    INTO TABLE sales_data
-    FORMAT AS "parquet"
-    (order_id, order_date, customer_name, amount, country)
-)
-WITH S3
-(
-    "provider" = "S3",
-    "s3.endpoint" = "s3.ap-southeast-1.amazonaws.com",
-    "s3.access_key" = "<ak>",
-    "s3.secret_key"="<sk>",
-    "s3.region" = "ap-southeast-1"
-);
-```
+### Error "Broker: Offset out of range"
 
-**3.2 Check Load Status via SHOW LOAD**
+**Problem Description**: The consumed offset doesn't exist in Kafka, possibly because it has been cleaned up by Kafka.
 
-Since S3 Load import is submitted asynchronously, you can check the status of a specific label using SHOW LOAD:
+**Solution**:
 
-```yaml
-mysql> show load where label = "label_sales_data_2025_04_08"\G
-*************************** 1. row ***************************
-         JobId: 17956078
-         Label: label_sales_data_2025_04_08
-         State: FINISHED
-      Progress: 100.00% (1/1)
-          Type: BROKER
-       EtlInfo: unselected.rows=0; dpp.abnorm.ALL=0; dpp.norm.ALL=2
-      TaskInfo: cluster:s3.ap-southeast-1.amazonaws.com; timeout(s):3600; max_filter_ratio:0.0; priority:NORMAL
-      ErrorMsg: NULL
-    CreateTime: 2025-04-10 17:50:53
-  EtlStartTime: 2025-04-10 17:50:54
- EtlFinishTime: 2025-04-10 17:50:54
- LoadStartTime: 2025-04-10 17:50:54
-LoadFinishTime: 2025-04-10 17:50:54
-           URL: NULL
-    JobDetails: {"Unfinished backends":{"5eec1be8612d4872-91040ff1e7208a4f":[]},"ScannedRows":2,"TaskNumber":1,"LoadBytes":91,"All backends":{"5eec1be8612d4872-91040ff1e7208a4f":[10022]},"FileNumber":1,"FileSize":1620}
- TransactionId: 766228
-  ErrorTablets: {}
-          User: root
-       Comment: 
-1 row in set (0.00 sec)
-```
-
-**3.3 Handle Load Errors**
-
-When there are multiple load tasks, you can use the following statement to query the dates and reasons for data load failures.
-
-```SQL
-mysql> show load where state='CANCELLED' and label like "label_test%"\G
-*************************** 1. row ***************************
-         JobId: 18312384
-         Label: label_test123
-         State: CANCELLED
-      Progress: 100.00% (3/3)
-          Type: BROKER
-       EtlInfo: unselected.rows=0; dpp.abnorm.ALL=4; dpp.norm.ALL=0
-      TaskInfo: cluster:s3.ap-southeast-1.amazonaws.com; timeout(s):14400; max_filter_ratio:0.0; priority:NORMAL
-      ErrorMsg: type:ETL_QUALITY_UNSATISFIED; msg:quality not good enough to cancel
-    CreateTime: 2025-04-15 17:32:59
-  EtlStartTime: 2025-04-15 17:33:02
- EtlFinishTime: 2025-04-15 17:33:02
- LoadStartTime: 2025-04-15 17:33:02
-LoadFinishTime: 2025-04-15 17:33:02
-           URL: http://10.16.10.6:28747/api/_load_error_log?file=__shard_2/error_log_insert_stmt_7602ccd7c3a4854-95307efca7bfe342_7602ccd7c3a4854_95307efca7bfe342
-    JobDetails: {"Unfinished backends":{"7602ccd7c3a4854-95307efca7bfe341":[]},"ScannedRows":4,"TaskNumber":1,"LoadBytes":188,"All backends":{"7602ccd7c3a4854-95307efca7bfe341":[10022]},"FileNumber":3,"FileSize":4839}
- TransactionId: 769213
-  ErrorTablets: {}
-          User: root
-       Comment: 
-```
-
-As shown in the example above, the issue is a **data quality error**(ETL_QUALITY_UNSATISFIED). To view the detailed error, you need to visit the URL provided in the result. For example, the data exceeded the defined length of the country column in the table schema:
-
-```python
-[root@VM-10-6-centos ~]$ curl "http://10.16.10.6:28747/api/_load_error_log?file=__shard_2/error_log_insert_stmt_7602ccd7c3a4854-95307efca7bfe342_7602ccd7c3a4854_95307efca7bfe342"
-Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [USA] schema length: 1; actual length: 3; . src line []; 
-Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [Canada] schema length: 1; actual length: 6; . src line []; 
-Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [UK] schema length: 1; actual length: 2; . src line []; 
-Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [Australia] schema length: 1; actual length: 9; . src line [];
-```
-
-For data quality errors, if you want to allow skipping erroneous records, you can set a fault tolerance rate in the Properties section of the S3 Load task. For details, refer to [Import Configuration Parameters](../../import/import-way/broker-load-manual.md#related-configurations)。
-
-**3.4 Load data for multiple partitions**
-
-When migrating a large volume of historical data, it is recommended to use a batch load strategy. Each batch corresponds to one or a few partitions in Doris. It is recommended to keep the data size under 100GB per batch to reduce system load and lower the cost of retries in case of load failures.
-
-You can refer to the script [s3_load_demo.sh](https://github.com/apache/doris/blob/master/samples/load/shell/s3_load_demo.sh), which can poll the partition directory on S3 and submit the S3 Load task to Doris to achieve batch load.
+- Need to specify a new offset for consumption, for example, set offset to OFFSET_BEGINNING.
+- Need to set appropriate Kafka log cleanup parameters based on import speed: log.retention.hours, log.retention.bytes, etc.
