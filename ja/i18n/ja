@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_CUM_SUM",
+  "title": "ARRAY_DIFFERENCE",
   "language": "en",
-  "description": "Calculates the cumulative sum of an array. The function traverses the array from left to right,"
+  "description": "Calculates the difference between adjacent elements in an array. The function traverses the array from left to right,"
 }
 ---
 
-## array_cum_sum
+## array_difference
 
 <version since="2.0.0">
 
@@ -14,21 +14,21 @@
 
 ## Description
 
-Calculates the cumulative sum of an array. The function traverses the array from left to right, calculating the sum of all elements from the beginning to the current position (including the current position), and returns a new array with the same length as the original array.
+Calculates the difference between adjacent elements in an array. The function traverses the array from left to right, calculating the difference between each element and its previous element, and returns a new array with the same length as the original array. The difference of the first element is always 0.
 
 ## Syntax
 
 ```sql
-array_cum_sum(ARRAY<T> arr)
+array_difference(ARRAY<T> arr)
 ```
 
 ### Parameters
 
-- `arr`：ARRAY\<T> type, the array to calculate cumulative sum for. Supports column names or constant values.
+- `arr`：ARRAY\<T> type, the array to calculate differences for. Supports column names or constant values.
 
 **T supported types:**
 
-- Numeric types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT，FLOAT, DOUBLE，DECIMAL
+- Numeric types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT, FLOAT, DOUBLE, DECIMAL
 
 ### Return Value
 
@@ -36,25 +36,25 @@ Return type: ARRAY\<T>
 
 Return value meaning:
 
-- Returns a new array with the same length as the input array, where each position contains the sum of all elements from the beginning to the current position in the original array
+- Returns a new array with the same length as the input array, where each position contains the difference between the current element and the previous element, with the first element's difference being 0
 - NULL: if the input array is NULL
 
 Usage notes:
 
-- If the array contains other types (such as strings etc.), it will attempt to convert elements to DOUBLE type. Elements that fail conversion will result in null.
-- The function will attempt to convert all elements to compatible numeric types for cumulative sum calculation，The return type of the cumulative sum is automatically selected based on the input type:
+- If the array contains other types (such as strings etc.), it will attempt to convert elements to DOUBLE type. Elements that fail conversion will result in null and will not participate in the difference calculation.
+- The function will attempt to convert all elements to compatible numeric types for difference calculation,and the return type of the difference is automatically selected based on the input type:
   - When input is DOUBLE or FLOAT, returns ARRAY\<DOUBLE>
   - When input is integer type, returns ARRAY\<BIGINT> or ARRAY\<LARGEINT>
   - When input is DECIMAL, returns ARRAY\<DECIMAL>, maintaining original precision and scale
-- The cumulative sum calculation order is from left to right, where each position contains the sum of all non-null elements before it.
-- Empty array returns empty array, NULL array returns NULL, array with only one element returns the original array.
-- Nested arrays, MAP, STRUCT and other complex types do not support cumulative sum, calling will result in an error.
-- For null values in array elements: Starting from the first non-null value, the null after the cumulative value will be used as 0 to participate in the cumulative sum calculation.
+- The difference calculation order is from left to right, where each position contains the difference between the current element and the previous element, with the first element being 0.
+- Empty array returns empty array, NULL array returns NULL, array with only one element returns [0].
+- Complex types (nested arrays, MAP, STRUCT) do not support difference calculation, calling will result in an error.
+- For null values in array elements: null elements will affect subsequent difference calculations, when the previous element is null, the current difference will be null
 
 ### Examples
 
 ```sql
-CREATE TABLE array_cum_sum_test (
+CREATE TABLE array_difference_test (
     id INT,
     int_array ARRAY<INT>,
     double_array ARRAY<DOUBLE>
@@ -65,56 +65,45 @@ PROPERTIES (
     "replication_num" = "1"
 );
 
-INSERT INTO array_cum_sum_test VALUES
-(1, [1, 2, 3, 4, 5], [1.1, 2.2, 3.3, 4.4, 5.5]),
-(2, [10, 20, 30], [10.5, 20.5, 30.5]),
+INSERT INTO array_difference_test VALUES
+(1, [1, 3, 6, 10, 15], [1.1, 3.3, 6.6, 11.0, 16.5]),
+(2, [10, 30, 60], [10.5, 41.0, 76.5]),
 (3, [], []),
 (4, NULL, NULL);
 ```
 
 **Query examples:**
 
-Cumulative sum of int_array: each position contains the sum of all elements from the beginning to the current position (including the current position).
+Difference of int_array: each position contains the difference between the current element and the previous element, with the first element being 0.
 
 ```sql
-SELECT array_cum_sum(int_array) FROM array_cum_sum_test WHERE id = 1;
+SELECT array_difference(int_array) FROM array_difference_test WHERE id = 1;
 +-----------------------------+
-| array_cum_sum(int_array)    |
+| array_difference(int_array) |
 +-----------------------------+
-| [1, 3, 6, 10, 15]           |
+| [0, 2, 3, 4, 5]             |
 +-----------------------------+
 ```
 
-Cumulative sum of double_array: cumulative sum of floating-point array, result is floating-point.
+Difference of double_array: difference of floating-point array, result is floating-point.
 
-Note that the result at the second position is 3.3000000000000003, which is due to the small error caused by floating-point binary representation precision. 1.1 and 2.2 cannot be precisely represented in binary floating-point (IEEE 754 double), they can only be stored approximately. After adding them together, the error accumulates, resulting in 3.3000000000000003. Subsequent cumulative sums (such as 6.6, 11, 16.5) may appear as "normal values", but they are actually approximate values, just that they match the decimal after rounding. This is a phenomenon that all systems based on IEEE 754 floating-point (including MySQL, Snowflake, Python, JavaScript, etc.) will encounter.
-
-```sql
-SELECT array_cum_sum(double_array) FROM array_cum_sum_test WHERE id = 1;
-+------------------------------------------+
-| array_cum_sum(double_array)              |
-+------------------------------------------+
-| [1.1, 3.3000000000000003, 6.6, 11, 16.5] |
-+------------------------------------------+
-```
-
-When mixing strings and numbers, elements that can be converted to numbers will participate in the cumulative sum, those that cannot be converted will be null, and the null value be treated as 0 in the cumulative sum calculation.
+Note that the result at the second position is 2.1999999999999997, which is due to the small error caused by floating-point binary representation precision (3.3 - 1.1 cannot be precisely represented as 2.2 in binary). The subsequent values 3.3, 4.4, 5.5 may appear as "normal values", but they are actually binary approximations, just that they match the decimal after rounding. This is a phenomenon that all systems based on IEEE 754 floating-point (including MySQL, Snowflake, Python, JavaScript, etc.) will encounter.
 
 ```sql
-SELECT array_cum_sum(['a', 1, 'b', 2, 'c', 3]);
-+-----------------------------------------+
-| array_cum_sum(['a', 1, 'b', 2, 'c', 3]) |
-+-----------------------------------------+
-| [0, 1, 1, 3, 3, 6]                      |
-+-----------------------------------------+
+SELECT array_difference(double_array) FROM array_difference_test WHERE id = 1;
++------------------------------------------+
+| array_difference(double_array)           |
++------------------------------------------+
+| [0, 2.1999999999999997, 3.3, 4.4, 5.5]  |
++------------------------------------------+
 ```
 
 Empty array returns empty array:
 
 ```sql
-SELECT array_cum_sum(int_array) FROM array_cum_sum_test WHERE id = 3;
+SELECT array_difference(int_array) FROM array_difference_test WHERE id = 3;
 +-----------------------------+
-| array_cum_sum(int_array)    |
+| array_difference(int_array) |
 +-----------------------------+
 | []                          |
 +-----------------------------+
@@ -123,33 +112,44 @@ SELECT array_cum_sum(int_array) FROM array_cum_sum_test WHERE id = 3;
 NULL array returns NULL: returning NULL when the input array is NULL without throwing an error.
 
 ```sql
-SELECT array_cum_sum(int_array) FROM array_cum_sum_test WHERE id = 4;
+SELECT array_difference(int_array) FROM array_difference_test WHERE id = 4;
 +-----------------------------+
-| array_cum_sum(int_array)    |
+| array_difference(int_array) |
 +-----------------------------+
 | NULL                        |
 +-----------------------------+
 ```
 
-Array with only one element returns the original array:
+Array with only one element returns [0]:
 
 ```sql
-SELECT array_cum_sum([42]);
-+----------------------+
-| array_cum_sum([42])  |
-+----------------------+
-| [42]                 |
-+----------------------+
+SELECT array_difference([42]);
++------------------------+
+| array_difference([42]) |
++------------------------+
+| [0]                    |
++------------------------+
 ```
 
-Array containing null values, starting from the first non-null value, the null after the cumulative value will be used as 0 to participate in the cumulative sum calculation.
+Array containing null values, when the previous element is null, the current difference will be null.
 
 ```sql
-SELECT array_cum_sum([null, 1, null, 3, null, 5]);
+SELECT array_difference([1, null, 3, null, 5]);
++-----------------------------------------+
+| array_difference([1, null, 3, null, 5]) |
++-----------------------------------------+
+| [0, null, null, null, null]             |
++-----------------------------------------+
+```
+
+When mixing strings and numbers, elements that can be converted to numbers will participate in the difference calculation, those that cannot be converted will be null, and the result at the corresponding position will be null.
+
+```sql
+SELECT array_difference(['a', 1, 'b', 2, 'c', 3]);
 +--------------------------------------------+
-| array_cum_sum([null, 1, null, 3, null, 5]) |
+| array_difference(['a', 1, 'b', 2, 'c', 3]) |
 +--------------------------------------------+
-| [null, 1, 1, 4, 4, 9]                      |
+| [null, null, null, null, null, null]       |
 +--------------------------------------------+
 ```
 
@@ -158,38 +158,38 @@ Complex type examples:
 Nested array type not supported, throws error.
 
 ```sql
-SELECT array_cum_sum([[1,2,3]]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_cum_sum(ARRAY<ARRAY<TINYINT>>)
+SELECT array_difference([[1,2,3]]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_difference(ARRAY<ARRAY<TINYINT>>)
 ```
 
 Map type not supported, throws error.
 
 ```sql
-SELECT array_cum_sum([{'k':1},{'k':2}]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_cum_sum(ARRAY<MAP<VARCHAR(1),TINYINT>>)
+SELECT array_difference([{'k':1},{'k':2}]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_difference(ARRAY<MAP<VARCHAR(1),TINYINT>>)
 ```
 
 Struct type not supported, throws error.
 
 ```sql
-SELECT array_cum_sum(array(named_struct('name','Alice','age',20),named_struct('name','Bob','age',30)));
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_cum_sum(ARRAY<STRUCT<name:TEXT,age:TINYINT>>)
+SELECT array_difference(array(named_struct('name','Alice','age',20),named_struct('name','Bob','age',30)));
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_difference(ARRAY<STRUCT<name:TEXT,age:TINYINT>>)
 ```
 
 Incorrect number of parameters will cause an error.
 
 ```sql
-SELECT array_cum_sum([1,2,3],[4,5,6]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_cum_sum' which has 2 arity. Candidate functions are: [array_cum_sum(Expression)]
+SELECT array_difference([1,2,3],[4,5,6]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_difference' which has 2 arity. Candidate functions are: [array_difference(Expression)]
 ```
 
 Passing non-array type will cause an error.
 
 ```sql
-SELECT array_cum_sum('not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_cum_sum(VARCHAR(12))
+SELECT array_difference('not_an_array');
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_difference(VARCHAR(12))
 ```
 
 ### Keywords
 
-ARRAY, CUM, SUM, CUM_SUM, ARRAY_CUM_SUM
+ARRAY, DIFFERENCE, ARRAY_DIFFERENCE
