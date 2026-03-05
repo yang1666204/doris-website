@@ -1,68 +1,97 @@
 ---
 {
-  "title": "FMOD",
+  "title": "LN",
   "language": "en",
-  "description": "Calculate the modulo of floating-point numbers, a / b. For integer types, please use the mod function."
+  "description": "Returns the natural logarithm of x to base e."
 }
 ---
 
 ## Description
 
-Calculate the modulo of floating-point numbers, a / b. For integer types, please use the mod function.
+Returns the natural logarithm of `x` to base `e`.
+
+## Alias
+
+- DLOG1
 
 ## Syntax
 
 ```sql
-FMOD(<col_a> , <col_b>)
+LN(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                              |
-| --------- | ---------------------------------------- |
-| `<col_a>` | Dividend                                 |
-| `<col_b>` | Divisor (cannot be 0) |
+| Parameter | Description                            |
+| --------- | -------------------------------------- |
+| `<x>`     | Antilogarithm should be greater than 0 |
 
-## Return Value
+## Return value
 
-Returns a floating-point number. Special cases:
+Return a float-point number. Special cases:
 
-- When any input parameter is NULL, returns NULL.
+- If x IS NULL, return NULL
+- If x IS NaN, return NaN
+- If x is positive infinity or negative infinity, return NULL
 
-## Examples
+## Example
 
 ```sql
-select fmod(10.1, 3.2);
+select ln(1);
 ```
 
 ```text
-+-----------------+
-| fmod(10.1, 3.2) |
-+-----------------+
-|      0.50000024 |
-+-----------------+
++-----------------------+
+| ln(cast(1 as DOUBLE)) |
++-----------------------+
+|                   0.0 |
++-----------------------+
 ```
 
 ```sql
-select fmod(10.1, 0);
+select ln(e());
 ```
 
 ```text
-+---------------+
-| fmod(10.1, 0) |
-+---------------+
-|          NULL |
-+---------------+
++---------+
+| ln(e()) |
++---------+
+|     1.0 |
++---------+
 ```
 
 ```sql
-select fmod(10.1, NULL);
+select ln(10);
 ```
 
 ```text
-+------------------+
-| fmod(10.1, NULL) |
-+------------------+
-|             NULL |
-+------------------+
++------------------------+
+| ln(cast(10 as DOUBLE)) |
++------------------------+
+|      2.302585092994046 |
++------------------------+
+```
+
+```sql
+select ln(cast('inf' as double));
+```
+
+```text
++---------------------------+
+| ln(cast('inf' as double)) |
++---------------------------+
+|                  Infinity |
++---------------------------+
+```
+
+```sql
+select ln(cast('nan' as double));
+```
+
+```text
++---------------------------+
+| ln(cast('nan' as double)) |
++---------------------------+
+|                       NaN |
++---------------------------+
 ```
