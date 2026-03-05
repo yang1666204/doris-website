@@ -1,33 +1,48 @@
 ---
 {
-  "title": "Numeric Type Literal",
+  "title": "String Type Literal",
   "language": "en",
-  "description": "Use numeric Literals to specify fixed-point and floating-point numbers."
+  "description": "A string is a sequence of bytes or characters enclosed in single quotes (') or double quotes (\"). For example:"
 }
 ---
 
-Use numeric Literals to specify fixed-point and floating-point numbers.
+## Description
 
-## Integer Literal
+A string is a sequence of bytes or characters enclosed in single quotes (') or double quotes ("). For example:
 
-Integers are represented as a sequence of digits. They may have a sign. For example: +1, -2, 345.
+```sql
+'a string'
+"another string"
+```
 
-Doris determines the type used to store integer literals based on the input value. The range mapping is shown in the table below:
+## Escape Characters
 
-| Value Range         | Type     |
-| :------------------ | :------- |
-| -2^8 to 2^8 - 1     | TINYINT  |
-| -2^16 to 2^16 - 1   | SMALLINT |
-| -2^32 to 2^32 - 1   | INT      |
-| -2^64 to 2^64 - 1   | BIGINT   |
-| -2^128 to 2^128 - 1 | LARGEINT |
+In strings, certain sequences have special meanings unless the NO_BACKSLASH_ESCAPES SQL mode is enabled. These sequences start with a backslash (\), which is known as an escape character. The escape characters recognized by Doris are listed in the table below:
 
-## Fixed and Floating Point Numeric Literals
+| Escape Character | Meaning                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| `\0`            | ASCII character NUL ('X'00')                    |
+| `\'`            | Single quote (')                                |
+| `\"`            | Double quote (")                                |
+| `\b`            | Backspace                                                          |
+| `\n`            | Newline                                                            |
+| `\r`            | Carriage return                                                    |
+| `\t`            | Tab                                                                |
+| `\Z`            | ASCII 26 (Control+Z)                            |
+| `\\`           | Backslash (`\`)                                |
+| `\%`            | Percent sign `%`. For details, see the notes below |
+| `\_`            | Underscore `_`. For details, see the notes below   |
 
-Fixed and floating point numeric literals can have an integer part, a fractional part, or both. They may have a sign. For example: 1, .2, 3.4, -5, -6.78, +9.10.
+**Notes**
 
-They can also be represented in scientific notation, including the significand and exponent. Either part or both can have a sign. For example: 1.2E3, 1.2E-3, -1.2E3, -1.2E-3.
+> 1. In pattern matching contexts, `%` and `_` are usually interpreted as wildcards, but using the sequences `\%` and `\_` can search for literal instances of `%` and `_`. For more information, see the description of the LIKE operator in the "Pattern Matching Operators" section. If `\%` or `\_` are used outside of pattern contexts, they will be calculated as the string `\%` and `\_`, not as `%` and `_`.
+> 2. Backslashes in escape characters not listed in the table are ignored. For example, `'\y'` and \`'y' are equivalent.
 
-Numbers represented in this way are preferentially parsed as fixed-point numbers. The range of supported fixed-point numbers is controlled by the variable `enable_decimal256`. When `enable_decimal256` is `TRUE`, the maximum precision is 76. When `enable_decimal256` is `FALSE`, the maximum precision is 38.
+## Using Quotes in String Literals
 
-When the precision required by a number exceeds the maximum value representable by fixed-point numbers, it is parsed as a floating-point number, with the type DOUBLE.
+There are several ways to include quote characters in strings:
+
+- In a string enclosed in single quotes ('), single quotes can be written as two single quotes ('').
+- In a string enclosed in double quotes ("), double quotes can be written as two double quotes (").
+- Add an escape character (`\`) before the quote character.
+- When including a single quote in a string enclosed in double quotes, no special treatment is necessary, nor must the single quote be doubled or escaped. Similarly, when including a double quote in a string enclosed in single quotes, no special treatment is required.
