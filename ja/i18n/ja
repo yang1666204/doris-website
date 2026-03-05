@@ -1,82 +1,87 @@
 ---
 {
-  "title": "MICROSECOND_TIMESTAMP",
+  "title": "MICROSECOND",
   "language": "en",
-  "description": "The MICROSECONDTIMESTAMP function is used to convert an input datetime value into a Unix timestamp calculated from 1970-01-01 00:00:00 (adjusted by "
+  "description": "The MICROSECOND function extracts the microsecond part (up to six digits after the decimal point) from the input datetime value,"
 }
 ---
 
 ## Description
 
-The MICROSECOND_TIMESTAMP function is used to convert an input datetime value into a Unix timestamp calculated from 1970-01-01 00:00:00 (adjusted by the local time zone offset), with the unit being microseconds (1 second = 1,000,000 microseconds). This function supports processing DATETIME types with microsecond precision, and automatically ignores time zone differences during conversion (using UTC time as the default reference).
+The MICROSECOND function extracts the microsecond part (up to six digits after the decimal point) from the input datetime value, returning a range from 0 to 999999. This function supports processing DATETIME types with microsecond precision, and automatically pads zeros for inputs with insufficient precision.
+
+This function behaves the same as MySQL’s [microsecond function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_microsecond).
 
 ## Syntax
 
 ```sql
-MICROSECOND_TIMESTAMP(`<datetime>`)
+MICROSECOND(`<datetime>`)
 ```
 
 ## Parameters
 
-| Parameter    | Description                                                                                                                                                                                                                                                               |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<datetime>` | Represents the datetime to be converted into a Unix timestamp. Supports the `DATETIME` type. For specific datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) |
+| Parameter    | Description                                                                                                                                                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<datetime>` | The input datetime value, of type DATETIME. For datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) . Precision must be greater than 0. |
 
 ## Return Value
 
-Returns a `BIGINT` integer representing the Unix timestamp in microseconds corresponding to the input datetime (total microseconds converted to the current time zone).
+Returns an INT type, representing the microsecond part of the datetime value. The range is 0 to 999999. For inputs with precision less than 6, missing digits are padded with zeros.
 
-- If the input is `NULL`, the function returns `NULL`.
-- If the input datetime is before 1970-01-01 00:00:00.000 UTC, the result is negative.
+- If the input datetime does not contain a microsecond part (e.g., '2023-01-01 10:00:00'), returns 0.
+- If the input is NULL, returns NULL.
+- If the input datetime has microsecond precision less than 6 digits, missing digits are automatically padded with zeros (e.g., 12:34:56.123 is parsed as 123000 microseconds).
 
 ## Examples
 
 ```sql
--- Convert a DATETIME with microsecond precision, executed in a machine with the East 8 time zone
-SELECT MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456');
-+-----------------------------------------------------+
-| MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456') |
-+-----------------------------------------------------+
-|                                    1737606896123456 |
-+-----------------------------------------------------+
 
--- Explicitly specify the time zone as UTC
-SELECT MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456 UTC');
+-- Extracts a value with 6-digit microseconds
+SELECT MICROSECOND(CAST('1999-01-02 10:11:12.000123' AS DATETIME(6)));
++----------------------------------------------------------------+
+| MICROSECOND(CAST('1999-01-02 10:11:12.000123' AS DATETIME(6))) |
++----------------------------------------------------------------+
+|                                                            123 |
++----------------------------------------------------------------+
+
+-- Scale is 4
+SELECT MICROSECOND(CAST('1999-01-02 10:11:12.0123' AS DATETIME(4)));
++--------------------------------------------------------------+
+| MICROSECOND(CAST('1999-01-02 10:11:12.0123' AS DATETIME(4))) |
++--------------------------------------------------------------+
+|                                                        12300 |
++--------------------------------------------------------------+
+
+-- Pads microsecond part with zeros (precision less than 6 digits)
+SELECT MICROSECOND(CAST('1999-01-02 10:11:12.123' AS DATETIME(6)));
++-------------------------------------------------------------+
+| MICROSECOND(CAST('1999-01-02 10:11:12.123' AS DATETIME(6))) |
++-------------------------------------------------------------+
+|                                                      123000 |
++-------------------------------------------------------------+
+
+-- Datetime without scale returns 0
+SELECT MICROSECOND(CAST('1999-01-02 10:11:12' AS DATETIME(6)));
 +---------------------------------------------------------+
-| MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456 UTC') |
+| MICROSECOND(CAST('1999-01-02 10:11:12' AS DATETIME(6))) |
 +---------------------------------------------------------+
-|                                        1737635696123456 |
+|                                                       0 |
 +---------------------------------------------------------+
 
--- Input type is DATE, time part is automatically set to 00:00:00.000000
-SELECT MICROSECOND_TIMESTAMP('1970-01-01');
-+-------------------------------------+
-| MICROSECOND_TIMESTAMP('1970-01-01') |
-+-------------------------------------+
-|                        -28800000000 |
-+-------------------------------------+
-
--- Specified time zone is out of range, returns NULL
-SELECT MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456 +15:00');
-+------------------------------------------------------------+
-| MICROSECOND_TIMESTAMP('2025-01-23 12:34:56.123456 +15:00') |
-+------------------------------------------------------------+
-|                                                       NULL |
-+------------------------------------------------------------+
-
--- If the input datetime is before 1970 (standard UTC), returns a negative value
-SELECT MICROSECOND_TIMESTAMP('1960-01-01 00:00:00 UTC');
-+---------------------------------------------------+
-| MICROSECOND_TIMESTAMP('1960-01-01 00:00:00 UTC') |
-+---------------------------------------------------+
-|                                  -315619200000000 |
-+---------------------------------------------------+
+-- When a string literal is valid for both datetime and time, prefer parsing it as time
+SELECT MICROSECOND("22:12:12.123456");
++--------------------------------+
+| MICROSECOND("22:12:12.123456") |
++--------------------------------+
+|                         123456 |
++--------------------------------+
 
 -- Input is NULL, returns NULL
-SELECT MICROSECOND_TIMESTAMP(NULL);
-+-----------------------------+
-| MICROSECOND_TIMESTAMP(NULL) |
-+-----------------------------+
-|                        NULL  |
-+-----------------------------+
+SELECT MICROSECOND(NULL);
++-------------------+
+| MICROSECOND(NULL) |
++-------------------+
+|              NULL |
++-------------------+
+
 ```
