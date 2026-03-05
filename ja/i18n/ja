@@ -1,75 +1,78 @@
 ---
 {
-  "title": "TO_HEX",
+  "title": "ABS",
   "language": "en",
-  "description": "Convert the input string into the corresponding byte sequence in hexadecimal."
+  "description": "Returns the absolute value of x"
 }
 ---
 
 ## Description
 
-Convert the input string into the corresponding byte sequence in hexadecimal.
-
-## Alias
-
-TO_BINARY
+Returns the absolute value of `x`
 
 ## Syntax
 
 ```sql
-TO_HEX(<str>)
+ABS(<x>) 
 ```
 
 ## Parameters
 
-| Parameter | Description                     |
-| --------- | ------------------------------- |
-| `<str>`   | The string data to be converted |
+| Parameter | Description                                                |
+| --------- | ---------------------------------------------------------- |
+| `<x>`     | The value for which the absolute value is to be calculated |
 
 ## Return Value
 
-Return the decoded VARBINARY (displayed in hexadecimal format with a 0x prefix).
-Return NULL if any of the following conditions are met:
-The input is NULL;
-The input length is 0;
-The input length is odd;
-The input contains characters other than [0-9a-fA-F];
-The length of the decoded result is 0 (decoding failed).
+The absolute value of parameter `x`.
+When `x` is NULL, returns NULL.
 
-## Examples
+## Example
 
 ```sql
-select to_hex(NULL),to_hex('a');
+select abs(-2);
 ```
 
 ```text
-+----------------------------+--------------------------+
-| to_hex(NULL)               | to_hex('a')              |
-+----------------------------+--------------------------+
-| NULL                       | NULL                     |
-+----------------------------+--------------------------+
++---------+
+| abs(-2) |
++---------+
+|       2 |
++---------+
 ```
 
 ```sql
-select to_hex('ab');
+select abs(3.254655654);
 ```
 
 ```text
-+----------------------------+
-| to_hex('ab')               |
-+----------------------------+
-| 0xAB                       |
-+----------------------------+
++------------------+
+| abs(3.254655654) |
++------------------+
+|      3.254655654 |
++------------------+
 ```
 
 ```sql
-select to_hex('000A');
+select abs(-3254654236547654354654767);
 ```
 
 ```text
-+--------------------------------+
-| to_hex('000A')                 |
-+--------------------------------+
-| 0x000A                         |
-+--------------------------------+
++---------------------------------+
+| abs(-3254654236547654354654767) |
++---------------------------------+
+| 3254654236547654354654767       |
++---------------------------------+
+```
+
+```sql
+select abs(NULL);
+```
+
+```text
++-----------+
+| abs(NULL) |
++-----------+
+|      NULL |
++-----------+
 ```
