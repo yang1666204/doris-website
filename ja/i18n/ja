@@ -1,69 +1,57 @@
 ---
 {
-  "title": "BITMAP-UNION-INT",
+  "title": "MEDIAN",
   "language": "en",
-  "description": "Counts the number of distinct values in the input expression. The return value is the same as COUNT(DISTINCT expr)."
+  "description": "The MEDIAN function returns the median of the expression, equivalent to percentile(expr, 0.5)."
 }
 ---
 
 ## Description
 
-Counts the number of distinct values in the input expression. The return value is the same as COUNT(DISTINCT expr).
+The MEDIAN function returns the median of the expression, equivalent to percentile(expr, 0.5).
 
 ## Syntax
 
 ```sql
-BITMAP_UNION_INT(<expr>)
+MEDIAN(<expr>)
 ```
 
-## Arguments
+## Parameters
 
-| Argument | Description                                                                                                        |
-| -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `<expr>` | The input expression. Supported types: TinyInt, SmallInt, Integer. |
+| Parameter | Description                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `<expr>`  | The expression to calculate, supports types: Double, Float, LargeInt, BigInt, Int, SmallInt, TinyInt. |
 
 ## Return Value
 
-Returns the number of distinct values in the column. If there is no valid data in the group, returns 0.
+Returns the same data type as the input expression.
+Returns NULL if there is no valid data in the group.
 
 ## Example
 
 ```sql
--- setup
-CREATE TABLE pv_bitmap (
-    dt INT,
-    page INT,
-    user_id BITMAP
-) DISTRIBUTED BY HASH(dt) BUCKETS 1
-PROPERTIES ("replication_num" = "1");
-INSERT INTO pv_bitmap VALUES
-    (1, 100, to_bitmap(100)),
-    (1, 100, to_bitmap(200)),
-    (1, 100, to_bitmap(300)),
-    (1, 300, to_bitmap(300)),
-    (2, 200, to_bitmap(300));
-```
-
-```sql
-select bitmap_union_int(dt) from pv_bitmap;
+select datetime, median(scan_rows) from log_statis group by datetime;
 ```
 
 ```text
-+----------------------+
-| bitmap_union_int(dt) |
-+----------------------+
-|                    2 |
-+----------------------+
+select datetime, median(scan_rows) from log_statis group by datetime;
++---------------------+-------------------+
+| datetime            | median(scan_rows) |
++---------------------+-------------------+
+| 2025-08-25 10:00:00 |                50 |
+| 2025-08-25 11:00:00 |                30 |
++---------------------+-------------------+
 ```
 
 ```sql
-select bitmap_union_int(dt) from pv_bitmap where dt is null;
+select median(scan_rows) from log_statis group by datetime;
 ```
 
 ```text
-+----------------------+
-| bitmap_union_int(dt) |
-+----------------------+
-|                    0 |
-+----------------------+
+select median(scan_rows) from log_statis where scan_rows is null;
++-------------------+
+| median(scan_rows) |
++-------------------+
+|              NULL |
++-------------------+
 ```
