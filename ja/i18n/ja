@@ -1,84 +1,67 @@
 ---
 {
-  "title": "TANH",
+  "title": "CloudDM",
   "language": "en",
-  "description": "Returns the hyperbolic tangent of x."
+  "description": "CloudDM, developed by Clougence, is a powerful cross-platform database management tool designed for both teams and individual users."
 }
 ---
 
-## Description
+## Introduction
 
-Returns the hyperbolic tangent of x.
+CloudDM, developed by Clougence, is a powerful cross-platform database management tool designed for both teams and individual users.
 
-## Syntax
+It provides dedicated support for key features of Apache Doris, offering capabilities such as data access, data masking, visual editing, and database CI/CD workflows.
 
-```sql
-TANH(<x>)
-```
+## Preconditions
 
-## Parameters
+Install CloudDM. You can download and install CloudDM from https://www.cdmgr.com/.
 
-| Parameter | Description                                                    |
-| --------- | -------------------------------------------------------------- |
-| `<x>`     | The value for which the hyperbolic tangent is to be calculated |
+## Add data source
 
-## Return Value
+:::info Note
+CloudDM version should be 2.8.0.0 or above.
+:::
 
-The hyperbolic tangent of parameter x.
+1. Log in to CloudDM.
 
-## Special Cases
+2. Click **DataSources** > **Add DataSources**.
 
-- When `x` is NaN, returns NaN
-- When `x` is positive infinity, returns 1
-- When `x` is negative infinity, returns -1
-- When `x` is NULL, returns NULL
+3. Select **Doris** for the Type.
 
-## Example
+   ![add datasource](/images/clouddm1-en.png)
 
-```sql
-select tanh(0),tanh(1);
-```
+4. Enter the following required information to connect to the Doris instance.
+   - Client Address: The FE query port of the Doris cluster, for example: hostID:9030.
+   - Account: Username used to log in to the Doris cluster, for example: admin.
+   - Password: Password used to log in to the Doris cluster.
 
-```text
-+-------------------------+-------------------------+
-| tanh(cast(0 as DOUBLE)) | tanh(cast(1 as DOUBLE)) |
-+-------------------------+-------------------------+
-|                       0 |      0.7615941559557649 |
-+-------------------------+-------------------------+
-```
+:::tip
+CloudDM can manage both internal catalogs and external catalogs in Doris.
+:::
 
-```sql
-select tanh(cast('nan' as double));
-```
+:::info Note
+Managing the external catalog connected to Doris through the Database form of catalog.db requires Doris version 2.1.0 and above.
+:::
 
-```text
-+-----------------------------+
-| tanh(cast('nan' AS DOUBLE)) |
-+-----------------------------+
-| NaN                         |
-+-----------------------------+
-```
+5. Click **Query Settings** in the top navigation bar. Then enable **Data Management**.
 
-```sql
-select tanh(cast('inf' as double));
-```
+   ![enable data manage](/images/clouddm2-en.png)
 
-```text
-+-----------------------------+
-| tanh(cast('inf' AS DOUBLE)) |
-+-----------------------------+
-| 1                           |
-+-----------------------------+
-```
+6. Access data.  
+   In the database connection navigation panel on the left, you can view the added Doris connection. Then you can start to manage the data through **CloudDM**.
 
-```sql
-select tanh(cast('-inf' as double));
-```
+   ![connect to data source](/images/clouddm3-en.png)
 
-```text
-+------------------------------+
-| tanh(cast('-inf' AS DOUBLE)) |
-+------------------------------+
-| -1                           |
-+------------------------------+
-```
+## Function support
+
+- Query Client
+  - Visually manage database objects in Doris
+  - Write and execute SQL in the console
+  - Export query results
+
+- Team Collaboration
+  - Statement-level authorization with table-level granularity
+  - Workflow and approval for SQL requests
+  - Database CI/CD
+  - Data masking for sensitive information
+  - SQL review rules
