@@ -1,203 +1,150 @@
 ---
 {
-  "title": "Integration with Glue + AWS S3 Tables",
+  "title": "Integrating Alibaba Cloud DLF Rest Catalog",
   "language": "en",
-  "description": "AWS S3 Tables is a special type of S3 Bucket that provides read and write interfaces compatible with Apache Iceberg table format standards,"
+  "description": "This article explains how to integrate Apache Doris with Alibaba Cloud DLF (Data Lake Formation) Rest Catalog for seamless access and analysis of Paimon table data, including guides on creating Catalog, querying data, and incremental reading."
 }
 ---
 
-[AWS S3 Tables](https://aws.amazon.com/s3/features/tables/) is a special type of S3 Bucket that provides read and write interfaces compatible with Apache Iceberg table format standards, built on Amazon S3, offering the same durability, availability, scalability, and performance characteristics as S3 itself. Additionally, S3 Tables provides the following features:
+Alibaba Cloud [Data Lake Formation (DLF)](https://cn.aliyun.com/product/bigdata/dlf), as a core component of the cloud-native data lake architecture, helps users quickly build cloud-native data lake solutions. DLF provides unified metadata management on the data lake, enterprise-level permission control, and seamless integration with multiple compute engines, breaking down data silos and enabling business insights.
 
-- Compared to Iceberg tables stored in regular S3 Buckets, S3 Tables can deliver up to 3x higher query performance and up to 10x higher transactions per second.
-- Automated table management. S3 Tables automatically optimizes Iceberg table data, including small file compaction, snapshot management, and garbage file cleanup.
+- Unified Metadata and Storage
 
-The release of S3 Tables further simplifies Lakehouse architecture and brings more possibilities for cloud-native lake-warehouse systems. This includes cold-hot separation, data archiving, data backup, and compute-storage separation architectures, all of which could evolve into entirely new architectures based on S3 Tables.
+  Big data compute engines share a single set of lake metadata and storage, with data flowing seamlessly between lake products.
 
-Thanks to Amazon S3 Tables' high compatibility with the Iceberg API, Apache Doris can quickly integrate with S3 Tables. This article will demonstrate how to connect Apache Doris with S3 Tables and perform data analysis and processing.
+- Unified Permission Management
+
+  Big data compute engines share a single set of lake table permission configurations, enabling one-time setup with universal effect.
+
+- Storage Optimization
+
+  Provides optimization strategies including small file compaction, expired snapshot cleanup, partition reorganization, and obsolete file cleanup to improve storage efficiency.
+
+- Comprehensive Cloud Ecosystem Support
+
+  Deep integration with Alibaba Cloud products, including streaming and batch compute engines, delivering out-of-the-box functionality and enhanced user experience.
+
+DLF supports Paimon Rest Catalog starting from version 2.5. Doris supports integration with DLF 2.5+ Paimon Rest Catalog starting from version 3.0.3/3.1.0, enabling seamless connection to DLF for accessing and analyzing Paimon table data. This article demonstrates how to connect Apache Doris with DLF 2.5+ and access Paimon table data.
 
 :::tip
-This feature is supported since Doris 3.1
+This feature is supported starting from Doris version 3.0.3/3.1.0.
 :::
 
 ## Usage Guide
 
-### 01 Create S3 Table Bucket
+### 01 Enable DLF Service
 
-S3 Table Bucket is the third type of Bucket launched by S3, on par with the previous General purpose bucket and Directory bucket.
+Please refer to the DLF official documentation to enable the DLF service and create the corresponding Catalog, Database, and Table.
 
-![AWS S3 Table Bucket](/images/Lakehouse/s3-table-bucket.png)
+### 02 Access DLF Using EMR Spark SQL
 
-Here we create a Table Bucket named doris-s3-table-bucket. After creation, we will get a Table Bucket represented by an ARN.
-
-![AWS S3 Table Bucket Create](/images/Lakehouse/s3-table-bucket-create.png)
-
-### 02 Create Iceberg Catalog
-
-- Connecting to `s3 tables` using AWS S3 Table Rest Catalog
+- Connect
 
     ```sql
-    CREATE CATALOG aws_s3_tables PROPERTIES (
-        'type' = 'iceberg',
-        'iceberg.catalog.type' = 'rest',
-        'warehouse' = 'arn:aws:s3tables:us-east-1:<account_id>:bucket/<s3_table_bucket_name>',
-        'iceberg.rest.uri' = 'https://s3tables.us-east-1.amazonaws.com/iceberg',
-        'iceberg.rest.sigv4-enabled' = 'true',
-        'iceberg.rest.signing-name' = 's3tables',
-        'iceberg.rest.signing-region' = 'us-east-1',
-        'iceberg.rest.access-key-id' = '<ak>',
-        'iceberg.rest.secret-access-key' = '<sk>'
+    spark-sql --master yarn \
+        --conf spark.driver.memory=5g \
+        --conf spark.sql.defaultCatalog=paimon \
+        --conf spark.sql.catalog.paimon=org.apache.paimon.spark.SparkCatalog \
+        --conf spark.sql.catalog.paimon.metastore=rest \
+        --conf spark.sql.extensions=org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions \
+        --conf spark.sql.catalog.paimon.uri=http://<region>-vpc.dlf.aliyuncs.com \
+        --conf spark.sql.catalog.paimon.warehouse=<your-catalog-name> \
+        --conf spark.sql.catalog.paimon.token.provider=dlf \
+        --conf spark.sql.catalog.paimon.dlf.token-loader=ecs
+    ```
+
+  > Replace the corresponding `warehouse` and `uri` addresses.
+
+- Write Data
+
+    ```sql
+    USE <your-catalog-name>;
+    
+    CREATE TABLE users_samples
+    (
+        user_id INT,             
+        age_level STRING,           
+        final_gender_code STRING,    
+        clk BOOLEAN
+    );
+    
+    INSERT INTO users_samples VALUES
+    (1, '25-34', 'M', true),
+    (2, '18-24', 'F', false);
+    
+    INSERT INTO users_samples VALUES
+    (3, '25-34', 'M', true),
+    (4, '18-24', 'F', false);
+    
+    INSERT INTO users_samples VALUES
+    (5, '25-34', 'M', true),
+    (6, '18-24', 'F', false);
+    ```
+
+  If you encounter the following error, try removing `paimon-jindo-x.y.z.jar` from `/opt/apps/PAIMON/paimon-dlf-2.5/lib/spark3`, then restart the Spark service and retry.
+
+    ```
+    Ambiguous FileIO classes are:
+    org.apache.paimon.jindo.JindoLoader
+    org.apache.paimon.oss.OSSLoader
+    ```
+
+### 03 Connect to DLF Using Doris
+
+- Create Paimon Catalog
+
+    ```sql
+    CREATE CATALOG paimon_dlf_test PROPERTIES (
+        'type' = 'paimon',
+        'paimon.catalog.type' = 'rest',
+        'uri' = 'http://<region>-vpc.dlf.aliyuncs.com',
+        'warehouse' = '<your-catalog-name>',
+        'paimon.rest.token.provider' = 'dlf',
+        'paimon.rest.dlf.access-key-id' = '<ak>',
+        'paimon.rest.dlf.access-key-secret' = '<sk>'
     );
     ```
 
-- Connecting to `s3 tables` using Glue Rest Catalog
+  - Doris uses the temporary credentials returned by DLF to access OSS object storage, so no additional OSS credentials are required.
+  - DLF can only be accessed within the same VPC. Ensure you provide the correct URI address.
+
+- Query Data
 
     ```sql
-    CREATE CATALOG glue_s3 PROPERTIES (
-        'type' = 'iceberg',
-        'iceberg.catalog.type' = 'rest',
-        'iceberg.rest.uri' = 'https://glue.<region>.amazonaws.com/iceberg',
-        'warehouse' = '<acount_id>:s3tablescatalog/<s3_table_bucket_name>',
-        'iceberg.rest.sigv4-enabled' = 'true',
-        'iceberg.rest.signing-name' = 'glue',
-        'iceberg.rest.access-key-id' = '<ak>',
-        'iceberg.rest.secret-access-key' = '<sk>',
-        'iceberg.rest.signing-region' = '<region>'
-    );
+    SELECT * FROM users_samples ORDER BY user_id;
+    +---------+-----------+-------------------+------+
+    | user_id | age_level | final_gender_code | clk  |
+    +---------+-----------+-------------------+------+
+    |       1 | 25-34     | M                 |    1 |
+    |       2 | 18-24     | F                 |    0 |
+    |       3 | 25-34     | M                 |    1 |
+    |       4 | 18-24     | F                 |    0 |
+    |       5 | 25-34     | M                 |    1 |
+    |       6 | 18-24     | F                 |    0 |
+    +---------+-----------+-------------------+------+
     ```
 
-### 03 Access S3Tables
+- Query System Tables
 
-```sql
-Doris > SWITCH iceberg_s3;
+    ```sql
+    SELECT snapshot_id, commit_time, total_record_count FROM users_samples$snapshots;
+    +-------------+-------------------------+--------------------+
+    | snapshot_id | commit_time             | total_record_count |
+    +-------------+-------------------------+--------------------+
+    |           1 | 2025-08-09 05:56:02.906 |                  2 |
+    |           2 | 2025-08-13 03:41:32.732 |                  4 |
+    |           3 | 2025-08-13 03:41:35.218 |                  6 |
+    +-------------+-------------------------+--------------------+
+    ```
 
-Doris > SHOW DATABASES;
-+--------------------+
-| Database           |
-+--------------------+
-| information_schema |
-| my_namespace       |
-| mysql              |
-+--------------------+
+- Incremental Reading
 
-Doris > USE my_namespace;
-
-Doris > SHOW TABLES;
-+------------------------+
-| Tables_in_my_namespace |
-+------------------------+
-| my_table               |
-+------------------------+
-
-Doris > SELECT * FROM my_table;
-+------+------+-------+
-| id   | name | value |
-+------+------+-------+
-|    1 | ABC  |   100 |
-|    2 | XYZ  |   200 |
-+------+------+-------+
-```
-
-### 04 Create S3Tables Table and Write Data
-
-```sql
-Doris > CREATE TABLE partition_table (
-    ->   `ts` DATETIME COMMENT 'ts',
-    ->   `id` INT COMMENT 'col1',
-    ->   `pt1` STRING COMMENT 'pt1',
-    ->   `pt2` STRING COMMENT 'pt2'
-    -> )
-    -> PARTITION BY LIST (day(ts), pt1, pt2) ();
-
-Doris > INSERT INTO partition_table VALUES
-    -> ("2024-01-01 08:00:00", 1000, "us-east", "PART1"),
-    -> ("2024-01-02 10:00:00", 1002, "us-sout", "PART2");
-Query OK, 2 rows affected
-{'status':'COMMITTED', 'txnId':'1736935786473'}
-
-Doris > SELECT * FROM partition_table;
-+----------------------------+------+---------+-------+
-| ts                         | id   | pt1     | pt2   |
-+----------------------------+------+---------+-------+
-| 2024-01-02 10:00:00.000000 | 1002 | us-sout | PART2 |
-| 2024-01-01 08:00:00.000000 | 1000 | us-east | PART1 |
-+----------------------------+------+---------+-------+
-```
-
-### 05 Time Travel
-
-We can insert another batch of data, then use the `$snapshots` system table to view Iceberg Snapshots:
-
-```sql
-Doris > INSERT INTO partition_table VALUES
-    -> ("2024-01-03 08:00:00", 1000, "us-east", "PART1"),
-    -> ("2024-01-04 10:00:00", 1002, "us-sout", "PART2");
-Query OK, 2 rows affected (9.76 sec)
-{'status':'COMMITTED', 'txnId':'1736935786474'}
-```
-
-```
-Doris > SELECT * FROM partition_table$snapshots\G
-*************************** 1. row ***************************
- committed_at: 2025-01-15 23:27:01
-  snapshot_id: 6834769222601914216
-    parent_id: -1
-    operation: append
-manifest_list: s3://80afcb3f-6edf-46f2-7fhehwj6cengfwc7n6iz7ipzakd7quse1b--table-s3/metadata/snap-6834769222601914216-1-a6b2230d-fc0d-4c1d-8f20-94bb798f27b1.avro
-      summary: {"added-data-files":"2","added-records":"2","added-files-size":"5152","changed-partition-count":"2","total-records":"2","total-files-size":"5152","total-data-files":"2","total-delete-files":"0","total-position-deletes":"0","total-equality-deletes":"0","iceberg-version":"Apache Iceberg 1.6.1 (commit 8e9d59d299be42b0bca9461457cd1e95dbaad086)"}
-*************************** 2. row ***************************
- committed_at: 2025-01-15 23:30:00
-  snapshot_id: 5670090782912867298
-    parent_id: 6834769222601914216
-    operation: append
-manifest_list: s3://80afcb3f-6edf-46f2-7fhehwj6cengfwc7n6iz7ipzakd7quse1b--table-s3/metadata/snap-5670090782912867298-1-beeed339-be96-4710-858b-f39bb01cc3ff.avro
-      summary: {"added-data-files":"2","added-records":"2","added-files-size":"5152","changed-partition-count":"2","total-records":"4","total-files-size":"10304","total-data-files":"4","total-delete-files":"0","total-position-deletes":"0","total-equality-deletes":"0","iceberg-version":"Apache Iceberg 1.6.1 (commit 8e9d59d299be42b0bca9461457cd1e95dbaad086)"}
-```
-
-Use the `VERSION AS OF` syntax to query different snapshots:
-
-```sql
-Doris > SELECT * FROM partition_table FOR VERSION AS OF 5670090782912867298;
-+----------------------------+------+---------+-------+
-| ts                         | id   | pt1     | pt2   |
-+----------------------------+------+---------+-------+
-| 2024-01-04 10:00:00.000000 | 1002 | us-sout | PART2 |
-| 2024-01-03 08:00:00.000000 | 1000 | us-east | PART1 |
-| 2024-01-01 08:00:00.000000 | 1000 | us-east | PART1 |
-| 2024-01-02 10:00:00.000000 | 1002 | us-sout | PART2 |
-+----------------------------+------+---------+-------+
-
-Doris > SELECT * FROM partition_table FOR VERSION AS OF 6834769222601914216;
-+----------------------------+------+---------+-------+
-| ts                         | id   | pt1     | pt2   |
-+----------------------------+------+---------+-------+
-| 2024-01-02 10:00:00.000000 | 1002 | us-sout | PART2 |
-| 2024-01-01 08:00:00.000000 | 1000 | us-east | PART1 |
-+----------------------------+------+---------+-------+
-```
-
-### 06 Access S3 Tables Using EMR Spark
-
-Data written using Doris can also be accessed using Spark:
-
-```shell
-spark-shell --jars /usr/share/aws/iceberg/lib//iceberg-spark-runtime-3.5_2.12-1.6.1-amzn-1.jar \
---packages software.amazon.s3tables:s3-tables-catalog-for-iceberg-runtime:0.1.3 \
---conf spark.sql.catalog.s3tablesbucket=org.apache.iceberg.spark.SparkCatalog \
---conf spark.sql.catalog.s3tablesbucket.catalog-impl=software.amazon.s3tables.iceberg.S3TablesCatalog \
---conf spark.sql.catalog.s3tablesbucket.warehouse=arn:aws:s3tables:us-east-1:169698000000:bucket/doris-s3-table-bucket \
---conf spark.sql.defaultCatalog=s3tablesbucket \
---conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
-```
-
-```sql
-scala> spark.sql("SELECT * FROM s3tablesbucket.my_namespace.`partition_table` ").show()
-+-------------------+----+-------+-----+
-|                 ts|  id|    pt1|  pt2|
-+-------------------+----+-------+-----+
-|2024-01-02 10:00:00|1002|us-sout|PART2|
-|2024-01-01 08:00:00|1000|us-east|PART1|
-|2024-01-04 10:00:00|1002|us-sout|PART2|
-|2024-01-03 08:00:00|1000|us-east|PART1|
-+-------------------+----+-------+-----+
-```
-
+    ```sql
+    SELECT * FROM users_samples@incr('startSnapshotId'=1, 'endSnapshotId'=2) ORDER BY user_id;
+    +---------+-----------+-------------------+------+
+    | user_id | age_level | final_gender_code | clk  |
+    +---------+-----------+-------------------+------+
+    |       3 | 25-34     | M                 |    1 |
+    |       4 | 18-24     | F                 |    0 |
+    +---------+-----------+-------------------+------+
+    ```
