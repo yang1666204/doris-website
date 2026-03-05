@@ -1,71 +1,84 @@
 ---
 {
-  "title": "COLLECT_SET",
+  "title": "CORR",
   "language": "en",
-  "description": "Aggregation function aggregates all unique values of the specified column, removes duplicate elements, and returns a set type result."
+  "description": "Calculates the Pearson correlation coefficient between two random variables."
 }
 ---
 
 ## Description
 
-Aggregation function aggregates all unique values of the specified column, removes duplicate elements, and returns a set type result.
-
-## Alias
-
-- GROUP_UNIQ_ARRAY
+Calculates the Pearson correlation coefficient between two random variables.
 
 ## Syntax
 
 ```sql
-COLLECT_SET(<expr> [,<max_size>])
+CORR(<expr1>, <expr2>)
 ```
 
 ## Parameters
 
-| Parameter    | Description                                                                                                                                                                                                                                                                          |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<expr>`     | An expression to determine the values to be placed into the array. Supported types: Bool, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, Timestamptz, IPV4, IPV6, String, Array, Map, Struct. |
-| `<max_size>` | Optional parameter to limit the result array size to max_size elements. Supported type: Integer.                                                                                                                |
+| Parameters | Description                                                                           |
+| ---------- | ------------------------------------------------------------------------------------- |
+| `<expr1>`  | Expression for calculation. Supported type is Double. |
+| `<expr2>`  | Expression for calculation. Supported type is Double. |
 
 ## Return Value
 
-Returns ARRAY type, containing all non-NULL values after deduplication. If there is no valid data in the group, returns an empty array.
+Returns a DOUBLE type value, which is the covariance of expr1 and expr2 divided by the product of their standard deviations. Special cases:
+
+- If the standard deviation of expr1 or expr2 is 0, returns 0.
+- If expr1 or expr2 contains NULL values, those rows are excluded from the calculation.
+- If there is no valid data in the group, returns NULL.
 
 ## Example
 
 ```sql
 -- setup
-CREATE TABLE collect_set_test (
-	k1 INT,
-	k2 INT,
-	k3 STRING
-) DISTRIBUTED BY HASH(k1) BUCKETS 1
-PROPERTIES ("replication_num" = "1");
-INSERT INTO collect_set_test VALUES (1, 10, 'a'), (1, 20, 'b'), (1, 10, 'a'), (2, 100, 'x'), (2, 200, 'y'), (3, NULL, NULL);
+create table test_corr(
+    id int,
+    k1 double,
+    k2 double
+) distributed by hash (id) buckets 1
+properties ("replication_num"="1");
+
+insert into test_corr values 
+    (1, 20, 22),
+    (1, 10, 20),
+    (2, 36, 21),
+    (2, 30, 22),
+    (2, 25, 20),
+    (3, 25, NULL),
+    (4, 25, 21),
+    (4, 25, 22),
+    (4, 25, 20);
 ```
 
 ```sql
-select collect_set(k1),collect_set(k1,2) from collect_set_test;
+select id,corr(k1,k2) from test_corr group by id;
 ```
 
 ```text
-+-----------------+-------------------+
-| collect_set(k1) | collect_set(k1,2) |
-+-----------------+-------------------+
-| [2, 1, 3]       | [2, 1]            |
-+-----------------+-------------------+
++------+--------------------+
+| id   | corr(k1, k2)       |
++------+--------------------+
+|    4 |                  0 |
+|    1 |                  1 |
+|    3 |               NULL |
+|    2 | 0.4539206495016019 |
++------+--------------------+
 ```
 
 ```sql
-select k1,collect_set(k2),collect_set(k3,1) from collect_set_test group by k1 order by k1;
+select corr(k1,k2) from test_corr where id=999;
 ```
 
+When the query result is empty, returns NULL.
+
 ```text
-+------+-----------------+-------------------+
-| k1   | collect_set(k2) | collect_set(k3,1) |
-+------+-----------------+-------------------+
-|    1 | [20, 10]        | ["a"]             |
-|    2 | [200, 100]      | ["x"]             |
-|    3 | []              | []                |
-+------+-----------------+-------------------+
++-------------+
+| corr(k1,k2) |
++-------------+
+|        NULL |
++-------------+
 ```
