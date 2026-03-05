@@ -1,14 +1,14 @@
 ---
 {
-  "title": "table_options",
-  "language": "en",
-  "description": "This table is solely used for compatibility with MySQL behavior. It is always empty."
+  "title": "table_privileges",
+  "language": "zh-CN",
+  "description": "View the authorization information of the table."
 }
 ---
 
 ## Overview
 
-This table is solely used for compatibility with MySQL behavior. It is always empty.
+View the authorization information of the table.
 
 ## Database
 
@@ -16,14 +16,11 @@ This table is solely used for compatibility with MySQL behavior. It is always em
 
 ## Table Information
 
-| Column Name                                               | Type                           | Description |
-| --------------------------------------------------------- | ------------------------------ | ----------- |
-| TABLE_CATALOG                        | varchar(64) |             |
-| TABLE_SCHEMA                         | varchar(64) |             |
-| TABLE_NAME                           | varchar(64) |             |
-| TABLE_MODEL                          | text                           |             |
-| TABLE_MODEL_KEY | text                           |             |
-| DISTRIBUTE_KEY                       | text                           |             |
-| DISTRIBUTE_TYPE                      | text                           |             |
-| BUCKETS_NUM                          | int                            |             |
-| PARTITION_NUM                        | int                            |             |
+| Column Name                         | Type                            | Description                                    |
+| ----------------------------------- | ------------------------------- | ---------------------------------------------- |
+| GRANTEE                             | varchar(81)  | The authorized user                            |
+| TABLE_CATALOG  | varchar(512) | The name of the Catalog                        |
+| TABLE_SCHEMA   | varchar(64)  | The name of the Database                       |
+| TABLE_NAME     | varchar(64)  | The name of the Table                          |
+| PRIVILEGE_TYPE | varchar(64)  | The type of privilege                          |
+| IS_GRANTABLE   | varchar(3)   | Whether the privilege can be granted to others |
