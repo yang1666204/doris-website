@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_POPFRONT",
-  "language": "en-US",
-  "description": "Removes the first element from an array. The function returns a new array containing all elements from the original array except the first one."
+  "title": "ARRAY_POSITION",
+  "language": "en",
+  "description": "Finds the position index (starting from 1) of the first occurrence of a specified element in the array."
 }
 ---
 
-## array_popfront
+## array_position
 
 <version since="2.0.0">
 
@@ -14,17 +14,18 @@
 
 ## Description
 
-Removes the first element from an array. The function returns a new array containing all elements from the original array except the first one.
+Finds the position index (starting from 1) of the first occurrence of a specified element in the array. The function traverses the array from left to right, finds the first matching element and returns its position index.
 
 ## Syntax
 
 ```sql
-array_popfront(ARRAY<T> arr)
+array_position(ARRAY<T> arr, T element)
 ```
 
 ### Parameters
 
-- `arr`：ARRAY<T> type, the array from which to remove the first element
+- `arr`：ARRAY<T> type, the array to search
+- `element`：T type, the element to find
 
 **Supported types for T:**
 
@@ -33,124 +34,150 @@ array_popfront(ARRAY<T> arr)
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
-- Complex types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
-Return type: ARRAY<T>
+Return type: BIGINT
 
 Return value meaning:
 
-- Returns a new array containing all elements from the original array except the first one
+- Returns the position index of the first occurrence of the specified element in the array. The return value starts from 1, not 0. If the element to find is the first element in the array, this function returns 1, not 0
+- 0: if no matching element is found, or if the input array is NULL
 - NULL: if the input array is NULL
 
 Usage notes:
 
-- The function removes the first element from the array and returns the remaining elements
-- Empty arrays return empty arrays, arrays with only one element return empty arrays
-- For null values in array elements: null elements are handled normally
+- The function traverses the array from left to right, finds the first matching element. If no matching element is found, returns 0
+- Empty arrays return 0
+- For null values in array elements: null elements can be matched normally
 
 **Query Examples:**
 
-Remove the first element from a string array:
+Find the position of a string in an array:
 
 ```sql
-SELECT array_popfront(['apple', 'banana', 'cherry', 'date']);
-+----------------------------------------------------+
-| array_popfront(['apple', 'banana', 'cherry', 'date']) |
-+----------------------------------------------------+
-| ["banana", "cherry", "date"]                       |
-+----------------------------------------------------+
+SELECT array_position(['apple', 'banana', 'cherry', 'apple'], 'apple');
++-----------------------------------------------------------------+
+| array_position(['apple', 'banana', 'cherry', 'apple'], 'apple') |
++-----------------------------------------------------------------+
+|                                                               1 |
++-----------------------------------------------------------------+
 ```
 
-Remove the first element from an array containing null values:
+Find the position of a floating-point number in an array:
 
 ```sql
-SELECT array_popfront([1, null, 3, null, 5]);
-+------------------------------------------+
-| array_popfront([1, null, 3, null, 5])   |
-+------------------------------------------+
-| [null, 3, null, 5]                      |
-+------------------------------------------+
+SELECT array_position([1.1, 2.2, 3.3, 4.4, 5.5], 3.3);
++------------------------------------------------+
+| array_position([1.1, 2.2, 3.3, 4.4, 5.5], 3.3) |
++------------------------------------------------+
+|                                              3 |
++------------------------------------------------+
 ```
 
-Arrays with only one element return empty arrays:
+Find a non-existent element:
 
 ```sql
-SELECT array_popfront([42]);
-+------------------------+
-| array_popfront([42])   |
-+------------------------+
-| []                     |
-+------------------------+
+SELECT array_position([1, 2, 3, 4, 5], 10);
++-------------------------------------+
+| array_position([1, 2, 3, 4, 5], 10) |
++-------------------------------------+
+|                                   0 |
++-------------------------------------+
 ```
 
-Empty arrays return empty arrays:
+Find a null element:
 
 ```sql
-SELECT array_popfront([]);
-+------------------------+
-| array_popfront([])     |
-+------------------------+
-| []                     |
-+------------------------+
+SELECT array_position([1, null, 3, null, 5], null);
++---------------------------------------------+
+| array_position([1, null, 3, null, 5], null) |
++---------------------------------------------+
+|                                           2 |
++---------------------------------------------+
 ```
 
-NULL arrays return NULL:
+Empty array returns 0:
 
 ```sql
-SELECT array_popfront(NULL);
-+------------------------+
-| array_popfront(NULL)   |
-+------------------------+
-| NULL                   |
-+------------------------+
+SELECT array_position([], 1);
++-----------------------+
+| array_position([], 1) |
++-----------------------+
+|                     0 |
++-----------------------+
 ```
 
-Remove the first element from an IP address array:
+Input array is NULL, returns NULL:
 
 ```sql
-SELECT array_popfront(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>));
-+----------------------------------------------------------------------------------+
-| array_popfront(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>)) |
-+----------------------------------------------------------------------------------+
-| ["192.168.1.2", "192.168.1.3"]                                                   |
-+----------------------------------------------------------------------------------+
+SELECT array_position(NULL, 1);
++-------------------------+
+| array_position(NULL, 1) |
++-------------------------+
+|                    NULL |
++-------------------------+
 ```
 
-Remove the first element from a nested array:
+Date type search:
 
 ```sql
-SELECT array_popfront([[1, 2], [3, 4], [5, 6]]);
-+------------------------------------------+
-| array_popfront([[1, 2], [3, 4], [5, 6]]) |
-+------------------------------------------+
-| [[3, 4], [5, 6]]                         |
-+------------------------------------------+
+SELECT array_position(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>), '2023-01-01');
++---------------------------------------------------------------------------------------------------+
+| array_position(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>), '2023-01-01') |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                 1 |
++---------------------------------------------------------------------------------------------------+
 ```
 
-Remove the first element from a MAP array:
+IP address search:
 
 ```sql
-SELECT array_popfront([{'name':'Alice','age':20}, {'name':'Bob','age':30}, {'name':'Charlie','age':40}]);
-+------------------------------------------------------------------------------------------+
-| array_popfront([{'name':'Alice','age':20}, {'name':'Bob','age':30}, {'name':'Charlie','age':40}]) |
-+------------------------------------------------------------------------------------------+
-| [{"name":"Bob","age":30}, {"name":"Charlie","age":40}]                                   |
-+------------------------------------------------------------------------------------------+
+SELECT array_position(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), '192.168.1.2');
++---------------------------------------------------------------------------------------------------+
+| array_position(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), '192.168.1.2') |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                 2 |
++---------------------------------------------------------------------------------------------------+
+
+SELECT array_position(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>), '2001:db8::0');
++---------------------------------------------------------------------------------------------------+
+| array_position(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>), '2001:db8::0') |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                 3 |
++---------------------------------------------------------------------------------------------------+
 ```
 
-Remove the first element from a STRUCT array:
+Complex type examples:
+
+Nested array types are not supported, will error:
 
 ```sql
-SELECT array_popfront(array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30), named_struct('name','Charlie','age',40)));
-+-------------------------------------------------------------------------------------------------------------------------------------------+
-| array_popfront(array(named_struct('name','Alice','age',20), named_struct('name','Bob','age',30), named_struct('name','Charlie','age',40))) |
-+-------------------------------------------------------------------------------------------------------------------------------------------+
-| [{"name":"Bob", "age":30}, {"name":"Charlie", "age":40}]                                                                                  |
-+-------------------------------------------------------------------------------------------------------------------------------------------+
+SELECT array_position([[1,2], [3,4], [5,6]], [3,4]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = array_position does not support type ARRAY<ARRAY<TINYINT>>, expression is array_position([[1, 2], [3, 4], [5, 6]])
+```
+
+Map type search:
+
+```sql
+SELECT array_position([{'k':1}, {'k':2}, {'k':3}], {'k':2});
+ERROR 1105 (HY000): errCode = 2, detailMessage = array_position does not support type ARRAY<MAP<VARCHAR(1),TINYINT>>, expression is array_position([map('k', 1), map('k', 2), map('k', 3)])
+```
+
+Error when parameter count is wrong:
+
+```sql
+SELECT array_position([1,2,3]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_position' which has 1 arity. Candidate functions are: [array_position(Expression, Expression)]
+```
+
+Error when passing non-array type:
+
+```sql
+SELECT array_position('not_an_array', 1);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_position(VARCHAR(12), TINYINT)
 ```
 
 ### Keywords
 
-ARRAY, POPFRONT, ARRAY_POPFRONT
+ARRAY, POSITION, ARRAY_POSITION
