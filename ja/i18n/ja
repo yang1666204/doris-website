@@ -1,64 +1,99 @@
 ---
 {
-  "title": "ALTER STORAGE VAULT",
+  "title": "JSON_ARRAY_IGNORE_NULL",
   "language": "en",
-  "description": "Modify the mutable properties of a Storage Vault."
+  "description": "Generate a JSON array containing the specified elements. Returns an empty array when no parameters are passed."
 }
 ---
 
+# JSON_ARRAY_IGNORE_NULL
+
 ## Description
 
-Modify the mutable properties of a Storage Vault.
+Generate a JSON array containing the specified elements. Returns an empty array when no parameters are passed.
 
 ## Syntax
 
 ```sql
-ALTER STORAGE VAULT <storage_vault_name>
-PROPERTIES (<storage_vault_property>)
+JSON_ARRAY_IGNORE_NULL([<expression>, ...]) 
 ```
 
-## Required Parameters
+## Parameters
 
-**<storage_vault_property>**
+### Variable parameters:
 
-> - type: candidate values are s3, hdfs. this field is optional after 3.0.8
+- `<expression>`: Elements to be included in the JSON array. Can be single or multiple values of different types, including NULL.
 
-> When type is s3, the allowed property fields are as follows:
->
-> - s3.access_key: ak for s3 vault
-> - s3.secret_key: sk for s3 vault
-> - vault_name: The name of the vault. When a vault is set as the default storage vault using the statement `SET <original_vault_name> DEFAULT STORAGE VAULT`, its name cannot be modified. To rename the vault, you must first unset the default storage vault by executing the `UNSET DEFAULT STORAGE VAULT` command, and then modify its name. Finally, if you need to set the renamed vault as the default storage vault, you can use the statement `SET <new_vault_name> DEFAULT STORAGE VAULT`.
-> - use_path_style: Whether to allow path style url, optional values are true, false. The default value is false.
+## Return Value
 
-> When type is hdfs, the following fields are prohibited:
->
-> - path_prefix: Storage path prefix
-> - fs.defaultFS: hdfs name
+[`JSON`](../../../basic-element/sql-data-types/semi-structured/JSON.md): Returns a JSON array composed of the parameter list.
 
-## Permission Control
+## Usage Notes
 
-The user executing this SQL command must have at least ADMIN_PRIV permissions.
+- JSON_ARRAY_IGNORE_NULL implementation converts different types of parameters to JSON values by implicitly calling the [`TO_JSON`](./to-json.md) function, so parameters must be types supported by [`TO_JSON`](./to-json.md).
+- NULL will be ingored. If you DO want to retain null values in the array, you can use the function [`JSON_ARRAY`](./json-array.md).
+- If the parameter type is not supported by [`TO_JSON`](./to-json.md), you will get an error. You can first convert that parameter to String type, for example:
+    ```sql
+    select JSON_ARRAY_IGNORE_NULL(CAST(NOW() as String));
+    ```
+  > The NOW() function returns a DateTime type, which needs to be converted to String type using the CAST function
+- If the parameter is a JSON string and you want to add it to the array as a JSON object, you should explicitly call the `JSON_PARSE` function to parse it as a JSON object:
+  ```sql
+  select JSON_ARRAY_IGNORE_NULL(JSON_PARSE('{"key": "value"}'));
+  ```
 
 ## Examples
 
-Modify s3 storage vault ak
+1. Regular parameters
+    ```sql
+    select json_array_ignore_null() as empty_array, json_array_ignore_null(1) v1, json_array_ignore_null(1, 'abc') v2;
+    ```
+    ```
+    +-------------+------+-----------+
+    | empty_array | v1   | v2        |
+    +-------------+------+-----------+
+    | []          | [1]  | [1,"abc"] |
+    +-------------+------+-----------+
+    ```
+2. NULL parameters
+    ```sql
+    select json_array_ignore_null(null) v1, json_array_ignore_null(1, null, 'I am a string') v2;
+    ```
+    ```
+    +------+---------------------+
+    | v1   | v2                  |
+    +------+---------------------+
+    | []   | [1,"I am a string"] |
+    +------+---------------------+
+    ```
+3. Unsupported parameter types
+    ```sql
+    select json_array_ignore_null('item1', map(123, 'abc'));
+    ```
+    ```
+    ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: to_json(MAP<TINYINT,VARCHAR(3)>)
+    ```
+4. Map type parameters can be explicitly converted to JSON
 
-```sql
-ALTER STORAGE VAULT old_vault_name
-PROPERTIES (
-  "type"="S3",
-  "VAULT_NAME" = "new_vault_name",
-   "s3.access_key" = "new_ak"
-);
-```
+    ```sql
+    select json_array_ignore_null(1, cast(map('key', 'value') as json));
+    ```
 
-Modify hdfs storage vault
-
-```sql
-ALTER STORAGE VAULT old_vault_name
-PROPERTIES (
-  "type"="hdfs",
-  "VAULT_NAME" = "new_vault_name",
-  "hadoop.username" = "hdfs"
-);
-```
+    ```
+    +--------------------------------------------------------------+
+    | json_array_ignore_null(1, cast(map('key', 'value') as json)) |
+    +--------------------------------------------------------------+
+    | [1,{"key":"value"}]                                          |
+    +--------------------------------------------------------------+
+    ```
+5. JSON strings can be parsed with `json_parse`
+    ```sql
+    select json_array_ignore_null(json_parse('{"key1": "value", "key2": [1, "I am a string", 3]}'));
+    ```
+    ```
+    +------------------------------------------------------------------------------------------+
+    | json_array_ignore_null(json_parse('{"key1": "value", "key2": [1, "I am a string", 3]}')) |
+    +------------------------------------------------------------------------------------------+
+    | [{"key1":"value","key2":[1,"I am a string",3]}]                                          |
+    +------------------------------------------------------------------------------------------+
+    ```
