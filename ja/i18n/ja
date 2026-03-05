@@ -1,8 +1,8 @@
 ---
 {
-  "title": "LCM",
+  "title": "SIGNBIT",
   "language": "en",
-  "description": "Calculates the least common multiple (LCM) of two integers. Note that the result may overflow."
+  "description": "Determine whether the sign bit of the given floating-point number is set."
 }
 ---
 
@@ -27,80 +27,71 @@ under the License.
 
 ## Description
 
-Calculates the least common multiple (LCM) of two integers. Note that the result may overflow.
+Determine whether the sign bit of the given floating-point number is set.
 
 ## Syntax
 
 ```sql
-LCM(<a>, <b>)
+SIGNBIT(<a>)
 ```
 
 ## Parameters
 
-| Parameter | Description        |
-| --------- | ------------------ |
-| `<a>`     | The first integer  |
-| `<b>`     | The second integer |
+| Parameter | Description                                     |
+| --------- | ----------------------------------------------- |
+| `<a>`     | Floating-point number to check the sign bit for |
 
 ## Return Value
 
-Returns the least common multiple of `<a>` and `<b>`.
-If any input is NULL, returns NULL.
+Returns true if the sign bit of `<a>` is set (i.e., `<a>` is negative), otherwise returns false.
+Specifically, it can also distinguish between positive and negative zeros in floating-point numbers.
 
 ## Examples
 
 ```sql
-select lcm(12, 18);
+select signbit(-1.0);
 ```
 
 ```text
-+------------+
-| lcm(12,18) |
-+------------+
-|         36 |
-+------------+
++-----------------------------+
+| signbit(cast(-1 as DOUBLE)) |
++-----------------------------+
+| true                        |
++-----------------------------+
 ```
 
 ```sql
-select lcm(0, 10);
+select signbit(0.0);
 ```
 
 ```text
-+-----------+
-| lcm(0,10) |
-+-----------+
-|         0 |
-+-----------+
++----------------------------+
+| signbit(cast(0 as DOUBLE)) |
++----------------------------+
+| false                      |
++----------------------------+
 ```
 
 ```sql
-select lcm(-4, 6);
+select signbit(1.0);
 ```
 
 ```text
-+------------+
-| lcm(-4,6)  |
-+------------+
-|          12|
-+------------+
++----------------------------+
+| signbit(cast(1 as DOUBLE)) |
++----------------------------+
+| false                      |
++----------------------------+
 ```
 
 ```sql
-select lcm(-170141183460469231731687303715884105728, 3);
+select signbit(cast('+0.0' as double)) , signbit(cast('-0.0' as double));
 ```
 
 ```text
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not convert to legacy literal: 510423550381407695195061911147652317184
-```
-
-```sql
-select lcm(-4, NULL);
-```
-
-```text
-+---------------+
-| lcm(-4, NULL) |
-+---------------+
-|          NULL |
-+---------------+
++---------------------------------+---------------------------------+
+| signbit(cast('+0.0' as double)) | signbit(cast('-0.0' as double)) |
++---------------------------------+---------------------------------+
+|                               0 |                               1 |
++---------------------------------+---------------------------------+
 ```
