@@ -1,134 +1,95 @@
 ---
 {
-  "title": "ST_AZIMUTH",
+  "title": "ST_CIRCLE",
   "language": "en",
-  "description": "Calculates the azimuth (in radians) between two points on the Earth's surface."
+  "description": "Converts a WKT (Well-Known Text) into a circle on the Earth's spherical surface."
 }
 ---
 
 ## Description
 
-Calculates the azimuth (in radians) between two points on the Earth's surface. The azimuth is the angle from the true north direction line at the starting point (point 1) to the line connecting the two points, measured clockwise.
-
-Azimuth is widely used in navigation and geographic information systems (GIS) to represent the direction from one point to another.
+Converts a WKT (Well-Known Text) into a circle on the Earth's spherical surface.
 
 ## Sytax
 
 ```sql
-ST_AZIMUTH( <point1>, <point2>)
+ST_CIRCLE( <center_lng>, <center_lat>, <radius>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                                                               |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `<point1>` | The starting point, of type GeoPoint, serving as the reference point for azimuth calculation.             |
-| `<point2>` | The ending point, of type GeoPoint, for which the direction relative to the starting point is calculated. |
+| Parameter      | Description                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `<center_lng>` | Longitude of the circle's center, of type DOUBLE, with a valid range of [-180, 180] |
+| `<center_lat>` | Latitude of the circle's center, of type DOUBLE, with a valid range of [-180, 180]  |
+| `<radius>`     | Radius of the circle, of type DOUBLE, in meters                                                                                         |
 
 ## Retuen value
 
-Returns the azimuth between the two points in radians, with a range of [0, 2π). The azimuth is measured clockwise from true north, with specific direction correspondences:
+Returns a circle on the Earth's spherical surface, of type GeoCircle. Its WKT representation is CIRCLE ((<center_lng> <center_lat>), <radius>), which contains the center coordinates and radius information.
 
-- True north: 0 radians
-- True east: π/2 radians (approximately 1.5708)
-- True south: π radians (approximately 3.1416)
-- True west: 3π/2 radians (approximately 4.7124)
+ST_CIRCLE has the following edge cases:
 
-Edge cases for ST_AZIMUTH:
-
-- Returns NULL if the two input points are identical (same longitude and latitude).
-- Returns NULL if the two input points are antipodal (diametrically opposite on the Earth).
-- Returns NULL if any input geographic location is not a single point or is an empty geographic object.
+- If any input parameter is NULL, returns NULL.
+- If <center_lng> is out of [-180, 180] or <center_lat> is out of [-90, 90], returns NULL.
+- If <radius> is 0, returns a special circle with the center as the only point (WKT representation: CIRCLE ((<center_lng> <center_lat>), 0)).
 
 ## Example
 
-True west (from (1,0) to (0,0))
+Basic usage (normal circle)
 
 ```sql
-SELECT st_azimuth(ST_Point(1, 0),ST_Point(0, 0));
+SELECT ST_AsText(ST_Circle(111, 64, 10000));
 ```
 
 ```text
-+----------------------------------------------------+
-| st_azimuth(st_point(1.0, 0.0), st_point(0.0, 0.0)) |
-+----------------------------------------------------+
-|                                   4.71238898038469 |
-+----------------------------------------------------+
-```
-
-True east (from (0,0) to (1,0))
-
-```sql
-SELECT st_azimuth(ST_Point(0, 0),ST_Point(1, 0));
-```
-
-```text
-+----------------------------------------------------+
-| st_azimuth(st_point(0.0, 0.0), st_point(1.0, 0.0)) |
-+----------------------------------------------------+
-|                                 1.5707963267948966 |
-+----------------------------------------------------+
-```
-
-True north (from (0,0) to (0,1))
-
-```sql
-SELECT st_azimuth(ST_Point(0, 0),ST_Point(0, 1));
-```
-
-```text
-+----------------------------------------------------+
-| st_azimuth(st_point(0.0, 0.0), st_point(0.0, 1.0)) |
-+----------------------------------------------------+
-|                                                  0 |
-+----------------------------------------------------+
-```
-
-Antipodal points
-
-```sql
-SELECT st_azimuth(ST_Point(-30, 0),ST_Point(150, 0));
-```
-
-```text
-+--------------------------------------------------------+
-| st_azimuth(st_point(-30.0, 0.0), st_point(150.0, 0.0)) |
-+--------------------------------------------------------+
-|                                                   NULL |
-+--------------------------------------------------------+
-```
-
-Northeast direction (from (0,0) to (1,1))
-
-```sql
-mysql> SELECT st_azimuth(ST_Point(0, 0), ST_Point(1, 1));
 +--------------------------------------------+
-| st_azimuth(ST_Point(0, 0), ST_Point(1, 1)) |
+| st_astext(st_circle(111.0, 64.0, 10000.0)) |
 +--------------------------------------------+
-|                         0.7854743216187384 |
+| CIRCLE ((111 64), 10000)                   |
 +--------------------------------------------+
 ```
 
-East direction crossing 180° longitude (from (170, 0) to (-170, 0))
+Circle on the equator (latitude 0°)
 
 ```sql
-mysql> SELECT st_azimuth(ST_Point(170, 0), ST_Point(-170, 0));
-+-------------------------------------------------+
-| st_azimuth(ST_Point(170, 0), ST_Point(-170, 0)) |
-+-------------------------------------------------+
-|                              1.5707963267948966 |
-+-------------------------------------------------+
+mysql> SELECT ST_AsText(ST_Circle(0, 0, 5000));
++----------------------------------+
+| ST_AsText(ST_Circle(0, 0, 5000)) |
++----------------------------------+
+| CIRCLE ((0 0), 5000)             |
++----------------------------------+
 ```
 
-Non-point type input returns NULL
+Circle with radius 0 (degenerates to a point)
 
 ```sql
-
-mysql> SELECT st_azimuth(ST_LineFromText("LINESTRING (0 0, 1 1)"), ST_Point(1, 0));
-+----------------------------------------------------------------------+
-| st_azimuth(ST_LineFromText("LINESTRING (0 0, 1 1)"), ST_Point(1, 0)) |
-+----------------------------------------------------------------------+
-|                                                                 NULL |
-+----------------------------------------------------------------------+
+mysql> SELECT ST_AsText(ST_Circle(120, 30, 0));
++----------------------------------+
+| ST_AsText(ST_Circle(120, 30, 0)) |
++----------------------------------+
+| CIRCLE ((120 30), 0)             |
++----------------------------------+
 ```
 
+Invalid parameter (longitude out of range)
+
+```sql
+mysql> SELECT ST_AsText(ST_Circle(190, 30, 1000));
++-------------------------------------+
+| ST_AsText(ST_Circle(190, 30, 1000)) |
++-------------------------------------+
+| NULL                                |
++-------------------------------------+
+```
+
+NULL parameter
+
+```sql
+mysql> SELECT ST_AsText(ST_Circle(NULL, 30, 1000));
++--------------------------------------+
+| ST_AsText(ST_Circle(NULL, 30, 1000)) |
++--------------------------------------+
+| NULL                                 |
++--------------------------------------+
+```
