@@ -1,114 +1,40 @@
 ---
 {
-  "title": "XPATH_STRING",
+  "title": "routine_load_job",
   "language": "en",
-  "description": "The XPATHSTRING function is used to parse the XML string and return the first XML node that matches the XPath expression."
+  "description": "Used to view information about routine load jobs."
 }
 ---
 
-## Description
+## Overview
 
-The XPATH_STRING function is used to parse the XML string and return the first XML node that matches the [XPath](https://www.w3.org/TR/xpath-10/) expression.
+Used to view information about routine load jobs.
 
-:::tip
-This function is supported since version 3.0.6.
-:::
+## Database
 
-## Syntax
+`information_schema`
 
-```sql
-XPATH_STRING(<xml_string>, <xpath_expression>)
-```
+## Table Information
 
-## Parameters
-
-| Parameter            | Description                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| `<xml_string>`       | Source string. Type: VARCHAR                                       |
-| `<xpath_expression>` | [XPath](https://www.w3.org/TR/xpath-10/) expression. Type: VARCHAR |
-
-## Return Value
-
-Returns VARCHAR type, representing the contents of the first XML node that matches the XPath expression.
-
-Special cases:
-
-- The function raises an error if xml or xpath are malformed.
-
-## Examples
-
-1. Basic node value extraction
-
-```sql
-SELECT xpath_string('<a>123</a>', '/a');
-```
-
-```text
-+-----------------------------------+
-| xpath_string('<a>123</a>', '/a')  |
-+-----------------------------------+
-| 123                               |
-+-----------------------------------+
-```
-
-2. Nested element extraction
-
-```sql
-SELECT xpath_string('<a><b>123</b></a>', '/a/b');
-```
-
-```text
-+--------------------------------------------+
-| xpath_string('<a><b>123</b></a>', '/a/b')  |
-+--------------------------------------------+
-| 123                                        |
-+--------------------------------------------+
-```
-
-3. Using attributes
-
-```sql
-SELECT xpath_string('<a><b id="1">123</b></a>', '//b[@id="1"]');
-```
-
-```text
-+----------------------------------------------------------+
-| xpath_string('<a><b id="1">123</b></a>', '//b[@id="1"]') |
-+----------------------------------------------------------+
-| 123                                                      |
-+----------------------------------------------------------+
-```
-
-4. Using position predicates
-
-```sql
-SELECT xpath_string('<a><b>1</b><b>2</b></a>', '/a/b[2]');
-```
-
-```text
-+----------------------------------------------------+
-| xpath_string('<a><b>1</b><b>2</b></a>', '/a/b[2]') |
-+----------------------------------------------------+
-| 2                                                  |
-+----------------------------------------------------+
-```
-
-5. Handling CDATA and comments
-
-```sql
-SELECT xpath_string(NULL, '/a');
-```
-
-```text
-+--------------------------+
-| xpath_string(NULL, '/a') |
-+--------------------------+
-| NULL                     |
-+--------------------------+
-```
-
-### Keywords
-
-    ```
-    XPATH_STRING, XPATH, XML
-    ```
+| Column Name                                                                            | Type    | Description                                                  |
+| :------------------------------------------------------------------------------------- | :------ | :----------------------------------------------------------- |
+| JOB_ID                                                            | text    | Job ID                                                       |
+| JOB_NAME                                                          | text    | Job name                                                     |
+| CREATE_TIME                                                       | text    | Job creation time                                            |
+| PAUSE_TIME                                                        | text    | Job pause time                                               |
+| END_TIME                                                          | text    | Job end time                                                 |
+| DB_NAME                                                           | text    | Database name                                                |
+| TABLE_NAME                                                        | text    | Table name                                                   |
+| STATE                                                                                  | text    | Job status                                                   |
+| CURRENT_TASK_NUM                             | text    | Current number of subtasks                                   |
+| JOB_PROPERTIES                                                    | text    | Job property configurations                                  |
+| DATA_SOURCE_PROPERTIES                       | text    | Data source property configurations                          |
+| CUSTOM_PROPERTIES                                                 | text    | Custom property configurations                               |
+| STATISTIC                                                                              | text    | Job statistics information                                   |
+| PROGRESS                                                                               | text    | Job progress information                                     |
+| LAG                                                                                    | text    | Job delay information                                        |
+| REASON_OF_STATE_CHANGED | text    | Reason for job status change                                 |
+| ERROR_LOG_URLS                               | text    | Error log URLs                                               |
+| USER_NAME                                                         | text    | Username                                                     |
+| CURRENT_ABORT_TASK_NUM  | int     | Current number of failed tasks                               |
+| IS_ABNORMAL_PAUSE                            | boolean | Whether paused by system (non-user pause) |
