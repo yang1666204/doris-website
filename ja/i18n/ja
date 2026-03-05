@@ -1,225 +1,287 @@
 ---
 {
-  "title": "Release 3.0.4",
+  "title": "Ranger Authorization",
   "language": "en",
-  "description": "Dear community members, the Apache Doris 3.0.4 version was officially released on February 02, 2025,"
+  "description": "Apache Ranger is a security framework used for monitoring, enabling services,"
 }
 ---
 
-Dear community members, the Apache Doris 3.0.4 version was officially released on February 02, 2025, this version further enhances the performance and stability of the system.
+Apache Ranger is a security framework used for monitoring, enabling services, and comprehensive data security access management on the Hadoop platform. After using Ranger, permissions configured on the Ranger side replace the execution of Grant statements in Doris for authorization. For Ranger installation and configuration, see below: Installing and Configuring Doris Ranger Plugin.
 
-**Quick Download:** https://doris.apache.org/download/
+## Ranger Example
 
-**GitHub Release:** https://github.com/apache/doris/releases
+### Change Doris Configuration
 
-## Behavior Changes
+1. In the `fe/conf/fe.conf` file, configure the authorization method as `ranger access_controller_type=ranger-doris`.
+2. Create a `ranger-doris-security.xml` file in the conf directory of all FEs with the following content:
 
-- In the Audit log, the `force` flag is retained for `drop table` and `drop database` statements.  [#43227](https://github.com/apache/doris/pull/43227)
+   ```
+   <?xml version="1.0" encoding="UTF-8"?>
+   <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+   <configuration>
+       <property>
+           <name>ranger.plugin.doris.policy.cache.dir</name>
+           <value>/path/to/ranger/cache/</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.policy.pollIntervalMs</name>
+           <value>30000</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.policy.rest.client.connection.timeoutMs</name>
+           <value>60000</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.policy.rest.client.read.timeoutMs</name>
+           <value>60000</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.policy.rest.url</name>
+           <value>http://172.21.0.32:6080</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.policy.source.impl</name>
+           <value>org.apache.ranger.admin.client.RangerAdminRESTClient</value>
+       </property>
+       <property>
+           <name>ranger.plugin.doris.service.name</name>
+           <value>doris</value>
+       </property>
+   </configuration>
+   ```
 
-- When exporting data to Parquet/ORC formats, the `bitmap`, `quantile_state`, and `hll` types are exported in Binary format. Additionally, support has been added for exporting `jsonb` and `variant` types, which are exported as `string`. [#44041](https://github.com/apache/doris/pull/44041)
+   Among which, the `ranger.plugin.doris.policy.cache.dir` and `ranger.plugin.doris.policy.rest.url` need to be modified to their actual values.
+3. Start the cluster.
 
-  - For more information, please refer to documentation: [Export Overview - Apache Doris](https://doris.apache.org/docs/3.0/data-operate/export/export-overview)
+### Permission Example
 
-- When querying a data source with case-insensitive table names (such as Hive) through External Catalog, in previous versions, you can use any case to query the table name, but in version 3.0.4, Doris's own table name case sensitivity policy will be strictly followed.
+1. Create `user1` in Doris.
+2. In Doris, first use the `admin` user to create a Catalog: `hive`.
+3. Create `user1` in Ranger.
 
-- The Hudi JNI Scanner has been replaced from Spark API to Hadoop API to enhance compatibility. Users can switch by setting the session variable `set hudi_jni_scanner=spark/hadoop`. [#44396](https://github.com/apache/doris/pull/44396)
+#### Global Permissions
 
-- The use of `auto bucket` in Colocate tables is prohibited.  [#44396](https://github.com/apache/doris/pull/44396)
+Equivalent to the internal Doris authorization statement `grant select_priv on *.*.* to user1`;
 
-- Paimon cache has been added to the Catalog, eliminating real-time data queries.  [#44911 ](https://github.com/apache/doris/pull/44911)
+- The global option can be found in the dropdown box at the same level as the catalog.
+- Only `*` can be entered in the input box.
 
-- The default value of `max_broker_concurrency` has been increased to improve performance for large-scale data imports with Broker Load. [#44929](https://github.com/apache/doris/pull/44929)
+  ![Global Permissions](/images/ranger/global.png)
 
-- The default value of the `storage medium` for Auto Partition partitions has been changed to the attribute value of the current table's `storage medium`, rather than using the system default value. [#45955](https://github.com/apache/doris/pull/45955)
+#### Catalog Permissions
 
-- Column updates are prohibited during Schema Change execution for Key columns. [#46347](https://github.com/apache/doris/pull/46347)
+Equivalent to the internal Doris authorization statement `grant select_priv on hive.*.* to user1`;
 
-- For Key columns containing auto-increment columns, support has been added to allow column updates without providing the auto-increment column.  [#44528](https://github.com/apache/doris/pull/44528)
+![Catalog Permissions](/images/ranger/catalog.png)
 
-- The FE ID generator strategy has been switched to a time-based approach, and IDs no longer start from 10000. [#44790](https://github.com/apache/doris/pull/44790)
+#### Database Permissions
 
-- In the compute-storage separation mode, the default stale rowset recycling delay for Compaction has been reduced to 1800 seconds to decrease the recycling interval. This may cause large queries to fail in extreme scenarios, and adjustments can be made as needed. [#45460](https://github.com/apache/doris/pull/45460)
+Equivalent to the internal Doris authorization statement `grant select_priv on hive.db1.* to user1`;
 
-- The `show cache hotspot` statement has been disabled in compute-storage separation mode, and direct access to system tables is required. [#47332](https://github.com/apache/doris/pull/47332)
+![Database Permissions](/images/ranger/database.png)
 
-- Deleting the system-created `admin` user is prohibited. [#44751](https://github.com/apache/doris/pull/44751)
+#### Table Permissions
 
-## Improvements
+> Here, the term "table" generally refers to tables, views, and asynchronous materialized views.
 
-### Storage
+Equivalent to the internal Doris authorization statement `grant select_priv on hive.db1.tbl1 to user1`;
 
-- Optimized the issue of Routine Load tasks frequently timing out due to a small `max_match_interval` setting. [#46292](https://github.com/apache/doris/pull/46292)
-- Improved performance for Broker Load when importing multiple compressed files. [#43975](https://github.com/apache/doris/pull/43975)
-- Increased the default value of `webserver_num_workers` to enhance Stream Load performance. [#46593](https://github.com/apache/doris/pull/46593)
-- Optimized the load imbalance issue for Routine Load import tasks during BE node scaling. [#44798](https://github.com/apache/doris/pull/44798)
-- Improved the use of Routine Load thread pools to prevent timeouts from affecting queries. [#45039](https://github.com/apache/doris/pull/45039)
+![Table Permissions](/images/ranger/table.png)
 
-### Compute-Storage Separation
+#### Column Permissions
 
-- Enhanced the stability and observability of the Meta-service. [#44036](https://github.com/apache/doris/pull/44036), [#45617](https://github.com/apache/doris/pull/45617), [#45255](https://github.com/apache/doris/pull/45255), [#45068](https://github.com/apache/doris/pull/45068)
-- Optimized File Cache by adding an early eviction strategy, reducing lock time, and improving query performance. [#47473](https://github.com/apache/doris/pull/47473), [#45678](https://github.com/apache/doris/pull/45678), [#47472](https://github.com/apache/doris/pull/47472)
-- Improved initialization checks and queue transitions for File Cache to enhance stability. [#44004](https://github.com/apache/doris/pull/44004), [#44429](https://github.com/apache/doris/pull/44429), [#45057](https://github.com/apache/doris/pull/45057), [#47229](https://github.com/apache/doris/pull/47229)
-- Increased the speed of HDFS data recycling. [#46393](https://github.com/apache/doris/pull/46393)
-- Optimized performance issues when the FE acquires compute groups during ultra-high-frequency imports.  [#47203](https://github.com/apache/doris/pull/47203)
-- Improved several import-related parameters for primary key tables in compute-storage separation to enhance the stability of real-time high-concurrency imports. [#47295](https://github.com/apache/doris/pull/47295), [#46750](https://github.com/apache/doris/pull/46750), [#46365](https://github.com/apache/doris/pull/46365)
+Equivalent to the internal Doris authorization statement `grant select_priv(col1,col2) on hive.db1.tbl1 to user1`;
 
-### Lakehouse
+![Column Permissions](/images/ranger/column.png)
 
-- Supported reading Hive tables in JSON format. [#43469](https://github.com/apache/doris/pull/46393)
+#### Resource Permissions
 
-  - For more information, please refer to documentation: [Text/CSV/JSON - Apache Doris](https://doris.apache.org/docs/dev/lakehouse/file-formats/text#json)
+Equivalent to the internal Doris authorization statement `grant usage_priv on resource 'resource1' to user1`;
 
-- Introduced the session variable `enable_text_validate_utf8` to skip UTF-8 encoding checks for CSV formats.  [#45537](https://github.com/apache/doris/pull/45537)
+- The resource option can be found in the dropdown box at the same level as the catalog.
 
-  - For more information, please refer to documentation: [Text/CSV/JSON - Apache Doris](https://doris.apache.org/docs/dev/lakehouse/file-formats/text#character-set)
+![Resource Permissions](/images/ranger/resource.png)
 
-- Updated the Hudi version to 0.15 and optimized query planning performance for Hudi tables.
+#### Workload Group Permissions
 
-- Improved read performance for MaxCompute partitioned tables.  [#45148](https://github.com/apache/doris/pull/45148)
+Equivalent to the internal Doris authorization statement `grant usage_priv on workload group 'group1' to user1`;
 
-- Optimized performance for Parquet file delayed materialization under high filter rates.  [#46183](https://github.com/apache/doris/pull/46183)
+- The workload group option can be found in the dropdown box at the same level as the catalog.
 
-- Supported delayed materialization for complex Parquet types. [#44098](https://github.com/apache/doris/pull/44098)
+![ Workload Group Permissions](/images/ranger/group1.png)
 
-- Optimized predicate pushdown logic for ORC types, supporting more predicate conditions for index filtering. [#43255](https://github.com/apache/doris/pull/43255)
+#### Compute Group Permissions
 
-### Asynchronous Materialized Views
+> Supported in version 3.0.6
 
-- Supported more scenarios for aggregate roll-up rewriting.  [#44412](https://github.com/apache/doris/pull/44412)
+Equivalent to the internal Doris authorization statement `grant usage_priv on compute group 'group1' to user1`;
 
-### Query Optimizer
+- The compute group option can be found in the dropdown box at the same level as the catalog.
 
-- Improved partition pruning performance. [#46261](https://github.com/apache/doris/pull/46261)
-- Added rules to eliminate `group by` keys based on data characteristics.  [#43391](https://github.com/apache/doris/pull/43391)
-- Adaptively adjusted the wait time for Runtime Filters based on the target table size. [#42640](https://github.com/apache/doris/pull/42640)
-- Improved the ability to push down aggregations in joins to fit more scenarios. [#43856](https://github.com/apache/doris/pull/43856), [#43380](https://github.com/apache/doris/pull/43380)
-- Improved Limit pushdown for aggregations to fit more scenarios. [#44042](https://github.com/apache/doris/pull/44042)
+![compute group](/images/ranger/compute-group.png)
 
-### Others
+#### Storage Vault Permissions
 
-- Optimized startup scripts for FE, BE, and MS processes to provide clearer output. [#45610](https://github.com/apache/doris/pull/45610), [#45490](https://github.com/apache/doris/pull/45490), [#45883](https://github.com/apache/doris/pull/45883)
-- The case sensitivity of table names in `show tables` now matches MySQL behavior. [#46030](https://github.com/apache/doris/pull/46030)
-- `show index` now supports arbitrary target table types. [#45861](https://github.com/apache/doris/pull/45861)
-- `information_schema.columns` now supports displaying default values. [#44849](https://github.com/apache/doris/pull/44849)
-- `information_schema.views` now supports displaying view definitions. [#45857](https://github.com/apache/doris/pull/45857)
-- Supported the MySQL protocol `COM_RESET_CONNECTION` command. [#44747](https://github.com/apache/doris/pull/44747)
+> Supported in version 3.0.6
 
-## Bug Fixes
+Equivalent to the internal Doris authorization statement `grant usage_priv on storage vault 'vault1' to user1`;
 
-### Storage
+- The storage vault option can be found in the dropdown box at the same level as the catalog.
 
-- Fixed potential memory errors during the import process for aggregate table models.  [#46997](https://github.com/apache/doris/pull/46997)
-- Resolved the issue of Routine Load offset loss during FE master node restarts in compute-storage separation mode. [#46566](https://github.com/apache/doris/pull/46566)
-- Fixed memory leaks in FE Observer nodes during batch import scenarios in compute-storage mode. [#47244](https://github.com/apache/doris/pull/47244)
-- Resolved the issue of Cumulative Point rollback during Full Compaction with Order Data Compaction. [#44359](https://github.com/apache/doris/pull/44359)
-- Fixed the issue where Delete operations could temporarily prevent Tablet Compaction scheduling. [#43466](https://github.com/apache/doris/pull/43466)
-- Resolved incorrect Tablet states after Schema Change in multi-compute-cluster scenarios. [#45821](https://github.com/apache/doris/pull/45821)
-- Fixed the potential NPE error when performing Column Rename Schema Change on primary key tables with `sequence_type`. [#46906](https://github.com/apache/doris/pull/46906)
-- **Data Correctness**: Fixed correctness issues for primary key tables when importing partial column updates containing DELETE SIGN columns. [#46194](https://github.com/apache/doris/pull/46194)
-- Resolved potential memory leaks in FE when Publish tasks for primary key tables were continuously stuck. [#44846](https://github.com/apache/doris/pull/44846)
+![storage vault](/images/ranger/storage-vault.png)
 
-### Compute-Storage Decoupled
+### Row-Level Permissions Example
 
-- Fixed the issue where File Cache size could exceed the table data size. [#46561](https://github.com/apache/doris/pull/46561), [#46390](https://github.com/apache/doris/pull/46390)
-- Resolved upload failures at the 5MB boundary during data uploads.  [#47333](https://github.com/apache/doris/pull/47333)
-- Enhanced robustness by adding more parameter checks for several `alter` operations in Storage Vault.  [#45155](https://github.com/apache/doris/pull/45155), [#45156](https://github.com/apache/doris/pull/45156), [#46625](https://github.com/apache/doris/pull/46625), [#47078](https://github.com/apache/doris/pull/47078), [#45685](https://github.com/apache/doris/pull/45685), [#46779](https://github.com/apache/doris/pull/46779)
-- Resolved issues with data recycling failures or slow recycling due to improper Storage Vault configurations. [#46798](https://github.com/apache/doris/pull/46798), [#47536](https://github.com/apache/doris/pull/47536), [#47475](https://github.com/apache/doris/pull/47475), [#47324](https://github.com/apache/doris/pull/47324), [#45072](https://github.com/apache/doris/pull/45072)
-- Fixed the issue where data recycling could stall, preventing timely recycling.  [#45760](https://github.com/apache/doris/pull/45760)
-- Resolved incorrect retries for MTTM-230 errors in compute-storage separation mode.  [#47370](https://github.com/apache/doris/pull/47370), [#47326](https://github.com/apache/doris/pull/47326)
-- Fixed the issue where Group Commit WAL was not fully replayed during BE decommissioning in compute-storage separation mode.  [#47187](https://github.com/apache/doris/pull/47187)
-- Resolved the issue where Tablet Meta exceeding 2GB rendered MS unavailable.  [#44780](https://github.com/apache/doris/pull/44780)
-- **Data Correctness**: Fixed two duplicate Key issues in primary key tables in compute-storage separation mode. [#46039](https://github.com/apache/doris/pull/46039), [#44975](https://github.com/apache/doris/pull/44975)
-- Resolved the issue where Base Compaction could continuously fail due to large Delete Bitmaps in primary key tables during high-frequency real-time imports.  [#46969](https://github.com/apache/doris/pull/46969)
-- Modified incorrect retry logic for Schema Change in primary key tables in compute-storage separation mode to enhance robustness. [#46748](https://github.com/apache/doris/pull/46748)
+> Supported in version 2.1.3
 
-### Lakehouse
+1. Refer to the permission example to grant `user1` the select permission on the `internal.db1.user` table.
 
-#### Hive
+2. In Ranger, add a Row Level Filter policy
 
-- Fixed the issue where Hive views created by Spark could not be queried.  [#43553](https://github.com/apache/doris/pull/43553)
-- Resolved the issue where certain Hive Transaction tables could not be read correctly. [#45753](https://github.com/apache/doris/pull/45753)
-- Fixed the issue where partition pruning failed for Hive tables with special characters in partitions.  [#42906](https://github.com/apache/doris/pull/42906)
+   ![Row Policy Example](/images/ranger/ranger-row-policy.jpeg)
 
-#### Iceberg
+3. Log in to Doris with `user1`. Execute `select * from internal.db1.user`, and only see the data that meets the condition `id > 3` and `age = 2`.
 
-- Fixed the issue where Iceberg tables could not be created in Kerberos authentication environments.  [#43445](https://github.com/apache/doris/pull/43445)
-- Resolved the issue where `count(*)` queries were inaccurate for Iceberg tables with dangling deletes. [#44039](https://github.com/apache/doris/pull/44039)
-- Fixed the issue where query errors occurred due to mismatched column names in Iceberg tables. [#44470](https://github.com/apache/doris/pull/44470)
-- Resolved the issue where Iceberg tables could not be read after partition modifications. [#45367](https://github.com/apache/doris/pull/45367)
+### Data Masking Example
 
-#### Paimon
+> Supported in version 2.1.3
 
-- Fixed the issue where Paimon Catalog could not access Alibaba Cloud OSS-HDFS.  [#42585](https://github.com/apache/doris/pull/42585)
+1. Refer to the permission example to grant `user1` the select permission on the `internal.db1.user` table.
 
-#### Hudi
+2. In Ranger, add a Masking policy
 
-- Fixed the issue where partition pruning failed for Hudi tables in certain scenarios.  [#44669](https://github.com/apache/doris/pull/44669)
+   ![Data Mask Example](/images/ranger/ranger-data-mask.png)
 
-#### JDBC
+3. Log in to Doris with `user1`. Execute `select * from internal.db1.user`, and see the phone number is masked according to the specified rule.
 
-- Fixed the issue where tables could not be retrieved using JDBC Catalog after enabling case-insensitive table names.
+## Frequently Asked Questions
 
-#### MaxCompute
+1. How to view the log when Ranger access fails?
 
-- Fixed the issue where partition pruning failed for MaxCompute tables in certain scenarios. [#44508](https://github.com/apache/doris/pull/44508)
+   Create a `log4j.properties` file in the `conf` directory of all FEs, with the following content:
 
-#### Others
+    ```
+    log4j.rootLogger = warn,stdout,D
+    
+    log4j.appender.stdout = org.apache.log4j.ConsoleAppender
+    log4j.appender.stdout.Target = System.out
+    log4j.appender.stdout.layout = org.apache.log4j.PatternLayout
+    log4j.appender.stdout.layout.ConversionPattern = [%-5p] %d{yyyy-MM-dd HH:mm:ss,SSS} method:%l%n%m%n
+    
+    log4j.appender.D = org.apache.log4j.DailyRollingFileAppender
+    log4j.appender.D.File = /path/to/fe/log/ranger.log
+    log4j.appender.D.Append = true
+    log4j.appender.D.Threshold = INFO
+    log4j.appender.D.layout = org.apache.log4j.PatternLayout
+    log4j.appender.D.layout.ConversionPattern = %-d{yyyy-MM-dd HH:mm:ss}  [ %t:%r ] - [ %p ]  %m%n
+    ```
 
-- Fixed the issue where export tasks caused memory leaks in FE. [#44019](https://github.com/apache/doris/pull/44019)
-- Resolved the issue where S3 object storage could not be accessed via HTTPS protocol. [#44242](https://github.com/apache/doris/pull/44242)
-- Fixed the issue where Kerberos authentication tickets could not be automatically refreshed.  [#44916](https://github.com/apache/doris/pull/44916)
-- Resolved the issue where reading Hadoop Block compressed format files failed. [#45289](https://github.com/apache/doris/pull/45289)
-- When querying ORC format data, CHAR type predicates are no longer pushed down to avoid potential result errors. [#45484](https://github.com/apache/doris/pull/45484)
+   Change `log4j.appender.D.File` to the actual path, which is used to store the Ranger plugin log.
+2. A Row Level Filter policy has been configured, but the user encounters a permission denied error when querying.
 
-### Asynchronous Materialized Views
+   The Row Level Filter policy is solely used to restrict users from accessing specific records within a table's data; authorization for the user must still be granted through an ACCESS POLICY.
+3. After creating the service, only the 'admin' user has permission by default\` Root 'user does not have permission
 
-- Fixed the issue where transparent query rewriting could lead to planning or result errors in extreme scenarios.  [#44575](https://github.com/apache/doris/pull/44575), [#45744](https://github.com/apache/doris/pull/45744)
-- Resolved the issue where multiple build tasks could be generated during asynchronous materialized view scheduling in extreme scenarios. [#46020](https://github.com/apache/doris/pull/46020), [#46280](https://github.com/apache/doris/pull/46280)
+   As shown in the image, when creating the service, add the configuration `default.policy.users`. If you need to configure multiple users with full permissions, separate them with `,`.
+   ![default policy](/images/ranger/default-policy.png)
+4. After using Ranger for authentication, is internal authorization still effective?
 
-### Query Optimizer
+   No, it cannot be used, and roles cannot be created/deleted.
 
-- Fixed the issue where some expression rewrites could produce incorrect expressions. [#44770](https://github.com/apache/doris/pull/44770), [#44920](https://github.com/apache/doris/pull/44920), [#45922](https://github.com/apache/doris/pull/45922), [#45596](https://github.com/apache/doris/pull/45596)
-- Resolved occasional incorrect results from SQL Cache. [#44782](https://github.com/apache/doris/pull/44782), [#44631](https://github.com/apache/doris/pull/44631), [#46443](https://github.com/apache/doris/pull/46443), [#47266](https://github.com/apache/doris/pull/47266)
-- Fixed the issue where limit pushdown for aggregation operators could produce incorrect results in some scenarios. [#45369](https://github.com/apache/doris/pull/45369)
-- Resolved the issue where delayed materialization optimization could produce incorrect execution plans in some scenarios. [#45693](https://github.com/apache/doris/pull/45693), [#46551](https://github.com/apache/doris/pull/46551)
+## Install and Configure Doris Ranger Plugin
 
-### Query Execution
+### Install Plugin
 
-- Fixed the issue where regular expressions and `like` functions produced incorrect results with special characters. [#44547](https://github.com/apache/doris/pull/44547)
-- Resolved the issue where SQL Cache results could be incorrect when switching databases. [#44782](https://github.com/apache/doris/pull/44782)
-- Fixed a series of Arrow Flight-related issues. [#45023](https://github.com/apache/doris/pull/45023), [#43929](https://github.com/apache/doris/pull/43929)
-- Resolved the issue where results were incorrect when the Hash table for HashJoin exceeded 4GB in some cases. [#46461](https://github.com/apache/doris/pull/46461)
-- Fixed the overflow issue of the `convert_to` function with Chinese characters. [#46405](https://github.com/apache/doris/pull/46405)
-- Resolved the issue where results could be incorrect in extreme scenarios when `group by` was used with Limit. [#47844](https://github.com/apache/doris/pull/47844)
-- Fixed the issue where results could be incorrect when accessing certain system tables. [#47498](https://github.com/apache/doris/pull/47498)
-- Resolved the issue where the `percentile` function could cause system crashes. [#47068](https://github.com/apache/doris/pull/47068)
-- Fixed the performance degradation issue for single-table queries with Limit. [#46090](https://github.com/apache/doris/pull/46090)
-- Resolved the issue where `StDistanceSphere` and `StAngleSphere` functions caused system crashes. [#45508](https://github.com/apache/doris/pull/45508)
-- Fixed the issue where `map_agg` results were incorrect. [#40454](https://github.com/apache/doris/pull/40454)
+1. Download the following files
 
-### Semi-structured Data Management
+   - [ranger-doris-plugin-3.0.0-SNAPSHOT.jar](https://selectdb-doris-1308700295.cos.ap-beijing.myqcloud.com/release/ranger/dev/ranger-doris-plugin-3.0.0-SNAPSHOT.jar)
+   - [mysql-connector-java-8.0.25.jar](https://selectdb-doris-1308700295.cos.ap-beijing.myqcloud.com/release/jdbc_driver/mysql-connector-java-8.0.25.jar)
 
-#### BloomFilter Index
+2. Place the downloaded files in the `ranger-plugins/doris` directory of the Ranger service, such as:
 
-- Fixed the exception caused by large parameters in BloomFilter Index. [#45780](https://github.com/apache/doris/pull/45780)
-- Resolved the issue of high memory usage during BloomFilter Index writes. [#45833](https://github.com/apache/doris/pull/45833)
-- Fixed the issue where BloomFilter Index was not correctly deleted when columns were dropped. [#44361](https://github.com/apache/doris/pull/44361), [#43378](https://github.com/apache/doris/pull/43378)
+   ```
+   /usr/local/service/ranger/ews/webapp/WEB-INF/classes/ranger-plugins/doris/ranger-doris-plugin-3.0.0-SNAPSHOT.jar
+   /usr/local/service/ranger/ews/webapp/WEB-INF/classes/ranger-plugins/doris/mysql-connector-java-8.0.25.jar
+   ```
 
-#### Inverted Index
+3. Restart the Ranger service.
 
-- Fixed the occasional crash during inverted index construction. [#43246](https://github.com/apache/doris/pull/43246)
-- Resolved the issue where words with zero occurrences occupied space during inverted index merging. [#43113](https://github.com/apache/doris/pull/43113)
-- Prevented abnormal large values in Index Size statistics. [#46549](https://github.com/apache/doris/pull/46549)
-- Fixed the issue with inverted indexes for VARIANT type fields. [#43375](https://github.com/apache/doris/pull/43375)
-- Optimized local cache locality for inverted indexes to improve cache hit rates. [#46518](https://github.com/apache/doris/pull/46518)
-- Added the metric `NumInvertedIndexRemoteIOTotal` to query profiles for remote storage reads of inverted indexes. [#45675](https://github.com/apache/doris/pull/45675), [#44863](https://github.com/apache/doris/pull/44863)
+4. Download [ranger-servicedef-doris.json](https://github.com/morningman/ranger/blob/doris-plugin/agents-common/src/main/resources/service-defs/ranger-servicedef-doris.json)
 
-#### Others
+5. Execute the following command to upload the definition file to the Ranger service:
 
-- Fixed the crash issue of the `ipv6_cidr_to_range` function with special NULL data. [#44700](https://github.com/apache/doris/pull/44700)
+   ```
+   curl -u user:password -X POST \
+       -H "Accept: application/json" \
+       -H "Content-Type: application/json" \
+       http://172.21.0.32:6080/service/plugins/definitions \
+       -d@ranger-servicedef-doris.json
+   ```
 
-### Permissions
+   Replace the username and password with the actual login credentials for the Ranger WebUI.
 
-- When granting `CREATE_PRIV`, the existence of the corresponding resource is no longer checked. [#45125](https://github.com/apache/doris/pull/45125)
-- Fixed the issue where queries on views with permissions could fail due to missing permissions for referenced tables in extreme scenarios. [#44621](https://github.com/apache/doris/pull/44621)
-- Resolved the issue where permission checks for `use db` did not distinguish between internal and external Catalogs. [#45720](https://github.com/apache/doris/pull/45720)
+   The service address and port can be found in the `ranger-admin-site.xml` configuration file, in the `ranger.service.http.port` configuration item.
+
+   If the execution is successful, a JSON-formatted service definition will be returned, such as:
+
+   ```
+   {
+     "id": 207,
+     "guid": "d3ff9e41-f9dd-4217-bb5f-3fa9996454b6",
+     "isEnabled": true,
+     "createdBy": "Admin",
+     "updatedBy": "Admin",
+     "createTime": 1705817398112,
+     "updateTime": 1705817398112,
+     "version": 1,
+     "name": "doris",
+     "displayName": "Apache Doris",
+     "implClass": "org.apache.ranger.services.doris.RangerServiceDoris",
+     "label": "Doris",
+     "description": "Apache Doris",
+     "options": {
+       "enableDenyAndExceptionsInPolicies": "true"
+     },
+     ...
+   }
+   ```
+
+   If you want to recreate the service definition, you can use the following command to delete the service definition and then re-upload it:
+
+   ```
+   curl -v -u user:password -X DELETE \
+   http://172.21.0.32:6080/service/plugins/definitions/207
+   ```
+
+   Replace `207` with the actual ID returned when creating the service definition.
+
+   Before deleting, you need to delete the Doris service created in the Ranger WebUI.
+
+   You can also use the following command to list the current service definitions and get the ID:
+
+   ```
+   curl -v -u user:password -X GET \
+   http://172.21.0.32:6080/service/plugins/definitions/
+   ```
+
+### Configure Plugin
+
+After installation, open the Ranger WebUI, and you can see the Apache Doris plugin in the Service Manager interface:
+
+![ranger](/images/ranger/ranger1.png)
+
+Click the `+` button next to the plugin to add a Doris service:
+
+![ranger2](/images/ranger/ranger2.png)
+
+The Config Properties section has the following parameters:
+
+- `Username`/`Password`: The username and password of the Doris cluster. It is recommended to use the Admin user.
+- `jdbc.driver_class`: The JDBC driver used to connect to Doris. `com.mysql.cj.jdbc.Driver`
+- `jdbc.url`: The JDBC URL connection string of the Doris cluster. `jdbc:mysql://172.21.0.101:9030?useSSL=false`
+- Additional parameters:
+  - `resource.lookup.timeout.value.in.ms`: The timeout for getting metadata, recommended to set to `10000`, which is 10 seconds.
+
+You can click `Test Connection` to check if the connection is successful.
+
+After clicking `Add`, you can see the created service in the Service Manager interface of the Apache Doris plugin. Click the service to start configuring Ranger.
