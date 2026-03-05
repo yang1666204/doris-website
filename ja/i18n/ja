@@ -1,119 +1,124 @@
 ---
 {
-  "title": "ST_DISTANCE",
+  "title": "ST_GEOMETRYTYPE",
   "language": "en",
-  "description": "Calculates the shortest distance on the sphere between two geometry objects, in meters."
+  "description": "Returns the type name of a geometry object."
 }
 ---
 
 ## Description
 
-Calculates the shortest distance on the sphere between two geometry objects, in meters. This function uses a spherical Earth model for calculation.
-
-Unlike `ST_DISTANCE_SPHERE`, which accepts longitude and latitude coordinates, `ST_DISTANCE` accepts geometry objects (points, lines, polygons, circles, etc.) as parameters and calculates the shortest distance between their boundaries. If the two shapes intersect (including touching or containing each other), it returns 0.
+Returns the type name (in uppercase) of a given geometry object. Used to identify the specific type of a geometric shape.
 
 ## Syntax
 
 ```sql
-ST_DISTANCE( <shape1>, <shape2> )
+ST_GEOMETRYTYPE( <shape> )
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                                 |
-| :--------- | :------------------------------------------------------------------------------------------ |
-| `<shape1>` | The first geometry, supporting Point, Line, Polygon, Circle, MultiPolygon.  |
-| `<shape2>` | The second geometry, supporting Point, Line, Polygon, Circle, MultiPolygon. |
+| Parameter | Description                                                                                                                           |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `<shape>` | The input geometry, of type GEOMETRY or VARCHAR (in WKT format) that can be converted to GEOMETRY. |
 
 ## Return Value
 
-Returns the shortest spherical distance between the boundaries of the two geometry objects, in meters (DOUBLE type).
+Returns a VARCHAR type uppercase string representing the geometry object's type.
 
-`ST_DISTANCE` has the following edge cases:
+`ST_GEOMETRYTYPE` has the following edge cases:
 
-- If any input parameter is `NULL`, returns `NULL`.
-- If any input parameter cannot be parsed into a valid geometry object, returns `NULL`.
-- If the two geometry objects intersect (including one containing the other), returns `0.0`.
-- Supported geometry types include: `POINT`, `LINESTRING`, `POLYGON`, `CIRCLE`, `MULTIPOLYGON`.
+- If the input parameter is `NULL`, returns `NULL`.
+- If the input parameter cannot be parsed into a valid geometry object, returns `NULL`.
+- Supported geometry types and their return value examples are as follows:
+  - `POINT`: `"ST_POINT"`
+  - `LINESTRING`: `"ST_LINESTRING"`
+  - `POLYGON`: `"ST_POLYGON"`
+  - `MULTIPOLYGON`: `"ST_MULTIPOLYGON"`
+  - `CIRCLE` : `"ST_CIRCLE"`
 
 ## Example
 
-**Distance Between Points**
+**Type of a Point**
 
 ```sql
--- Calculate the distance between two points with a 1-degree longitude difference on the equator
-SELECT ST_DISTANCE(ST_GeometryFromText('POINT(0 0)'), ST_GeometryFromText('POINT(1 0)'));
+SELECT ST_GEOMETRYTYPE(ST_GeometryFromText('POINT(1 1)'));
 ```
 
 ```text
-+---------------------------------------------+
-| ST_Distance(ST_Point(0, 0), ST_Point(1, 0)) |
-+---------------------------------------------+
-|                           111195.1011774839 |
-+---------------------------------------------+
++----------------------------------------------------+
+| ST_GEOMETRYTYPE(ST_GeometryFromText('POINT(1 1)')) |
++----------------------------------------------------+
+| ST_POINT                                           |
++----------------------------------------------------+
 ```
 
-**Distance Between a Point and a Line**
+**Type of a Line**
 
 ```sql
--- Calculate the shortest distance from a point to a line
-SELECT ST_DISTANCE(ST_GeometryFromText('POINT(2 2)'), ST_GeometryFromText('LINESTRING(0 0, 10 0)'));
+SELECT ST_GEOMETRYTYPE(ST_LineFromText("LINESTRING (1 1,2 2,3 3)"));
 ```
 
 ```text
-+----------------------------------------------------------------------------------------------+
-| ST_DISTANCE(ST_GeometryFromText('POINT(2 2)'), ST_GeometryFromText('LINESTRING(0 0, 10 0)')) |
-+----------------------------------------------------------------------------------------------+
-|                                                                            222390.2023549678 |
-+----------------------------------------------------------------------------------------------+
++--------------------------------------------------------------+
+| ST_GEOMETRYTYPE(ST_LineFromText("LINESTRING (1 1,2 2,3 3)")) |
++--------------------------------------------------------------+
+| ST_LINESTRING                                                |
++--------------------------------------------------------------+
 ```
 
-**Polygon and Circle Intersect (Distance 0)**
+**Type of a Polygon**
 
 ```sql
--- Circle intersects polygon; the center is outside but the circle covers part of the polygon's boundary
-SELECT ST_DISTANCE(
-    ST_GeometryFromText('POLYGON ((-0.00045 -0.00045, 0.00045 -0.00045, 0.00045 0.00045, -0.00045 0.00045, -0.00045 -0.00045))'),
-    ST_Circle(0.0006, 0, 50)
-);
+SELECT ST_GEOMETRYTYPE(ST_GeometryFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))'));
 ```
 
 ```text
-+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ST_DISTANCE(
-    ST_GeometryFromText('POLYGON ((-0.00045 -0.00045, 0.00045 -0.00045, 0.00045 0.00045, -0.00045 0.00045, -0.00045 -0.00045))'),
-    ST_Circle(0.0006, 0, 50)
-) |
-+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|                                                                                                                                                                             0 |
-+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++--------------------------------------------------------------------------------+
+| ST_GEOMETRYTYPE(ST_GeometryFromText('POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))')) |
++--------------------------------------------------------------------------------+
+| ST_POLYGON                                                                     |
++--------------------------------------------------------------------------------+
+```
+
+**Type of a Circle (Doris Extension)**
+
+```sql
+SELECT ST_GEOMETRYTYPE(ST_Circle(0, 0, 100));
+```
+
+```text
++---------------------------------------+
+| ST_GEOMETRYTYPE(ST_Circle(0, 0, 100)) |
++---------------------------------------+
+| ST_CIRCLE                             |
++---------------------------------------+
 ```
 
 **Invalid Parameter (Returns NULL)**
 
 ```sql
--- Invalid WKT string
-SELECT ST_DISTANCE(ST_GeometryFromText('NOT_A_GEOMETRY'), ST_GeometryFromText('POINT(1 1)'));
+SELECT ST_GEOMETRYTYPE('NOT_A_GEOMETRY');
 ```
 
 ```text
-+---------------------------------------------------------------------------------------+
-| ST_DISTANCE(ST_GeometryFromText('NOT_A_GEOMETRY'), ST_GeometryFromText('POINT(1 1)')) |
-+---------------------------------------------------------------------------------------+
-|                                                                                  NULL |
-+---------------------------------------------------------------------------------------+
++-----------------------------------+
+| ST_GEOMETRYTYPE('NOT_A_GEOMETRY') |
++-----------------------------------+
+| NULL                              |
++-----------------------------------+
 ```
 
 **NULL Parameter**
 
 ```sql
-SELECT ST_DISTANCE(NULL, ST_GeometryFromText('POINT(1 1)'));
+SELECT ST_GEOMETRYTYPE(NULL);
 ```
 
 ```text
-+------------------------------------------------------+
-| ST_DISTANCE(NULL, ST_GeometryFromText('POINT(1 1)')) |
-+------------------------------------------------------+
-|                                                 NULL |
-+------------------------------------------------------+
++-----------------------+
+| ST_GEOMETRYTYPE(NULL) |
++-----------------------+
+| NULL                  |
++-----------------------+
 ```
