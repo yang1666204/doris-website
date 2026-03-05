@@ -1,108 +1,134 @@
 ---
 {
-  "title": "ST_ASTEXT",
+  "title": "ST_AZIMUTH",
   "language": "en",
-  "description": "Converts a geometric object into its WKT (Well-Known Text) text representation. WKT is a text-based format for representing geospatial data,"
+  "description": "Calculates the azimuth (in radians) between two points on the Earth's surface."
 }
 ---
 
 ## Description
 
-Converts a geometric object into its WKT (Well-Known Text) text representation. WKT is a text-based format for representing geospatial data, widely used in Geographic Information Systems (GIS).
+Calculates the azimuth (in radians) between two points on the Earth's surface. The azimuth is the angle from the true north direction line at the starting point (point 1) to the line connecting the two points, measured clockwise.
 
-Currently supported geometric types include: Point, LineString, Polygon, MultiPolygon, Circle.
-
-## Aliases
-
-- ST_ASWKT
+Azimuth is widely used in navigation and geographic information systems (GIS) to represent the direction from one point to another.
 
 ## Sytax
 
 ```sql
-ST_ASTEXT( <geo>)
+ST_AZIMUTH( <point1>, <point2>)
 ```
 
-# Parameters
+## Parameters
 
-| Parameter | Description                                                         |
-| --------- | ------------------------------------------------------------------- |
-| `<geo>`   | The geometric object to be converted to WKT format. |
+| Parameter  | Description                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `<point1>` | The starting point, of type GeoPoint, serving as the reference point for azimuth calculation.             |
+| `<point2>` | The ending point, of type GeoPoint, for which the direction relative to the starting point is calculated. |
 
-## Return value
+## Retuen value
 
-Returns the WKT text representation of the geometric object.
+Returns the azimuth between the two points in radians, with a range of [0, 2π). The azimuth is measured clockwise from true north, with specific direction correspondences:
 
-ST_ASTEXT has the following edge cases:
+- True north: 0 radians
+- True east: π/2 radians (approximately 1.5708)
+- True south: π radians (approximately 3.1416)
+- True west: 3π/2 radians (approximately 4.7124)
 
-- If the input parameter is NULL, returns NULL.
+Edge cases for ST_AZIMUTH:
+
+- Returns NULL if the two input points are identical (same longitude and latitude).
+- Returns NULL if the two input points are antipodal (diametrically opposite on the Earth).
+- Returns NULL if any input geographic location is not a single point or is an empty geographic object.
 
 ## Example
 
-Point object conversion
+True west (from (1,0) to (0,0))
 
 ```sql
-SELECT ST_AsText(ST_Point(24.7, 56.7));
+SELECT st_azimuth(ST_Point(1, 0),ST_Point(0, 0));
 ```
 
 ```text
-+---------------------------------+
-| st_astext(st_point(24.7, 56.7)) |
-+---------------------------------+
-| POINT (24.7 56.7)               |
-+---------------------------------+
++----------------------------------------------------+
+| st_azimuth(st_point(1.0, 0.0), st_point(0.0, 0.0)) |
++----------------------------------------------------+
+|                                   4.71238898038469 |
++----------------------------------------------------+
 ```
 
-LineString object conversion
+True east (from (0,0) to (1,0))
 
 ```sql
-mysql> SELECT ST_AsText(ST_GeometryFromText("LINESTRING (1 1, 2 2)"));
-+---------------------------------------------------------+
-| ST_AsText(ST_GeometryFromText("LINESTRING (1 1, 2 2)")) |
-+---------------------------------------------------------+
-| LINESTRING (1 1, 2 2)                                   |
-+---------------------------------------------------------+
+SELECT st_azimuth(ST_Point(0, 0),ST_Point(1, 0));
 ```
 
-Polygon object conversion
+```text
++----------------------------------------------------+
+| st_azimuth(st_point(0.0, 0.0), st_point(1.0, 0.0)) |
++----------------------------------------------------+
+|                                 1.5707963267948966 |
++----------------------------------------------------+
+```
+
+True north (from (0,0) to (0,1))
 
 ```sql
-mysql> SELECT ST_AsText(ST_Polygon("POLYGON ((114.104486 22.547119,114.093758 22.547753,114.096504 22.532057,114.104229 22.539826,114.106203 22.542680,114.104486 22.547119))"));
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ST_AsText(ST_Polygon("POLYGON ((114.104486 22.547119,114.093758 22.547753,114.096504 22.532057,114.104229 22.539826,114.106203 22.542680,114.104486 22.547119))")) |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| POLYGON ((114.104486 22.547119, 114.093758 22.547753, 114.096504 22.532057, 114.104229 22.539826, 114.106203 22.54268, 114.104486 22.547119))                      |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+SELECT st_azimuth(ST_Point(0, 0),ST_Point(0, 1));
 ```
 
-MultiPolygon object conversion
+```text
++----------------------------------------------------+
+| st_azimuth(st_point(0.0, 0.0), st_point(0.0, 1.0)) |
++----------------------------------------------------+
+|                                                  0 |
++----------------------------------------------------+
+```
+
+Antipodal points
 
 ```sql
-mysql> SELECT ST_AsText(ST_GeometryFromText("MULTIPOLYGON (((0 0, 1 0, 1 1, 0 1, 0 0)), ((2 2, 3 2, 3 3, 2 3, 2 2)))"));
-+-----------------------------------------------------------------------------------------------------------+
-| ST_AsText(ST_GeometryFromText("MULTIPOLYGON (((0 0, 1 0, 1 1, 0 1, 0 0)), ((2 2, 3 2, 3 3, 2 3, 2 2)))")) |
-+-----------------------------------------------------------------------------------------------------------+
-| MULTIPOLYGON (((0 0, 1 0, 1 1, 0 1, 0 0)), ((2 2, 3 2, 3 3, 2 3, 2 2)))                                   |
-+-----------------------------------------------------------------------------------------------------------+
+SELECT st_azimuth(ST_Point(-30, 0),ST_Point(150, 0));
 ```
 
-Circle object conversion
+```text
++--------------------------------------------------------+
+| st_azimuth(st_point(-30.0, 0.0), st_point(150.0, 0.0)) |
++--------------------------------------------------------+
+|                                                   NULL |
++--------------------------------------------------------+
+```
+
+Northeast direction (from (0,0) to (1,1))
 
 ```sql
-mysql> SELECT ST_AsText(ST_Circle(116.39748, 39.90882, 0.5));
-+------------------------------------------------+
-| ST_AsText(ST_Circle(116.39748, 39.90882, 0.5)) |
-+------------------------------------------------+
-| CIRCLE ((116.39748 39.90882), 0.5)             |
-+------------------------------------------------+
+mysql> SELECT st_azimuth(ST_Point(0, 0), ST_Point(1, 1));
++--------------------------------------------+
+| st_azimuth(ST_Point(0, 0), ST_Point(1, 1)) |
++--------------------------------------------+
+|                         0.7854743216187384 |
++--------------------------------------------+
 ```
 
-NULL input
+East direction crossing 180° longitude (from (170, 0) to (-170, 0))
 
 ```sql
-mysql> SELECT ST_AsText(NULL);
-+-----------------+
-| ST_AsText(NULL) |
-+-----------------+
-| NULL            |
-+-----------------+
+mysql> SELECT st_azimuth(ST_Point(170, 0), ST_Point(-170, 0));
++-------------------------------------------------+
+| st_azimuth(ST_Point(170, 0), ST_Point(-170, 0)) |
++-------------------------------------------------+
+|                              1.5707963267948966 |
++-------------------------------------------------+
 ```
+
+Non-point type input returns NULL
+
+```sql
+
+mysql> SELECT st_azimuth(ST_LineFromText("LINESTRING (0 0, 1 1)"), ST_Point(1, 0));
++----------------------------------------------------------------------+
+| st_azimuth(ST_LineFromText("LINESTRING (0 0, 1 1)"), ST_Point(1, 0)) |
++----------------------------------------------------------------------+
+|                                                                 NULL |
++----------------------------------------------------------------------+
+```
+
