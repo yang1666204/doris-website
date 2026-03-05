@@ -1,24 +1,32 @@
 ---
 {
-  "title": "Be Version Info",
+  "title": "Backends Action",
   "language": "en",
-  "description": "Provide BE version info"
+  "description": "Backends Action returns the Backends list, including Backend's IP, PORT and other information."
 }
 ---
 
-# Be Version Info
+# Backends Action
 
 ## Request
 
-`GET /api/be_version_info`
+```
+GET /api/backends
+```
 
 ## Description
 
-Provide BE version info
+Backends Action returns the Backends list, including Backend's IP, PORT and other information.
+
+## Path parameters
+
+None
 
 ## Query parameters
 
-None
+- `is_alive`
+
+  Optional parameters. Whether to return the surviving BE nodes. The default is false, which means that all BE nodes are returned.
 
 ## Request body
 
@@ -26,36 +34,19 @@ None
 
 ## Response
 
-    ````
-    ```
-    {
-        "msg":"success",
-        "code":0,
-        "data":{
-            "beVersionInfo":{
-                "dorisBuildVersionPrefix":"doris",
-                "dorisBuildVersionMajor":0,
-                "dorisBuildVersionMinor":0,
-                "dorisBuildVersionPatch":0,
-                "dorisBuildVersionRcVersion":"trunk",
-                "dorisBuildVersion":"doris-0.0.0-trunk",
-                "dorisBuildHash":"git://4b7b503d1cb3/data/doris/doris/be/../@a04f9814fe5a09c0d9e9399fe71cc4d765f8bff1",
-                "dorisBuildShortHash":"a04f981",
-                "dorisBuildTime":"Fri, 09 Sep 2022 07:57:02 UTC",
-                "dorisBuildInfo":"root@4b7b503d1cb3"
+```
+{
+    "msg": "success",
+    "code": 0,
+    "data": {
+        "backends": [
+            {
+                "ip": "192.1.1.1",
+                "http_port": 8040,
+                "is_alive": true
             }
-        },
-        "count":0
-    }
-    ```
-    ````
-
-## Examples
-
-    ````
-    ```
-    curl http://127.0.0.1:8040/api/be_version_info
-    
-    ```
-    ````
-
+        ]
+    },
+    "count": 0
+}
+```
