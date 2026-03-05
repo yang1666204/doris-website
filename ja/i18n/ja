@@ -1,603 +1,268 @@
 ---
 {
-  "title": "CREATE ROUTINE LOAD",
+  "title": "Metabase",
   "language": "en",
-  "description": "The Routine Load feature allows users to submit a resident import task that continuously reads data from a specified data source and imports it into "
+  "description": "Metabase is an open-source business intelligence tool that provides simple and easy-to-use data analysis and visualization capabilities, supports rich data source connections, and enables the rapid construction of interactive dashboards."
 }
 ---
 
-## Description
+Metabase is an open-source business intelligence tool that provides simple and easy-to-use data analysis and visualization capabilities, supports rich data source connections, and enables the rapid construction of interactive dashboards. Its key features include a user-friendly interface, ease of use, support for self-service analysis, visualization dashboard creation, data drill-down exploration, and an integrated SQL query editor for SQL queries and data export.
 
-The Routine Load feature allows users to submit a resident import task that continuously reads data from a specified data source and imports it into Doris.
+The Metabase Apache Doris Driver allows Metabase to connect to Apache Doris databases, enabling querying and visualization of both internal and external Doris data.
 
-Currently, it only supports importing CSV or Json format data from Kafka through unauthenticated or SSL authentication methods. [Example of importing Json format data](../../../../data-operate/import/import-way/routine-load-manual.md#Example-of-importing-Json-format-data)
+This driver allows Metabase to integrate Apache Doris databases and tables as data sources. To enable this feature, follow the setup guide below:
 
-## Syntax
+- Installing and configuring the driver
+- Configuring the Apache Doris data source in Metabase
+- Building visualizations in Metabase
+- Connection and usage tips
 
-```sql
-CREATE ROUTINE LOAD [<db>.]<job_name> [ON <tbl_name>]
-[<merge_type>]
-[<load_properties>]
-[<job_properties>]
-FROM <data_source> [<data_source_properties>]
-[COMMENT "<comment>"]
+## Installing Metabase and the Doris Driver
+
+### Prerequisites
+
+1. Download and install Metabase version 0.48.0 or later. See the [Metabase Installation Documentation](https://www.metabase.com/docs/latest/installation-and-operation/installing-metabase) for details.
+2. Prepare the Apache Doris cluster.
+
+### Install the Doris Driver
+
+First, you need to download the latest [metabase-doris-driver](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Metabase/latest/doris.metabase-driver.jar).
+
+Then install the driver. The installation method depends on your Metabase deployment method:
+
+#### Metabase Standard Deployment
+
+1. Download the Driver
+
+2. Create the Metabase plugin directory (if it doesn't exist):
+
+```bash
+mkdir -p $path_metabase/plugins
 ```
 
-## Required Parameters
+3. Copy the JAR file to the plugin directory:
 
-**1. `[<db>.]<job_name>`**
+```bash
+cp doris.metabase-driver.jar $path_metabase/plugins
+```
 
-> The name of the import job. Within the same database, only one job with the same name can be running.
+4. Restart the Metabase service
 
-**2. `FROM <data_source>`**
+#### Metabase Docker Deployment
 
-> The type of data source. Currently supports: KAFKA
+If Metabase is started using Docker, it is recommended to start it by mounting `doris.metabase-driver.jar`. The plugin path inside the Docker container is `/plugins/`.
 
-**3. `<data_source_properties>`**
+1. Download the Driver
 
-> 1. `<kafka_broker_list>`
->
->    Kafka broker connection information. Format is ip:host. Multiple brokers are separated by commas.
->
->    ```text
->    "kafka_broker_list" = "broker1:9092,broker2:9092"
->    ```
->
-> 2. `<kafka_topic>`
->
->    Specifies the Kafka topic to subscribe to.
->
->    ```text
->    "kafka_topic" = "my_topic"
->    ```
+2. Start Metabase using the following command:
 
-## Optional Parameters
+```bash
+docker run -d -p 3000:3000 --name metabase  -v $host_path/doris.metabase-driver.jar:/plugins/doris.metabase-driver.jar  metabase/metabase
+```
 
-**1. `<tbl_name>`**
+## Configuring a Doris Data Source in Metabase
 
-> Specifies the name of the table to import into. This is an optional parameter. If not specified, the dynamic table method is used, which requires the data in Kafka to contain table name information.
->
-> Currently, only supports getting table names from Kafka's Value, and it needs to follow this format: for json example: `table_name|{"col1": "val1", "col2": "val2"}`,
-> where `tbl_name` is the table name, with `|` as the separator between table name and table data.
->
-> For csv format data, it's similar: `table_name|val1,val2,val3`. Note that `table_name` here must match the table name in Doris, otherwise the import will fail.
->
-> Tips: Dynamic tables do not support the `columns_mapping` parameter. If your table structure matches the table structure in Doris and there is a large amount of table information to import, this method will be the best choice.
+Now that you have **Metabase** and **metabase-doris-driver** installed, let's see how to define a data source in Metabase that connects to the tpch database in Doris.
 
-**2. `<merge_type>`**
+### Connection Parameter Description
 
-> Data merge type. Default is APPEND, which means the imported data are ordinary append write operations. MERGE and DELETE types are only available for Unique Key model tables. The MERGE type needs to be used with the [DELETE ON] statement to mark the Delete Flag column. The DELETE type means that all imported data are deleted data.
->
-> Tips: When using dynamic multiple tables, please note that this parameter should be consistent with each dynamic table's type, otherwise it will result in import failure.
+The following parameters need to be configured when connecting to Apache Doris:
 
-**3. `<load_properties>`**
+| Parameters        | Meaning                                                          | Example                                                   |
+| ----------------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
+| **Display Name**  | Data source display name                                         | Doris-TPCH                                                |
+| **Host**          | Doris FE node address                                            | 127.0.0.1 |
+| **Port**          | Doris Query Port (MySQL protocol port)        | 9030                                                      |
+| **Catalog name**  | Catalog name (optional, defaults to internal) | internal                                                  |
+| **Database name** | Database name (required)                      | tpch                                                      |
+| **Username**      | Username                                                         | root                                                      |
+| **Password**      | Password                                                         | your_password                        |
 
-> Used to describe imported data. The composition is as follows:
->
-> ```SQL
-> [column_separator],
-> [columns_mapping],
-> [preceding_filter],
-> [where_predicates],
-> [partitions],
-> [DELETE ON],
-> [ORDER BY]
-> ```
->
-> 1. `<column_separator>`
->
->    Specifies the column separator, defaults to `\t`
->
->    `COLUMNS TERMINATED BY ","`
->
-> 2. `<columns_mapping>`
->
->    Used to specify the mapping relationship between file columns and table columns, as well as various column transformations. For a detailed introduction to this part, you can refer to the [Column Mapping, Transformation and Filtering] document.
->
->    `(k1, k2, tmpk1, k3 = tmpk1 + 1)`
->
->    Tips: Dynamic tables do not support this parameter.
->
-> 3. `<preceding_filter>`
->
->    Filter raw data. For detailed information about this part, please refer to the [Column Mapping, Transformation and Filtering] document.
->
->    `WHERE k1 > 100 and k2 = 1000`
->
->    Tips: Dynamic tables do not support this parameter.
->
-> 4. `<where_predicates>`
->
->    Filter imported data based on conditions. For detailed information about this part, please refer to the [Column Mapping, Transformation and Filtering] document.
->
->    `WHERE k1 > 100 and k2 = 1000`
->
->    Tips: When using dynamic multiple tables, please note that this parameter should match the columns of each dynamic table, otherwise the import will fail. When using dynamic multiple tables, we only recommend using this parameter for common public columns.
->
-> 5. `<partitions>`
->
->    Specify which partitions of the destination table to import into. If not specified, data will be automatically imported into the corresponding partitions.
->
->    `PARTITION(p1, p2, p3)`
->
->    Tips: When using dynamic multiple tables, please note that this parameter should match each dynamic table, otherwise the import will fail.
->
-> 6. `<DELETE ON>`
->
->    Must be used with MERGE import mode, only applicable to Unique Key model tables. Used to specify the Delete Flag column and calculation relationship in the imported data.
->
->    `DELETE ON v3 >100`
->
->    Tips: When using dynamic multiple tables, please note that this parameter should match each dynamic table, otherwise the import will fail.
->
-> 7. `<ORDER BY>`
->
->    Only applicable to Unique Key model tables. Used to specify the Sequence Col column in the imported data. Mainly used to ensure data order during import.
->
->    Tips: When using dynamic multiple tables, please note that this parameter should match each dynamic table, otherwise the import will fail.
+**Database Name Format Explanation:**
 
-**4. `<job_properties>`**
+- **Internal Tables**: Enter the database name directly, such as `tpch`. The system will automatically use the `internal` catalog.
+- **External Tables/Data Lake**: Enter the Catalog configuration. If only linking internal tables, this item is not required.
 
-> Used to specify general parameters for routine import jobs.
->
-> ```text
-> PROPERTIES (
->     "key1" = "val1",
->     "key2" = "val2"
-> )
-> ```
->
-> Currently, we support the following parameters:
->
-> 1. `<desired_concurrent_number>`
->
->    The desired concurrency. A routine import job will be divided into multiple subtasks for execution. This parameter specifies how many tasks can run simultaneously for a job. Must be greater than 0. Default is 5.
->
->    This concurrency is not the actual concurrency. The actual concurrency will be determined by considering the number of cluster nodes, load conditions, and data source conditions.
->
->    `"desired_concurrent_number" = "3"`
->
-> 2. `<max_batch_interval>/<max_batch_rows>/<max_batch_size>`
->
->    These three parameters represent:
->
->    1. Maximum execution time for each subtask, in seconds. Must be greater than or equal to 1. Default is 10.
->    2. Maximum number of rows to read for each subtask. Must be greater than or equal to 200000. Default is 20000000.
->    3. Maximum number of bytes to read for each subtask. Unit is bytes, range is 100MB to 10GB. Default is 1G.
->
->    These three parameters are used to control the execution time and processing volume of a subtask. When any one reaches the threshold, the task ends.
->
->    ```text
->    "max_batch_interval" = "20",
->    "max_batch_rows" = "300000",
->    "max_batch_size" = "209715200"
->    ```
->
-> 3. `<max_error_number>`
->
->    Maximum number of error rows allowed within the sampling window. Must be greater than or equal to 0. Default is 0, meaning no error rows are allowed.
->
->    The sampling window is `max_batch_rows * 10`. If the number of error rows within the sampling window exceeds `max_error_number`, the routine job will be suspended and require manual intervention to check data quality issues.
->
->    Rows filtered by where conditions are not counted as error rows.
->
-> 4. `<strict_mode>`
->
->    Whether to enable strict mode, default is off. If enabled, when non-null original data's column type conversion results in NULL, it will be filtered. Specified as:
->
->    `"strict_mode" = "true"`
->
->    Strict mode means: strictly filter column type conversions during the import process. The strict filtering strategy is as follows:
->
->    1. For column type conversion, if strict mode is true, erroneous data will be filtered. Here, erroneous data refers to: original data that is not null but results in null value after column type conversion.
->    2. For columns generated by function transformation during import, strict mode has no effect.
->    3. For columns with range restrictions, if the original data can pass type conversion but cannot pass range restrictions, strict mode has no effect. For example: if the type is decimal(1,0) and the original data is 10, it can pass type conversion but is outside the column's declared range. Strict mode has no effect on such data.
->
->    **Relationship between strict mode and source data import**
->
->    Here's an example using TinyInt column type
->
->    Note: When columns in the table allow null values
->
->    | source data | source data example | string to int | strict_mode | result                                    |
->    | ----------- | ------------------- | ------------- | -------------------------------- | ----------------------------------------- |
->    | null        | `\N`               | N/A           | true or false                    | NULL                                      |
->    | not null    | aaa or 2000         | NULL          | true                             | invalid data(filtered) |
->    | not null    | aaa                 | NULL          | false                            | NULL                                      |
->    | not null    | 1                   | 1             | true or false                    | correct data                              |
->
->    Here's an example using Decimal(1,0) column type
->
->    Note: When columns in the table allow null values
->
->    | source data | source data example | string to int | strict_mode | result                                    |
->    | ----------- | ------------------- | ------------- | -------------------------------- | ----------------------------------------- |
->    | null        | `\N`               | N/A           | true or false                    | NULL                                      |
->    | not null    | aaa                 | NULL          | true                             | invalid data(filtered) |
->    | not null    | aaa                 | NULL          | false                            | NULL                                      |
->    | not null    | 1 or 10             | 1             | true or false                    | correct data                              |
->
->    Note: Although 10 is a value exceeding the range, because its type meets decimal requirements, strict mode has no effect on it. 10 will eventually be filtered in other ETL processing flows, but won't be filtered by strict mode.
->
-> 5. `<timezone>`
->
->    Specifies the timezone used for the import job. Defaults to the Session's timezone parameter. This parameter affects all timezone-related function results involved in the import.
->
->    `"timezone" = "Asia/Shanghai"`
->
-> 6. `<format>`
->
->    Specifies the import data format, default is csv, json format is supported.
->
->    `"format" = "json"`
->
-> 7. `<jsonpaths>`
->
->    When importing json format data, jsonpaths can be used to specify fields to extract from Json data.
->
->    `-H "jsonpaths: [\"$.k2\", \"$.k1\"]"`
->
-> 8. `<strip_outer_array>`
->
->    When importing json format data, strip_outer_array set to true indicates that Json data is presented as an array, where each element in the data will be treated as a row. Default value is false.
->
->    `-H "strip_outer_array: true"`
->
-> 9. `<json_root>`
->
->    When importing json format data, json_root can be used to specify the root node of Json data. Doris will parse elements extracted from the root node through json_root. Default is empty.
->
->    `-H "json_root: $.RECORDS"`
->
-> 10. `<send_batch_parallelism>`
->
->     Integer type, used to set the parallelism of sending batch data. If the parallelism value exceeds `max_send_batch_parallelism_per_job` in BE configuration, the BE serving as the coordination point will use the value of `max_send_batch_parallelism_per_job`.
->
->     `"send_batch_parallelism" = "10"`
->
-> 11. `<load_to_single_tablet>`
->
->     Boolean type, true indicates support for a task to import data to only one tablet of the corresponding partition, default value is false. This parameter is only allowed to be set when importing data to olap tables with random bucketing.
->
->     `"load_to_single_tablet" = "true"`
->
-> 12. `<partial_columns>`
->
->     Boolean type, true indicates using partial column updates, default value is false. This parameter is only allowed to be set when the table model is Unique and uses Merge on Write. Dynamic multiple tables do not support this parameter.
->
->     `"partial_columns" = "true"`
->
-> 13. `<max_filter_ratio>`
->
->     Maximum filter ratio allowed within the sampling window. Must be between greater than or equal to 0 and less than or equal to 1. Default value is 0.
->
->     The sampling window is `max_batch_rows * 10`. If within the sampling window, error rows/total rows exceeds `max_filter_ratio`, the routine job will be suspended and require manual intervention to check data quality issues.
->
->     Rows filtered by where conditions are not counted as error rows.
->
-> 14. `<enclose>`
->
->     Enclosure character. When csv data fields contain row or column separators, to prevent accidental truncation, a single-byte character can be specified as an enclosure for protection. For example, if the column separator is "," and the enclosure is "'", for data "a,'b,c'", "b,c" will be parsed as one field.
->
->     Note: When enclose is set to `"`, trim_double_quotes must be set to true.
->
-> 15. `<escape>`
->
->     Escape character. Used to escape characters in csv fields that are the same as the enclosure character. For example, if the data is "a,'b,'c'", enclosure is "'", and you want "b,'c" to be parsed as one field, you need to specify a single-byte escape character, such as `\`, and modify the data to `a,'b,\'c'`.
+### Configuration Steps
 
-**5. Optional properties in `data_source_properties`**
+1. Start Metabase and log in.
 
-> 1. `<kafka_partitions>/<kafka_offsets>`
->
->    Specifies the kafka partitions to subscribe to and the starting offset for each partition. If a time is specified, consumption will start from the nearest offset greater than or equal to that time.
->
->    offset can be specified as a specific offset greater than or equal to 0, or:
->
->    - `OFFSET_BEGINNING`: Start subscribing from where data exists.
->    - `OFFSET_END`: Start subscribing from the end.
->    - Time format, such as: "2021-05-22 11:00:00"
->
->    If not specified, defaults to subscribing to all partitions under the topic from `OFFSET_END`.
->
->    ```text
->    "kafka_partitions" = "0,1,2,3",
->    "kafka_offsets" = "101,0,OFFSET_BEGINNING,OFFSET_END"
->    ```
->
->    ```text
->    "kafka_partitions" = "0,1,2,3",
->    "kafka_offsets" = "2021-05-22 11:00:00,2021-05-22 11:00:00,2021-05-22 11:00:00"
->    ```
->
->    Note: Time format cannot be mixed with OFFSET format.
->
-> 2. `<property>`
->
->    Specifies custom kafka parameters. Functions the same as the "--property" parameter in kafka shell.
->
->    When the value of a parameter is a file, the keyword "FILE:" needs to be added before the value.
->
->    For information about how to create files, please refer to the [CREATE FILE](../../security/CREATE-FILE) command documentation.
->
->    For more supported custom parameters, please refer to the client configuration items in the official CONFIGURATION documentation of librdkafka. For example:
->
->    ```text
->    "property.client.id" = "12345",
->    "property.ssl.ca.location" = "FILE:ca.pem"
->    ```
->
->    2.1 When using SSL to connect to Kafka, the following parameters need to be specified:
->
->    ````
->    ```text
->    "property.security.protocol" = "ssl",
->    "property.ssl.ca.location" = "FILE:ca.pem",
->    "property.ssl.certificate.location" = "FILE:client.pem",
->    "property.ssl.key.location" = "FILE:client.key",
->    "property.ssl.key.password" = "abcdefg"
->    ```
->
->    Among them:
->
->    `property.security.protocol` and `property.ssl.ca.location` are required, used to specify the connection method as SSL and the location of the CA certificate.
->
->    If client authentication is enabled on the Kafka server side, the following also need to be set:
->
->    ```text
->    "property.ssl.certificate.location"
->    "property.ssl.key.location"
->    "property.ssl.key.password"
->    ```
->
->    Used to specify the client's public key, private key, and private key password respectively.
->    ````
->
->    2.2 Specify default starting offset for kafka partitions
->
->    If `<kafka_partitions>/<kafka_offsets>` is not specified, all partitions will be consumed by default.
->
->    In this case, `<kafka_default_offsets>` can be specified to set the starting offset. Default is `OFFSET_END`, meaning subscription starts from the end.
->
->    Example:
->
->    ```text
->    "property.kafka_default_offsets" = "OFFSET_BEGINNING"
->    ```
+2. Click the gear icon in the upper right corner and select **Admin Settings**.
 
-**6. `COMMENT`**
+![Metabase Admin Settings](/images/ecomsystem/metabase/metabase-01.png)
 
-> ```
-> Comment information for the routine load task.
-> ```
+3. In the left-hand menu, select **Databases**, and click the **Add database** button in the upper right corner.
 
-## Access Control Requirements
+![Add database](/images/ecomsystem/metabase/metabase-02.png)
 
-Users executing this SQL command must have at least the following privileges:
+4. In the **Database type** dropdown menu, select **Apache Doris**.
 
-| Privilege                      | Object | Notes                                               |
-| :----------------------------- | :----- | :-------------------------------------------------- |
-| LOAD_PRIV | Table  | CREATE ROUTINE LOAD belongs to table LOAD operation |
+![Select Apache Doris](/images/ecomsystem/metabase/metabase-03.png)
 
-## Usage Notes
+5. Fill in the connection information:
 
-- Dynamic tables do not support the `columns_mapping` parameter
-- When using dynamic multiple tables, parameters like merge_type, where_predicates, etc., need to conform to each dynamic table's requirements
-- Time format cannot be mixed with OFFSET format
-- `kafka_partitions` and `kafka_offsets` must correspond one-to-one
-- When `enclose` is set to `"`, `trim_double_quotes` must be set to true.
+- **Display name**: Doris-TPCH
+- **Host**: 127.0.0.1
+- **Port**: 9030
+- **Database name**: tpch
+- **Username**: admin
+- **Password**: \*\*\*\*\*\*
 
-## Examples
+![Fill in connection information](/images/ecomsystem/metabase/metabase-04.png)
 
-- Create a Kafka routine load task named test1 for example_tbl in example_db. Specify column separator, group.id and client.id, and automatically consume all partitions by default, starting subscription from where data exists (OFFSET_BEGINNING)
+6. Click **Save** to save the configuration.
 
+7. Metabase will automatically test the connection and synchronize database metadata. If the connection is successful, a success message will be displayed.
+
+![Connection successful](/images/ecomsystem/metabase/metabase-05.png)
+
+At this point, the data source configuration is complete! Next, we can build visualizations in Metabase.
+
+## Building Visualizations in Metabase
+
+We choose TPC-H data as the data source. Refer to [this document](../../benchmark/tpch) for instructions on building the Doris TPC-H data source.
+
+Now that we have configured the Doris data source in Metabase, let's visualize the data...
+
+Suppose we need to analyze the order amount growth curve over time for different freight methods for cost analysis.
+
+### Creating a Question
+
+1. Click the **New +** button in the upper right corner of the homepage and select **Question**.
+
+![Create a new question](/images/ecomsystem/metabase/metabase-06.png)
+
+2. Select the data source:
+   - **Database**: Doris TPCH
+   - **Table**: lineitem
+
+![Select the table](/images/ecomsystem/metabase/metabase-07.png)
+
+### Building Custom Metrics Using SQL
+
+To calculate revenue, we need to use a custom SQL expression:
+
+1. Click the **view sql** switch in the upper right corner, then click **convert this question to SQL** to edit the SQL.
+
+![Switch to SQL mode](/images/ecomsystem/metabase/metabase-08.png)
+
+2. Enter the following SQL query:
+
+```sql
+SELECT 
+  DATE_FORMAT(l_shipdate, '%Y-%m') AS ship_month,
+  l_shipmode,
+  SUM(l_extendedprice * (1 - l_discount)) AS revenue
+FROM lineitem
+WHERE l_shipdate >= '1995-01-01' 
+  AND l_shipdate < '1997-01-01'
+GROUP BY 
+  DATE_FORMAT(l_shipdate, '%Y-%m'),
+  l_shipmode
+ORDER BY ship_month, l_shipmode
+```
+
+3. Click the **Visualize** button in the lower right corner to view the results.
+
+![View Results](/images/ecomsystem/metabase/metabase-09.png)
+
+### Configure Visualization Charts
+
+1. The default display is a table. Click the **Visualization** button in the lower left corner and select the **Line** chart type.
+
+![Select Line Chart](/images/ecomsystem/metabase/metabase-10.png)
+
+2. Configure chart parameters as needed (metabase automatically configures as follows):
+   - **X-axis**: ship_month (shipping month)
+   - **Y-axis**: revenue (revenue)
+   - **Series**: l_shipmode (shipping mode)
+
+3. Customize chart style:
+   - Click the **Settings** icon to adjust colors, labels, legend position, etc.
+   - In the **Display** tab, you can set axis titles, value formats, etc.
+
+4. After configuring the chart, click **Save** in the upper right corner.
+
+5. Enter the issue name: **my-tpch**, and select the collection to save to.
+
+![Naming the issue](/images/ecomsystem/metabase/metabase-11.png)
+
+### Creating a Dashboard
+
+1. Click **+ New** → **Dashboard** to create a new dashboard. Enter the dashboard name: **my-tpch**
+
+![Creating a Dashboard](/images/ecomsystem/metabase/metabase-12.png)
+
+2. Click **Add a chart** to add the saved question to the dashboard.
+
+![Adding a Question](/images/ecomsystem/metabase/metabase-13.png)
+
+3. Adjust the chart position and size, and click **Save** in the upper right corner to save the dashboard.
+
+![Saving the Dashboard](/images/ecomsystem/metabase/metabase-14.png)
+
+At this point, Metabase has been successfully connected to Apache Doris, and data analysis and visualization dashboard creation have been implemented!
+
+## Advanced Features
+
+### Accessing External Data Using Catalogs
+
+Doris supports multi-catalog functionality, allowing queries to external data sources and cross-data source queries. When using it in Metabase:
+
+1. Configure `Catalog` in the Links configuration interface, and configure the external database under that catalog in `Database`, for example:  
+   `catalog: hive_catalog`, `database: warehouse` - Access the warehouse database named hive_catalog
+
+![Configuring catalog](/images/ecomsystem/metabase/metabase-15.png)
+
+2. Or explicitly specify the Catalog in an SQL query:
+
+```sql
+SELECT * FROM hive.warehouse.orders LIMIT 100;
+```
+
+### Using Parameterized Queries
+
+Metabase supports using variables in SQL queries, making it easy to create interactive dashboards:
+
+```sql
+SELECT 
+  l_shipmode,
+  SUM(l_extendedprice * (1 - l_discount)) AS revenue
+FROM lineitem
+WHERE l_shipdate BETWEEN {{start_date}} AND {{end_date}}
+  AND l_shipmode = {{ship_mode}}
+GROUP BY l_shipmode
+```
+
+After saving, data can be dynamically filtered in the dashboard using dropdown menus or date pickers.
+
+### Performance Optimization Recommendations
+
+1. **Use Partition Clipping**: Add a partition column filter condition to the WHERE clause.
    ```sql
-   CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-   COLUMNS TERMINATED BY ",",
-   COLUMNS(k1, k2, k3, v1, v2, v3 = k1 * 100)
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "property.group.id" = "xxx",
-       "property.client.id" = "xxx",
-       "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-   );
+   WHERE date >= '2024-01-01' AND date < '2024-02-01'
    ```
 
-- Create a Kafka routine dynamic multi-table load task named test1 for example_db. Specify column separator, group.id and client.id, and automatically consume all partitions by default, starting subscription from where data exists (OFFSET_BEGINNING)
+2. **Utilize Materialized Views:** For complex aggregation queries, creating materialized views in Doris can accelerate the query process.
 
-  Assuming we need to import data from Kafka into test1 and test2 tables in example_db, we create a routine load task named test1, and write data from test1 and test2 to a Kafka topic named `my_topic`. This way, we can import data from Kafka into two tables through one routine load task.
+3. **Control Result Set Size:** Use LIMIT to limit the number of rows returned, avoiding loading too much data at once.
 
-   ```sql
-   CREATE ROUTINE LOAD example_db.test1
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "property.group.id" = "xxx",
-       "property.client.id" = "xxx",
-       "property.kafka_default_offsets" = "OFFSET_BEGINNING"
-   );
-   ```
+4. **Query Caching:** Metabase automatically caches query results; setting appropriate cache times can improve performance.
 
-- Create a Kafka routine load task named test1 for example_tbl in example_db. The import task is in strict mode.
+### Connection and Usage Tips
 
-   ```sql
-   CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-   COLUMNS(k1, k2, k3, v1, v2, v3 = k1 * 100),
-   PRECEDING FILTER k1 = 1,
-   WHERE k1 > 100 and k2 like "%doris%"
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "true"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "kafka_partitions" = "0,1,2,3",
-       "kafka_offsets" = "101,0,0,200"
-   );
-   ```
+- **Driver Installation:** Ensure `doris.metabase-driver.jar` is placed in the Metabase `plugins` directory and restart Metabase.
+- **Time Zone Settings:** If you encounter time zone issues, add `serverTimezone=Asia/Shanghai` to the JDBC connection string.
+- **Partitioned Table Optimization:** Creating appropriate Doris partitioned tables, dividing them by time and bucketing them, can effectively reduce the amount of data scanned in queries.
+- **Network Connection:** It is recommended to use a VPC private connection to avoid security risks introduced by public network access.
+- **Access Control:** Fine-tune Doris user account roles and access permissions, following the principle of least privilege.
+- **Metadata Synchronization:** When Doris... When the table structure changes, manually synchronize it by clicking "Sync database schema now" on the Metabase management page.
+- **Performance Monitoring**: For slow queries, you can use `SHOW QUERY PROFILE` in Doris to analyze performance bottlenecks.
 
-- Import data from Kafka cluster using SSL authentication. Also set client.id parameter. Import task is in non-strict mode, timezone is Africa/Abidjan
+### Data Type Display Anomalies
 
-   ```sql
-   CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-   COLUMNS(k1, k2, k3, v1, v2, v3 = k1 * 100),
-   WHERE k1 > 100 and k2 like "%doris%"
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false",
-       "timezone" = "Africa/Abidjan"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "property.security.protocol" = "ssl",
-       "property.ssl.ca.location" = "FILE:ca.pem",
-       "property.ssl.certificate.location" = "FILE:client.pem",
-       "property.ssl.key.location" = "FILE:client.key",
-       "property.ssl.key.password" = "abcdefg",
-       "property.client.id" = "my_client_id"
-   );
-   ```
-
-- Import Json format data. Use field names in Json as column name mapping by default. Specify importing partitions 0,1,2, all starting offsets are 0
-
-   ```sql
-   CREATE ROUTINE LOAD example_db.test_json_label_1 ON table1
-   COLUMNS(category,price,author)
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false",
-       "format" = "json"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "kafka_partitions" = "0,1,2",
-       "kafka_offsets" = "0,0,0"
-   );
-   ```
-
-- Import Json data, extract fields through Jsonpaths, and specify Json document root node
-
-   ```sql
-   CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-   COLUMNS(category, author, price, timestamp, dt=from_unixtime(timestamp, '%Y%m%d'))
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false",
-       "format" = "json",
-       "jsonpaths" = "[\"$.category\",\"$.author\",\"$.price\",\"$.timestamp\"]",
-       "json_root" = "$.RECORDS"
-       "strip_outer_array" = "true"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "kafka_partitions" = "0,1,2",
-       "kafka_offsets" = "0,0,0"
-   );
-   ```
-
-- Create a Kafka routine load task named test1 for example_tbl in example_db with condition filtering.
-
-   ```sql
-   CREATE ROUTINE LOAD example_db.test1 ON example_tbl
-   WITH MERGE
-   COLUMNS(k1, k2, k3, v1, v2, v3),
-   WHERE k1 > 100 and k2 like "%doris%",
-   DELETE ON v3 >100
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "20",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200",
-       "strict_mode" = "false"
-   )
-   FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "kafka_partitions" = "0,1,2,3",
-       "kafka_offsets" = "101,0,0,200"
-   );
-   ```
-
-- Import data into a Unique Key model table containing sequence columns
-
-   ```sql
-   CREATE ROUTINE LOAD example_db.test_job ON example_tbl
-   COLUMNS TERMINATED BY ",",
-   COLUMNS(k1,k2,source_sequence,v1,v2),
-   ORDER BY source_sequence
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "30",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200"
-   ) FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092,broker3:9092",
-       "kafka_topic" = "my_topic",
-       "kafka_partitions" = "0,1,2,3",
-       "kafka_offsets" = "101,0,0,200"
-   );
-   ```
-
-- Start consuming from a specified time point
-
-   ```sql
-   CREATE ROUTINE LOAD example_db.test_job ON example_tbl
-   PROPERTIES
-   (
-       "desired_concurrent_number"="3",
-       "max_batch_interval" = "30",
-       "max_batch_rows" = "300000",
-       "max_batch_size" = "209715200"
-   ) FROM KAFKA
-   (
-       "kafka_broker_list" = "broker1:9092,broker2:9092",
-       "kafka_topic" = "my_topic",
-       "property.kafka_default_offsets" = "2021-05-21 10:00:00"
-   );
-   ```
+- Ensure you are using the latest version of the Doris Driver.
+- Doris largeint types need to be explicitly converted in SQL.
+  ```sql
+  SELECT CAST(large_int_col AS STRING) FROM table
+  ```
