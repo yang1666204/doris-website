@@ -1,19 +1,19 @@
 ---
 {
-  "title": "BITMAP_XOR_COUNT",
+  "title": "BITMAP_XOR",
   "language": "en",
-  "description": "Computes the symmetric difference (XOR operation) of two or more Bitmap sets and returns the count of elements in the result set."
+  "description": "Computes the symmetric difference (XOR operation) of two or more input Bitmaps and returns a new Bitmap."
 }
 ---
 
 ## Description
 
-Computes the symmetric difference (XOR operation) of two or more Bitmap sets and returns the count of elements in the result set.
+Computes the symmetric difference (XOR operation) of two or more input Bitmaps and returns a new Bitmap.
 
 ## Syntax
 
 ```sql
-BITMAP_XOR_COUNT(<bitmap1>, <bitmap2>, ..., <bitmapN>)
+BITMAP_XOR(<bitmap1>, <bitmap2>, ..., <bitmapN>)
 ```
 
 ## Parameters
@@ -27,15 +27,32 @@ BITMAP_XOR_COUNT(<bitmap1>, <bitmap2>, ..., <bitmapN>)
 
 ## Return Value
 
-The count of elements in the Bitmap resulting from the XOR operation of multiple Bitmaps.  
-Returns 0 if any of the input Bitmap parameters is `NULL`.
+A Bitmap representing the symmetric difference of multiple Bitmaps.
+
+- If the parameter has a NULL value, it returns NULL
 
 ## Examples
 
-To compute the count of elements in the symmetric difference of two Bitmaps:
+To compute the symmetric difference of two Bitmaps:
 
 ```sql
-select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5')) res;
+select bitmap_count(bitmap_xor(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'))) cnt;
+```
+
+The result will be:
+
+```text
++------+
+| cnt  |
++------+
+|    2 |
++------+
+```
+
+To convert the symmetric difference of two Bitmaps to a string:
+
+```sql
+select bitmap_to_string(bitmap_xor(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'))) res;
 ```
 
 The result will be:
@@ -44,14 +61,46 @@ The result will be:
 +------+
 | res  |
 +------+
-|    4 |
+| 1,4  |
 +------+
 ```
 
-To compute the count of elements in the symmetric difference of two identical Bitmaps:
+To compute the symmetric difference of three Bitmaps:
 
 ```sql
-select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('1,2,3')) res;
+select bitmap_to_string(bitmap_xor(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'))) res;
+```
+
+The result will be:
+
+```text
++-------+
+| res   |
++-------+
+| 1,3,5 |
++-------+
+```
+
+To compute the symmetric difference of multiple Bitmaps, including an empty Bitmap:
+
+```sql
+select bitmap_to_string(bitmap_xor(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), bitmap_empty())) res;
+```
+
+The result will be:
+
+```text
++-------+
+| res   |
++-------+
+| 1,3,5 |
++-------+
+```
+
+To compute the symmetric difference of multiple Bitmaps, including a `NULL` value:
+
+```sql
+select bitmap_to_string(bitmap_xor(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), NULL)) res;
 ```
 
 The result will be:
@@ -60,70 +109,6 @@ The result will be:
 +------+
 | res  |
 +------+
-|    0 |
-+------+
-```
-
-To compute the count of elements in the symmetric difference of two different Bitmaps:
-
-```sql
-select bitmap_xor_count(bitmap_from_string('1,2,3'), bitmap_from_string('4,5,6')) res;
-```
-
-The result will be:
-
-```text
-+------+
-| res  |
-+------+
-|    6 |
-+------+
-```
-
-To compute the count of elements in the symmetric difference of three Bitmaps:
-
-```sql
-select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5')) res;
-```
-
-The result will be:
-
-```text
-+------+
-| res  |
-+------+
-|    3 |
-+------+
-```
-
-To compute the count of elements in the symmetric difference of multiple Bitmaps, including an empty Bitmap:
-
-```sql
-select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), bitmap_empty());
-```
-
-The result will be:
-
-```text
-+------+
-| res  |
-+------+
-|    3 |
-+------+
-```
-
-To compute the count of elements in the symmetric difference of multiple Bitmaps, including a `NULL` value:
-
-```sql
-select bitmap_xor_count(bitmap_from_string('2,3'), bitmap_from_string('1,2,3,4'), bitmap_from_string('3,4,5'), NULL) res;
-```
-
-The result will be:
-
-```text
-+------+
-| res  |
-+------+
-|    0 |
+| NULL |
 +------+
 ```
