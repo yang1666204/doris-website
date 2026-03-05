@@ -1,100 +1,101 @@
 ---
 {
-  "title": "INITCAP",
+  "title": "INSTR",
   "language": "en",
-  "description": "The INITCAP function converts the first letter of each word in a string to uppercase and the remaining letters to lowercase."
+  "description": "The INSTR function returns the position of the first occurrence of a substring in the main string, with position counting starting from 1."
 }
 ---
 
 ## Description
 
-The INITCAP function converts the first letter of each word in a string to uppercase and the remaining letters to lowercase. A word is defined as a sequence of alphanumeric characters separated by non-alphanumeric characters. This function is suitable for formatting names, titles, and other scenarios requiring standard case formatting.
+The INSTR function returns the position of the first occurrence of a substring in the main string, with position counting starting from 1. This is a commonly used string search function that supports exact matching and is case-sensitive. The function is widely used in text processing, data cleaning, and string analysis.
 
 ## Syntax
 
 ```sql
-INITCAP(<str>)
+INSTR(<str>, <substr>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                      |
-| --------- | -------------------------------------------------------------------------------- |
-| `<str>`   | The string to convert case format. Type: VARCHAR |
+| Parameter  | Description                                                                 |
+| ---------- | --------------------------------------------------------------------------- |
+| `<str>`    | Main string to search within. Type: VARCHAR |
+| `<substr>` | Substring to find. Type: VARCHAR            |
 
 ## Return Value
 
-Returns VARCHAR type, representing the converted string.
+Returns INT type, representing the position of the first occurrence of the substring in the main string.
 
-Conversion rules:
+Search rules:
 
-- The first letter of each word is converted to uppercase
-- Remaining letters in the word are converted to lowercase
-- Words are separated by non-alphanumeric characters (spaces, punctuation, symbols, etc.)
-- Numeric characters are not case-converted
-- Supports Unicode character case conversion
+- Returns position index starting from 1 (not from 0)
+- If substring does not exist, returns 0
+- Search is case-sensitive
+- Supports correct position calculation for UTF-8 multi-byte characters
+- Special handling for empty strings
 
 Special cases:
 
-- If parameter is NULL, returns NULL
-- If string is empty, returns empty string
-- Consecutive non-alphanumeric characters are treated as a single separator
-- Letters at the beginning of the string are capitalized
+- If any parameter is NULL, returns NULL
+- If substring is an empty string, returns 1 (empty string "exists" at any position)
+- If main string is empty but substring is not, returns 0
+- Supports finding substrings containing special characters and symbols
 
 ## Examples
 
-1. Basic word capitalization
+1. Basic character search
 
 ```sql
-SELECT INITCAP('hello world');
+SELECT INSTR('abc', 'b'), INSTR('abc', 'd');
 ```
 
 ```text
-+------------------------+
-| INITCAP('hello world') |
-+------------------------+
-| Hello World            |
-+------------------------+
++-------------------+-------------------+
+| INSTR('abc', 'b') | INSTR('abc', 'd') |
++-------------------+-------------------+
+|                 2 |                 0 |
++-------------------+-------------------+
 ```
 
-2. Mixed case conversion
+2. Substring search
 
 ```sql
-SELECT INITCAP('hELLo WoRLD');
+SELECT INSTR('hello world', 'world'), INSTR('hello world', 'WORLD');
 ```
 
 ```text
-+------------------------+
-| INITCAP('hELLo WoRLD') |
-+------------------------+
-| Hello World            |
-+------------------------+
++------------------------------+------------------------------+
+| INSTR('hello world', 'world') | INSTR('hello world', 'WORLD') |
++------------------------------+------------------------------+
+|                            7 |                            0 |
++------------------------------+------------------------------+
 ```
 
 3. NULL value handling
 
 ```sql
-SELECT INITCAP(NULL);
+SELECT INSTR(NULL, 'test'), INSTR('test', NULL);
 ```
 
 ```text
-+---------------+
-| INITCAP(NULL) |
-+---------------+
-| NULL          |
-+---------------+
++---------------------+---------------------+
+| INSTR(NULL, 'test') | INSTR('test', NULL) |
++---------------------+---------------------+
+| NULL                | NULL                |
++---------------------+---------------------+
 ```
 
-4. String with numbers and symbols
+4. Empty string handling
 
 ```sql
-SELECT INITCAP('hello hello.,HELLO123HELlo');
+SELECT INSTR('hello', ''), INSTR('', 'world');
 ```
 
 ```text
-+---------------------------------------+
-| INITCAP('hello hello.,HELLO123HELlo') |
-+---------------------------------------+
-| Hello Hello.,Hello123hello            |
-+---------------------------------------+
++--------------------+---------------------+
+| INSTR('hello', '') | INSTR('', 'world') |
++--------------------+---------------------+
+|                  1 |                   0 |
++--------------------+---------------------+
 ```
