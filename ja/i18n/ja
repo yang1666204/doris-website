@@ -1,26 +1,26 @@
 ---
 {
-  "title": "BITMAP_FROM_ARRAY",
+  "title": "BITMAP_FROM_BASE64",
   "language": "en",
-  "description": "Converts an array of TINYINT/SMALLINT/INT/BIGINT type to a BITMAP. When the input field is illegal, the result returns NULL."
+  "description": "Convert a base64 string (which can be converted by bitmaptobase64 function) to a BITMAP. Returns NULL when the input string is invalid."
 }
 ---
 
 ## Description
 
-Converts an array of TINYINT/SMALLINT/INT/BIGINT type to a BITMAP. When the input field is illegal, the result returns NULL.
+Convert a base64 string (which can be converted by `bitmap_to_base64` function) to a BITMAP. Returns NULL when the input string is invalid.
 
 ## Syntax
 
 ```sql
-BITMAP_FROM_ARRAY(<arr>)
+ BITMAP_FROM_BASE64(<base64_str>)
 ```
 
 ## Parameters
 
-| Parameter | Description   |
-| --------- | ------------- |
-| `<arr>`   | integer array |
+| Parameter      | Description                                                                        |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `<base64_str>` | base64 string (can be converted by `bitmap_to_base64` function) |
 
 ## Return Value
 
@@ -31,37 +31,49 @@ Returns a BITMAP
 ## Examples
 
 ```sql
-SELECT bitmap_to_string(bitmap_from_array(array(1, 0, 1, 1, 0, 1, 0))) AS bs;
+select bitmap_to_string(bitmap_from_base64("invalid")) bts;
 ```
 
 ```text
 +------+
-| bs   |
-+------+
-| 0,1  |
-+------+
-```
-
-```sql
-SELECT bitmap_to_string(bitmap_from_array(NULL)) AS bs;
-```
-
-```text
-+------+
-| bs   |
+| bts  |
 +------+
 | NULL |
 +------+
 ```
 
 ```sql
-select bitmap_to_string(bitmap_from_array([1,2,3,-1]));
+select bitmap_to_string(bitmap_from_base64("AA==")) bts;
 ```
 
 ```text
-+-------------------------------------------------+
-| bitmap_to_string(bitmap_from_array([1,2,3,-1])) |
-+-------------------------------------------------+
-| NULL                                            |
-+-------------------------------------------------+
++------+
+| bts  |
++------+
+|      |
++------+
+```
+
+```sql
+select bitmap_to_string(bitmap_from_base64("AQEAAAA=")) bts;
+```
+
+```text
++------+
+| bts  |
++------+
+| 1    |
++------+
+```
+
+```sql
+select bitmap_to_string(bitmap_from_base64("AjowAAACAAAAAAAAAJgAAAAYAAAAGgAAAAEAf5Y=")) bts;
+```
+
+```text
++-----------+
+| bts       |
++-----------+
+| 1,9999999 |
++-----------+
 ```
