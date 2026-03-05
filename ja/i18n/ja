@@ -1,108 +1,66 @@
 ---
 {
-  "title": "SINH",
+  "title": "SHOW TABLET",
   "language": "en",
-  "description": "Returns the hyperbolic sine of x."
+  "description": "This statement is used to show details of a specific tablet (only for administrators)."
 }
 ---
 
 ## Description
 
-Returns the hyperbolic sine of `x`.
+This statement is used to show details of a specific tablet (only for administrators).
 
 ## Syntax
 
 ```sql
-SINH(<x>)
+SHOW TABLET <tablet_id>;
 ```
 
-## Parameters
+## Required Parameters
 
-| Parameter | Description                                                       |
-| --------- | ----------------------------------------------------------------- |
-| `<x>`     | The value for which the hyperbolic sine value is to be calculated |
+**1. `<tablet_id>`**
+
+> The ID of the specific tablet to display information for.
 
 ## Return Value
 
-The sinh value of parameter `x`.
+When using `SHOW TABLET <tablet_id>`, the following columns are returned:
 
-## Special Cases
+| Column        | DataType | Note                                                                           |
+| ------------- | -------- | ------------------------------------------------------------------------------ |
+| DbName        | String   | The name of the database that contains the tablet.             |
+| TableName     | String   | The name of the table that contains the tablet.                |
+| PartitionName | String   | The name of the partition that contains the tablet.            |
+| IndexName     | String   | The name of the index that contains the tablet.                |
+| DbId          | Int      | The ID of the database.                                        |
+| TableId       | Int      | The ID of the table.                                           |
+| PartitionId   | Int      | The ID of the partition.                                       |
+| IndexId       | Int      | The ID of the index.                                           |
+| IsSync        | Boolean  | Whether the tablet is in sync with its replicas.               |
+| Order         | Int      | The order of the tablet.                                       |
+| QueryHits     | Int      | The number of query hits on this tablet.                       |
+| DetailCmd     | String   | The command to get more detailed information about the tablet. |
 
-- When `x` is NaN, returns NaN
-- When `x` is positive infinity, returns Infinity
-- When `x` is negative infinity, returns -Infinity
-- When `x` is NULL, returns NULL
+## Access Control Requirements
 
-## Example
+The user executing this SQL command must have at least the following privileges:
 
-```sql
-select sinh(0.0);
-```
+| Privilege                       | Object   | Notes                                                                                                                                            |
+| :------------------------------ | :------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin_priv | Database | Required to execute administrative operations on the database, including managing tables, partitions, and system-level commands. |
 
-```
-+-----------+
-| sinh(0.0) |
-+-----------+
-|         0 |
-+-----------+
-```
+## Examples
 
-```sql
-select sinh(1.0);
-```
-
-```
-+--------------------+
-| sinh(1.0)          |
-+--------------------+
-| 1.1752011936438014 |
-+--------------------+
-```
+Show details of a specific tablet:
 
 ```sql
-select sinh(-1.0);
+SHOW TABLET 10145;
 ```
 
-```
-+---------------------+
-| sinh(-1.0)          |
-+---------------------+
-| -1.1752011936438014 |
-+---------------------+
-```
-
-```sql
-select sinh(cast('nan' as double));
-```
-
-```
-+------------------------------+
-| sinh(cast('nan' AS DOUBLE))  |
-+------------------------------+
-| NaN                          |
-+------------------------------+
-```
-
-```sql
-select sinh(cast('inf' as double));
-```
-
-```
-+------------------------------+
-| sinh(cast('inf' AS DOUBLE))  |
-+------------------------------+
-| Infinity                     |
-+------------------------------+
-```
-
-```sql
-select sinh(cast('-inf' as double));
-```
-
-```
-+-------------------------------+
-| sinh(cast('-inf' AS DOUBLE))  |
-+-------------------------------+
-| -Infinity                     |
-+-------------------------------+
+```text
++--------+-----------+---------------+-----------+-------+---------+-------------+---------+--------+-------+-----------+------------------------------------------------------------+
+| DbName | TableName | PartitionName | IndexName | DbId  | TableId | PartitionId | IndexId | IsSync | Order | QueryHits | DetailCmd                                                  |
++--------+-----------+---------------+-----------+-------+---------+-------------+---------+--------+-------+-----------+------------------------------------------------------------+
+| test   | sell_user | sell_user     | sell_user | 10103 | 10143   | 10142       | 10144   | true   | 0     | 0         | SHOW PROC '/dbs/10103/10143/partitions/10142/10144/10145'; |
++--------+-----------+---------------+-----------+-------+---------+-------------+---------+--------+-------+-----------+------------------------------------------------------------+
 ```
