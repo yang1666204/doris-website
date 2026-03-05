@@ -1,77 +1,130 @@
 ---
 {
-  "title": "PARTITION_VALUES",
+  "title": "LOG",
   "language": "en",
-  "description": "Table function that generates a temporary table of partition values, allowing you to view the list of partition values for a specific TABLE."
+  "description": "Returns the logarithm of x based on base b."
 }
 ---
 
 ## Description
 
-Table function that generates a temporary table of partition values, allowing you to view the list of partition values for a specific TABLE.
-
-This function is used in the FROM clause and only supports hive tables.
+Returns the logarithm of `x` based on base `b`.
 
 ## Syntax
 
 ```sql
-PARTITION_VALUES(
-    "catalog"="<catalog>",
-    "database"="<database>",
-    "table"="<table>"
-)
+LOG(<b>[, <x>])
 ```
 
-## Required Parameters
+## Parameters
 
-| Field        | Description                                                          |
-| ------------ | -------------------------------------------------------------------- |
-| `<catalog>`  | Specifies the catalog name of the cluster to query.  |
-| `<database>` | Specifies the database name of the cluster to query. |
-| `<table>`    | Specifies the table name of the cluster to query.    |
+| Parameter | Description                                                          |
+| --------- | -------------------------------------------------------------------- |
+| `<b>`     | Base should be greater than 0 and not be exactly 1.0 |
+| `<x>`     | optional, Antilogarithm should be greater than 0, default value is e |
 
-## Return Value
+## Return value
 
-The table to be queried has several partition fields, and the table will have several columns accordingly.
+Return a float point number. Special cases:
+
+- If b IS NULL or x IS NULL, return NULL
+- If any parameter is NaN, return NaN
+- If parameters don't meet the input constraints, return NULL
 
 ## Example
 
-The table creation statement for `text_partitioned_columns` in the hive3 CATALOG under multi_catalog is as follows:
-
 ```sql
-CREATE TABLE `text_partitioned_columns`(
-  `t_timestamp` timestamp)
-PARTITIONED BY (
- `t_int` int,
- `t_float` float,
- `t_string` string)
-```
-
-Data is as follows:
-
-```text
-mysql> select * from text_partitioned_columns;
-+----------------------------+-------+---------+----------+
-| t_timestamp                | t_int | t_float | t_string |
-+----------------------------+-------+---------+----------+
-| 2023-01-01 00:00:00.000000 |  NULL |     0.1 | test1    |
-| 2023-01-02 00:00:00.000000 |  NULL |     0.2 | test2    |
-| 2023-01-03 00:00:00.000000 |   100 |     0.3 | test3    |
-+----------------------------+-------+---------+----------+
-```
-
-View the list of partition values for `text_partitioned_columns` in the hive3 CATALOG under multi_catalog:
-
-```sql
-select * from partition_values("catalog"="hive3", "database" = "multi_catalog","table" = "text_partitioned_columns");
+select log(5,1);
 ```
 
 ```text
-+-------+---------+----------+
-| t_int | t_float | t_string |
-+-------+---------+----------+
-|   100 |     0.3 | test3    |
-|  NULL |     0.2 | test2    |
-|  NULL |     0.1 | test1    |
-+-------+---------+----------+
++---------------+
+| log(5.0, 1.0) |
++---------------+
+|             0 |
++---------------+
+```
+
+```sql
+select log(3),ln(3);
+```
+
+```text
++--------------------+--------------------+
+| log(3)             | ln(3)              |
++--------------------+--------------------+
+| 1.0986122886681098 | 1.0986122886681098 |
++--------------------+--------------------+
+```
+
+```sql
+select log(3,20);
+```
+
+```text
++--------------------+
+| log(3.0, 20.0)     |
++--------------------+
+| 2.7268330278608417 |
++--------------------+
+```
+
+```sql
+select log(2,65536);
+```
+
+```text
++-------------------+
+| log(2.0, 65536.0) |
++-------------------+
+|                16 |
++-------------------+
+```
+
+```sql
+select log(5,NULL);
+```
+
+```text
++------------------------------+
+| log(cast(5 as DOUBLE), NULL) |
++------------------------------+
+|                         NULL |
++------------------------------+
+```
+
+```sql
+select log(NULL,3);
+```
+
+```text
++------------------------------+
+| log(NULL, cast(3 as DOUBLE)) |
++------------------------------+
+|                         NULL |
++------------------------------+
+```
+
+```sql
+select log(2 ,cast('nan' as double));
+```
+
+```text
++-------------------------------+
+| log(2 ,cast('nan' as double)) |
++-------------------------------+
+|                           NaN |
++-------------------------------+
+```
+
+```sql
+select log(2 ,-1);
+```
+
+```text
++------------+
+| log(2 ,-1) |
++------------+
+|       NULL |
++------------+
 ```
