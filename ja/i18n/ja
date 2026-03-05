@@ -1,155 +1,156 @@
 ---
 {
-  "title": "Deploy Doris Cluster | Separating Storage Compute",
+  "title": "Install FoundationDB",
   "language": "en",
-  "description": "Deploying a functional decoupled storage and compute Doris cluster on Kubernetes involves four main steps:",
-  "sidebar_label": "Deploy Doris Cluster"
+  "description": "FoundationDB is an open-source distributed database released under the Apache 2.0 license, it provides strong consistency for structured data storage."
 }
 ---
 
-# Deploy Doris Cluster
+FoundationDB is an open-source distributed database released under the Apache 2.0 license, it provides strong consistency for structured data storage. In the Doris compute-storage decoupling model, FoundationDB is used as the metadata store, with the meta-service component managing the metadata within FoundationDB. When deploying a compute-storage decoupled cluster on Kubernetes, FoundationDB must be deployed in advance. Two deployment options are recommended:
 
-Deploying a functional decoupled storage and compute Doris cluster on Kubernetes involves four main steps:
+- Deploying FoundationDB directly on virtual machines (including physical machines).
+- Using the [fdb-kubernetes-operator](https://github.com/FoundationDB/fdb-kubernetes-operator) to deploy FoundationDB on Kubernetes.
 
-1. Preparation – Primarily, install a FoundationDB cluster.
-2. Deploying the Doris Operator.
-3. Deploying the compute-storage decoupled cluster.
-4. Creating the Storage Backend.
+For VM deployments, refer to the Doris [compute-storage decoupling documentation's Pre-deployment section](../../../compute-storage-decoupled/before-deployment) to set up the FoundationDB cluster. Before deployment, ensure that FoundationDB can be accessed by the Doris Kubernetes cluster, i.e., the Kubernetes nodes should be on the same subnet as the machine where FoundationDB is deployed.
 
-## Step 1: Preparation
+## Deploy FoundationDB on Kubernetes
 
-Before deploying a decoupled cluster on Kubernetes, it is essential to have FoundationDB deployed in advance.
+The deployment of a FoundationDB cluster on Kubernetes involves four main steps:
 
-- (Preferred) Direct Deployment on Machines:
-  Ensure that the machine where FoundationDB is installed is accessible by services running within the Kubernetes cluster. For direct machine deployments, please refer to the [Preparation Phase](../../../compute-storage-decoupled/before-deployment) in the decoupled deployment documentation.
-- Deployment on Kubernetes:
-  For deploying FoundationDB on Kubernetes, please refer to [Deploying FoundationDB on Kubernetes](install-fdb.md).
+1. Create FoundationDBCluster CRDs.
+2. Deploy fdb-kubernetes-operator service.
+3. Deploy FoundationDB cluster.
+4. Check FoundationDB status.
 
-## Step 2: Deploying the Doris Operator
+### Step 1: Create FoundationDBCluster CRDs
 
-1. Create the resource definitions:
-    ```shell
-    kubectl create -f https://raw.githubusercontent.com/apache/doris-operator/master/config/crd/bases/crds.yaml
-    ```
-   If a non-decoupled cluster has already been deployed, use the following command to create the CRD definitions:
-    ```yaml
-    kubectl create -f https://raw.githubusercontent.com/apache/doris-operator/master/config/crd/bases/disaggregated.cluster.doris.com_dorisdisaggregatedclusters.yaml
-    ```
-2. Deploy the Doris Operator and its associated RBAC rules:
-    ```shell
-    kubectl apply -f https://raw.githubusercontent.com/apache/doris-operator/master/config/operator/disaggregated-operator.yaml
-    ```
-   After deployment, verify the status of the Operator Pod using:
-    ```shell
-    kubectl -n doris get pods
-    NAME                              READY   STATUS    RESTARTS   AGE
-    doris-operator-6b97df65c4-xwvw8   1/1     Running   0          19s
-    ```
+```shell
+kubectl create -f https://raw.githubusercontent.com/FoundationDB/fdb-kubernetes-operator/main/config/crd/bases/apps.foundationdb.org_foundationdbclusters.yaml
+kubectl create -f https://raw.githubusercontent.com/FoundationDB/fdb-kubernetes-operator/main/config/crd/bases/apps.foundationdb.org_foundationdbbackups.yaml
+kubectl create -f https://raw.githubusercontent.com/FoundationDB/fdb-kubernetes-operator/main/config/crd/bases/apps.foundationdb.org_foundationdbrestores.yaml
+```
 
-## Step 3: Deploy the compute-storage decoupled cluster
+### Step 2: Deploy fdb-kubernetes-operator service
 
-1. Download the Deployment Sample:
-    ```shell
-    curl -O https://raw.githubusercontent.com/apache/doris-operator/master/doc/examples/disaggregated/cluster/ddc-sample.yaml
-    ```
+The fdb-kubernetes-operator repository provides deployment samples for setting up an FoundationDB cluster in IP mode. The Doris-operator repository offers FoundationDB cluster deployment examples in `FQDN` mode, which can be downloaded as needed.
 
-2. Configure FoundationDB access information.
-   The compute-storage decoupled version of Doris uses FoundationDB to store metadata. The access details for FoundationDB can be provided in the DorisDisaggregatedCluster under `spec.metaService.fdb` in one of two ways: by directly specifying the access address or by using a ConfigMap that includes the access information.
-   - Direct Access Address Configuration
-     If FoundationDB is deployed outside of Kubernetes, you can specify its access address directly:
-        ```yaml
-        spec:
-          metaService:
-            fdb:
-              address: ${fdbAddress}
-        ```
-     Here, ${fdbAddress} refers to the client access address for FoundationDB. On Linux VMs, this is typically stored in `/etc/foundationdb/fdb.cluster`. For more details, refer to the FoundationDB [cluster file documentation](https://apple.github.io/foundationdb/administration.html#foundationdb-cluster-file).
+1. Download the deployment sample:
 
-   - Configuring via a ConfigMap Containing Access Information
-     If FoundationDB is deployed using the [fdb-kubernetes-operator](https://github.com/FoundationDB/fdb-kubernetes-operator), the operator will generate a specific ConfigMap containing the access information within the deployment namespace.
-     The generated ConfigMap's name is the FoundationDB resource name with the suffix “-config”. After obtaining the ConfigMap's name and namespace, configure the DorisDisaggregatedCluster resource as follows:
-        ```yaml
-        spec:
-          metaService:
-            fdb:
-              configMapNamespaceName:
-                name: ${foundationdbConfigMapName}
-                namespace: ${namespace}
-        ```
-     Here, {foundationdbConfigMapName} is the name of the ConfigMap generated by the fdb-kubernetes-operator, and {namespace} is the namespace where the ConfigMap resides.
+   - From the fdb-kubernetes-operator official repository:  
+     The fdb-kubernetes-operator by default deploys FoundationDB in IP mode. You can download the [default deployment configuration](https://raw.githubusercontent.com/foundationdb/fdb-kubernetes-operator/main/config/samples/deployment.yaml) in YAML format. If you wish to deploy using FQDN mode, refer to the [official documentation's DNS section](https://github.com/FoundationDB/fdb-kubernetes-operator/blob/main/docs/manual/customization.md#using-dns) for customization.
 
-3. Configure the DorisDisaggregatedCluster Resource
-   Based on the decoupled deployment documentation, configure:
-
-   - The metadata service as  detailed in the ([metaService configuration](config-ms.md)).
-   - The FE cluster specifications ([FE cluster configuration](config-fe.md)).
-   - The compute groups ([compute group configuration](config-cg.md)).
-
-   After completing the configuration, deploy the resources with the following command:
-
-    ```shell
-    kubectl apply -f ddc-sample.yaml
-    ```
-
-   Once the resources are applied, wait for the cluster to be fully established. The expected output of the following command is:
-
-    ```shell
-    kubectl get ddc
-    NAME                         CLUSTERHEALTH   FEPHASE   CGCOUNT   CGAVAILABLECOUNT   CGFULLAVAILABLECOUNT
-    test-disaggregated-cluster   green           Ready     2         2                  2
-    ```
-
-## Step 4: Creating the Remote Storage Backend
-
-After the cluster has successfully started, configure an available object storage as the persistent storage backend (referred to as a Vault in Doris) using SQL.
-
-1. Obtain the FE Service Access Address
-   After the cluster is deployed, you can view the services exposed by the Doris Operator with the following command:
-    ```shell
-    kubectl get svc
-    ```
-   Example output:
-    ```shell
-    NAME                                     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                               AGE
-    test-disaggregated-cluster-fe            ClusterIP   10.96.147.97   <none>        8030/TCP,9020/TCP,9030/TCP,9010/TCP   15m
-    test-disaggregated-cluster-fe-internal   ClusterIP   None           <none>        9030/TCP                              15m
-    test-disaggregated-cluster-ms            ClusterIP   10.96.169.8    <none>        5000/TCP                              15m
-    test-disaggregated-cluster-cg1           ClusterIP   10.96.47.90    <none>        9060/TCP,8040/TCP,9050/TCP,8060/TCP   14m
-    test-disaggregated-cluster-cg2           ClusterIP   10.96.50.199   <none>        9060/TCP,8040/TCP,9050/TCP,8060/TCP   14m
-    ```
-   The Service without the “-internal” suffix is intended for external access.
-
-2. Connect Using the MySQL Client
-   Within the Kubernetes cluster, create a Pod containing the MySQL Client and enter the Pod:
-    ```shell
-    kubectl run mysql-client --image=mysql:5.7 -it --rm --restart=Never -- /bin/bash
-    ```
-   Within the Pod, connect to the Doris cluster directly using the Service name:、
-    ```shell
-    mysql -uroot -P9030 -h test-disaggregated-cluster-fe 
-    ```
-
-3. Create the Storage Backend(Vault)
-   Create an object storage backend supporting the S3 protocol as the Vault using SQL. For example:
-      ```mysql
-      CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-         PROPERTIES (
-             "type"="S3",
-             "s3.endpoint" = "oss-cn-beijing.aliyuncs.com",
-             "s3.region" = "bj",
-             "s3.bucket" = "bucket",
-             "s3.root.path" = "big/data/prefix",
-             "s3.access_key" = "your-ak",
-             "s3.secret_key" = "your-sk",
-             "provider" = "OSS" 
-         );
+      ```shell
+      wget -O fdb-operator.yaml https://raw.githubusercontent.com/foundationdb/fdb-kubernetes-operator/main/config/samples/deployment.yaml
       ```
-   For instructions on creating other storage backends and detailed explanations of each field, please refer to the [Managing Storage Vault](../../../compute-storage-decoupled/managing-storage-vault.md) section of the decoupled deployment documentation.
-   Set the Default Storage Vault.
-   ```mysql
-   SET {vaultName} AS DEFAULT STORAGE VAULT;
+
+   - From the doris-operator repository:
+
+     The doris-operator repository provides deployment examples based on fdb-kubernetes-operator version 1.46.0. These examples can be used directly to deploy FoundationDB clusters.
+
+      ```shell
+      wget https://raw.githubusercontent.com/apache/doris-operator/master/config/operator/fdb-operator.yaml
+      ```
+
+2. Deploy the fdb-kubernetes-operator Service:
+
+   After customizing the fdb-kubernetes-operator deployment YAML, use the following command to deploy the `fdb-kubernetes-operator`:
+
+   ```shell
+   kubectl apply -f fdb-operator.yaml
    ```
-   Here, {vaultName} is the name of the Vault you wish to use, for example, s3_vault as created in the example above.
 
+   Expected Results:
 
+   ```shell
+   serviceaccount/fdb-kubernetes-operator-controller-manager created
+   clusterrole.rbac.authorization.k8s.io/fdb-kubernetes-operator-manager-clusterrole created
+   clusterrole.rbac.authorization.k8s.io/fdb-kubernetes-operator-manager-role created
+   rolebinding.rbac.authorization.k8s.io/fdb-kubernetes-operator-manager-rolebinding created
+   clusterrolebinding.rbac.authorization.k8s.io/fdb-kubernetes-operator-manager-clusterrolebinding created
+   deployment.apps/fdb-kubernetes-operator-controller-manager created
+   ```
 
+### Step 3: Deploy FoundationDB cluster
+
+Deployment examples for FoundationDB are available in the fdb-kubernetes-operator repository. You can download and use them directly.
+
+1. Download the IP mode deployment sample from the FoundationDB official website:
+
+   ```shell
+   wget https://raw.githubusercontent.com/foundationdb/fdb-kubernetes-operator/main/config/samples/cluster.yaml
+   ```
+
+2. Customized deployment example:
+
+   - For environments with access to Docker Hub:
+
+     Customize the final deployment state according to the [User Manual](https://github.com/FoundationDB/fdb-kubernetes-operator/blob/main/docs/manual/index.md) provided by the official website. If you use FQDN deployment, please set the `routing.useDNSInClusterFile` field to true and configure as follows:
+
+     Doris Operator's official repository provides a sample for deploying FoundationDB with [FQDN](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-sethostnameasfqdn-field), which can be downloaded directly from [here](https://github.com/apache/doris-operator/blob/master/doc/examples/disaggregated/fdb/).
+
+      ```yaml
+      spec:
+        routing:
+        useDNSInClusterFile: true
+      ```
+
+   - For private networks:
+
+     If the environment cannot directly access Docker Hub, download the necessary images from the official FoundationDB repository and push them to a private registry.  
+     The fdb-kubernetes-operator depends on the following Docker images:  [foundationdb/fdb-kubernetes-operator](https://hub.docker.com/r/foundationdb/fdb-kubernetes-operator),[foundationdb/foundationdb-kubernetes-sidecar](https://hub.docker.com/r/foundationdb/foundationdb-kubernetes-sidecar).
+
+     The FoundationDB images include: [foundationdb/fdb-kubernetes-monitor](https://hub.docker.com/r/foundationdb/fdb-kubernetes-monitor).
+
+     After pushing the images to your private registry, follow the official fdb-kubernetes-operator documentation to [customize the image configuration](https://github.com/FoundationDB/fdb-kubernetes-operator/blob/main/docs/manual/customization.md#customizing-the-foundationdb-image).
+
+     Example configuration to add private registry image configurations:
+
+      ```yaml
+      spec:
+        mainContainer:
+          imageConfigs:
+          - baseImage: foundationdb/foundationdb
+            tag: 7.1.38
+        sidecarContainer:
+          imageConfigs:
+          - baseImage: foundationdb/foundationdb-kubernetes-sidecar
+            tag: 7.1.36-1
+        version: 7.1.38
+      ```
+
+   The Doris Operator repository provides four deployment configurations for FoundationDB: [Minimal single-replica deployment](https://raw.githubusercontent.com/apache/doris-operator/refs/heads/master/doc/examples/disaggregated/fdb/cluster-single.yaml), [Minimal two-replica deployment](https://raw.githubusercontent.com/apache/doris-operator/refs/heads/master/doc/examples/disaggregated/fdb/cluster.yaml), [Production-grade two-replica deployment](https://raw.githubusercontent.com/apache/doris-operator/refs/heads/master/doc/examples/disaggregated/fdb/fdb_product.yaml), [Production-grade two-replica deployment using a private image registry](https://raw.githubusercontent.com/apache/doris-operator/refs/heads/master/doc/examples/disaggregated/fdb/fdb_product_private_env.yaml).
+
+:::tip Tip
+
+- When deploying FoundationDB, FoundationDBCluster resources, `.spec.version` must be configured.
+- When FoundationDB is deployed based on fdb-kubernetes-operator, at least three hosts are required to meet the high availability requirements of the production environment.  
+  :::
+
+### Step 4: Check FoundationDB status
+
+After deploying FoundationDB via the fdb-kubernetes-operator, check the status of the FoundationDB cluster with the following command:
+
+```shell
+kubectl get fdb
+```
+
+The expected results are as follows. If `AVAILABLE` is `true`, the cluster is available:
+
+```shell
+NAME           GENERATION   RECONCILED   AVAILABLE   FULLREPLICATION   VERSION   AGE
+test-cluster   1            1            true        true              7.1.26    13m
+```
+
+## Retrieve the ConfigMap containing FoundationDB access information
+
+When using the fdb-kubernetes-operator to deploy FoundationDB, a specific ConfigMap containing the access information for FoundationDB will be created in the namespace where FoundationDB is deployed. The name of this ConfigMap will be the resource name of the FoundationDB deployment, with "-config" appended. Use the following command to view the ConfigMap:
+
+```shell
+kubectl get configmap
+```
+
+Expected output:
+
+```shell
+test-cluster-config   5      15d
+```
