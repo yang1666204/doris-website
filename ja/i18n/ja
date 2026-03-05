@@ -1,19 +1,19 @@
 ---
 {
-  "title": "GROUP_BIT_AND",
+  "title": "GROUP_BIT_OR",
   "language": "en",
-  "description": "Performs a bitwise AND operation on all values in a single integer column or expression."
+  "description": "Performs a bitwise OR operation on all values in a single integer column or expression."
 }
 ---
 
 ## Description
 
-Performs a bitwise AND operation on all values in a single integer column or expression.
+Performs a bitwise OR operation on all values in a single integer column or expression.
 
 ## Syntax
 
 ```sql
-GROUP_BIT_AND(<expr>)
+GROUP_BIT_OR(<expr>)
 ```
 
 ## Parameters
@@ -44,25 +44,25 @@ insert into group_bit values
 ```
 
 ```sql
-select group_bit_and(value) from group_bit;
+select group_bit_or(value) from group_bit;
 ```
 
 ```text
-+----------------------+
-| group_bit_and(value) |
-+----------------------+
-|                    0 |
-+----------------------+
++---------------------+
+| group_bit_or(value) |
++---------------------+
+|                   7 |
++---------------------+
 ```
 
 ```sql
-select group_bit_and(value) from group_bit where value is null;
+select group_bit_or(value) from group_bit where value is null;
 ```
 
 ```text
-+----------------------+
-| group_bit_and(value) |
-+----------------------+
-|                 NULL |
-+----------------------+
++---------------------+
+| group_bit_or(value) |
++---------------------+
+|                NULL |
++---------------------+
 ```
