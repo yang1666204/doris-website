@@ -1,8 +1,8 @@
 ---
 {
-  "title": "ISINF",
+  "title": "ISNAN",
   "language": "en",
-  "description": "Determines whether the specified value is infinity."
+  "description": "Determines whether the specified value is NaN (Not a Number)."
 }
 ---
 
@@ -27,12 +27,12 @@ under the License.
 
 ## Description
 
-Determines whether the specified value is infinity.
+Determines whether the specified value is NaN (Not a Number).
 
 ## Syntax
 
 ```sql
-ISINF(<value>)
+ISNAN(<value>)
 ```
 
 ## Parameters
@@ -43,42 +43,42 @@ ISINF(<value>)
 
 ## Return Value
 
-Returns 1 if the value is infinity (positive or negative), otherwise returns 0.
+Returns 1 if the value is NaN, otherwise returns 0.
 If the value is NULL, returns NULL.
 
 ## Examples
 
 ```sql
-SELECT isinf(1);
+SELECT isnan(1);
 ```
 
 ```text
 +----------+
-| isinf(1) |
+| isnan(1) |
 +----------+
 |        0 |
 +----------+
 ```
 
 ```sql
-SELECT cast('inf' as double),isinf(cast('inf' as double))
+SELECT cast('nan' as double),isnan(cast('nan' as double));
 ```
 
 ```text
 +-----------------------+------------------------------+
-| cast('inf' as double) | isinf(cast('inf' as double)) |
+| cast('nan' as double) | isnan(cast('nan' as double)) |
 +-----------------------+------------------------------+
-|              Infinity |                            1 |
+|                   NaN |                            1 |
 +-----------------------+------------------------------+
 ```
 
 ```sql
-SELECT isinf(NULL)
+SELECT isnan(NULL)
 ```
 
 ```text
 +-------------+
-| isinf(NULL) |
+| isnan(NULL) |
 +-------------+
 |        NULL |
 +-------------+
