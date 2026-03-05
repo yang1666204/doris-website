@@ -1,61 +1,79 @@
 ---
 {
     "title": "TOPN_ARRAY",
-    "language": "en"
+    "language": "en",
+    "description": "TOPNARRAY returns an array of the N most frequent values in the specified column."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+TOPN_ARRAY returns an array of the N most frequent values in the specified column. It is an approximate calculation function that returns results ordered by count in descending order.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## TOPN_ARRAY
-### description
-#### Syntax
-
-`ARRAY<T> topn_array(expr, INT top_num[, INT space_expand_rate])`
-
-The topn function uses the Space-Saving algorithm to calculate the top_num frequent items in expr, 
-and return an array about the top n nums, which is an approximation
-
-The space_expand_rate parameter is optional and is used to set the number of counters used in the Space-Saving algorithm
+```sql
+TOPN_ARRAY(<expr>, <top_num> [, <space_expand_rate>])
 ```
-counter numbers = top_num * space_expand_rate
-```
-The higher value of space_expand_rate, the more accurate result will be. The default value is 50
 
-### example
-```
-mysql> select topn_array(k3,3) from baseall;
-+--------------------------+
-| topn_array(`k3`, 3)      |
-+--------------------------+
-| [3021, 2147483647, 5014] |
-+--------------------------+
-1 row in set (0.02 sec)
+## Parameters
 
-mysql> select topn_array(k3,3,100) from baseall;
-+--------------------------+
-| topn_array(`k3`, 3, 100) |
-+--------------------------+
-| [3021, 2147483647, 5014] |
-+--------------------------+
-1 row in set (0.02 sec)
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | The column or expression to be counted. Supported types: TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Date, Datetime, IPV4, IPV6, String. |
+| `<top_num>` | The number of most frequent values to return. Must be a positive integer. Supported type: Integer. |
+| `<space_expand_rate>` | Optional. Sets the number of counters used in the Space-Saving algorithm: `counter_numbers = top_num * space_expand_rate`. The larger the value, the more accurate the result. Default is 50. Supported type: Integer. |
+
+## Return Value
+
+Returns an array containing the N most frequent values.
+If there is no valid data in the group, returns NULL.
+
+## Example
+```sql
+-- setup
+CREATE TABLE page_visits (
+    page_id INT,
+    user_id INT,
+    visit_date DATE
+) DISTRIBUTED BY HASH(page_id)
+PROPERTIES (
+    "replication_num" = "1"
+);
+INSERT INTO page_visits VALUES
+(1, 101, '2024-01-01'),
+(2, 102, '2024-01-01'),
+(1, 103, '2024-01-01'),
+(3, 101, '2024-01-01'),
+(1, 104, '2024-01-01'),
+(2, 105, '2024-01-01'),
+(1, 106, '2024-01-01'),
+(4, 107, '2024-01-01');
 ```
-### keywords
-TOPN, TOPN_ARRAY
+
+```sql
+SELECT TOPN_ARRAY(page_id, 3) as top_pages
+FROM page_visits;
+```
+
+Find the top 3 most visited pages.
+
+```text
++-----------+
+| top_pages |
++-----------+
+| [1, 2, 4] |
++-----------+
+```
+
+```sql
+SELECT TOPN_ARRAY(page_id, 3) as top_pages FROM page_visits where page_id is null;
+```
+
+```text
++-----------+
+| top_pages |
++-----------+
+| NULL      |
++-----------+
+```
