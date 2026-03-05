@@ -1,93 +1,72 @@
 ---
 {
-  "title": "CONV",
+  "title": "EXP",
   "language": "en",
-  "description": "Do radix conversion for input parameter."
+  "description": "Returns x raised to the base e."
 }
 ---
 
 ## Description
 
-Do radix conversion for input parameter.
+Returns `x` raised to the base `e`.
+
+## Alias
+
+- DEXP
 
 ## Syntax
 
 ```sql
-CONV(<input>, <from_base>, <to_base>)
+EXP(<x>)
 ```
 
 ## Parameters
 
-| Parameter     | Description                                                |
-| ------------- | ---------------------------------------------------------- |
-| `<input>`     | Parameters to be converted, either as strings or integers  |
-| `<from_base>` | Numeric, the source base, within `[2,36]`. |
-| `<to_base>`   | Numeric, the target base, within `[2,36]`. |
+| Parameter | Description          |
+| --------- | -------------------- |
+| `<x>`     | independent variable |
 
 ## Return Value
 
-The number under the converted target binary `<to_base>` is returned as a string.
-When any input parameter is NULL, returns NULL.
-If `<from_base>` or `<to_base>` does not meet the range requirement, returns NULL.
+Return a value of type double. Special cases:
 
-## Examples
+- If the parameter is NULL, returns NULL
+- When the parameter is quite large, returns Infinity
+
+## Example
 
 ```sql
-SELECT CONV(15,10,2);
+select exp(2);
 ```
 
 ```text
-+-----------------+
-| conv(15, 10, 2) |
-+-----------------+
-| 1111            |
-+-----------------+
++------------------+
+| exp(2.0)         |
++------------------+
+| 7.38905609893065 |
++------------------+
 ```
 
 ```sql
-SELECT CONV('ff',16,10);
+select exp(3.4);
 ```
 
 ```text
 +--------------------+
-| conv('ff', 16, 10) |
+| exp(3.4)           |
 +--------------------+
-| 255                |
+| 29.964100047397011 |
 +--------------------+
 ```
 
 ```sql
-SELECT CONV(230,10,16);
+select exp(1000000);
 ```
 
 ```text
-+-------------------+
-| conv(230, 10, 16) |
-+-------------------+
-| E6                |
-+-------------------+
-```
-
-```sql
-SELECT CONV(230,10,NULL);
-```
-
-```text
-+-------------------+
-| CONV(230,10,NULL) |
-+-------------------+
-| NULL              |
-+-------------------+
-```
-
-```sql
-SELECT CONV(230,10,56);
-```
-
-```text
-+-----------------+
-| CONV(230,10,56) |
-+-----------------+
-| NULL            |
-+-----------------+
++--------------+
+| EXP(1000000) |
++--------------+
+|     Infinity |
++--------------+
 ```
