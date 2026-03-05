@@ -1,93 +1,47 @@
 ---
 {
-  "title": "CREATE VIEW",
+  "title": "ARRAY_REMOVE",
   "language": "en",
-  "description": "This statement is used to create a logical view using a specified query statement."
+  "description": "Remove all elements equal to the given value from an array while preserving the relative order of the remaining elements."
 }
 ---
 
-## Description
+## Function
 
-This statement is used to create a logical view using a specified query statement.
+Remove all elements equal to the given value from an array while preserving the relative order of the remaining elements.
 
 ## Syntax
 
-```sql
-CREATE VIEW [IF NOT EXISTS] [<db_name>.]<view_name>
-   [(<column_definition>)]
-[AS] <query_stmt>
-```
+- `ARRAY_REMOVE(arr, target)`
 
-Where:
+## Parameters
 
-```sql
-column_definition:
-    <column_name> [COMMENT '<comment>'] [,...]
-```
+- `arr`: `ARRAY<T>`, supports numbers, boolean, string, datetime, IP, etc.
+- `target`: a value of the same type as the array elements, used to match elements to remove.
 
-## Required Parameters
+## Return value
 
-**1. `<view_name>`**
+- Returns `ARRAY<T>` of the same type as the input.
+- If `arr` is `NULL`, returns `NULL`.
 
-> The identifier (i.e., name) of the view; it must be unique within the database where the view is created.  
-> The identifier must start with a letter character (if Unicode name support is enabled, it can be a character in any language) and cannot contain spaces or special characters unless the entire identifier string is enclosed in backticks (e.g., `My View`).  
-> The identifier cannot use reserved keywords.  
-> For more details, see identifier requirements and reserved keywords.
+## Usage notes
 
-**2. `<query_stmt>`**
-
-> The SELECT query statement that defines the view.
-
-## Optional Parameters
-
-**1. `<db_name>`**
-
-> The name of the database where the view resides. If not specified, the current database is used by default.
-
-**2. `<column_definition>`**
-
-> The column definitions of the view.  
-> Where:  
-> **1. `<column_name>`**  
-> Column name.  
-> **2. `<comment>`**  
-> Column comment.
-
-## Access Control Requirements
-
-| Privilege                        | Object      | Notes                                                                                                                             |
-| -------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| CREATE_PRIV | Database    | CREATE_PRIV privilege is required on the database.                                           |
-| SELECT_PRIV | Table, View | SELECT_PRIV privilege is required on the tables, views, or materialized views being queried. |
-
-## Notes
-
-- Views are logical and do not have physical storage. All queries on the view are equivalent to queries on the corresponding subquery.
-- Creating and dropping views does not affect the data in the underlying tables.
+- Matching rule: only elements whose value equals `target` are removed. `NULL` is equal to `NULL`.
 
 ## Examples
 
-1. Create a view `example_view` on `example_db`
+- Basic: After removal, the remaining elements keep their original relative order.
+  - `ARRAY_REMOVE([1,2,3], 1)` -> `[2,3]`
+  - `ARRAY_REMOVE([1,2,3,null], 1)` -> `[2,3,null]`
 
-    ```sql
-    CREATE VIEW example_db.example_view (k1, k2, k3, v1)
-    AS
-    SELECT c1 as k1, k2, k3, SUM(v1) FROM example_table
-    WHERE k1 = 20160112 GROUP BY k1,k2,k3;
-    ```
+- If `target` is `NULL`, remove `NULL` in `arr`.
+  - `ARRAY_REMOVE(['a','b','c',NULL], NULL)` -> `NULL`
 
-2. Create a view with column definitions
+- If `arr` is `NULL`, returns `NULL`
+  - `ARRAY_REMOVE(NULL, 2)` -> `NULL`
 
-    ```sql
-    CREATE VIEW example_db.example_view
-    (
-        k1 COMMENT "first key",
-        k2 COMMENT "second key",
-        k3 COMMENT "third key",
-        v1 COMMENT "first value"
-    )
-    COMMENT "my first view"
-    AS
-    SELECT c1 as k1, k2, k3, SUM(v1) FROM example_table
-    WHERE k1 = 20160112 GROUP BY k1,k2,k3;
-    ```
+- No match
+  - `ARRAY_REMOVE([1,2,3], 258)` -> `[1,2,3]`
+
+
+
