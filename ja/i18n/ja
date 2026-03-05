@@ -1,34 +1,64 @@
 ---
 {
-  "title": "Comments",
+  "title": "Date Type Literal",
   "language": "en",
-  "description": "Comments can make your application easier to read and maintain. For example,"
+  "description": "Consistent with standard SQL, Doris requires the use of type keywords and strings to specify date literals."
 }
 ---
 
 ## Description
 
-Comments can make your application easier to read and maintain. For example, you can include a comment within a statement to describe the purpose of that statement in your application. Comments in SQL statements (except for HINT) do not affect the execution of the statement. For information on using this specific form of comments with HINT, please refer to the [HINT](../../query-acceleration/hints/hints-overview.md) section.
-
-In SQL statements, comments can appear between any keywords, parameters, or punctuation marks. You can include comments in statements in two ways:
-
-- Multi-line comments: Start the comment with a slash and asterisk (`/*`), followed by the comment text. This text can span multiple lines. End the comment with an asterisk and a slash (`*/`). There is no need for spaces or line breaks between the start and end characters and the text.
-- Single-line comments: Start the comment with two dashes (`--`), followed by the comment text. This text cannot extend to a new line. The comment ends with a newline character.
-
-## Examples
-
-### Multi-line Comment
+Consistent with standard SQL, Doris requires the use of type keywords and strings to specify date literals. The space between the keyword and string is optional. For example:
 
 ```sql
-SELECT /* This is a multi-line comment
-          that can span multiple lines */
-       column_name
-FROM   table_name;
+DATE '2008-08-08'
+TIMESTAMP '2008-08-08 20:08:08'
 ```
 
-### Single-line Comment
+## Date Formats
+
+### DATE Literal
+
+- Use a string separated by `-` in the format `'YYYY-MM-DD'` or `'YY-MM-DD'`. Doris also supports MySQL's non-standard separator formats, but their use is not recommended.
+- As a string without separators, use the format `'YYYYMMDD'` or `'YYMMDD'` (provided the string is meaningful as a date).
+
+### DATETIME and TIMESTAMPTZ Literal
+
+- Use a string separated by `-` in the format `'YYYY-MM-DD hh:mm:ss'` or `'YY-MM-DD hh:mm:ss'`. Doris also supports MySQL's non-standard separator formats, but their use is not recommended. The separator between date and time can be a space (` `) or `T`. **Unlike MySQL 8.4 and earlier versions, Doris does not support any other separators between time and date.**
+- As a string without separators, use the format `'YYYYMMDDhhmmss'` or `'YYMMDDhhmmss'` (provided the string is meaningful as a date).
+
+DATETIME literals can include a fractional second part with a precision up to microseconds (six digits). The fractional part should always be separated from the rest of the time with a dot (`.`); other fractional second separators are not recognized.
+
+### Two-Digit Years
+
+Dates containing two-digit year values are ambiguous because the century is unknown. Doris uses the following rules to interpret two-digit year values:
+
+- Year values between 70-99 are interpreted as years 1970-1999.
+- Year values between 00-69 are interpreted as years 2000-2069.
+
+### Time Zones
+
+DATE, DATETIME and TIMESTAMPTZ literals can use time zone suffixes. When using time zones, the time zone must be immediately adjacent to the previous date or time part, with no spaces in between. For example:
 
 ```sql
-SELECT column_name -- This is a single-line comment
-FROM   table_name;
+TIMESTAMP '2008-08-08 20:08:08+08:00'
+```
+
+The time zone formats supported by Doris are:
+
+- Time zone offset: Format is `{+ | -}hh:mm`. For example, for UTC+8, it is `+08:00`.
+- Time zone name. For example, Shanghai time zone is `Asia/Shanghai`.
+
+### Handling of Invalid Values
+
+When encountering values that cannot be parsed into valid date Literals, Doris will report an error directly. For example:
+
+```sql
+SELECT date '071332'
+```
+
+Will produce the following error:
+
+```sql
+date/datetime literal [071332] is invalid
 ```
