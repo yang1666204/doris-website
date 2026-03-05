@@ -1,28 +1,10 @@
 ---
 {
     "title": "MySQL Load",
-    "language": "en"
+    "language": "en",
+    "description": "Apache Doris is compatible with the MySQL protocol and supports the use of the standard MySQL LOAD DATA syntax to import local files."
 }
 ---
-
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 Apache Doris is compatible with the MySQL protocol and supports the use of the standard MySQL [LOAD DATA](https://dev.mysql.com/doc/refman/8.0/en/load-data.html) syntax to import local files. MySQL Load is a synchronous import method where the import result is returned upon completion. That means users can tell whether the import suceeds from the returned result. Generally, the MySQL Load method can be used to ingest files smaller than 10GB in size. For files larger than 10GB, it is recommended to split them into smaller ones. MySQL Load ensures the atomicity of a batch of import tasks, meaning that either all imports succeed or all imports fail.
 
@@ -166,7 +148,7 @@ Descriptions of modules in the Load job:
 | COLUMNS TERMINATED BY | This specifies the column delimiter.                         |
 | LINE TERMINATED BY    | This specifies the row delimiter.                            |
 | IGNORE num LINES      | This specifies the number of rows to skip in the CSV import, typically specified as 1 to skip the header. |
-| col_name_or_user_var  | This specifies the column mapping syntax. For more information, refer to [Column Mapping](https://doris.apache.org/docs/2.0/data-operate/import/load-data-convert#column-mapping). |
+| col_name_or_user_var  | This specifies the column mapping syntax. For more information, refer to [Column Mapping](https://doris.apache.org/docs/dev/data-operate/import/load-data-convert#column-mapping). |
 | PROPERTIES            | Parameters for the Load.                                     |
 
 ### Parameters
@@ -178,7 +160,7 @@ By the `PROPERTIES (key1 = value1 [, key2=value2])` syntax, you can configure th
 | max_filter_ratio   | The maximum filtering rate allowed. Must be between 0 and 1, inclusive. The default value is 0, indicating no tolerance for any error rows. |
 | timeout            | The import timeout, measured in seconds. The default value is 600. The range allowed is from 1s to 259200s. |
 | strict_mode        | Whether to enable strict mode for this import. Disabled by default. |
-| timezone           | The time zone for this import. The default time zone is UTC+8. This parameter will affect the results of any time zone-related functions involved in the import. |
+| timezone           | The time zone for this import. The default time zone is the current cluster time zone. This parameter will affect the results of any time zone-related functions involved in the import. |
 | exec_mem_limit     | Memory limit for the import, defaults to 2GB, measured in bytes. |
 | trim_double_quotes | Boolean, defaults to false. If this is set to true, the outermost double quotes will be trimmed from each field in the import file. |
 | enclose            | This specifies the enclosure character. When a CSV data field contains line breaks or column delimiters, you can specify a single-byte character as the enclosure character to prevent accidental truncation.For example, if the column delimiter is ",", and the enclosure character is "'", in data "a,'b,c'", "b,c" will be parsed as one field. |
@@ -266,4 +248,4 @@ PROPERTIES ("exec_mem_limit"="10737418240");
 
 ## More help
 
-For more detailed syntax and best practices related to MySQL Load, refer to the [MySQL Load](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Load/MYSQL-LOAD/) command manual.
+For more detailed syntax and best practices related to MySQL Load, refer to the [MySQL Load](../../../sql-manual/sql-statements/data-modification/load-and-export/MYSQL-LOAD) command manual.
