@@ -1,6 +1,6 @@
 ---
 {
-  "title": "JSON_PARSE_ERROR_TO_NULL",
+  "title": "JSON_PARSE_ERROR_TO_VALUE",
   "language": "en",
   "description": "A variant of the JSONPARSE function."
 }
