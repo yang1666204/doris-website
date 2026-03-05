@@ -1,30 +1,31 @@
 ---
 {
-  "title": "ARRAY_CONCAT",
+  "title": "ARRAY_CONTAINS",
   "language": "en",
-  "description": "Concatenates all input arrays into a single array. The function accepts one or more arrays as parameters and connects them into a new array in the "
+  "description": "<version since=\"1.2.0\">"
 }
 ---
 
-## array_concat
+## array_contains
 
-<version since="2.0.0">
+<version since="1.2.0">
 
 </version>
 
 ## Description
 
-Concatenates all input arrays into a single array. The function accepts one or more arrays as parameters and connects them into a new array in the order of the parameters.
+Checks whether an array contains a specified value. Returns true if found, false otherwise. If the array is NULL, returns NULL.
 
 ## Syntax
 
 ```sql
-array_concat(ARRAY<T> arr1, [ARRAY<T> arr2, ...])
+array_contains(ARRAY<T> arr, T value)
 ```
 
 ### Parameters
 
-- `arr1, arr2, ...`：ARRAY\<T> type, the arrays to concatenate. Supports column names or constant values.
+- `arr`：ARRAY<T> type, the array to check. Supports column names or constant values.
+- `value`：T type, the value to search for. Type must be compatible with array element type.
 
 **T supported types:**
 
@@ -33,33 +34,53 @@ array_concat(ARRAY<T> arr1, [ARRAY<T> arr2, ...])
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
-- Complex data types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
-Return type: ARRAY\<T>
+Return type: BOOLEAN
 
 Return value meaning:
 
-- The concatenated new array containing all elements from the input arrays, maintaining the original order
-- NULL: if any input array is NULL
+- true: if the array contains the specified value
+- false: if the array does not contain the specified value
+- NULL: if the input array is NULL
 
-Usage notes:
+Return value behavior description:
 
-- Empty arrays will be ignored and will not add any elements
-- When there is only one array and it is empty, returns an empty array; when there is only one array and it is NULL, returns NULL
-- Complex types (nested arrays, MAP, STRUCT) require completely consistent structure when concatenating, otherwise an error will be thrown
-- For null values in array elements: null elements will be normally retained in the concatenation result
+1. Boundary condition behavior:
+   - Returns false when the input array is empty
+   - Returns NULL when the input array is NULL
+   - Returns false when array element type does not match the search value type
+   - For null values in array elements: null elements are processed normally, can search for null elements in arrays
+
+2. Exception value behavior:
+   - Returns unsupported error when array elements are of unsupported types
+
+3. Cases that return NULL:
+   - When the input array is NULL
+
+**Type compatibility rules:**
+
+1. **Numeric type compatibility**:
+   - Integer types can be compared with each other (TINYINT, SMALLINT, INT, BIGINT, LARGEINT)
+   - Floating-point types can be compared with each other (FLOAT, DOUBLE)
+   - Decimal types can be compared with each other (DECIMAL32, DECIMAL64, DECIMAL128I, DECIMALV2, DECIMAL256)
+   - Integers and floating-point numbers can be compared with each other
+2. **String type compatibility**:
+   - CHAR, VARCHAR, STRING types can be compared with each other
+3. **Date and time type compatibility**:
+   - DATE and DATEV2 can be compared with each other
+   - DATETIME and DATETIMEV2 can be compared with each other
 
 ### Examples
 
+**Table creation example**
+
 ```sql
-CREATE TABLE array_concat_test (
+CREATE TABLE array_contains_test (
     id INT,
-    int_array1 ARRAY<INT>,
-    int_array2 ARRAY<INT>,
-    string_array1 ARRAY<STRING>,
-    string_array2 ARRAY<STRING>
+    int_array ARRAY<INT>,
+    string_array ARRAY<STRING>
 )
 DUPLICATE KEY(id)
 DISTRIBUTED BY HASH(id) BUCKETS 3
@@ -67,149 +88,140 @@ PROPERTIES (
     "replication_num" = "1"
 );
 
-INSERT INTO array_concat_test VALUES
-(1, [1, 2, 3], [4, 5, 6], ['a', 'b'], ['c', 'd']),
-(2, [10, 20], [30, 40], [], ['x', 'y']),
-(3, NULL, [100, 200], NULL, ['z']),
-(4, [], [], [], []),
-(5, [1, null, 3], [null, 5, 6], ['a', null, 'c'], ['d', 'e']);
+-- Insert test data
+INSERT INTO array_contains_test VALUES
+(1, [1000, 2000, 3000], ['apple', 'banana', 'cherry']),
+(2, [], []),
+(3, NULL, NULL),
+(4, [1000, null, 3000], ['apple', null, 'cherry']);
 ```
 
 **Query examples:**
 
-Concatenating multiple array literals:
+Check if an array contains a specific integer value: This example returns false because 5 is not in int_array.
 
 ```sql
-SELECT array_concat([1, 2], [7, 8], [5, 6]);
-+--------------------------------------+
-| array_concat([1, 2], [7, 8], [5, 6]) |
-+--------------------------------------+
-| [1, 2, 7, 8, 5, 6]                   |
-+--------------------------------------+
+SELECT array_contains(int_array, 5) FROM array_contains_test WHERE id = 1;
++-------------------------------+
+| array_contains(int_array, 5)  |
++-------------------------------+
+| 0                             |
++-------------------------------+
 ```
 
-String array concatenation:
+Check if a string array contains a specific string: This example returns true because 'banana' is in string_array.
 
 ```sql
-SELECT array_concat(string_array1, string_array2) FROM array_concat_test WHERE id = 1;
-+--------------------------------------------+
-| array_concat(string_array1, string_array2) |
-+--------------------------------------------+
-| ["a", "b", "c", "d"]                       |
-+--------------------------------------------+
+SELECT array_contains(string_array, 'banana') FROM array_contains_test WHERE id = 1;
++------------------------------------------+
+| array_contains(string_array, 'banana')   |
++------------------------------------------+
+| 1                                        |
++------------------------------------------+
 ```
 
-Empty array concatenation:
+Currently it is an empty array. This example returns false because there are no values in the empty array.
 
 ```sql
-SELECT array_concat([], []);
-+----------------------+
-| array_concat([], []) |
-+----------------------+
-| []                   |
-+----------------------+
+SELECT array_contains(int_array, 1000) FROM array_contains_test WHERE id = 2;
++----------------------------------+
+| array_contains(int_array, 1000)  |
++----------------------------------+
+| 0                                |
++----------------------------------+
 ```
 
-NULL array concatenation:
+Currently it is a NULL array, this example returns NULL.
 
 ```sql
-SELECT array_concat(int_array1, int_array2) FROM array_concat_test WHERE id = 3;
-+--------------------------------------+
-| array_concat(int_array1, int_array2) |
-+--------------------------------------+
-| NULL                                 |
-+--------------------------------------+
+SELECT array_contains(int_array, 1000) FROM array_contains_test WHERE id = 3;
++----------------------------------+
+| array_contains(int_array, 1000)  |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
 
-Array concatenation containing null elements: null elements will be normally retained in the concatenation result.
+Check if an array contains null
+In this example, the value_expr parameter is null, and there are no null elements in the array, so it returns false.
 
 ```sql
-SELECT array_concat(int_array1, int_array2) FROM array_concat_test WHERE id = 5;
-+--------------------------------------+
-| array_concat(int_array1, int_array2) |
-+--------------------------------------+
-| [1, null, 3, null, 5, 6]             |
-+--------------------------------------+
+SELECT array_contains([1, 2, 3], null);
++---------------------------------+
+| array_contains([1, 2, 3], null) |
++---------------------------------+
+|                               0 |
++---------------------------------+
 ```
 
-Type compatibility example: concatenating int_array1 and string_array1, string elements cannot be converted to int, resulting in null.
+Check if an array contains null
+In this example, the value_expr parameter is null, and the array contains SQL null values, so it returns true.
 
 ```sql
-SELECT array_concat(int_array1, string_array1) FROM array_concat_test WHERE id = 1;
-+-----------------------------------------+
-| array_concat(int_array1, string_array1) |
-+-----------------------------------------+
-| [1, 2, 3, null, null]                   |
-+-----------------------------------------+
-```
-
-Complex type examples:
-
-Nested array concatenation, can be concatenated when structures are consistent.
-
-```sql
-SELECT array_concat([[1,2],[3,4]], [[5,6],[7,8]]);
-+--------------------------------------------+
-| array_concat([[1,2],[3,4]], [[5,6],[7,8]]) |
-+--------------------------------------------+
-| [[1, 2], [3, 4], [5, 6], [7, 8]]           |
-+--------------------------------------------+
-```
-
-When nested array structures are inconsistent, an error is thrown.
-
-```sql
-SELECT array_concat([[1,2]], [{'k':1}]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<ARRAY<INT>> to target type=ARRAY<DOUBLE>
-```
-
-Map type concatenation, can be concatenated when structures are consistent.
-
-```sql
-SELECT array_concat([{'k':1}], [{'k':2}]);
+SELECT array_contains([null, 1, 2], null);
 +------------------------------------+
-| array_concat([{'k':1}], [{'k':2}]) |
+| array_contains([null, 1, 2], null) |
 +------------------------------------+
-| [{"k":1}, {"k":2}]                 |
+|                                  1 |
 +------------------------------------+
 ```
 
-Struct type concatenation, can be concatenated when structures are consistent.
+When the search value type is incompatible with array element type, returns false.
 
 ```sql
-SELECT array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('name','Bob','age',30)));
-+--------------------------------------------------------------------------------------------------------+
-| array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('name','Bob','age',30))) |
-+--------------------------------------------------------------------------------------------------------+
-| [{"name":"Alice", "age":20}, {"name":"Bob", "age":30}]                                                 |
-+--------------------------------------------------------------------------------------------------------+
+SELECT array_contains([1, 2, 3], 'string');
++-------------------------------------+
+| array_contains([1, 2, 3], 'string') |
++-------------------------------------+
+| 0                                   |
++-------------------------------------+
 ```
 
-When struct structures are inconsistent, an error is thrown.
+When the search value type cannot be type-converted with array elements, an error is returned
 
 ```sql
-SELECT array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('id',1,'score',95.5,'age',10)));
-ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<STRUCT<name:VARCHAR(5),age:TINYINT>> to target type=ARRAY<DOUBLE>
+SELECT array_contains([1, 2, 3], [4, 5, 6]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<TINYINT> to target type=TINYINT
 ```
 
-Incorrect number of parameters will cause an error.
+Unsupported complex types will throw an error. In this example, the array is a nested array type, returning an unsupported error.
 
 ```sql
-SELECT array_concat();
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_concat' which has 0 arity. Candidate functions are: [array_concat(Expression, Expression, ...)]
-```
-
-Passing non-array type will cause an error.
-
-```sql
-SELECT array_concat('not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_concat(VARCHAR(12))
+SELECT array_contains([[1,2],[2,3]], [1,2]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.6)[RUNTIME_ERROR]execute failed or unsupported types for function array_contains(Array(Nullable(Array(Nullable(TINYINT)))), Array(Nullable(TINYINT)))
 ```
 
 ### Notes
 
-Ensure that all input array element types are compatible, especially for nested complex types where the structure should be consistent to avoid type conversion errors at runtime.
+Performance considerations: When dealing with large arrays, if performance is a major concern, you can use inverted indexes for accelerated queries, but there are some usage restrictions to note:
+
+1. The property for creating an array inverted index can only be a non-tokenized index
+2. The element type T of the array must be a data type that supports creating inverted indexes
+3. If the query condition parameter T is NULL, the index cannot be used for acceleration
+4. Index acceleration only occurs when the function is used as a predicate filter condition
+
+```sql
+-- Table creation example
+CREATE TABLE `test_array_index` (
+    `apply_date` date NULL COMMENT '',
+    `id` varchar(60) NOT NULL COMMENT '',
+    `inventors` array<text> NULL COMMENT '' -- Add non-tokenized inverted index to array column when creating table
+  ) ENGINE=OLAP
+  DUPLICATE KEY(`apply_date`, `id`)
+  COMMENT 'OLAP'
+  DISTRIBUTED BY HASH(`id`) BUCKETS 1
+  PROPERTIES (
+  "replication_allocation" = "tag.location.default: 1",
+  "is_being_synced" = "false",
+  "storage_format" = "V2",
+  "light_schema_change" = "true",
+  "disable_auto_compaction" = "false",
+  "enable_single_replica_compaction" = "false"
+  );
+-- Query example
+SELECT id, inventors FROM test_array_index WHERE array_contains(inventors, 'x') ORDER BY id;
+```
 
 ### Keywords
 
-ARRAY, CONCAT, ARRAY_CONCAT
+ARRAY, CONTAIN, CONTAINS, ARRAY_CONTAINS
