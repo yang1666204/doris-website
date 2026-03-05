@@ -1,64 +1,63 @@
 ---
 {
-  "title": "SUM0",
+  "title": "INTERSECT_COUNT",
   "language": "en",
-  "description": "Used to return the sum of all values of the selected field. Unlike the SUM function, when all input values are NULL, SUM0 returns 0 instead of NULL."
+  "description": "Calculate the intersection of two or more bitmaps Usage: intersectcount(bitmapcolumntocount, filtercolumn, filtervalues ..."
 }
 ---
 
 ## Description
 
-Used to return the sum of all values of the selected field. Unlike the SUM function, when all input values are NULL, SUM0 returns 0 instead of NULL.
+Calculate the intersection of two or more bitmaps
+Usage: intersect_count(bitmap_column_to_count, filter_column, filter_values ...)
+Example: intersect_count(user_id, event, 'A', 'B', 'C'), meaning find the intersect count of user_id in all A/B/C 3 bitmaps
+Calculate the intersection count of elements in bitmap_column that match column_to_filter within filter_values, i.e., bitmap intersection count.
 
 ## Syntax
 
 ```sql
-SUM0(<expr>)
+INTERSECT_COUNT(<bitmap_column>, <column_to_filter>, <filter_values> [, ...])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `<expr>`  | The field to calculate the sum of, supports type Double, Float, Decimal, LargeInt, BigInt, Integer, SmallInt, TinyInt. |
+| Parameter            | Description                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<bitmap_column>`    | The input bitmap parameter column. Supported types: Bitmap.                                                              |
+| `<column_to_filter>` | The dimension column used for filtering. Supported types: TinyInt, SmallInt, Integer, BigInt, LargeInt.                  |
+| `<filter_values>`    | The different values used to filter the dimension column. Supported types: TinyInt, SmallInt, Integer, BigInt, LargeInt. |
 
 ## Return Value
 
-Returns the sum of all values of the selected field. If all values are NULL, returns 0.
+Returns the number of elements in the intersection of the given bitmaps.
 
-## Examples
+## Example
 
 ```sql
--- Create example table
-CREATE TABLE sales_table (
-    product_id INT,
-    price DECIMAL(10,2),
-    quantity INT,
-    discount DECIMAL(10,2)
-) DISTRIBUTED BY HASH(product_id)
-PROPERTIES (
-    "replication_num" = "1"
-);
+-- setup
+CREATE TABLE pv_bitmap (
+	dt INT,
+	user_id BITMAP,
+	city STRING
+) DISTRIBUTED BY HASH(dt) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO pv_bitmap VALUES
+	(20250801, to_bitmap(1), 'beijing'),
+	(20250801, to_bitmap(2), 'beijing'),
+	(20250801, to_bitmap(3), 'shanghai'),
+	(20250802, to_bitmap(3), 'beijing'),
+	(20250802, to_bitmap(4), 'shanghai'),
+	(20250802, to_bitmap(5), 'shenzhen');
+```
 
--- Insert test data
-INSERT INTO sales_table VALUES
-(1, 99.99, 2, NULL),
-(2, 159.99, 1, NULL),
-(3, 49.99, 5, NULL),
-(4, 299.99, 1, NULL),
-(5, 79.99, 3, NULL);
-
--- Compare SUM and SUM0
-SELECT 
-    SUM(discount) as sum_discount,    -- Returns NULL
-    SUM0(discount) as sum0_discount   -- Returns 0
-FROM sales_table;
+```sql
+select intersect_count(user_id,dt,20250801) from pv_bitmap;
 ```
 
 ```text
-+--------------+---------------+
-| sum_discount | sum0_discount |
-+--------------+---------------+
-|         NULL |          0.00 |
-+--------------+---------------+
++--------------------------------------+
+| intersect_count(user_id,dt,20250801) |
++--------------------------------------+
+|                                    3 |
++--------------------------------------+
 ```
