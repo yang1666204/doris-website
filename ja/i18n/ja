@@ -1,130 +1,76 @@
 ---
 {
-  "title": "Apache Superset",
+  "title": "DataGrip",
   "language": "en",
-  "description": "Apache Superset is an open-source data mining platform that supports rich data source connections, various visualization methods,"
+  "description": "DataGrip is a powerful cross-platform database tool for relational and NoSQL databases from JetBrains."
 }
 ---
 
-Apache Superset is an open-source data mining platform that supports rich data source connections, various visualization methods, and fine-grained user access control. Its main features include self-service analysis, customizable dashboards, visualization (export) of analysis results, user/role access control, and an integrated SQL editor for SQL editing and querying.
+## introduce
 
-Apache Superset version 3.1 provides an official connection method, officially supporting querying and visualization of both internal and external data from Apache Doris. Apache Doris version 2.0.4 and above are recommended.
+DataGrip is a powerful cross-platform database tool for relational and NoSQL databases from JetBrains.
 
-Through this connection method, Superset can integrate Apache Doris databases and tables as data sources. To enable this feature, please follow the setup guide below:
+Apache Doris is highly compatible with the MySQL protocol. You can use DataGrip's MySQL data source to connect to Apache Doris and query data in the internal catalog and external catalog.
 
-- Prerequisite setup
-- Configuring the Apache Doris data source in Apache Superset
-- Building visualizations in Apache Superset
-- Connection and usage tips
+## Preconditions
 
-## Installing Superset and the Doris Python client
+DataGrip installed
+You can visit www.jetbrains.com/datagrip/ to download and install DataGrip
 
-1. Install Python 3, version 3.1.11 is recommended.
-2. Install Apache Superset version 3.1 or later. See [Installing Superset from PyPI repository](https://superset.apache.org/docs/installation/installing-superset-from-pypi) for details.
-3. Install the Apache Doris Python client on the Apache Superset server. You can refer to the following commands:
+## Add data source
 
-```
-pip install pydoris
-```
+:::info Note
+Currently verified using DataGrip version 2023.3.4
+:::
 
-Verify Installation Results:
+1. Start DataGrip
 
-```
--> pip list | grep pydoris
-pydoris                       1.1.0
-```
+2. Click the plus sign (**+**) icon in the upper left corner of the DataGrip window and select the MySQL data source
 
-After confirming the environment is correct, you can now configure a Doris data source in Superset and start building data visualizations!
+   ![add data source](/images/datagrip1.png)
 
-## Configuring a Doris Data Source in Superset
+3. Configure Doris connection
 
-Now that you have installed the **Pydoris** and **Apache Superset** drivers, let's see how to define a data source in Superset that connects to the tpch database in Doris.
+   On the General tab of the Data Sources and Drivers window, configure the following connection information:
 
-1. To connect to Apache Doris via Pydoris, you need to configure the SQLAlchemy URI connection string:
+- Host: FE host IP address of the Doris cluster.
 
-Complete the configuration in this format:
+- Port: FE query port of Doris cluster, such as 9030.
 
-`doris://<User>:<Password>@<Host>:<Port>/<Catalog>.<Database>`
+- Database: The target database in the Doris cluster.
 
-The URI parameters are explained below:
+- User: User name used to log in to the Doris cluster, such as admin.
 
-| Parameter    | Meaning                                                                                        | Example                                                    |
-| ------------ | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **User**     | Username                                                                                       | testuser                                                   |
-| **Password** | Password                                                                                       | xxxxxx                                                     |
-| **Host**     | Database host                                                                                  | 127.0.1.28 |
-| **Port**     | Database query port                                                                            | 9030                                                       |
-| **Catalog**  | Doris Catalog, used when querying external tables and data lakes; internal tables are internal | internal                                                   |
-| **Database** | Database name                                                                                  | tpch                                                       |
+- Password: User password used to log in to the Doris cluster.
 
-2. Accessing the Superset.
+  :::tip
+  Database can be used to distinguish between internal catalog and external catalog. If only the Database name is filled in, the current data source will be connected to the internal catalog by default. If the format is catalog.db, the current data source will be connected to the catalog filled in Database by default, as shown in DataGrip The database table is also a database table in the connected catalog. In this way, you can use DataGrip's MySQL data source to create multiple Doris data sources to manage different Catalogs in Doris.
+  :::
 
-![](/images/ecomsystem/superset/OXIbbtkncoLHDUxjfdCcAmaenJm.png)
+  :::info Note
+  Managing the external catalog connected to Doris through the Database form of catalog.db requires Doris version 2.1.0 and above.
+  :::
 
-3. After logging in, click Settings -> Database Connectors in the upper right corner.
+- internal catalog
 
-![](/images/ecomsystem/superset/ELzsb6xMaoqcAYxnVuzcP3hhnbg.png)
+  ![connect internal catalog](/images/datagrip2.png)
 
-4. Click Add Database. In the Connect a database pop-up window, select Apache Doris.
+- external catalog
 
-![](/images/ecomsystem/superset/TQpibvPYEoyKltx34G5c8B5AnGg.png)
+  ![connect external catalog](/images/datagrip3.png)
 
-5. Enter the SQLAlchemy URI in the connection information. After verifying the connection is correct, click Connect.
+5. Test data source connection
 
-![](/images/ecomsystem/superset/FndlbO7Fgo4ppixTFWIc0UQUnFb.png)
+   After filling in the connection information, click Test Connection in the lower left corner to verify the accuracy of the database connection information. If DataGrip returns the following pop-up window, the test connection is successful. Then click OK in the lower right corner to complete the connection configuration.
 
-6. Adding a data source is now complete.
+   ![test connection](/images/datagrip4.png)
 
-![](/images/ecomsystem/superset/GsClbUlmsooSdMx994tcjqm1nre.png)
+6. Connect to database
 
-Next, we can build some visualizations in Superset!
+   After the database connection is established, you can see the created data source connection in the database connection navigation on the left, and you can connect and manage the database through DataGrip.
 
-## Building Visualizations in Superset
+   ![create connection](/images/datagrip5.png)
 
-We choose TPC-H data as our data source. Refer to [this document](../../benchmark/tpch) for instructions on building a Doris TPC-H data source.
+## Function support
 
-Now that we have configured the Doris data source in Superset, let's visualize the data...
-
-Suppose we need to analyze the time-varying curves of order amounts for different freight methods for cost analysis.
-
-1. Click Datasets to add a Dataset
-
-![](/images/ecomsystem/superset/C55Kbstx1ogXOtxadBccEavLnOf.png)
-
-2. Select the following in sequence, then click Create dataset and create chart in the lower right corner:
-   - Database：Doris
-   - Schema： tpch
-   - Table：lineitem
-
-![](/images/ecomsystem/superset/AAlebfk9ro0SkCxLKXFcq2Scnov.png)
-
-3. Edit the lineitem Dataset
-
-![](/images/ecomsystem/superset/BHIObcQrboRQWSx4yatcoo4enxc.png)
-
-4. Click Metrics -> Add item to add a calculated metric.
-   - Metric Key : Revenue
-   - SQL expression :  `SUM(`l_extendedprice`* (1 -`l_discount`))`
-
-![](/images/ecomsystem/superset/DUOvbeQPdojk9YxAsbGcfKT2nOe.png)
-
-5. Go to Chart -> Add Chart, select lineitem for the dateset, and select Line Chart for the chart type.
-
-![](/images/ecomsystem/superset/KKndbObRCoVBDQxOgMNcJLYanUz.png)
-
-6. Drag l_shipdate to the X-axis and set the time granularity. Simultaneously, drag the Revenum custom metric and the data column l_shipmode to Meters and Dimensions respectively.
-
-![](/images/ecomsystem/superset/Aewqbeul9oFZekx3vOUcZ3ranAf.png)
-
-7. Click Update chart to view the dashboard content. Click Save to save the dashboard.
-
-![](/images/ecomsystem/superset/WwYLbzgatoYuLzx9jjmc1STOnwb.png)
-
-At this point, Superset has been successfully connected to Apache Doris, and data analysis and visualization dashboard creation have been implemented.
-
-## Connection and Usage Tips
-
-- Pre-install pydoris in the Superset environment to select Apache Doris when creating the database.
-- Create Doris database tables reasonably according to actual needs, partitioning and bucketing by time, which can effectively reduce predicate filtering and most data transmission.
-- It is recommended to use a VPC private connection to avoid the security risks introduced by public network access.
-- Refine Doris user account roles and access permissions to avoid excessive delegation of permissions.
+Basically supports most visual viewing operations, as well as SQL console writing SQL operations Doris does not support or has not been verified various operations such as creating database tables, schema changes, and adding, deleting, and modifying data.
