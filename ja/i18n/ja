@@ -1,52 +1,20 @@
 ---
 {
-  "title": "Config ComputeGroups",
+  "title": "Config FE",
   "language": "en",
-  "description": "In a decoupled storage and compute cluster, the Compute Group is responsible for importing data and caching data from object storage to enhance query "
+  "description": "FE is primarily responsible for query parsing, planning, and related tasks in decoupled storage and compute mode."
 }
 ---
 
-In a decoupled storage and compute cluster, the Compute Group is responsible for importing data and caching data from object storage to enhance query performance. Compute groups are isolated from each other.
+FE is primarily responsible for query parsing, planning, and related tasks in decoupled storage and compute mode.
 
-## Minimal Compute Group Configuration
+## Configuring Compute Resources
 
-A compute group is a collection of BE nodes that perform identical tasks. When configuring the `DorisDisaggregatedCluster` resource, each compute group must be assigned a unique identifier that also serves as its name, which cannot be modified once set. A minimal compute group configuration consists of three components: `uniqueId`, `image`, and `replicas`. For example:
-
-```yaml
-spec:
-  computeGroups:
-   - uniqueId: ${uniqueId}
-     image: ${beImage}
-     replicas: 1
-```
-
-Here, `${beImage}` is the image used to deploy the BE service; please use the image provided by the [Apache Doris official repository](https://hub.docker.com/r/apache/doris). `${uniqueId}` is the unique identifier and name of the compute group, which must match the pattern `[a-zA-Z][0-9a-zA-Z_]+`. The `replicas` field specifies the number of BE nodes within the compute group.
-
-## Configuring Multiple Compute Groups
-
-The `DorisDisaggregatedCluster` resource supports the deployment of multiple independent compute groups. The following example shows a configuration with two compute groups, `cg1` and `cg2`:
+In the deployment sample provided in the [Doris Operator repository](https://github.com/apache/doris-operator/blob/master/doc/examples/disaggregated/cluster/ddc-sample.yaml), the FE service has no resource restrictions by default. CPU and memory resources for the service can be configured using Kubernetes [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). For example, to allocate 8 CPU cores and 8Gi of memory for FE, use the following configuration:
 
 ```yaml
 spec:
-  computeGroups:
-  - uniqueId: cg1
-    image: ${beImage}
-    replicas: 3
-  - uniqueId: cg2
-    image: ${beImage}
-    replicas: 2
-```
-
-In this example, compute group `cg1` has 3 replicas, and compute group `cg2` has 2 replicas. Although compute groups are isolated, it is recommended that the BE nodes within each group use the same image across the decoupled cluster.
-
-## Configure Compute Resources
-
-In the default deployment sample for a decoupled cluster, there are no resource restrictions on the BE service. The `DorisDisaggregatedCluster` resource uses Kubernetes [resources.requests and resources.limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits) to specify CPU and memory resources. For example, to allocate 8 CPU cores and 8Gi memory for the BE nodes in compute group `cg1`, use the following configuration:
-
-```yaml
-spec:
-  computeGroups:
-  - uniqueId: cg1
+  feSpec:
     requests:
       cpu: 8
       memory: 8Gi
@@ -55,23 +23,100 @@ spec:
       memory: 8Gi
 ```
 
-Apply this configuration to the appropriate [DorisDisaggregatedCluster resource](install-doris-cluster.md#step-3-deploy-the-compute-storage-decoupled-cluster).
+Update the above configuration in the [DorisDisaggregatedCluster resource](./install-doris-cluster.md#step-3-deploy-the-compute-storage-decoupled-cluster) that you intend to deploy.
+
+## Configuring the Number of Follower Nodes
+
+In a Doris Frontend (FE) service, there are two types of roles: Follower and Observer. Follower nodes are responsible for SQL parsing, metadata management, and storage. Observer nodes primarily handle SQL parsing to offload query and write traffic from Followers. Doris uses the bdbje storage system for metadata management, which implements an algorithm similar to the Paxos protocol.
+
+In a distributed deployment, multiple Follower nodes must be configured to participate in metadata management within the distributed environment.
+
+When deploying a compute-storage disaggregated Doris cluster using the `DorisDisaggregatedCluster` resource, the default number of Follower nodes is set to 1. You can configure the number of Followers using the following setting. The example below configures three Follower nodes:
+
+```yaml
+spec:
+  feSpec:
+    electionNumber: 3
+```
+
+:::tip Note
+Once the disaggregated cluster is deployed, the `electionNumber` setting cannot be modified.
+:::
+
+## Custom Startup Configuration
+
+The Doris Operator mounts the FE startup configuration using a Kubernetes ConfigMap. Follow these steps to configure it:
+
+1. Create a Custom ConfigMap Containing the FE Startup Configuration  
+   In the default deployment, each FE service starts with a default configuration file embedded in the image. You can override this by creating a custom ConfigMap. For example:
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: fe-configmap
+      namespace: default
+      labels:
+        app.kubernetes.io/component: fe
+    data:
+      fe.conf: |
+        CUR_DATE=`date +%Y%m%d-%H%M%S`
+        # Log dir
+        LOG_DIR = ${DORIS_HOME}/log
+        # For jdk 17, this JAVA_OPTS will be used as default JVM options
+        JAVA_OPTS_FOR_JDK_17="-Djavax.security.auth.useSubjectCredsOnly=false -Xmx8192m -Xms8192m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$LOG_DIR -Xlog:gc*:$LOG_DIR/fe.gc.log.$CUR_DATE:time,uptime:filecount=10,filesize=50M --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.ref=ALL-UNNAMED"
+        # INFO, WARN, ERROR, FATAL
+        sys_log_level = INFO
+        # NORMAL, BRIEF, ASYNC
+        sys_log_mode = NORMAL
+        # Default dirs to put jdbc drivers,default value is ${DORIS_HOME}/jdbc_drivers
+        # jdbc_drivers_dir = ${DORIS_HOME}/jdbc_drivers
+        http_port = 8030
+        rpc_port = 9020
+        query_port = 9030
+        edit_log_port = 9010
+        enable_fqdn_mode=true
+        deploy_mode = cloud
+    ```
+
+2. Deploy the ConfigMap  
+   Deploy the custom ConfigMap to the namespace where the DorisDisaggregatedCluster resource resides by executing:
+    ```shell
+    kubectl apply -n ${namespace} -f ${feConfigMapName}.yaml
+    ```
+   Here, `${namespace}` is the namespace of the `DorisDisaggregatedCluster` resource, and `${feConfigMapName}` is the filename of the ConfigMap.
+
+3. Update the `DorisDisaggregatedCluster` Resource to Use the ConfigMap  
+   In the `DorisDisaggregatedCluster` resource, mount the ConfigMap using the `feSpec.configMaps` array, as shown below:
+    ```yaml
+    spec:
+      feSpec:
+        replicas: 2
+        configMaps:
+        - name: fe-configmap
+    ```
+   In the `DorisDisaggregatedCluster` resource, the `configMaps` field is an array, with each element's `name` representing the name of the ConfigMap in the current namespace.
+
+:::tip Tip
+
+1. In Kubernetes deployments, it is not necessary to include `meta_service_endpoint` or `cluster_id` in the startup configuration, as the Doris Operator will automatically add this information.
+2. When customizing the startup configuration, `enable_fqdn_mode` must be set to true.
+   :::
 
 ## Access Configuration
 
-By default, compute groups do not expose services externally. The Doris Operator provides a Service as a proxy for compute groups within the `DorisDisaggregatedCluster` resource. Three service exposure modes are supported: `ClusterIP`, `NodePort`, and `LoadBalancer`.
+The Doris Operator uses Kubernetes Services to provide VIP and load balancing capabilities, supporting three exposure modes: `ClusterIP`, `NodePort`, and `LoadBalancer`.
 
-### ClusterIP
+### ClusterIP Mode
 
-Kubernetes uses the [ClusterIP service type](https://kubernetes.io/docs/concepts/services-networking/service/#type-clusterip) by default, which provides an internal address within the cluster.
+Kubernetes uses the [`ClusterIP service type`](https://kubernetes.io/docs/concepts/services-networking/service/#type-clusterip) by default. This mode provides an internal address within the Kubernetes cluster.
 
-#### Step 1: Configure the Service Type as ClusterIP
+#### Step 1: Configure ClusterIP Mode
 
-Doris is configured to use ClusterIP mode by default in Kubernetes; no additional configuration is required.
+By default, Doris is configured to use ClusterIP mode on Kubernetes; no additional configuration is required.
 
 #### Step 2: Obtain the Service Access Address
 
-After deploying the cluster, use the following command to view the Service exposed for the compute group:
+After deploying the cluster, view the FE service by running:
 
 ```yaml
 kubectl -n doris get svc
@@ -80,58 +125,111 @@ kubectl -n doris get svc
 A sample output is:
 
 ```yaml
-NAME                                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                               AGE
-test-disaggregated-cluster-cg1           ClusterIP   10.152.183.154   <none>        9060/TCP,8040/TCP,9050/TCP,8060/TCP   2d
+NAME                              TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)                               AGE
+doriscluster-sample-fe-internal   ClusterIP   None          <none>        9030/TCP                              14m
+doriscluster-sample-fe            ClusterIP   10.1.118.16   <none>        8030/TCP,9020/TCP,9030/TCP,9010/TCP   14m
 ```
 
-This output shows the Service for the compute group with a `uniqueId` of `cg1` in the `doris` namespace.
+In the output above, the service with the suffix "internal" is used solely for internal communication (e.g., heartbeat, data exchange) and is not exposed externally. The service without the "internal" suffix is used for external access to the FE service.
 
-### NodePort
+#### Step 3: Access Doris from Within a Container
 
-If external access to Doris is required from outside the Kubernetes cluster, the [NodePort service type](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport) can be used. NodePort supports two configuration methods: static host port mapping and dynamic host port assignment.
+Create a Pod with the MySQL client in the current Kubernetes cluster by running:
+
+```yaml
+kubectl run mysql-client --image=mysql:5.7 -it --rm --restart=Never --namespace=doris -- /bin/bash
+```
+
+Within the Pod, connect to the Doris cluster by using the Service name that does not have the "internal" suffix:
+
+```yaml
+mysql -uroot -P9030 -hdoriscluster-sample-fe-service
+```
+
+### NodePort Mode
+
+To access Doris from outside the Kubernetes cluster, you can use the [NodePort service type](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport). NodePort mode supports two configuration methods: static host port assignment and dynamic host port assignment.
 
 - Dynamic Host Port Assignment:
-  If no explicit port mapping is provided, Kubernetes will automatically assign an unused host port (default range: 30000–32767) when the pod is created.
-- Static Host Port Mapping:
-  If a port mapping is specified, and the host port is available, Kubernetes will allocate that port. For static assignment, you must plan the port mappings. Doris provides the following port for external interactions:
+  If no explicit port mapping is provided, Kubernetes automatically assigns an unused host port (default range: 30000–32767) when the pod is created.
+- Static Host Port Assignment:
+  If a port mapping is explicitly specified and the host port is available and conflict-free, Kubernetes will allocate that port. For static assignment, you must plan the port mappings. Doris provides the following ports for external interactions:
 
-| Port Name       | Default Port | Description                                                              |
-| --------------- | ------------ | ------------------------------------------------------------------------ |
-| Web Server Port | 8040         | The HTTP server port on BE, used to view BE information. |
+| Port Name  | Default Port | Description                                                              |
+| ---------- | ------------ | ------------------------------------------------------------------------ |
+| Query Port | 9030         | Used to access the Doris cluster via the MySQL protocol. |
+| HTTP Port  | 8030         | The HTTP server port on FE, used to view FE information. |
 
-#### Static Configuration
+#### Step 1: Configure FE NodePort
 
-For compute group `cg1`, the static NodePort configuration is as follows:
+- Dynamic Assignment Configuration:
+    ```yaml
+    spec:
+      feSpec:
+        service:
+          type: NodePort
+    ```
+- Static Assignment Configuration Example:
+    ```yaml
+    spec:
+      feSpec:
+        service:
+          type: NodePort
+          portMaps:
+          - nodePort: 31001
+            targetPort: 8030
+          - nodePort: 31002
+            targetPort: 9030
+    ```
+
+#### Step 2: Obtain the Service
+
+After the cluster is deployed, run the following command to view the Service:
 
 ```yaml
-spec:
-  computeGroups:
-    - uniqueId: cg1
-      service:
-        type: NodePort
-        portMaps:
-          - nodePort: 31012
-            targetPort: 8040
+kubectl get service
 ```
 
-In this configuration, the BE listening port 8040 for compute group `cg1` is mapped to host port 31012.
-
-#### Dynamic Configuration
-
-For compute group `cg1`, the dynamic NodePort configuration is as follows:
+A sample output is:
 
 ```yaml
-spec:
-  computeGroups:
-    - uniqueId: cg1
-      service:
-        type: NodePort
+NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                                                       AGE
+kubernetes                        ClusterIP   10.152.183.1     <none>        443/TCP                                                       169d
+doriscluster-sample-fe-internal   ClusterIP   None             <none>        9030/TCP                                                      2d
+doriscluster-sample-fe            NodePort    10.152.183.58    <none>        8030:31041/TCP,9020:30783/TCP,9030:31545/TCP,9010:31610/TCP   2d
+```
+
+#### Step 3: Accessing Doris Using NodePort
+
+For example, if Doris' `Query Port` is mapped to host port 31545, first obtain the IP address of one node in the Kubernetes cluster by running:
+
+```yaml
+kubectl get nodes -o wide
+```
+
+A sample output is:
+
+```yaml
+NAME   STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE          KERNEL-VERSION          CONTAINER-RUNTIME
+r60    Ready    control-plane   14d   v1.28.2   192.168.88.60   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r61    Ready    <none>          14d   v1.28.2   192.168.88.61   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r62    Ready    <none>          14d   v1.28.2   192.168.88.62   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+r63    Ready    <none>          14d   v1.28.2   192.168.88.63   <none>        CentOS Stream 8   4.18.0-294.el8.x86_64   containerd://1.6.22
+```
+
+Using any of these node IPs (for example, 192.168.88.62), connect to the Doris cluster with:
+
+```yaml
+mysql -h 192.168.88.62 -P31545 -uroot
 ```
 
 ### LoadBalancer Mode
 
 The [LoadBalancer service](https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer) type is applicable in cloud-based Kubernetes environments and is provided by the cloud provider's load balancer.
-Set the `computeGroup.service` type to LoadBalancer, as shown:
+
+#### Step 1: Configure LoadBalancer Mode
+
+Set the `feSpec.service` type to LoadBalancer, as shown:
 
 ```yaml
 spec:
@@ -142,106 +240,90 @@ spec:
         service.beta.kubernetes.io/load-balancer-type: "external"
 ```
 
-## Custom Startup Configuration
+#### Step 2: Obtain the Service
 
-1. Create a Custom ConfigMap Containing Startup Information
-   In the default deployment, each compute group's BE service starts with a default configuration file embedded in the image. The Doris Operator uses a Kubernetes ConfigMap to mount a custom startup configuration file. Below is an example ConfigMap for a BE service:
-    ```yaml
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: be-configmap
-      labels:
-        app.kubernetes.io/component: be
-    data:
-      be.conf: |
-        # For JDK 17, these JAVA_OPTS serve as the default JVM options
-        JAVA_OPTS_FOR_JDK_17="-Xmx1024m -DlogPath=$LOG_DIR/jni.log -Xlog:gc*:$LOG_DIR/be.gc.log.$CUR_DATE:time,uptime:filecount=10,filesize=50M -Djavax.security.auth.useSubjectCredsOnly=false -Dsun.security.krb5.debug=true -Dsun.java.command=DorisBE -XX:-CriticalJNINatives -XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED"
-        file_cache_path = [{"path":"/opt/apache-doris/be/file_cache","total_size":107374182400,"query_limit":107374182400}]
-        deploy_mode = cloud
-    ```
-   The startup configuration for the BE service in a decoupled cluster must include the file_cache_path setting. For the required format, please refer to the [Doris decoupled configuration for be.conf](./../../../compute-storage-decoupled/compilation-and-deployment.md#541-configure-beconf).
+After deploying the cluster, view the Service by running:
 
-2. Deploy the ConfigMap
-   Use the following command to deploy the custom ConfigMap containing the startup configuration to the Kubernetes cluster:
-    ```yaml
-    kubectl -n ${namespace} -f ${beConfigMapFileName}.yaml
-    ```
-   Here, `${namespace}` is the namespace where the `DorisDisaggregatedCluster` is deployed, and `${beConfigMapFileName}` is the name of the file containing the custom ConfigMap.
+```yaml
+kubectl get service
+```
 
-3. Update the DorisDisaggregatedCluster Resource to Use the ConfigMap
-   Modify the resource to mount the ConfigMap at the required location, as shown below:
-    ```yaml
-    spec:
-      computeGroups:
-      - uniqueId: cg1
-        configMaps:
-        - name: be-configmap
-          mountPath: "/etc/doris"
-    ```
+A sample output is:
 
-:::tip Note
-The startup configuration must be mounted at the `/etc/doris` directory.
-:::
+```yaml
+NAME                              TYPE           CLUSTER-IP       EXTERNAL-IP                                                                     PORT(S)                                                       AGE
+kubernetes                        ClusterIP      10.152.183.1     <none>                                                                          443/TCP                                                       169d
+doriscluster-sample-fe-internal   ClusterIP      None             <none>                                                                          9030/TCP                                                      2d
+doriscluster-sample-fe            LoadBalancer   10.152.183.58    ac4828493dgrftb884g67wg4tb68gyut-1137856348.us-east-1.elb.amazonaws.com         8030:31041/TCP,9020:30783/TCP,9030:31545/TCP,9010:31610/TCP   2d
+```
 
-## Persistent Storage Configuration
+#### Step 3: Accessing Doris Using LoadBalancer
 
-In the default deployment, the BE service uses Kubernetes [`EmptyDir`](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) as its cache. EmptyDir is a non-persistent storage mode, meaning that cached data is lost after the service restarts, which can reduce query performance.
+For example, if Doris' Query Port listens on port 9030, connect using:
 
-To ensure that cached data is retained after service restarts and query efficiency is not degraded, persistent storage should be configured for the cache. The BE service logs are output both to standard output and to the directory specified by the `LOG_DIR` parameter in the startup configuration. In addition, the StreamLoad import process uses `/opt/apache-doris/be/storage` as a temporary storage location. To prevent data loss caused by unexpected service restarts, persistent storage should be mounted for this directory as well.
+```yaml
+mysql -h ac4828493dgrftb884g67wg4tb68gyut-1137856348.us-east-1.elb.amazonaws.com -P9030 -uroot
+```
 
-### Persistent Storage Example
+## Persistent Storage
 
-The following is an example configuration for mounting persistent storage to the required data directories:
+In the default deployment, the FE service uses Kubernetes [EmptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) as its metadata storage mode. Since EmptyDir is non-persistent, metadata will be lost after a service restart. To ensure that FE metadata is preserved after restarts, persistent storage must be configured.
+
+### Automatically Generating Persistent Storage Using a Storage Template
+
+Configure persistent storage for logs and metadata using a storage template, as shown below:
 
 ```yaml
 spec:
-  computeGroups:
-  - uniqueId: cg1
+  feSpec:
     persistentVolumes:
-    - mountPaths:
-      - /opt/apache-doris/be/log
-      persistentVolumeClaimSpec:
-        # storageClassName: ${storageclass_name}
+    - persistentVolumeClaimSpec:
+      # storageClassName: ${storageclass_name}
         accessModes:
-        - ReadWriteOnce
+          - ReadWriteOnce
         resources:
           requests:
-            storage: 300Gi
+            storage: 200Gi
+```
+
+When deployed with the above configuration, the Doris Operator automatically mounts persistent storage for the log directory (default `/opt/apache-doris/fe/log`) and the metadata directory (default `/opt/apache-doris/fe/doris-meta`). If the log or metadata directory is explicitly specified in the [custom startup configuration](#custom-startup-configuration), the Doris Operator will parse and mount the persistent storage accordingly. Persistent storage is implemented using the [StorageClass mechanism](https://kubernetes.io/docs/concepts/storage/storage-classes/), which allows specifying the required StorageClass via the `storageClassName` field.
+
+### Custom Mount Point Configuration
+
+The Doris Operator supports customized storage configurations for mount points. The following example mounts 300Gi of storage for the log directory using a custom configuration and 200Gi for the metadata directory using the storage template:
+
+```yaml
+spec:
+  feSpec:
+    persistentVolumes:
     - mountPaths:
-      - /opt/apache-doris/be/storage
+      - /opt/apache-doris/fe/log
       persistentVolumeClaimSpec:
-        # storageClassName: ${storageclass_name}
+      # storageClassName: ${storageclass_name}
         accessModes:
-        - ReadWriteOnce
+          - ReadWriteOnce
         resources:
           requests:
             storage: 300Gi
     - persistentVolumeClaimSpec:
-        # storageClassName: ${storageclass_name}
+      # storageClassName: ${storageclass_name}
         accessModes:
-        - ReadWriteOnce
+          - ReadWriteOnce
         resources:
           requests:
-            storage: 500Gi
+            storage: 200Gi
 ```
 
-In this configuration, a 300Gi persistent volume is mounted to the log directory using a custom storage configuration. Another 300Gi persistent volume is mounted to the directory used for WAL and StreamLoad imports. The cache directory is mounted with a 500Gi persistent volume created from a storage template.
-
-:::tip Note
-
-- If the mountPaths array is left empty, the current storage configuration is treated as a template. When users specify file_cache_path in the [startup configuration](#custom-startup-configuration), the operator automatically parses the directory path and mounts it.
-
-- It is recommended to configure four directories and mount four persistent volumes to maximize cloud disk performance.
-  :::
+:::tip Tip
+If the `mountPaths` array is empty, it indicates that the current storage configuration is using the template configuration.
+:::
 
 ### Disable Log Persistence
 
-If log persistence is not required and logs should only be output to the standard output, configure as follows:
+If log persistence is not desired and logs should only be output to the standard output, configure as follows:
 
 ```yaml
 spec:
-  computeGroups:
-    - uniqueId: cg1
-      logNotStore: true
+  feSpec:
+    logNotStore: true
 ```
