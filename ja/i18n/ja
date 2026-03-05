@@ -1,56 +1,60 @@
 ---
 {
-  "title": "SHOW FRONTEND CONFIG",
+  "title": "SHOW DELETE",
   "language": "en",
-  "description": "This statement is used to display the configuration of the current cluster (currently only the configuration items of FE are supported)"
+  "description": "This statement is used to display the historical delete tasks that have been successfully executed"
 }
 ---
 
 ## Description
 
-This statement is used to display the configuration of the current cluster (currently only the configuration items of FE are supported)
+This statement is used to display the historical delete tasks that have been successfully executed
 
 ## Syntax
 
 ```sql
-SHOW FRONTEND CONFIG [LIKE "<pattern>"];
+SHOW DELETE [FROM <db_name>]
 ```
 
 ## Optional Parameters
 
-**`<pattern>`**
+**<db_name>** : The name of the database to be displayed
 
-> A string that can contain ordinary characters and wildcards.
+## Return Value
 
-## Return Values
-
-| Column name | Describe                                            |
-| ----------- | --------------------------------------------------- |
-| Value       | Configuration item value                            |
-| Type        | Configuration item type                             |
-| IsMutable   | Whether it can be set by `ADMIN SET CONFIG` command |
-| MasterOnly  | Is it only applicable to Master FE                  |
-| Comment     | Configuration item description                      |
+| Column            | Description                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| `TableName`       | The name of the table where the delete operation was executed.                   |
+| `PartitionName`   | The name of the partition affected by the delete operation.                      |
+| `CreateTime`      | The timestamp when the delete operation was issued.                              |
+| `DeleteCondition` | The condition used for the delete operation, specifying which rows were deleted. |
+| `State`           | The status of the delete operation                                                               |
 
 ## Example
 
-1. View the configuration of the current FE node
-
-   ```sql
-   SHOW FRONTEND CONFIG;
-   ```
-
-2. Use the like predicate to search the configuration of the current Fe node
-
-   ```sql
-    SHOW FRONTEND CONFIG LIKE '%check_java_version%';
-   ```
-
+1. Go to the test database to view all historical delete tasks
+     ```sql
+     show delete;
+     ```
     ```text
-    +--------------------+-------+---------+-----------+------------+---------+
-    | Key                | Value | Type    | IsMutable | MasterOnly | Comment |
-    +--------------------+-------+---------+-----------+------------+---------+
-    | check_java_version | true  | boolean | false     | false      |         |
-    +--------------------+-------+---------+-----------+------------+---------+
+    +---------------+---------------+---------------------+-----------------+----------+
+    | TableName     | PartitionName | CreateTime          | DeleteCondition | State    |
+    +---------------+---------------+---------------------+-----------------+----------+
+    | iceberg_table | *             | 2025-03-14 15:53:32 | id EQ "1"       | FINISHED |
+    +---------------+---------------+---------------------+-----------------+----------+
     ```
+
+2. Display all historical delete tasks of database database
+
+     ```sql
+     show delete from tpch;
+     ```
+
+     ```
+     +-----------+---------------+---------------------+-------------------+----------+
+     | TableName | PartitionName | CreateTime          | DeleteCondition   | State    |
+     +-----------+---------------+---------------------+-------------------+----------+
+     | customer  | *             | 2025-03-14 15:45:19 | c_custkey EQ "18" | FINISHED |
+     +-----------+---------------+---------------------+-------------------+----------+
+     ```
 
