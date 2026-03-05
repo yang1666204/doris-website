@@ -1,95 +1,106 @@
 ---
 {
-  "title": "SUB_BITMAP",
+  "title": "TO_BITMAP",
   "language": "en",
-  "description": "Extracts a subset of Bitmap elements starting from a specified position and limited by a specified cardinality limit,"
+  "description": "Converts an unsigned bigint to a Bitmap."
 }
 ---
 
 ## Description
 
-Extracts a subset of Bitmap elements starting from a specified position and limited by a specified cardinality limit, returning the subset as a new Bitmap.
+Converts an unsigned bigint to a Bitmap.
+
+The input is an unsigned bigint with a value in the range 0 to 18446744073709551615, and the output is a Bitmap containing that element.
 
 ## Syntax
 
 ```sql
-SUB_BITMAP(<bitmap>, <position>, <cardinality_limit>)
+TO_BITMAP(<expr>)
 ```
 
 ## Parameters
 
-| Parameter             | Description                                                                                                            |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `<bitmap>`            | The Bitmap value                                                                                                       |
-| `<position>`          | The starting position (inclusive),If the index is negative, the last element is -1. |
-| `<cardinality_limit>` | The maximum number of elements                                                                                         |
+| Parameter | Description                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| `<expr>`  | An unsigned bigint or numbers represented as strings with a range of 0 to 18446744073709551615 |
 
 ## Return Value
 
-A subset Bitmap within the specified range and limit.
-
-- If the parameter is NULL, returns NULL
+A Bitmap containing the corresponding bigint.  
+Returns empty bitmap if the input value is not within the specified range.
 
 ## Examples
 
-To get a subset of a Bitmap starting from position 0 with a cardinality limit of 3:
+To convert an integer to a Bitmap and count the number of elements in the Bitmap:
 
 ```sql
-select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), 0, 3)) value;
+select bitmap_to_string(to_bitmap(10)),bitmap_count(to_bitmap(10));
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| 0,1,2 |
-+-------+
++---------------------------------+-----------------------------+
+| bitmap_to_string(to_bitmap(10)) | bitmap_count(to_bitmap(10)) |
++---------------------------------+-----------------------------+
+| 10                              |                           1 |
++---------------------------------+-----------------------------+
 ```
 
-To get a subset of a Bitmap starting from position -3 with a cardinality limit of 2:
-
 ```sql
-select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), -3, 2)) value;
+select bitmap_to_string(to_bitmap("123")),bitmap_count(to_bitmap("123"));
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| 2,3   |
-+-------+
++------------------------------------+--------------------------------+
+| bitmap_to_string(to_bitmap("123")) | bitmap_count(to_bitmap("123")) |
++------------------------------------+--------------------------------+
+| 123                                |                              1 |
++------------------------------------+--------------------------------+
 ```
 
-To get a subset of a Bitmap starting from position 2 with a cardinality limit of 100:
+To convert a negative integer to a Bitmap, which is outside the valid range, and convert it to a string:
 
 ```sql
-select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), 2, 100)) value;
+select bitmap_to_string(to_bitmap(-1)),bitmap_count(to_bitmap(-1));
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| 2,3,5 |
-+-------+
++---------------------------------+-----------------------------+
+| bitmap_to_string(to_bitmap(-1)) | bitmap_count(to_bitmap(-1)) |
++---------------------------------+-----------------------------+
+|                                 |                           0 |
++---------------------------------+-----------------------------+
 ```
 
 ```sql
-select bitmap_to_string(sub_bitmap(bitmap_from_string('1,0,1,2,3,1,5'), 2, NULL)) value;
+select bitmap_to_string(to_bitmap("123ABC")),bitmap_count(to_bitmap("123ABC"));
 ```
 
 The result will be:
 
 ```text
-+-------+
-| value |
-+-------+
-| NULL  |
-+-------+
++---------------------------------------+-----------------------------------+
+| bitmap_to_string(to_bitmap("123ABC")) | bitmap_count(to_bitmap("123ABC")) |
++---------------------------------------+-----------------------------------+
+|                                       |                                 0 |
++---------------------------------------+-----------------------------------+
+```
+
+```sql
+select bitmap_to_string(to_bitmap(NULL)),bitmap_count(to_bitmap(NULL));
+```
+
+The result will be:
+
+```text
++-----------------------------------+-------------------------------+
+| bitmap_to_string(to_bitmap(NULL)) | bitmap_count(to_bitmap(NULL)) |
++-----------------------------------+-------------------------------+
+|                                   |                             0 |
++-----------------------------------+-------------------------------+
 ```
