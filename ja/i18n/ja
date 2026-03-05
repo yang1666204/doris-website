@@ -1,391 +1,358 @@
 ---
 {
-  "title": "Overview | Vector Search",
+  "title": "Kerberos Best Practices",
   "language": "en",
-  "description": "In generative AI applications, relying solely on a large model's internal parameter “memory” has clear limitations: (1) the model’s knowledge becomes ",
-  "sidebar_label": "Overview"
+  "description": "When users use Doris for federated analytical queries across multiple data sources,"
 }
 ---
 
-# Overview
+When users use Doris for federated analytical queries across multiple data sources, different clusters may use different Kerberos authentication credentials.
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+Take a large fund company as an example. Its internal data platform is divided into multiple functional clusters, maintained by different technical or business teams, each configured with independent Kerberos Realms for identity authentication and access control:
 
-  http://www.apache.org/licenses/LICENSE-2.0
+- Production cluster is used for daily net asset value calculations and risk assessments, with strictly isolated data that only allows authorized service access (Realm: PROD.FUND.COM).
+- Analysis cluster is used for strategy research and model backtesting, where Doris implements temporary queries to this cluster through TVF (Realm: ANALYSIS.FUND.COM).
+- Data lake cluster integrates Iceberg Catalog for archiving and analyzing large volumes of historical market data, logs, and other data (Realm: LAKE.FUND.COM).
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+Since these clusters have not established cross-domain trust relationships and authentication information cannot be shared, unified access to these heterogeneous data sources requires simultaneous support for authentication and context management of multiple Kerberos instances.
 
-In generative AI applications, relying solely on a large model's internal parameter “memory” has clear limitations: (1) the model’s knowledge becomes outdated and cannot cover the latest information; (2) directly asking the model to “generate” answers increases the risk of hallucinations. This gives rise to RAG (Retrieval-Augmented Generation). The key task of RAG is not to have the model fabricate answers from nothing, but to retrieve the Top-K most relevant information chunks from an external knowledge base and feed them to the model as grounding context.
+**This document focuses on how to configure and access data sources in multi-Kerberos environments.**
 
-To achieve this, we need a mechanism to measure semantic relatedness between a user query and documents in the knowledge base. Vector representations are a standard tool: by encoding both queries and documents into semantic vectors, we can use vector similarity to measure relevance. With the advancement of pretrained language models, generating high-quality embeddings has become mainstream. Thus, the retrieval stage of RAG becomes a typical vector similarity search problem: from a large vector collection, find the K vectors most similar to the query (i.e., candidate knowledge pieces).
+> This feature is supported since 3.1+
 
-Vector retrieval in RAG is not limited to text; it naturally extends to multimodal scenarios. In a multimodal RAG system, images, audio, video, and other data types can also be encoded into vectors for retrieval and then supplied to the generative model as context. For example, if a user uploads an image, the system can first retrieve related descriptions or knowledge snippets, then generate explanatory content. In medical QA, RAG can retrieve patient records and literature to support more accurate diagnostic suggestions.
+## Multi-Kerberos Cluster Authentication Configuration
 
-## Approximate Nearest Neighbor Search
+### krb5.conf
 
-From version 4.0, Apache Doris officially supports ANN search. No additional data type is introduced: vectors are stored as fixed-length arrays. For distance-based indexing a new index type, ANN, is implemented based on Faiss.
+`krb5.conf` contains Kerberos configuration information, KDC locations, some **default values** for Kerberos services, and hostname-to-Realm mapping information.
 
-Using the common [SIFT](http://corpus-texmex.irisa.fr/) dataset as an example, you can create a table like this:
+When applying krb5.conf, ensure it is placed on every node. The default location is `/etc/krb5.conf`.
+
+### realms
+
+Contains KDC and Kerberos networks of many clients, such as EXAMPLE.COM.
+
+When configuring multiple clusters, you need to configure multiple Realms in one `krb5.conf`. KDC and `admin_server` can also be domain names.
+
+```
+[realms]
+EMR-IP.EXAMPLE = {
+    kdc = 172.21.16.8:88
+    admin_server = 172.21.16.8
+}
+EMR-HOST.EXAMPLE = {
+    kdc = emr_hostname
+    admin_server = emr_hostname
+}
+```
+
+### domain_realm
+
+Configures the mapping from domain to Realm for nodes where Kerberos services are located.
+
+```toml
+[libdefaults]
+dns_lookup_realm = true
+dns_lookup_kdc = true
+[domain_realm]
+172.21.16.8 = EMR-IP.EXAMPLE
+emr-host.example = EMR-HOST.EXAMPLE
+```
+
+For example, for principal `emr1/domain_name@realm.com`, when looking up KDC, use `domain_name` to find the corresponding Realm. If it doesn't match, the KDC for the Realm cannot be found.
+
+You will typically see two types of errors in Doris's `log/be.out` or `log/fe.out` that are related to `domain_realm`:
+
+```
+* Unable to locate KDC for realm/Cannot locate KDC
+
+* No service creds
+```
+
+### keytab and principal
+
+In multi-Kerberos cluster environments, keytab files usually use different paths, such as: `/path/to/serverA.keytab`, `/path/to/serverB.keytab`. When accessing different clusters, you need to use the corresponding keytab.
+
+If the HDFS cluster has Kerberos authentication enabled, you can generally see the `hadoop.security.auth_to_local` property in the `core-site.xml` file, which is used to map Kerberos principals to shorter local usernames, and Hadoop reuses Kerberos syntax rules.
+
+If not configured, you may encounter a `NoMatchingRule("No rules applied to` exception. See code:
+
+[hadoop/src/core/org/apache/hadoop/security/KerberosName.java](https://github.com/hanborq/hadoop/blob/master/src/core/org/apache/hadoop/security/KerberosName.java#L399)
+
+The `hadoop.security.auth_to_local` parameter contains a set of mapping rules that match principals against RULEs from top to bottom. When a matching mapping rule is found, it outputs a username and ignores unmatched rules. The specific configuration format:
+
+```
+RULE:[<principal translation>](acceptance filter)<short name substitution>
+```
+
+To match principals used by different Kerberos services in multi-cluster environments, the recommended configuration is:
+
+```xml
+<property>
+    <name>hadoop.security.auth_to_local</name>
+    <value>RULE:[1:$1@$0](^.*@.*$)s/^(.*)@.*$/$1/g
+           RULE:[2:$1@$0](^.*@.*$)s/^(.*)@.*$/$1/g
+           DEFAULT</value>
+</property>
+```
+
+The above configuration can be used to add or replace the `hadoop.security.auth_to_local` property in `core-site.xml`. Place `core-site.xml` in `fe/conf` and `be/conf` to make it effective in the Doris environment.
+
+If you need it to take effect separately in OUTFILE, EXPORT, Broker Load, Catalog (Hive, Iceberg, Hudi), TVF, and other functions, you can configure it directly in their properties:
 
 ```sql
-CREATE TABLE sift_1M (
-  id int NOT NULL,
-  embedding array<float>  NOT NULL  COMMENT "",
-  INDEX ann_index (embedding) USING ANN PROPERTIES(
-      "index_type"="hnsw",
-      "metric_type"="l2_distance",
-      "dim"="128",
-      "quantizer"="flat"
-  )
-) ENGINE=OLAP
-DUPLICATE KEY(id) COMMENT "OLAP"
-DISTRIBUTED BY HASH(id) BUCKETS 1
-PROPERTIES (
-  "replication_num" = "1"
-);
+"hadoop.security.auth_to_local" = "RULE:[1:$1@$0](^.*@.*$)s/^(.*)@.*$/$1/g
+                                   RULE:[2:$1@$0](^.*@.*$)s/^(.*)@.*$/$1/g
+                                   DEFAULT"
 ```
 
-- index_type: `hnsw` means using the [Hierarchical Navigable Small World algorithm](https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world)
-- metric_type: `l2_distance` means using L2 distance as the distance function
-- dim: `128` means the vector dimension is 128
-- quantizer: `flat` means each vector dimension is stored as original float32
-
-| Parameter         | Required                     | Supported/Options                         | Default                   | Description                                                                                                                                                                               |
-| ----------------- | ---------------------------- | ----------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index_type`      | Yes                          | hnsw only                                 | (none) | ANN index algorithm. Currently only HNSW supported.                                                                                                       |
-| `metric_type`     | Yes                          | `l2_distance`, `inner_product`            | (none) | Vector similarity/distance metric. L2 = Euclidean; inner_product can approximate cosine if vectors are normalized.                   |
-| `dim`             | Yes                          | Positive integer (> 0) | (none) | Vector dimension. All imported vectors must match or an error is raised.                                                                                  |
-| `max_degree`      | No                           | Positive integer                          | `32`                      | HNSW M (max neighbors per node). Affects index memory and search performance.                                                          |
-| `ef_construction` | No                           | Positive integer                          | `40`                      | HNSW efConstruction (candidate queue size during build). Larger gives better quality but slower build.                                 |
-| `quantizer`       | No                           | `flat`, `sq8`, `sq4`, `pq`                | `flat`                    | Vector encoding/quantization: `flat` = raw; `sq8`/`sq4` = scalar quantization (8/4 bit), `pq` = product quantization to reduce memory. |
-| `pq_m`            | Required when 'quantizer=pq' | Positive integer                          | (none) | Specifies how many subvectors are used (vector dimension dim must be divisible by pq_m).                                          |
-| `pq_nbits`        | Required when 'quantizer=pq' | Positive integer                          | (none) | The number of bits used to represent each subvector, in faiss pq_nbits is generally required to be no greater than 24.                               |
-
-Import via S3 TVF:
-
-```sql
-INSERT INTO sift_1M
-SELECT *
-FROM S3(
-  "uri" = "https://selectdb-customers-tools-bj.oss-cn-beijing.aliyuncs.com/sift_database.tsv",
-  "format" = "csv");
-
-SELECT count(*) FROM sift_1M
-
-+----------+
-| count(*) |
-+----------+
-|  1000000 |
-+----------+
-```
-
-Using `l2_distance_approximate` / `inner_product_approximate` triggers the ANN index path. The function must match the index `metric_type` exactly (e.g., `metric_type=l2_distance` → use `l2_distance_approximate`; `metric_type=inner_product` → use `inner_product_approximate`). For ordering: L2 uses ascending distance (smaller is closer); inner product uses descending score (larger is closer).
-
-```sql
-SELECT id,
-       l2_distance_approximate(
-        embedding,
-        [0,11,77,24,3,0,0,0,28,70,125,8,0,0,0,0,44,35,50,45,9,0,0,0,4,0,4,56,18,0,3,9,16,17,59,10,10,8,57,57,100,105,125,41,1,0,6,92,8,14,73,125,29,7,0,5,0,0,8,124,66,6,3,1,63,5,0,1,49,32,17,35,125,21,0,3,2,12,6,109,21,0,0,35,74,125,14,23,0,0,6,50,25,70,64,7,59,18,7,16,22,5,0,1,125,23,1,0,7,30,14,32,4,0,2,2,59,125,19,4,0,0,2,1,6,53,33,2]
-       ) AS distance
-FROM sift_1M
-ORDER BY distance
-LIMIT 10;
---------------
-
-+--------+----------+
-| id     | distance |
-+--------+----------+
-| 178811 | 210.1595 |
-| 177646 | 217.0161 |
-| 181997 | 218.5406 |
-| 181605 | 219.2989 |
-| 821938 | 221.7228 |
-| 807785 | 226.7135 |
-| 716433 | 227.3148 |
-| 358802 | 230.7314 |
-| 803100 | 230.9112 |
-| 866737 | 231.6441 |
-+--------+----------+
-10 rows in set (0.02 sec)
-```
-
-To compare with exact ground truth, use `l2_distance` or `inner_product` (without the `_approximate` suffix). In this example, exact search takes ~290 ms:
+To verify whether mapping rules can match correctly, check if this error occurs when accessing different clusters:
 
 ```
-10 rows in set (0.29 sec)
+NoMatchingRule: No rules applied to hadoop/domain\_name@EMR-REALM.COM
 ```
 
-With the ANN index, query latency drops from ~290 ms to ~20 ms in this example.
+If it appears, it indicates unsuccessful matching.
 
-ANN indexes are built at segment granularity. In distributed tables, each segment returns its local TopN; then the TopN operator merges results across tablets and segments to produce the global TopN.
+## Best Practices
 
-Note on ordering:
+This section introduces how to use the Docker environment provided by the [Apache Doris official repository](https://github.com/apache/doris/tree/master/docker/thirdparties) to start Hive/HDFS services with Kerberos using Docker, and create Kerberos-enabled Hive Catalogs through Doris.
 
-- For `metric_type = l2_distance`, smaller distance = closer vectors → use `ORDER BY dist ASC`.
-- For `metric_type = inner_product`, larger value = closer vectors → use `ORDER BY dist DESC` to obtain TopN via the index.
+### Environment Description
 
-## Approximate Range Search
+- Use Kerberos services provided by Doris (two sets of HIVE, two sets of KDC):
 
-Beyond the common TopN nearest neighbor search (returning the closest N records), another typical pattern is threshold-based range search. Instead of returning a fixed number of results, it returns all points whose distance to the target vector satisfies a predicate (>, >=, <, <=). For example, you might want vectors whose distance is greater than or less than a threshold. This is useful when you need candidates that are “sufficiently similar” or “sufficiently dissimilar.” In recommendation systems you might retrieve items that are close but not identical to improve diversity; in anomaly detection you look for points far from the normal distribution.
+  - Docker startup directory: `docker/thirdparties`
 
-Example SQL:
+  - krb5.conf template:
 
-```sql
-SELECT count(*)
-FROM   sift_1M
-WHERE  l2_distance_approximate(
-        embedding,
-        [0,11,77,24,3,0,0,0,28,70,125,8,0,0,0,0,44,35,50,45,9,0,0,0,4,0,4,56,18,0,3,9,16,17,59,10,10,8,57,57,100,105,125,41,1,0,6,92,8,14,73,125,29,7,0,5,0,0,8,124,66,6,3,1,63,5,0,1,49,32,17,35,125,21,0,3,2,12,6,109,21,0,0,35,74,125,14,23,0,0,6,50,25,70,64,7,59,18,7,16,22,5,0,1,125,23,1,0,7,30,14,32,4,0,2,2,59,125,19,4,0,0,2,1,6,53,33,2])
-        > 300 
---------------
+    [`docker-compose/kerberos/common/conf/doris-krb5.conf`](https://github.com/apache/doris/blob/master/docker/thirdparties/docker-compose/kerberos/common/conf/doris-krb5.conf)
 
-+----------+
-| count(*) |
-+----------+
-|   999271 |
-+----------+
-1 row in set (0.19 sec)
+### 1. Prepare keytab files and permissions
+
+Copy keytab files to local directory:
+
+```bash
+mkdir -p ~/doris-keytabs
+cp <hive-presto-master.keytab> ~/doris-keytabs/
+cp <other-hive-presto-master.keytab> ~/doris-keytabs/
 ```
 
-These range-based vector searches are also accelerated by the ANN index: the index first narrows candidates, then approximate distances are computed, reducing cost and improving latency. Supported predicates: `>`, `>=`, `<`, `<=`.
+Set file permissions to prevent authentication failure:
 
-## Compound Search
-
-Compound Search combines an ANN TopN search with a range predicate in the same SQL statement, returning the TopN results that also satisfy a distance constraint.
-
-```sql
-SELECT id,
-       l2_distance_approximate(
-        embedding, [0,11,77,24,3,0,0,0,28,70,125,8,0,0,0,0,44,35,50,45,9,0,0,0,4,0,4,56,18,0,3,9,16,17,59,10,10,8,57,57,100,105,125,41,1,0,6,92,8,14,73,125,29,7,0,5,0,0,8,124,66,6,3,1,63,5,0,1,49,32,17,35,125,21,0,3,2,12,6,109,21,0,0,35,74,125,14,23,0,0,6,50,25,70,64,7,59,18,7,16,22,5,0,1,125,23,1,0,7,30,14,32,4,0,2,2,59,125,19,4,0,0,2,1,6,53,33,2]) as dist
-FROM sift_1M
-WHERE l2_distance_approximate(
-        embedding, [0,11,77,24,3,0,0,0,28,70,125,8,0,0,0,0,44,35,50,45,9,0,0,0,4,0,4,56,18,0,3,9,16,17,59,10,10,8,57,57,100,105,125,41,1,0,6,92,8,14,73,125,29,7,0,5,0,0,8,124,66,6,3,1,63,5,0,1,49,32,17,35,125,21,0,3,2,12,6,109,21,0,0,35,74,125,14,23,0,0,6,50,25,70,64,7,59,18,7,16,22,5,0,1,125,23,1,0,7,30,14,32,4,0,2,2,59,125,19,4,0,0,2,1,6,53,33,2])
-        > 300
-ORDER BY dist limit 10
---------------
-
-+--------+----------+
-| id     | dist     |
-+--------+----------+
-| 243590 |  300.005 |
-| 549298 | 300.0317 |
-| 429685 | 300.0533 |
-| 690172 | 300.0916 |
-| 123410 | 300.1333 |
-| 232540 | 300.1649 |
-| 547696 | 300.2066 |
-| 855437 | 300.2782 |
-| 589017 | 300.3048 |
-| 930696 | 300.3381 |
-+--------+----------+
-10 rows in set (0.12 sec)
+```bash
+chmod 400 ~/doris-keytabs/*.keytab
 ```
 
-A key question is whether predicate filtering happens before or after TopN. If predicates filter first and TopN is applied on the reduced set, it’s pre-filtering; otherwise, it’s post-filtering. Post-filtering can be faster but may dramatically reduce recall. Doris uses pre-filtering to preserve recall.
+### 2. Prepare krb5.conf file
 
-Doris can accelerate both phases with the index. However, if the first phase (range filter) is too selective, indexing both phases can hurt recall. Doris adaptively decides whether to use the index twice based on predicate selectivity and index type.
+1. Use the `krb5.conf` template file provided by Doris
 
-## ANN Search with Additional Filters
+2. If you need to access multiple Kerberos HDFS clusters simultaneously, you need to **merge krb5.conf**, with basic requirements:
 
-This refers to applying other predicates before the ANN TopN and returning the TopN under those constraints.
+   - `[realms]`: Write Realms and KDC IPs for all clusters.
 
-Example with a small 8-D vector and a text filter:
+   - `[domain_realm]`: Write domain or IP to Realm mappings.
 
-```sql
-CREATE TABLE ann_with_fulltext (
-  id int NOT NULL,
-  embedding array<float> NOT NULL,
-  comment String NOT NULL,
-  value int NULL,
-  INDEX idx_comment(`comment`) USING INVERTED PROPERTIES("parser" = "english") COMMENT 'inverted index for comment',
-  INDEX ann_embedding(`embedding`) USING ANN PROPERTIES("index_type"="hnsw","metric_type"="l2_distance","dim"="8")
-) DUPLICATE KEY (`id`) 
-DISTRIBUTED BY HASH(`id`) BUCKETS 1
-PROPERTIES("replication_num"="1");
+   - `[libdefaults]`: Unified encryption algorithms (such as des3-cbc-sha1).
+
+3. Example:
+
+    ```toml
+    [libdefaults]
+        default_realm = LABS.TERADATA.COM
+        allow_weak_crypto = true
+        dns_lookup_realm = true
+        dns_lookup_kdc = true
+    
+    [realms]
+        LABS.TERADATA.COM = {
+            kdc = 127.0.0.1
+            admin_server = 127.0.0.1
+        }
+        OTHERREALM.COM = {
+            kdc = 127.0.0.1
+            admin_server = 127.0.0.1
+        }
+    
+    [domain_realm]
+        presto-master.docker.cluster = LABS.TERADATA.COM
+        hadoop-master-2 = OTHERREALM.COM
+        .labs.teradata.com = LABS.TERADATA.COM
+        .otherrealm.com = OTHERREALM.COM
+    ```
+
+4. Copy `krb5.conf` to the corresponding Docker directory:
+
+    ```bash
+    cp doris-krb5.conf ~/doris-kerberos/krb5.conf
+    ```
+
+### 3) Start Docker Kerberos environment
+
+1. Enter directory:
+
+    ```bash
+    cd docker/thirdparties
+    ```
+
+2. Start Kerberos environment:
+
+    ```bash
+    ./run-thirdparties-docker.sh -c kerberos
+    ```
+
+3. Services after startup include:
+
+   - Hive Metastore 1:9583
+   - Hive Metastore 2:9683
+   - HDFS 1:8520
+   - HDFS 2:8620
+
+### 4) Get container IP
+
+Use command to view Docker IP:
+
+```bash
+docker inspect <container-name> | grep IPAddress
 ```
 
-Insert sample data and search only within rows where `comment` contains “music”:
+Or directly use 127.0.0.1 (provided that the service has been mapped to the host network).
 
-```sql
-INSERT INTO ann_with_fulltext VALUES
-(1, [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8], 'this is about music', 10),
-(2, [0.2,0.1,0.5,0.3,0.9,0.4,0.7,0.1], 'sports news today',   20),
-(3, [0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2], 'latest music trend',  30),
-(4, [0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3], 'politics update',40);
+### 5. Create Kerberos Hive Catalog
 
-SELECT id, comment,
-       l2_distance_approximate(embedding, [0.1,0.1,0.2,0.2,0.3,0.3,0.4,0.4]) AS dist
-FROM ann_with_fulltext
-WHERE comment MATCH_ANY 'music'       -- Filter using inverted index
-ORDER BY dist ASC                     -- Ann topn calculation after predicates evaluate.
-LIMIT 2;
+1. Hive Catalog1
 
-+------+---------------------+----------+
-| id   | comment             | dist     |
-+------+---------------------+----------+
-|    1 | this is about music | 0.663325 |
-|    3 | latest music trend  | 1.280625 |
-+------+---------------------+----------+
-2 rows in set (0.04 sec)
+    ```sql
+    CREATE CATALOG IF NOT EXISTS multi_kerberos_one
+    PROPERTIES (
+    "type" = "hms",
+    "hive.metastore.uris" = "thrift://127.0.0.1:9583",
+    "fs.defaultFS" = "hdfs://127.0.0.1:8520",
+    "hadoop.kerberos.min.seconds.before.relogin" = "5",
+    "hadoop.security.authentication" = "kerberos",
+    "hadoop.kerberos.principal" = "hive/presto-master.docker.cluster@LABS.TERADATA.COM",
+    "hadoop.kerberos.keytab" = "/mnt/disk1/gq/keytabs/keytabs/hive-presto-master.keytab",
+    "hive.metastore.sasl.enabled " = "true",
+    "hadoop.security.auth_to_local" = "RULE:[2:$1@$0](.*@LABS.TERADATA.COM)s/@.*//
+                                        RULE:[2:$1@$0](.*@OTHERLABS.TERADATA.COM)s/@.*//
+                                        RULE:[2:$1@$0](.*@OTHERREALM.COM)s/@.*//
+                                        DEFAULT",
+    "hive.metastore.kerberos.principal" = "hive/hadoop-master@LABS.TERADATA.COM"
+    );
+    ```
+
+2. Hive Catalog2
+
+    ```sql
+    CREATE CATALOG IF NOT EXISTS multi_kerberos_two
+    PROPERTIES (
+    "type" = "hms",
+    "hive.metastore.uris" = "thrift://127.0.0.1:9683",
+    "fs.defaultFS" = "hdfs://127.0.0.1:8620",
+    "hadoop.kerberos.min.seconds.before.relogin" = "5",
+    "hadoop.security.authentication" = "kerberos",
+    "hadoop.kerberos.principal" = "hive/presto-master.docker.cluster@OTHERREALM.COM",
+    "hadoop.kerberos.keytab" = "/mnt/disk1/gq/keytabs/keytabs/other-hive-presto-master.keytab",
+    "hive.metastore.sasl.enabled " = "true",
+    "hadoop.security.auth_to_local" = "RULE:[2:$1@$0](.*@OTHERREALM.COM)s/@.*//
+                                        RULE:[2:$1@$0](.*@OTHERLABS.TERADATA.COM)s/@.*//
+                                        DEFAULT",
+    "hive.metastore.kerberos.principal" = "hive/hadoop-master-2@OTHERREALM.COM"
+    );
+    ```
+
+At this point, the multi-Kerberos cluster access configuration is complete. You can view data from both Hive clusters and use different Kerberos credentials.
+
+## Connectivity Testing Tool
+
+For verifying connectivity to external dependencies such as Kerberos,
+the open-source tool **Pulse** can be used.
+
+**Pulse is an independent open-source connectivity testing tool.
+For usage instructions, installation details, and release information,
+please refer to the project documentation.**
+
+- Documentation: [Kerberos Connectivity Tool](https://github.com/CalvinKirs/Pulse/tree/main/kerberos-tools)
+- Release package: [Kerberos Connectivity Tool v1.0.0](https://github.com/CalvinKirs/Pulse/releases/tag/v1.0.0)
+
+## FAQ
+
+1. javax.security.sasl.SaslException: No common protection layer between client and server
+   - Cause: The client's `hadoop.rpc.protection` differs from the HDFS cluster setting.
+   - Fix: Align `hadoop.rpc.protection` between the client and HDFS server.
+
+2. No valid credentials provided (Mechanism level: Illegal key size)
+   - Cause: Java by default does not support encryption keys larger than 128 bits.
+   - Fix: Install the Java Cryptography Extension (JCE) Unlimited Strength Policy; unpack the JARs into `$JAVA_HOME/jre/lib/security` and restart services.
+
+3. Encryption type AES256 CTS mode with HMAC SHA1-96 is not supported/enabled
+   - Cause: The current Java environment lacks AES256 support while Kerberos may use it.
+   - Fix: Update `/etc/krb5.conf` in `[libdefaults]` to use a supported cipher, or install the JCE extension to enable AES256 (same as above).
+
+4. No valid credentials provided (Mechanism level: Failed to find any Kerberos tgt)
+   - Cause: Kerberos cannot find a valid Ticket Granting Ticket (TGT). In a previously working setup, the ticket expired or the KDC restarted. In a new setup, `krb5.conf` or the keytab is incorrect or corrupted.
+   - Fix: Verify `krb5.conf` and the keytab, ensure tickets are valid, and try `kinit` to obtain a new ticket.
+
+5. Failure unspecified at GSS-API level (Mechanism level: Checksum failed)
+   - Cause: GSS-API checksum failure; wrong password used with `kinit`; keytab is invalid or has an outdated key version so JVM falls back to password login.
+   - Fix: Use the correct password with `kinit` and ensure the keytab is current and valid.
+
+6. Receive timed out
+   - Cause: Using UDP to talk to the KDC on unstable networks or with large packets.
+   - Fix: Force Kerberos to use TCP by adding in `/etc/krb5.conf`:
+
+```shell
+[libdefaults]
+udp_preference_limit = 1
 ```
 
-To ensure TopN can be accelerated via the vector index, all predicate columns should have appropriate secondary indexes (e.g., an inverted index).
+7. javax.security.auth.login.LoginException: Unable to obtain password from user
+   - Cause: Principal does not match the keytab, or the application cannot read `krb5.conf` or the keytab.
+   - Fix:
+     - Use `klist -kt <keytab_file>` and `kinit -kt <keytab_file> <principal>` to validate the keytab and principal.
+     - Check paths and permissions for `krb5.conf` and the keytab so the runtime user can read them.
+     - Ensure JVM startup options specify the correct config paths.
 
-## Session Variables Related to ANN Search
+8. Principal not found or Could not resolve Kerberos principal name
+   - Causes:
+     - The hostname in the principal cannot be resolved.
+     - The `_HOST` placeholder expands to a hostname unknown to the KDC.
+     - DNS or `/etc/hosts` is misconfigured.
+   - Fix:
+     - Verify the principal spelling.
+     - Ensure all relevant nodes (Doris FE/BE and KDC) have correct hostname-to-IP entries.
 
-Beyond build-time parameters for HNSW, you can pass search-time parameters via session variables:
+9. Cannot find KDC for realm "XXX"
+   - Cause: The specified realm has no KDC configured in `krb5.conf`.
+   - Fix:
+     - Check the realm name under `[realms]`.
+     - Confirm the `kdc` address.
+     - Restart BE & FE after changing `/etc/krb5.conf`.
 
-- hnsw_ef_search: EF search parameter. Controls max length of the candidate queue; larger = higher accuracy, higher latency. Default 32.
-- hnsw_check_relative_distance: Whether to enable relative distance checking to improve accuracy. Default true.
-- hnsw_bounded_queue: Whether to use a bounded priority queue to optimize performance. Default true.
+10. Request is a replay
 
-## Vector Quantization
+- Cause: KDC thinks the auth request is duplicated. Typical reasons: clock skew across nodes or multiple services sharing the same principal.
+- Fix:
+  - Enable NTP on all nodes to keep time in sync.
+  - Use unique principals per service instance, such as `service/_HOST@REALM`, to avoid sharing.
 
-With FLAT encoding, an HNSW index (raw vectors plus graph structure) may consume large amounts of memory. HNSW must be fully resident in memory to function, so memory can become a bottleneck at large scale.
+11. Client not found in Kerberos database
 
-Scalar quantization (SQ) compresses float32 storage to reduce memory. Product quantization (PQ) reduces memory overhead by compressing high-dimensional vectors into smaller subvectors and quantizing each subvector independently. For scalar quantization, Doris currently supports two scalar quantization schemes: INT8 and INT4 (SQ8 / SQ4). Example using SQ8:
+- Cause: The client principal does not exist in the Kerberos database.
+- Fix: Create the principal in the KDC.
 
-```sql
-CREATE TABLE sift_1M (
-  id int NOT NULL,
-  embedding array<float>  NOT NULL  COMMENT "",
-  INDEX ann_index (embedding) USING ANN PROPERTIES(
-      "index_type"="hnsw",
-      "metric_type"="l2_distance",
-      "dim"="128",
-      "quantizer"="sq8"
-  )
-) ENGINE=OLAP
-DUPLICATE KEY(id) COMMENT "OLAP"
-DISTRIBUTED BY HASH(id) BUCKETS 1
-PROPERTIES (
-  "replication_num" = "1"
-);
-```
+12. Message stream modified (41)
 
-On 768-D Cohere-MEDIUM-1M and Cohere-LARGE-10M datasets, SQ8 reduces index size to roughly one third compared to FLAT.
+- Cause: Known issue for certain OS (e.g., CentOS 7) with Kerberos/Java combinations.
+- Fix: Apply vendor patches or security updates.
 
-| Dataset          | Dim  | Storage/Index Scheme                                                                       | Total Disk                                                                                     | Data Part                 | Index Part                | Notes                       |
-| ---------------- | ---- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------- | ------------------------- | --------------------------- |
-| Cohere-MEDIUM-1M | 768D | Doris (FLAT)                                                            | 5.647 GB (2.533 + 3.114)    | 2.533 GB  | 3.114 GB  | 1M vectors                  |
-| Cohere-MEDIUM-1M | 768D | Doris SQ INT8                                                                              | 3.501 GB (2.533 + 0.992)    | 2.533 GB  | 0.992 GB  | INT8 symmetric quantization |
-| Cohere-MEDIUM-1M | 768D | Doris PQ(pq_m=384,pq_nbits=8) | 3.149 GB (2.535 + 0.614)    | 2.535 GB  | 0.614 GB  | product quantization        |
-| Cohere-LARGE-10M | 768D | Doris (FLAT)                                                            | 56.472 GB (25.328 + 31.145) | 25.328 GB | 31.145 GB | 10M vectors                 |
-| Cohere-LARGE-10M | 768D | Doris SQ INT8                                                                              | 35.016 GB (25.329 + 9.687)  | 25.329 GB | 9.687 GB  | INT8 quantization           |
+13. Pre-authentication information was invalid (24)
 
-Quantization introduces extra build-time overhead because each distance computation must decode quantized values. For 128-D vectors, build time increases with row count; SQ vs. FLAT can be up to ~10× slower to build.
-
-Similarly, Doris also supports product quantization, but note that when using PQ, additional parameters need to be provided:
-
-- `pq_m`: Indicates how many sub-vectors to split the original high-dimensional vector into (vector dimension dim must be divisible by pq_m).
-- `pq_nbits`: Indicates the number of bits for each sub-vector quantization, which determines the size of each subspace codebook, in faiss pq_nbits is generally required to be no greater than 24.
-
-Note that PQ quantization requires sufficient data during the training, the number of training points needing to be at least as large as the number of clusters (n >= 2 ^ pq_nbits).
-
-```sql
-CREATE TABLE sift_1M (
-  id int NOT NULL,
-  embedding array<float>  NOT NULL  COMMENT "",
-  INDEX ann_index (embedding) USING ANN PROPERTIES(
-      "index_type"="hnsw",
-      "metric_type"="l2_distance",
-      "dim"="128",
-      "quantizer"="pq",    -- Specify using PQ for quantization
-      "pq_m"="2",          -- Required when using PQ, indicates splitting high-dimensional vector into pq_m low-dimensional sub-vectors
-      "pq_nbits"="2"       -- Required when using PQ, indicates the number of bits for each subspace codebook
-  )
-) ENGINE=OLAP
-DUPLICATE KEY(id) COMMENT "OLAP"
-DISTRIBUTED BY HASH(id) BUCKETS 1
-PROPERTIES (
-  "replication_num" = "1"
-);
-```
-
-![ANN-SQ-BUILD_COSTS](/images/ann-index-quantization-build-time.jpg)
-
-## Performance Tuning
-
-Vector search is a typical secondary-index point lookup scenario. For high QPS and low latency, consider the following:
-
-With tuning, on hardware FE 32C 64GB + BE 32C 64GB, Doris can reach 3000+ QPS (dataset: Cohere-MEDIUM-1M).
-
-### Query Performance
-
-| Concurrency | Scheme            | QPS                       | Avg Latency (s) | P99 (s)   | CPU Usage | Recall                  |
-| ----------- | ----------------- | ------------------------- | ---------------------------------- | ---------------------------- | --------- | ----------------------- |
-| 240         | Doris             | 3340.4399 | 0.071368168        | 0.163399825  | 40%       | 91.00%  |
-| 240         | Doris SQ INT8     | 3188.6359 | 0.074728852        | 0.160370195  | 40%       | 88.26%  |
-| 240         | Doris SQ INT4     | 2818.2291 | 0.084663868        | 0.174826815  | 43%       | 80.38%  |
-| 240         | Doris brute force | 3.6787    | 25.554878826       | 29.363227973 | 100%      | 100.00% |
-| 480         | Doris             | 4155.7220 | 0.113387271        | 0.261086075  | 60%       | 91.00%  |
-| 480         | Doris SQ INT8     | 3833.1130 | 0.123040214        | 0.276912867  | 50%       | 88.26%  |
-| 480         | Doris SQ INT4     | 3431.0538 | 0.137636995        | 0.281631249  | 57%       | 80.38%  |
-| 480         | Doris brute force | 3.6787    | 25.554878826       | 29.363227973 | 100%      | 100.00% |
-
-### Use Prepared Statements
-
-Modern embedding models often output 768-D or higher vectors. If you inline a 768-D literal into SQL, parsing time can exceed execution time. Use prepared statements. Currently Doris does not support MySQL client prepare commands directly; use JDBC:
-
-1. Enable server-side prepared statements in the JDBC URL:  
-   `jdbc:mysql://127.0.0.1:9030/demo?useServerPrepStmts=true`
-2. Use PreparedStatement with placeholders (`?`) and reuse it.
-
-### Reduce Segment Count
-
-ANN indexes are built per segment. Too many segments cause overhead. Ideally each tablet should have no more than ~5 segments for an ANN-indexed table. Adjust `write_buffer_size` and `vertical_compaction_max_segment_size` in `be.conf` (e.g., both to 10737418240).
-
-### Reduce Rowset Count
-
-Same motivation as reducing segments: minimize scheduling overhead. Each load creates a rowset, so prefer stream load or `INSERT INTO SELECT` for batched ingestion.
-
-### Keep ANN Index in Memory
-
-Current ANN algorithms are memory-based. If a segment’s index is not in memory, a disk I/O occurs. Set `enable_segment_cache_prune=false` in `be.conf` to keep ANN indexes resident.
-
-### parallel_pipeline_task_num = 1
-
-ANN TopN queries return very few rows from each scanner, so high pipeline task parallelism is unnecessary. Set `parallel_pipeline_task_num = 1`.
-
-### enable_profile = false
-
-Disable query profiling for ultra latency-sensitive queries.
-
-## Python SDK
-
-In the era of AI, Python has become the mainstream language for data processing and intelligent application development. To make it easier for developers to use Doris's vector search capabilities in Python environments, some community contributors have developed Python SDKs for Doris.
-
-- https://github.com/uchenily/doris_vector_search: Optimized for vector distance retrieval, this is currently the highest-performance Doris vector search Python SDK available.
-
-## Usage Limitations
-
-1. The ANN index column must be a NOT NULL `Array<Float>`, and every imported vector must match the declared `dim`, otherwise an error is thrown.
-2. ANN index is only supported on DuplicateKey table model.
-3. Doris uses pre-filter semantics (predicates applied before ANN TopN). If predicates include columns without secondary indexes that can precisely locate rows (e.g., no inverted index), Doris falls back to brute force to preserve correctness.
-   Example:
-   ```sql
-   SELECT id, l2_distance_approximate(embedding, [xxx]) AS distance
-   FROM sift_1M
-   WHERE round(id) > 100
-   ORDER BY distance LIMIT 10;
-   ```
-
-Although `id` is a key, without a secondary index (such as an inverted index), its predicate is applied after index analysis, so Doris falls back to brute force to honor pre-filter semantics.
-
-4. If the distance function in SQL does not match the metric type defined in the index DDL, Doris cannot use the ANN index for TopN—even if you call `l2_distance_approximate` / `inner_product_approximate`.
-5. For metric type `inner_product`, only `ORDER BY inner_product_approximate(...) DESC LIMIT N` (DESC required) can be accelerated by the ANN index.
-6. The first parameter of `xxx_approximate()` must be a ColumnArray, and the second must be a CAST or ArrayLiteral. Reversing them triggers brute-force search.
-
+- Causes:
+  - Invalid pre-auth data.
+  - Clock skew between client and KDC.
+  - JDK cipher configuration mismatches the KDC.
+- Fix:
+  - Sync time across all nodes.
+  - Align cipher configurations.
