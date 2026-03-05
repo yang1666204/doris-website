@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_POSITION",
-  "language": "en",
-  "description": "Finds the position index (starting from 1) of the first occurrence of a specified element in the array."
+  "title": "ARRAY_PRODUCT",
+  "language": "en-US",
+  "description": "Calculates the product of all elements in an array. The function iterates through all elements in the array, multiplies them together,"
 }
 ---
 
-## array_position
+## array_product
 
 <version since="2.0.0">
 
@@ -14,170 +14,138 @@
 
 ## Description
 
-Finds the position index (starting from 1) of the first occurrence of a specified element in the array. The function traverses the array from left to right, finds the first matching element and returns its position index.
+Calculates the product of all elements in an array. The function iterates through all elements in the array, multiplies them together, and returns the result.
 
 ## Syntax
 
 ```sql
-array_position(ARRAY<T> arr, T element)
+array_product(ARRAY<T> arr)
 ```
 
 ### Parameters
 
-- `arr`：ARRAY<T> type, the array to search
-- `element`：T type, the element to find
+- `arr`：ARRAY<T> type, the array for which to calculate the product
 
 **Supported types for T:**
 
 - Numeric types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT, FLOAT, DOUBLE, DECIMAL
-- String types: CHAR, VARCHAR, STRING
-- Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
-- Boolean type: BOOLEAN
-- IP types: IPV4, IPV6
+- Boolean type: BOOLEAN (true converts to 1, false converts to 0)
 
 ### Return Value
 
-Return type: BIGINT
+Return type: DOUBLE or DECIMAL
 
 Return value meaning:
 
-- Returns the position index of the first occurrence of the specified element in the array. The return value starts from 1, not 0. If the element to find is the first element in the array, this function returns 1, not 0
-- 0: if no matching element is found, or if the input array is NULL
-- NULL: if the input array is NULL
+- Returns the product of all elements in the array
+- NULL: if the array is empty, the array is NULL, or all elements are NULL
 
 Usage notes:
 
-- The function traverses the array from left to right, finds the first matching element. If no matching element is found, returns 0
-- Empty arrays return 0
-- For null values in array elements: null elements can be matched normally
+- The function skips NULL values in the array and only calculates the product of non-NULL elements
+- If all elements in the array are NULL, returns NULL
+- Empty arrays return NULL
+- Complex types (MAP, STRUCT, ARRAY) do not support product calculation and will cause errors
+- For null values in array elements: null elements do not participate in the product calculation
 
 **Query Examples:**
 
-Find the position of a string in an array:
+Calculate the product of an integer array:
 
 ```sql
-SELECT array_position(['apple', 'banana', 'cherry', 'apple'], 'apple');
-+-----------------------------------------------------------------+
-| array_position(['apple', 'banana', 'cherry', 'apple'], 'apple') |
-+-----------------------------------------------------------------+
-|                                                               1 |
-+-----------------------------------------------------------------+
+SELECT array_product([1, 2, 3, 4, 5]);
++--------------------------------+
+| array_product([1, 2, 3, 4, 5]) |
++--------------------------------+
+|                            120 |
++--------------------------------+
 ```
 
-Find the position of a floating-point number in an array:
+Calculate the product of a float array:
 
 ```sql
-SELECT array_position([1.1, 2.2, 3.3, 4.4, 5.5], 3.3);
-+------------------------------------------------+
-| array_position([1.1, 2.2, 3.3, 4.4, 5.5], 3.3) |
-+------------------------------------------------+
-|                                              3 |
-+------------------------------------------------+
+SELECT array_product([1.1, 2.2, 3.3, 4.4, 5.5]);
++------------------------------------------+
+| array_product([1.1, 2.2, 3.3, 4.4, 5.5]) |
++------------------------------------------+
+|                                    190.8 |
++------------------------------------------+
 ```
 
-Find a non-existent element:
+Calculate the product of an array containing null values:
 
 ```sql
-SELECT array_position([1, 2, 3, 4, 5], 10);
-+-------------------------------------+
-| array_position([1, 2, 3, 4, 5], 10) |
-+-------------------------------------+
-|                                   0 |
-+-------------------------------------+
+SELECT array_product([1, null, 3, null, 5]);
++----------------------------------------+
+| array_product([1, null, 3, null, 5])  |
++----------------------------------------+
+| 15.0                                   |
++----------------------------------------+
 ```
 
-Find a null element:
+Calculate the product of a boolean array (true=1, false=0):
 
 ```sql
-SELECT array_position([1, null, 3, null, 5], null);
-+---------------------------------------------+
-| array_position([1, null, 3, null, 5], null) |
-+---------------------------------------------+
-|                                           2 |
-+---------------------------------------------+
+SELECT array_product([true, false, true, true]);
++------------------------------------------+
+| array_product([true, false, true, true]) |
++------------------------------------------+
+|                                        0 |
++------------------------------------------+
 ```
 
-Empty array returns 0:
+Empty arrays return NULL:
 
 ```sql
-SELECT array_position([], 1);
-+-----------------------+
-| array_position([], 1) |
-+-----------------------+
-|                     0 |
-+-----------------------+
+SELECT array_product([]);
++----------------------+
+| array_product([])    |
++----------------------+
+| NULL                 |
++----------------------+
 ```
 
-Input array is NULL, returns NULL:
+Arrays with all null elements return NULL:
 
 ```sql
-SELECT array_position(NULL, 1);
-+-------------------------+
-| array_position(NULL, 1) |
-+-------------------------+
-|                    NULL |
-+-------------------------+
-```
-
-Date type search:
-
-```sql
-SELECT array_position(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>), '2023-01-01');
-+---------------------------------------------------------------------------------------------------+
-| array_position(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>), '2023-01-01') |
-+---------------------------------------------------------------------------------------------------+
-|                                                                                                 1 |
-+---------------------------------------------------------------------------------------------------+
-```
-
-IP address search:
-
-```sql
-SELECT array_position(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), '192.168.1.2');
-+---------------------------------------------------------------------------------------------------+
-| array_position(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), '192.168.1.2') |
-+---------------------------------------------------------------------------------------------------+
-|                                                                                                 2 |
-+---------------------------------------------------------------------------------------------------+
-
-SELECT array_position(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>), '2001:db8::0');
-+---------------------------------------------------------------------------------------------------+
-| array_position(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>), '2001:db8::0') |
-+---------------------------------------------------------------------------------------------------+
-|                                                                                                 3 |
-+---------------------------------------------------------------------------------------------------+
+SELECT array_product([null, null, null]);
++----------------------------------+
+| array_product([null, null, null]) |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
 
 Complex type examples:
 
-Nested array types are not supported, will error:
+Nested array types are not supported, causing an error:
 
 ```sql
-SELECT array_position([[1,2], [3,4], [5,6]], [3,4]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = array_position does not support type ARRAY<ARRAY<TINYINT>>, expression is array_position([[1, 2], [3, 4], [5, 6]])
+SELECT array_product([[1,2],[3,4],[5,6]]);
+ERROR 1105 (HY000): errCode = 2, detailMessage: array_product does not support type: ARRAY<ARRAY<TINYINT>>
 ```
 
-Map type search:
+Map types are not supported, causing an error:
 
 ```sql
-SELECT array_position([{'k':1}, {'k':2}, {'k':3}], {'k':2});
-ERROR 1105 (HY000): errCode = 2, detailMessage = array_position does not support type ARRAY<MAP<VARCHAR(1),TINYINT>>, expression is array_position([map('k', 1), map('k', 2), map('k', 3)])
+SELECT array_product([{'k':1},{'k':2},{'k':3}]);
+ERROR 1105 (HY000): errCode = 2, detailMessage: array_product does not support type: ARRAY<MAP<VARCHAR(1),TINYINT>>
 ```
 
-Error when parameter count is wrong:
+Error with wrong number of parameters:
 
 ```sql
-SELECT array_position([1,2,3]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_position' which has 1 arity. Candidate functions are: [array_position(Expression, Expression)]
+SELECT array_product([1,2,3], [4,5,6]);
+ERROR 1105 (HY000): errCode = 2, detailMessage: Can not found function 'array_product' which has 2 arity. Candidate functions are: [array_product(Expression)]
 ```
 
-Error when passing non-array type:
+Error when passing non-array types:
 
 ```sql
-SELECT array_position('not_an_array', 1);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_position(VARCHAR(12), TINYINT)
+SELECT array_product('not_an_array');
+ERROR 1105 (HY000): errCode = 2, detailMessage: Can not find the compatibility function signature: array_product(VARCHAR(12))
 ```
 
 ### Keywords
 
-ARRAY, POSITION, ARRAY_POSITION
+ARRAY, PRODUCT, ARRAY_PRODUCT
