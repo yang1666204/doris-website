@@ -1,20 +1,22 @@
 ---
 {
-  "title": "Login Action",
+  "title": "Logout Action",
   "language": "en",
-  "description": "Used to log in to the service."
+  "description": "Logout Action is used to log out of the current login."
 }
 ---
 
-# Login Action
+# Logout Action
 
 ## Request
 
-`POST /rest/v1/login`
+```
+POST /rest/v1/logout
+```
 
 ## Description
 
-Used to log in to the service.
+Logout Action is used to log out of the current login.
 
 ## Path parameters
 
@@ -28,25 +30,11 @@ None
 
 None
 
-## Response
+### Response
 
-- Login success
-
-    ```
-    {
-    	"msg": "Login success!",
-    	"code": 200
-    }
-    ```
-
-- Login failure
-
-    ```
-    {
-    	"msg": "Error msg...",
-    	"code": xxx,
-    	"data": "Error data...",
-    	"count": 0
-    }
-    ```
-
+```
+{
+	"msg": "OK",
+	"code": 0
+}
+```
