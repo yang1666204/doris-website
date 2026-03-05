@@ -1,19 +1,24 @@
 ---
 {
-  "title": "STDDEV_SAMP",
+  "title": "STD,STDDEV,STDDEV_POP",
   "language": "en",
-  "description": "Returns the sample standard deviation of the expr expression"
+  "description": "Returns the standard deviation of the expr expression"
 }
 ---
 
 ## Description
 
-Returns the sample standard deviation of the expr expression
+Returns the standard deviation of the expr expression
+
+## Alias
+
+- STD
+- STDDEV_POP
 
 ## Syntax
 
 ```sql
-STDDEV_SAMP(<expr>)
+STDDEV(<expr>)
 ```
 
 ## Parameters
@@ -27,7 +32,7 @@ STDDEV_SAMP(<expr>)
 Return the sample standard deviation of the expr expression as Double type.
 If there is no valid data in the group, returns NULL.
 
-### Examples
+## Examples
 
 ```sql
 -- Create sample tables
@@ -47,8 +52,8 @@ INSERT INTO score_table VALUES
 (4, 88),
 (5, 95);
 
--- Calculate the sample standard deviation of all students' scores
-SELECT STDDEV_SAMP(score) as score_stddev
+-- Calculate the standard deviation of all students' scores
+SELECT STDDEV(score) as score_stddev
 FROM score_table;
 ```
 
@@ -56,6 +61,6 @@ FROM score_table;
 +-------------------+
 | score_stddev      |
 +-------------------+
-| 4.949747468305831 |
+| 4.427188724235729 |
 +-------------------+
 ```
