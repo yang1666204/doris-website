@@ -1,193 +1,190 @@
 ---
 {
-  "title": "SPLIT_BY_REGEXP/REGEXP_SPLIT_TO_ARRAY",
+  "title": "SPLIT/SPLIT_BY_STRING",
   "language": "en",
-  "description": "The SPLITBYREGEXP function splits a string into an array of strings based on a specified regular expression pattern. Unlike SPLITBYSTRING,"
+  "description": "The SPLITBYSTRING function splits an input string into an array of strings based on a specified delimiter string."
 }
 ---
 
 ## Description
 
-The SPLIT_BY_REGEXP function splits a string into an array of strings based on a specified regular expression pattern. Unlike SPLIT_BY_STRING, this function supports complex regular expression matching for more flexible splitting rules. It optionally supports a maximum split count limit, which is useful for structured text processing, data cleansing, and pattern matching.
+The SPLIT_BY_STRING function splits an input string into an array of strings based on a specified delimiter string. This function supports multi-character delimiters and may differ from similar functions in other databases in handling empty strings.
 
 ## Syntax
 
 ```sql
-SPLIT_BY_REGEXP(<str>, <pattern> [, <max_limit>])
+SPLIT_BY_STRING(<str>, <separator>)
 ```
 
 ## Parameters
 
-| Parameter     | Description                                                                                                                |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `<str>`       | The source string to be split. Type: VARCHAR                                               |
-| `<pattern>`   | Regular expression pattern used as the delimiter. Type: VARCHAR                            |
-| `<max_limit>` | Optional parameter, limits the maximum number of elements in the returned array. Type: INT |
+| Parameter     | Description                                                                            |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `<str>`       | The source string to be split. Type: VARCHAR           |
+| `<separator>` | The delimiter string used for splitting. Type: VARCHAR |
 
 ## Return Value
 
-Returns ARRAY<VARCHAR> type, representing an array of strings split by the regular expression.
+Returns ARRAY<VARCHAR> type, containing an array of strings split by the delimiter.
 
 Splitting rules:
 
-- Uses regular expression pattern to match split points
-- Supports standard regular expression syntax
-- Empty string pattern will split the string into individual characters
-- If pattern doesn't match anything, returns single-element array containing the original string
-- max_limit restricts the maximum length of the result array
+- Splits at each occurrence of separator in str
+- Consecutive separators produce empty string elements
+- Separators at the beginning or end of the string produce empty string elements
 
 Special cases:
 
 - If any parameter is NULL, returns NULL
-- If string is empty, returns single-element array containing empty string
-- If regular expression is empty string, splits by characters
-- If max_limit is 0 or negative, no limit is applied
-- Consecutive matches produce empty string elements
+- If str is empty string, returns array with one empty string [""]
+- If separator is empty string, str is split by characters (each character becomes an array element)
+- If separator doesn't exist in str, returns array containing the original string
+- If str contains only separators, returns corresponding number of empty strings based on separator count
 
 ## Examples
 
-1. Empty pattern splits by characters
+1. Basic string splitting
 
 ```sql
-SELECT SPLIT_BY_REGEXP('abcde', '');
+SELECT SPLIT_BY_STRING('hello', 'l');
+```
+
+```text
++-------------------------------+
+| SPLIT_BY_STRING('hello', 'l') |
++-------------------------------+
+| ["he", "", "o"]               |
++-------------------------------+
+```
+
+2. Empty separator (split by characters)
+
+```sql
+SELECT SPLIT_BY_STRING('hello', '');
 ```
 
 ```text
 +------------------------------+
-| SPLIT_BY_REGEXP('abcde', '') |
+| SPLIT_BY_STRING('hello', '') |
 +------------------------------+
-| ["a", "b", "c", "d", "e"]    |
+| ["h", "e", "l", "l", "o"]    |
 +------------------------------+
 ```
 
-2. Digit pattern splitting
+3. Multi-character separator
 
 ```sql
-SELECT SPLIT_BY_REGEXP('a12bc23de345f', '\\d+');
+SELECT SPLIT_BY_STRING('apple::banana::cherry', '::');
 ```
 
 ```text
-+-----------------------------------------+
-| SPLIT_BY_REGEXP('a12bc23de345f', '\d+') |
-+-----------------------------------------+
-| ["a", "bc", "de", "f"]                  |
-+-----------------------------------------+
++------------------------------------------------+
+| SPLIT_BY_STRING('apple::banana::cherry', '::') |
++------------------------------------------------+
+| ["apple", "banana", "cherry"]                  |
++------------------------------------------------+
 ```
 
-3. NULL value handling
+4. NULL value handling
 
 ```sql
-SELECT SPLIT_BY_REGEXP(NULL, '\\d+'), SPLIT_BY_REGEXP('test', NULL);
+SELECT SPLIT_BY_STRING(NULL, ','), SPLIT_BY_STRING('hello', NULL);
 ```
 
 ```text
-+--------------------------------+--------------------------------+
-| SPLIT_BY_REGEXP(NULL, '\d+')   | SPLIT_BY_REGEXP('test', NULL)  |
-+--------------------------------+--------------------------------+
-| NULL                           | NULL                           |
-+--------------------------------+--------------------------------+
++-----------------------------+----------------------------------+
+| SPLIT_BY_STRING(NULL, ',')  | SPLIT_BY_STRING('hello', NULL)   |
++-----------------------------+----------------------------------+
+| NULL                        | NULL                             |
++-----------------------------+----------------------------------+
 ```
 
-4. Empty string handling
+5. Empty string handling
 
 ```sql
-SELECT SPLIT_BY_REGEXP('', ','), SPLIT_BY_REGEXP('hello', 'xyz');
+SELECT SPLIT_BY_STRING('', ','), SPLIT_BY_STRING('hello', 'xyz');
 ```
 
 ```text
-+---------------------------+-------------------------------+
-| SPLIT_BY_REGEXP('', ',')  | SPLIT_BY_REGEXP('hello', 'xyz') |
-+---------------------------+-------------------------------+
-| [""]                      | ["hello"]                     |
-+---------------------------+-------------------------------+
++---------------------------+----------------------------------+
+| SPLIT_BY_STRING('', ',')  | SPLIT_BY_STRING('hello', 'xyz')  |
++---------------------------+----------------------------------+
+| [""]                      | ["hello"]                       |
++---------------------------+----------------------------------+
 ```
 
-5. Using maximum limit parameter
+6. Consecutive separators
 
 ```sql
-SELECT SPLIT_BY_REGEXP('a,b,c,d,e', ',', 3), SPLIT_BY_REGEXP('1-2-3-4-5', '-', 2);
+SELECT SPLIT_BY_STRING('a,,b,c', ',');
 ```
 
 ```text
-+--------------------------------------+--------------------------------------+
-| SPLIT_BY_REGEXP('a,b,c,d,e', ',', 3) | SPLIT_BY_REGEXP('1-2-3-4-5', '-', 2) |
-+--------------------------------------+--------------------------------------+
-| ["a", "b", "c,d,e"]                  | ["1", "2-3-4-5"]                    |
-+--------------------------------------+--------------------------------------+
++-------------------------------+
+| SPLIT_BY_STRING('a,,b,c', ',') |
++-------------------------------+
+| ["a", "", "b", "c"]           |
++-------------------------------+
 ```
 
-6. Whitespace pattern
+7. Separators at beginning and end
 
 ```sql
-SELECT SPLIT_BY_REGEXP('hello world  test', '\\s+'), SPLIT_BY_REGEXP('a\tb\nc\rd', '\\s');
+SELECT SPLIT_BY_STRING(',a,b,', ',');
 ```
 
 ```text
-+------------------------------------------+------------------------------------+
-| SPLIT_BY_REGEXP('hello world  test', '\s+') | SPLIT_BY_REGEXP('a\tb\nc\rd', '\s') |
-+------------------------------------------+------------------------------------+
-| ["hello", "world", "test"]               | ["a", "b", "c", "d"]               |
-+------------------------------------------+------------------------------------+
++------------------------------+
+| SPLIT_BY_STRING(',a,b,', ',') |
++------------------------------+
+| ["", "a", "b", ""]           |
++------------------------------+
 ```
 
-7. Special characters and escaping
+8. Only contains separators
 
 ```sql
-SELECT SPLIT_BY_REGEXP('a.b.c.d', '\\.'), SPLIT_BY_REGEXP('x(y)z[w]', '[\\(\\)\\[\\]]');
+SELECT SPLIT_BY_STRING('|||', '|');
 ```
 
 ```text
-+----------------------------------+--------------------------------------------+
-| SPLIT_BY_REGEXP('a.b.c.d', '\.') | SPLIT_BY_REGEXP('x(y)z[w]', '[\(\)\[\]]') |
-+----------------------------------+--------------------------------------------+
-| ["a", "b", "c", "d"]             | ["x", "y", "z", "w"]                   |
-+----------------------------------+--------------------------------------------+
++----------------------------+
+| SPLIT_BY_STRING('|||', '|') |
++----------------------------+
+| ["", "", "", ""]           |
++----------------------------+
 ```
 
-8. Word boundaries and complex patterns
+9. UTF-8 character splitting
 
 ```sql
-SELECT SPLIT_BY_REGEXP('TheQuickBrownFox', '[A-Z]'), SPLIT_BY_REGEXP('user@example.com', '@|\\.');
+SELECT SPLIT_BY_STRING('ṭṛì ḍḍumai ṭṛì', ' ');
 ```
 
 ```text
-+------------------------------------------+-------------------------------------------+
-| SPLIT_BY_REGEXP('TheQuickBrownFox', '[A-Z]') | SPLIT_BY_REGEXP('user@example.com', '@|\.') |
-+------------------------------------------+-------------------------------------------+
-| ["", "he", "uick", "rown", "ox"]         | ["user", "example", "com"]                |
-+------------------------------------------+-------------------------------------------+
++--------------------------------------+
+| SPLIT_BY_STRING('ṭṛì ḍḍumai ṭṛì', ' ') |
++--------------------------------------+
+| ["ṭṛì", "ḍḍumai", "ṭṛì"]              |
++--------------------------------------+
 ```
 
-9. UTF-8 multi-byte characters
+10. Non-existent separator
 
 ```sql
-SELECT SPLIT_BY_REGEXP('ṭṛì→ḍḍumai→hello', '→'), SPLIT_BY_REGEXP('αβγδε', '[βδ]');
+SELECT SPLIT_BY_STRING('hello world', 'xyz');
 ```
 
 ```text
-+------------------------------------------+----------------------------------+
-| SPLIT_BY_REGEXP('ṭṛì→ḍḍumai→hello', '→') | SPLIT_BY_REGEXP('αβγδε', '[βδ]') |
-+------------------------------------------+----------------------------------+
-| ["ṭṛì", "ḍḍumai", "hello"]               | ["α", "γ", "ε"]                  |
-+------------------------------------------+----------------------------------+
-```
-
-10. Consecutive matches and empty elements
-
-```sql
-SELECT SPLIT_BY_REGEXP('a,,b,c', ','), SPLIT_BY_REGEXP('123abc456def', '[a-z]+');
-```
-
-```text
-+-------------------------------+---------------------------------------+
-| SPLIT_BY_REGEXP('a,,b,c', ',') | SPLIT_BY_REGEXP('123abc456def', '[a-z]+') |
-+-------------------------------+---------------------------------------+
-| ["a", "", "b", "c"]           | ["123", "456", ""]                    |
-+-------------------------------+---------------------------------------+
++--------------------------------------+
+| SPLIT_BY_STRING('hello world', 'xyz') |
++--------------------------------------+
+| ["hello world"]                      |
++--------------------------------------+
 ```
 
 ### Keywords
 
     ```
-    SPLIT_BY_REGEXP, SPLIT, REGEXP, REGEXP_SPLIT_TO_ARRAY
+    SPLIT_BY_STRING, SPLIT
     ```
