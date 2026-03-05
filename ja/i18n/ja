@@ -1,107 +1,116 @@
 ---
 {
-  "title": "FORMAT",
+  "title": "HEX",
   "language": "en",
-  "description": "The FORMAT function returns a string formatted using the specified format string and parameters."
+  "description": "The HEX function converts input parameters to hexadecimal string representation."
 }
 ---
 
 ## Description
 
-The FORMAT function returns a string formatted using the specified format string and parameters. The formatting rules follow the [fmt format specification](https://fmt.dev/11.1/syntax/#format-specification-mini-language).
+The HEX function converts input parameters to hexadecimal string representation. This function is MySQL-compatible and supports both numeric and string input types with different conversion rules.
+
+If the input parameter is a number (BIGINT type), returns the hexadecimal string representation of that number.
+
+If the input parameter is a string, converts each character (by byte) to two hexadecimal characters, then concatenates all converted characters into the result string.
 
 ## Syntax
 
 ```sql
-FORMAT(<format>, <args>[, ...])
+HEX(<expr>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                                                |
-| ---------- | ---------------------------------------------------------------------------------------------------------- |
-| `<format>` | Format string containing format placeholders. Type: VARCHAR                |
-| `<args>`   | Parameters to be formatted (can be multiple). Type: ANY |
+| Parameter | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| `<expr>`  | Input parameter, can be BIGINT type number or VARCHAR type string |
 
 ## Return Value
 
-Returns VARCHAR type, representing the result formatted according to the format string.
+Returns VARCHAR type, representing the hexadecimal representation of the input parameter.
+
+Conversion rules:
+
+- Numeric input: Converts to corresponding hexadecimal value (within BIGINT range)
+- String input: Each byte converts to two uppercase hexadecimal characters
+- Negative numbers are converted in two's complement binary form
 
 Special cases:
 
-- If any parameter is NULL, returns NULL
-- Format string uses `{}` as placeholder
-- Supports positional parameters (e.g., `{0}`, `{1}`) and named parameters
-- Supports various format options (alignment, precision, padding, etc.)
+- If parameter is NULL, returns NULL
+- Number 0 converts to '0'
+- Empty string converts to empty string
+- Negative numbers convert to hexadecimal representation of 64-bit two's complement
 
 ## Examples
 
-1. Basic usage: Format number precision
+1. Basic number conversion
 
 ```sql
-SELECT format('{:.2}', pi());
+SELECT HEX(12), HEX(-1);
 ```
 
 ```text
-+-----------------------+
-| format('{:.2}', pi()) |
-+-----------------------+
-| 3.1                   |
-+-----------------------+
++---------+------------------+
+| HEX(12) | HEX(-1)          |
++---------+------------------+
+| C       | FFFFFFFFFFFFFFFF |
++---------+------------------+
 ```
 
-2. Multiple parameter formatting
+2. String conversion
 
 ```sql
-SELECT format('{0}-{1}', 'hello', 'world');
+SELECT HEX('1'), HEX('@'), HEX('12');
 ```
 
 ```text
-+-------------------------------------+
-| format('{0}-{1}', 'hello', 'world') |
-+-------------------------------------+
-| hello-world                         |
-+-------------------------------------+
++----------+----------+-----------+
+| HEX('1') | HEX('@') | HEX('12') |
++----------+----------+-----------+
+| 31       | 40       | 3132      |
++----------+----------+-----------+
 ```
 
-3. Alignment and padding
+3. Large integer conversion
 
 ```sql
-SELECT format('{:>10}', 123);
+SELECT HEX(255), HEX(65535), HEX(16777215);
 ```
 
 ```text
-+-----------------------+
-| format('{:>10}', 123) |
-+-----------------------+
-|        123            |
-+-----------------------+
++----------+------------+----------------+
+| HEX(255) | HEX(65535) | HEX(16777215)  |
++----------+------------+----------------+
+| FF       | FFFF       | FFFFFF         |
++----------+------------+----------------+
 ```
 
 4. NULL value handling
 
 ```sql
-SELECT format('{:.2}', NULL);
+SELECT HEX(NULL);
 ```
 
 ```text
-+-----------------------+
-| format('{:.2}', NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
++-----------+
+| HEX(NULL) |
++-----------+
+| NULL      |
++-----------+
 ```
 
-5. UTF-8 string handling
+5. Zero and empty string
 
 ```sql
-SELECT format('{0}-{1}', 'ṭṛṭṛ', 'ṭṛ');
+SELECT HEX(0), HEX('');
 ```
 
 ```text
-+---------------------------------------------+
-| format('{0}-{1}', 'ṭṛṭṛ', 'ṭṛ')             |
-+---------------------------------------------+
-| ṭṛṭṛ-ṭṛ                                     |
-+---------------------------------------------+
++--------+--------+
+| HEX(0) | HEX('') |
++--------+--------+
+| 0      |        |
++--------+--------+
 ```
