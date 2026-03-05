@@ -1,102 +1,139 @@
 ---
 {
-  "title": "HTTP",
+  "title": "Tableau Back | Bi",
   "language": "en",
-  "description": "Apache Doris HTTP table-valued function (TVF) enables direct SQL queries on any HTTP/HTTPS endpoint data, including REST API responses, remote data files, and Hugging Face datasets. Supports JSON, CSV, Parquet, ORC format parsing."
+  "description": "VeloDB provides an official Tableau Doris connector. This connector accesses data based on the MySQL JDBC Driver.",
+  "sidebar_label": "Tableau Back"
 }
 ---
 
-HTTP table-valued-function (TVF) allows users to read data returned from any HTTP endpoint as if accessing relational table format data. As long as the returned data is in a supported format, it can be queried and analyzed directly via SQL. Currently supports `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc` data formats.
+# Tableau Back
 
-Typical use cases include:
+VeloDB provides an official Tableau Doris connector. This connector accesses data based on the MySQL JDBC Driver.
 
-- Querying data files hosted on HTTP/HTTPS (e.g., GitHub, S3, etc.).
-- Directly querying HTTP API endpoints that return JSON-formatted data.
-- Accessing datasets hosted on Hugging Face.
+The connector has been tested by the [TDVT framework](https://tableau.github.io/connector-plugin-sdk/docs/tdvt) with a 100% pass rate.
 
-:::note
-Supported since version 4.0.2.
-:::
+With this connector, Tableau can integrate Apache Doris databases and tables as data sources. To enable this, follow the setup guide below:
 
-## Syntax
+- Install Tableau and the Doris connector
+- Configure an Apache Doris data source in Tableau
+- Build visualizations in Tableau
+- Connection and usage tips
+- Summary
 
-```sql
-HTTP(
-    "uri" = "<uri>",
-    "format" = "<format>"
-    [, "<optional_property_key>" = "<optional_property_value>" [, ...] ]
-  )
-```
+## Install Tableau and Doris connector
 
-### Required Parameters
+1. Download and install [Tableau desktop](https://www.tableau.com/products/desktop/download).
+2. Get the [tableau-doris](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Tableau/latest/doris_jdbc-latest.taco) custom connector connector (doris_jdbc-\*\*\*.taco).
+3. Get [MySQL JDBC](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Tableau/latest/mysql-connector-j-8.3.0.jar) (version 8.3.0).
+4. Locations to place the Connector and JDBC driver
+   MacOS:
+   - Refer to this path: `~/Documents/My Tableau Repository/Connectors`, place the `doris_jdbc-latest.taco` custom connector file (if the path does not exist, create it manually as needed).
+   - JDBC driver jar placement path: `~/Library/Tableau/Drivers`
+     Windows:
+     Assume `tableau_path` is the Tableau installation directory on Windows,
+     typically defaults to: `tableau_path = C:\Program Files\Tableau`
+   - Refer to this path: `%tableau_path%``\Connectors\`, place the `doris_jdbc-latest.taco` custom connector file (if the path does not exist, create it manually as needed).
+   - JDBC driver jar placement path: `%tableau_path%\Drivers\`
 
-| Parameter | Description                                                                                                                                                                                                          |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| uri       | The HTTP address to access. Supports `http`, `https`, and `hf` protocols. Can be a URL to a data file or an API endpoint that returns data.                          |
-| format    | Data format, i.e., how the content returned by the HTTP endpoint is parsed. Supports `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc`. |
+Next, you can configure a Doris data source in Tableau and start building data visualizations!
 
-For `hf://` (Hugging Face), please refer to [Analyzing Hugging Face Data](../../../lakehouse/huggingface.md).
+## Configure a Doris data source in Tableau
 
-### Optional Parameters
+Now that you have installed and set up the **JDBC and Connector** drivers, let's look at how to define a data source in Tableau that connects to the tpch database in Doris.
 
-| Parameter                     | Description                                                                                                     | Notes                                                                                                                                                                        |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `http.header.xxx`             | Used to specify arbitrary HTTP Headers, which are passed directly to the HTTP Client.           | e.g., `"http.header.Authorization" = "Bearer hf_MWYzOJJoZEymb..."`, the resulting Header will be `Authorization: Bearer hf_MWYzOJJoZEymb...` |
-| `http.enable.range.request`   | Whether to use range requests to access the HTTP service. Default is `true`.    |                                                                                                                                                                              |
-| `http.max.request.size.bytes` | Maximum access size limit when using non-range request mode. Default is 100 MB. |                                                                                                                                                                              |
+1. Gather your connection details
 
-When `http.enable.range.request` is `true`, the system will first attempt to access the HTTP service using range requests. If the HTTP service does not support range requests, it will automatically fall back to non-range request mode. The maximum data access size is limited by `http.max.request.size.bytes`.
+To connect to Apache Doris via JDBC, you need the following information:
 
-## Examples
+| Parameter          | Meaning                                                                                 | Example                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Server             | Database host                                                                           | 127.0.1.28 |
+| Port               | Database MySQL port                                                                     | 9030                                                       |
+| Catalog            | Doris Catalog, used when querying external tables and data lakes, set in Advanced       | internal                                                   |
+| Database           | Database name                                                                           | tpch                                                       |
+| Authentication     | Choose database authentication method: Username / Username and Password | Username and Password                                      |
+| Username           | Username                                                                                | testuser                                                   |
+| Password           | Password                                                                                | Leave blank                                                |
+| Init SQL Statement | Initial SQL statement                                                                   | `select * from database.table`                             |
 
-### Reading Data Files over HTTP
+2. Launch Tableau. (If you were already running it before placing the connector, please restart.)
+3. From the left menu, click **More** under the **To a Server** section. In the list of available connectors, search for **Doris JDBC by VeloDB**:
 
-- Read CSV data from GitHub
+![](/images/ecomsystem/tableau/p01.png)
 
-    ```sql
-    SELECT COUNT(*) FROM
-    HTTP(
-        "uri" = "https://raw.githubusercontent.com/apache/doris/refs/heads/master/regression-test/data/load_p0/http_stream/all_types.csv",
-        "format" = "csv",
-        "column_separator" = ","
-    );
-    ```
+4. Click **Doris by VeloDB ，the following dialog will pop up:**
 
-- Read Parquet data from GitHub
+![](/images/ecomsystem/tableau/p02.png)
 
-    ```sql
-    SELECT arr_map, id FROM
-    HTTP(
-        "uri" = "https://raw.githubusercontent.com/apache/doris/refs/heads/master/regression-test/data/external_table_p0/tvf/t.parquet",
-        "format" = "parquet"
-    );
-    ```
+5. Enter the corresponding connection information as prompted in the dialog.
+6. Optional advanced configuration:
 
-- Read JSON data from GitHub and use `DESC FUNCTION` to view the schema
+   - You can enter preset SQL in Initial SQL to define the data source
+     ![](/images/ecomsystem/tableau/p03.png)
+   - In Advanced, you can use Catalog to access data lake data sources; the default value is internal,
+     ![](/images/ecomsystem/tableau/p04.png)
+7. After completing the above input fields, click the **Sign In** button, and you should see a new Tableau workbook:
+   ![](/images/ecomsystem/tableau/p05.png)
 
-    ```sql
-    DESC FUNCTION
-    HTTP(
-        "uri" = "https://raw.githubusercontent.com/apache/doris/refs/heads/master/regression-test/data/load_p0/stream_load/basic_data.json",
-        "format" = "json",
-        "strip_outer_array" = "true"
-    );
-    ```
+Next, you can build some visualizations in Tableau!
 
-### Querying HTTP API Endpoints
+## Build visualizations in Tableau
 
-You can use the HTTP table function to directly query HTTP API endpoints that return JSON-formatted data. For example, querying a REST API that returns JSON data:
+We choose TPC-H data as the data source, refer to [this document](../../benchmark/tpch.md) for the construction method of the Doris TPC-H data source
 
-```sql
-SELECT * FROM
-HTTP(
-    "uri" = "https://api.example.com/v1/data",
-    "format" = "json",
-    "http.header.Authorization" = "Bearer your_token",
-    "strip_outer_array" = "true"
-);
-```
+Now that we have configured the Doris data source in Tableau, let's visualize the data
 
-:::tip
-For HTTP API endpoints that do not support Range Requests, the system will automatically fall back to non-Range Request mode. You can manually disable Range Requests via the `http.enable.range.request` parameter.
-:::
+1. Drag the customer table and orders table to the workbook. And select the table join field Custkey for them below
+
+![](/images/ecomsystem/tableau/p06.png)
+
+2. Drag the nation table to the workbook and select the table join field Nationkey with the customer table
+   ![](/images/ecomsystem/tableau/p07.png)
+3. Now that you have associated the customer table, orders table and nation table as a data source, you can use this relationship to handle questions about the data. Select the `Sheet 1` tab at the bottom of the workbook to enter the workspace.
+   ![](/images/ecomsystem/tableau/p08.png)
+4. Suppose you want to know the summary of the number of users per year. Drag OrderDate from orders to the `Columns` area (horizontal field), and then drag customer(count) from customer to `Rows`. Tableau will generate the following line chart:
+   ![](/images/ecomsystem/tableau/p09.png)
+
+A simple line chart is completed, but this dataset is automatically generated by the tpch script and default rules and is not actual data. It is not for reference and is intended to test availability.
+
+5. Suppose you want to know the average order amount (USD) by region (country) and year:
+   - Click the `New Worksheet` tab to create a new sheet
+   - Drag Name from the nation table to `Rows`
+   - Drag OrderDate from the orders table to `Columns`
+
+You should see the following:
+![](/images/ecomsystem/tableau/p10.png)
+
+6. Note: The `Abc` value is just a placeholder value, because you have not defined aggregation logic for that mark, so you need to drag a measure onto the table. Drag Totalprice from the orders table to the middle of the table. Note that the default calculation is to perform a SUM on Totalprices:
+   ![](/images/ecomsystem/tableau/p11.png)
+7. Click `SUM` and change `Measure` to `Average`.
+   ![](/images/ecomsystem/tableau/p12.png)
+8. From the same dropdown menu, select `Format ` and change `Numbers` to `Currency (Standard)`:
+   ![](/images/ecomsystem/tableau/p13.png)
+9. Get a table that meets expectations:
+   ![](/images/ecomsystem/tableau/p14.png)
+
+So far, Tableau has been successfully connected to Apache Doris, and data analysis and visualization dashboard production has been achieved.
+
+## Connection and usage tips
+
+**Performance optimization**
+
+- According to actual needs, reasonably create doris databases and tables, partition and bucket by time, which can effectively reduce predicate filtering and most data transmission
+- Appropriate data pre-aggregation can be done by creating materialized views on the Doris side.
+- Set a reasonable refresh plan to balance the computing resource consumption of refresh and the timeliness of dashboard data
+
+**Security configuration**
+
+- It is recommended to use VPC private connections to avoid security risks introduced by public network access.
+- Configure security groups to restrict access.
+- Enable access methods such as SSL/TLS connections.
+- Refine Doris user account roles and access permissions to avoid excessive delegation of permissions.
+
+## Summary
+
+This connector simplifies the connection setup process of generic ODBC/JDBC driver-based connectors and provides a better compatible connector for Apache Doris. If you encounter any problems when using the connector, please feel free to contact us on [GitHub](https://github.com/apache/doris/issues).
+
+
+
