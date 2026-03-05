@@ -1,175 +1,101 @@
 ---
 {
-  "title": "AVG",
+  "title": "BITMAP_AGG",
   "language": "en",
-  "description": "Calculates the average of all non-NULL values in a specified column or expression."
+  "description": "Aggregates the non-NULL values of the input expression into a Bitmap. If a value is less than 0 or greater than 18446744073709551615,"
 }
 ---
 
 ## Description
 
-Calculates the average of all non-NULL values in a specified column or expression.
+Aggregates the non-NULL values of the input expression into a Bitmap.
+If a value is less than 0 or greater than 18446744073709551615, it will be ignored and not merged into the Bitmap.
 
 ## Syntax
 
 ```sql
-AVG([DISTINCT] <expr>)
+BITMAP_AGG(<expr>)
 ```
 
-## Parameters
+## Arguments
 
-| Parameter    | Description                                                                                                                                                                                                                             |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<expr>`     | It is an expression or column, typically a numeric column or an expression that can be converted to a numeric value. Supported types are TinyInt, SmallInt, Integer, BigInt, LargeInt, Double, Decimal. |
-| `[DISTINCT]` | It is an optional keyword that indicates the calculation of the average value after removing duplicate values from expr.                                                                                                |
+| Argument | Description                                                                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<expr>` | The column or expression to be aggregated. Supported types: TinyInt, SmallInt, Integer, BigInt. |
 
 ## Return Value
 
-Returns the average value of the selected column or expression. If all records in the group are NULL, the function returns NULL.
-For decimal type input, return value will be decimal as well, other numric type will return double type.
+Returns a value of Bitmap type. If there is no valid data in the group, returns an empty Bitmap.
 
 ## Example
 
 ```sql
 -- setup
-create table t1(
-        k_tinyint tinyint,
-        k_smallint smallint,
-        k_int int,
-        k_bigint bigint,
-        k_largeint largeint,
-        k_double double,
-        k_decimal decimalv3(10, 5),
-        k_null_int int
-) distributed by hash (k_int) buckets 1
-properties ("replication_num"="1");
-insert into t1 values 
-    (1, 10, 100, 1000, 10000, 1.1, 222.222, null),
-    (2, 20, 200, 2000, 20000, 2.2, 444.444, null),
-    (3, 30, 300, 3000, 30000, 3.3, null, null);
+CREATE TABLE test_bitmap_agg (
+    id INT,
+    k0 INT,
+    k1 INT,
+    k2 INT,
+    k3 INT,
+    k4 BIGINT,
+    k5 BIGINT
+) DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO test_bitmap_agg VALUES
+    (1, 10, 110, 11, 300, 10000000000, 0),
+    (2, 20, 120, 21, 400, 20000000000, 200000000000000),
+    (3, 30, 130, 31, 350, 30000000000, 300000000000000),
+    (4, 40, 140, 41, 500, 40000000000, 18446744073709551616),
+    (5, 50, 150, 51, 250, 50000000000, 18446744073709551615),
+    (6, 60, 160, 61, 600, 60000000000, -1),
+    (7, 60, 160, 120, 600, 60000000000, NULL);
 ```
 
 ```sql
-select avg(k_tinyint) from t1;
+select bitmap_to_string(bitmap_agg(k0)) from test_bitmap_agg;
 ```
 
-TinyInt type average calculation, the average of [1,2,3] is 2.
-
 ```text
-+----------------+
-| avg(k_tinyint) |
-+----------------+
-|              2 |
-+----------------+
++----------------------------------+
+| bitmap_to_string(bitmap_agg(k0)) |
++----------------------------------+
+| 10,20,30,40,50,60                |
++----------------------------------+
 ```
 
 ```sql
-select avg(k_smallint) from t1;
+select bitmap_to_string(bitmap_agg(k5)) from test_bitmap_agg;
 ```
 
-SmallInt type average calculation, the average of [10,20,30] is 20.
-
 ```text
-+-----------------+
-| avg(k_smallint) |
-+-----------------+
-|              20 |
-+-----------------+
++--------------------------------------------------------+
+| bitmap_to_string(bitmap_agg(k5))                       |
++--------------------------------------------------------+
+| 0,200000000000000,300000000000000,18446744073709551615 |
++--------------------------------------------------------+
 ```
 
 ```sql
-select avg(k_int) from t1;
+select bitmap_to_string(bitmap_agg(k5)) from test_bitmap_agg where k5 is null;
 ```
 
-Integer type average calculation, the average of [100,200,300] is 200.
-
 ```text
-+------------+
-| avg(k_int) |
-+------------+
-|        200 |
-+------------+
++----------------------------------+
+| bitmap_to_string(bitmap_agg(k5)) |
++----------------------------------+
+|                                  |
++----------------------------------+
 ```
 
 ```sql
-select avg(k_bigint) from t1;
+select bitmap_to_string(bitmap_agg(k5)) from test_bitmap_agg;
 ```
-
-BigInt type average calculation, the average of [1000,2000,3000] is 2000.
 
 ```text
-+---------------+
-| avg(k_bigint) |
-+---------------+
-|          2000 |
-+---------------+
-```
-
-```sql
-select avg(k_largeint) from t1;
-```
-
-LargeInt type average calculation, the average of [10000,20000,30000] is 20000.
-
-```text
-+-----------------+
-| avg(k_largeint) |
-+-----------------+
-|           20000 |
-+-----------------+
-```
-
-```sql
-select avg(k_double) from t1;
-```
-
-Double type average calculation, the average of [1.1,2.2,3.3] is approximately 2.2.
-
-```text
-| avg(k_double)      |
-+--------------------+
-| 2.1999999999999997 |
-```
-
-```sql
-select avg(k_decimal) from t1;
-```
-
-Decimal type average calculation, the average of [222.222,444.444,null] is 333.333.
-
-```text
-+----------------+
-| avg(k_decimal) |
-+----------------+
-|      333.33300 |
-+----------------+
-```
-
-```sql
-select avg(k_null_int) from t1;
-```
-
-For cases where all input data are NULL values, return NULL value.
-
-```text
-+-----------------+
-| avg(k_null_int) |
-+-----------------+
-|            NULL |
-+-----------------+
-```
-
-```sql
-select avg(distinct k_bigint) from t1;
-```
-
-Using the DISTINCT keyword for deduplication calculation, [1000,2000,3000] after deduplication has an average of 2000.
-
-```text
-+-----------------------+
-| avg(distinct k_bigint) |
-+-----------------------+
-|                  2000 |
-+-----------------------+
++--------------------------------------------------------+
+| bitmap_to_string(bitmap_agg(cast(k5 as BIGINT)))       |
++--------------------------------------------------------+
+| 0,200000000000000,300000000000000,18446744073709551615 |
++--------------------------------------------------------+
 ```
 
