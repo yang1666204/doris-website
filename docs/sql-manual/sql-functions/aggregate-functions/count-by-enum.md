@@ -1,47 +1,31 @@
 ---
 {
     "title": "COUNT_BY_ENUM",
-    "language": "en"
+    "language": "en",
+    "description": "Treat the data in the column as enumeration values and count the number of each enumeration value."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Treat the data in the column as enumeration values and count the number of each enumeration value. Returns the number of enumeration values for each column, as well as the number of non-NULL values and the number of NULL values.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## COUNT_BY_ENUM 
+```sql
+COUNT_BY_ENUM(<expr1>, <expr2>, ... , <exprN>)
+```
 
-COUNT_BY_ENUM
+## Parameters
 
-### Description
-#### Syntax
+| Parameter | Description |
+| -- | -- |
+| `<expr1>` | At least one input is required, supports up to 1024 inputs. Supported type is String. |
 
-`count_by_enum(expr1, expr2, ... , exprN);`
+## Return Value
 
-Treats the data in a column as an enumeration and counts the number of values in each enumeration. Returns the number of enumerated values for each column, and the number of non-null values versus the number of null values.
-
-#### Arguments
-
-`expr1` — At least one input must be specified. The value is a column of type `STRING`.
-
-##### Returned value
-
-Returns a JSONArray string.
+Returns results in JSONArray format.
+Return type is String.
 
 For example:
 ```json
@@ -74,18 +58,16 @@ For example:
   "all": 200
 }]
 ```
-Description: The return value is a JSON array string and the order of the internal objects is the order of the input parameters.
-* cbe: count of non-null values based on enumeration values
-* notnull: number of non-null values.
-* null: number of null values
-* all: total number, including both null and non-null values.
+Description: The return value is a JSON array string, and the order of internal objects follows the order of input parameters.
+* cbe: Statistical results of non-NULL values based on enumeration values
+* notnull: Count of non-NULL values
+* null: Count of NULL values
+* all: Total count, including both NULL and non-NULL values.
 
 
-### example
+## Example
 
 ```sql
-DROP TABLE IF EXISTS count_by_enum_test;
-
 CREATE TABLE count_by_enum_test(
                                    `id` varchar(1024) NULL,
                                    `f1` text REPLACE_IF_NOT_NULL NULL,
@@ -97,16 +79,23 @@ DISTRIBUTED BY HASH(id) BUCKETS 3
 PROPERTIES ( 
     "replication_num" = "1"
 );
+```
 
+```sql
 INSERT into count_by_enum_test (id, f1, f2, f3) values
                                                     (1, "F", "10", "China"),
                                                     (2, "F", "20", "China"),
                                                     (3, "M", NULL, "United States"),
                                                     (4, "M", NULL, "United States"),
                                                     (5, "M", NULL, "England");
+```
 
+
+```sql
 SELECT * from count_by_enum_test;
+```
 
+```text
 +------+------+------+---------------+
 | id   | f1   | f2   | f3            |
 +------+------+------+---------------+
@@ -116,33 +105,40 @@ SELECT * from count_by_enum_test;
 | 4    | M    | NULL | United States |
 | 5    | M    | NULL | England       |
 +------+------+------+---------------+
+```
 
+```sql
 select count_by_enum(f1) from count_by_enum_test;
+```
 
+```text
 +------------------------------------------------------+
 | count_by_enum(`f1`)                                  |
 +------------------------------------------------------+
 | [{"cbe":{"M":3,"F":2},"notnull":5,"null":0,"all":5}] |
 +------------------------------------------------------+
+```
 
+```sql
 select count_by_enum(f2) from count_by_enum_test;
+```
 
+```text
 +--------------------------------------------------------+
 | count_by_enum(`f2`)                                    |
 +--------------------------------------------------------+
 | [{"cbe":{"10":1,"20":1},"notnull":2,"null":3,"all":5}] |
 +--------------------------------------------------------+
+```
 
+```sql
 select count_by_enum(f1,f2,f3) from count_by_enum_test;
+```
 
+```text
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | count_by_enum(`f1`, `f2`, `f3`)                                                                                                                                                          |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | [{"cbe":{"M":3,"F":2},"notnull":5,"null":0,"all":5},{"cbe":{"20":1,"10":1},"notnull":2,"null":3,"all":5},{"cbe":{"England":1,"United States":2,"China":2},"notnull":5,"null":0,"all":5}] |
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-    
 ```
-
-### keywords
-
-COUNT_BY_ENUM
