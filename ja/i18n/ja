@@ -1,16 +1,14 @@
 ---
 {
-  "title": "REGEXP_REPLACE_ONE",
+  "title": "REGEXP_REPLACE",
   "language": "en",
-  "description": "The REGEXPREPLACEONE function is a powerful tool designed to perform regular expression matching on a given string."
+  "description": "Regular matching of STR strings, replacing the part hitting pattern with a new string."
 }
 ---
 
 ## Description
 
-The `REGEXP_REPLACE_ONE` function is a powerful tool designed to perform regular expression matching on a given string. It allows you to find and replace the first occurrence of a specific pattern within the string.
-
-When working with text data, you often need to manipulate strings based on certain rules. Regular expressions provide a flexible and efficient way to define these rules. This function takes a string (`str`), a regular expression pattern (`pattern`), and a replacement string (`repl`). It then searches for the first part of the `str` that matches the `pattern` and substitutes it with the `repl`.
+Regular matching of STR strings, replacing the part hitting pattern with a new string.
 
 It should be noted that when handling character set matching, Utf-8 standard character classes should be used. This ensures that functions can correctly identify and process various characters from different languages.
 
@@ -21,162 +19,163 @@ Support character match classes : https://github.com/google/re2/wiki/Syntax
 ## Syntax
 
 ```sql
-REGEXP_REPLACE_ONE(<str>, <pattern>, <repl>)
+REGEXP_REPLACE(<str>, <pattern>, <repl>)
 ```
 
 ## Parameters
 
-| Parameter   | Description                                                                                                                                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<str>`     | This parameter is of type string. It represents the string on which the regular expression matching will be performed. This is the target string that you want to modify. |
-| `<pattern>` | This parameter is also of type string. It is a regular expression pattern. The function will search for the first occurrence of this pattern within the <str> string.     |
-| `<repl>`    | This is a string parameter as well. It contains the string that will replace the first part of <str> that matches the <pattern>.                                                          |
+| Parameter   | Description                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<str>`     | This parameter is of Varchar type. It represents the string on which the regular expression matching will be performed. It can be a literal string or a column from a table containing string values.                                                                                                                                         |
+| `<pattern>` | This parameter is of Varchar type. It is the regular expression pattern used to match the string. The pattern can include various regular expression metacharacters and constructs to define complex matching rules.                                                                                                                          |
+| `<repl>`    | This parameter is of Varchar type. It is the string that will replace the parts of the <str> that match the <pattern>. If you want to reference captured groups in the pattern, you can use backreferences like \1, \2, etc., where \1 refers to the first captured group, \2 refers to the second captured group, and so on. |
 
 ## Return Value
 
-The function returns the result string after the replacement operation. The return type is Varchar. If no part of the <str> matches the <pattern>, the original <str> will be returned.
+The function returns the result string after the replacement operation. The return value is of Varchar type. If no part of the <str> matches the <pattern>, the original <str> will be returned.
 
 ## Example
 
-Replace the first space with a hyphen
-Explanation: In this example, the input string <str> is 'a b c', the regular expression pattern <pattern> is a single space ' ', and the replacement string <repl> is a hyphen '-'. The function searches for the first occurrence of a space in the string 'a b c' and replaces it with a hyphen. So the output is 'a-b c'.
+Basic replacement example.In this example, all spaces in the string 'a b c' are replaced with hyphens.
 
 ```sql
-mysql> SELECT regexp_replace_one('a b c', ' ', '-');
-
+mysql> SELECT regexp_replace('a b c', ' ', '-');
 +-----------------------------------+
-| regexp_replace_one('a b c', ' ', '-') |
+| regexp_replace('a b c', ' ', '-') |
 +-----------------------------------+
-| a-b c                             |
+| a-b-c                             |
 +-----------------------------------+
 ```
 
-Replace the first matched group.Here, the input string <str> is 'a b b', the regular expression pattern <pattern> is '(b)', which is a capturing group that matches the character 'b'. The replacement string <repl> is '<\1>', where \1 refers to the first capturing group (in this case, the matched 'b'). The function finds the first occurrence of 'b' in the string 'a b b' and replaces it with '<b>'. Thus, the output is 'a <b> b'.
+Using captured groups.Here, the character 'b' is captured by the group (b) in the pattern, and then it is replaced with <b> using the backreference \1 in the replacement string.
 
 ```sql
-mysql> SELECT regexp_replace_one('a b b', '(b)', '<\\1>');
+mysql> SELECT regexp_replace('a b c', '(b)', '<\\1>');
 +----------------------------------------+
-| regexp_replace_one('a b b', '(b)', '<\1>') |
+| regexp_replace('a b c', '(b)', '<\1>') |
 +----------------------------------------+
-| a <b> b                                |
+| a <b> c                                |
 +----------------------------------------+
 ```
 
-Replace the first Chinese character.The input string <str> is a long string containing Chinese characters and English text. The regular expression pattern <pattern> is '\p{Han}', which is a Unicode character class that matches any Chinese character. The replacement string <repl> is '123'. The function searches for the first Chinese character in the string and replaces it with '123'. So the output is '123是一段中文This is a passage in English 1234567'.
+Matching Chinese characters.This example replaces all consecutive Chinese characters in the string with '123'.
 
 ```sql
-mysql> select regexp_replace_one('这是一段中文 This is a passage in English 1234567', '\\p{Han}', '123');
-+------------------------------------------------------------------------------------------------+
-| regexp_replace_one('这是一段中文 This is a passage in English 1234567', '\p{Han}', '123')       |
-+------------------------------------------------------------------------------------------------+
-| 123是一段中文This is a passage in English 1234567                                              |
-+------------------------------------------------------------------------------------------------+
+mysql> select regexp_replace('这是一段中文 This is a passage in English 1234567', '\\p{Han}+', '123');
++---------------------------------------------------------------------------------------------+
+| regexp_replace('这是一段中文 This is a passage in English 1234567', '\p{Han}+', '123')       |
++---------------------------------------------------------------------------------------------+
+| 123This is a passage in English 1234567                                                     |
++---------------------------------------------------------------------------------------------+
 ```
 
-Insert data into a table and perform replacementFirst, a table named test_table_for_regexp_replace_one is created with four columns: id (an integer), text_data (a string where the replacement will be performed), pattern (the regular expression pattern for matching), and repl (the replacement string).Then, ten rows of data are inserted into the table, each containing different values for the four columns.Finally, a SELECT statement is used to query the table. For each row, the REGEXP_REPLACE_ONE function is applied to the text_data column using the corresponding pattern and repl values. The result of the replacement is aliased as replaced_result. The rows are ordered by the id column.
+Insert and test cases.In this set of test cases, we create a table to store original strings, patterns, and replacement strings. Then we insert various test data and perform REGEXP_REPLACE operations on the original strings using the corresponding patterns and replacement strings. Finally, we retrieve and display the replaced strings.
 
 ```sql
-CREATE TABLE test_table_for_regexp_replace_one (
+-- Create a table to store test data
+CREATE TABLE test_table_for_regexp_replace (
         id INT,
-        text_data VARCHAR(500),
+        original_text VARCHAR(500),
         pattern VARCHAR(100),
-        repl VARCHAR(100)
+        replacement VARCHAR(100)
     ) PROPERTIES ("replication_num"="1");
 
-INSERT INTO test_table_for_regexp_replace_one VALUES
-    (1, 'Hello World', ' ', '-'),    
-    (2, 'apple123', '[0-9]', 'X'),    
-    (3, 'aabbcc', '(aa)', 'AA'),         
-    (4, '123-456-7890', '[0-9][0-9][0-9]', 'XXX'), 
+-- Insert test data
+INSERT INTO test_table_for_regexp_replace VALUES
+    (1, 'Hello, World!', ',', '-'),    
+    (2, 'apple123', '[0-9]', '*'),    
+    (3, 'aabbcc', '(aa|bb|cc)', 'XX'),         
+    (4, '123-456-7890', '-', ' '), 
     (5, 'test,data', ',', ';'),              
-    (6, 'a1b2c3', '[a-z][0-9]', 'X'),         
-    (7, 'book keeper', 'oo', 'OO'),        
-    (8, 'ababab', '(ab)', 'AB'),       
-    (9, 'aabbcc', '(bb)', 'BB'),         
-    (10, 'apple,banana', '[aeiou]', 'X');
+    (6, 'a1b2c3', '[0-9]', '#'),         
+    (7, 'book keeper', 'oo|ee', '**'),        
+    (8, 'ababab', '(ab)', 'XY'),       
+    (9, 'aabbcc', '(aa|bb|cc)', 'ZZ'),         
+    (10, 'apple,banana', ',', ' - ');
 
-SELECT id, regexp_replace_one(text_data, pattern, repl) as replaced_result FROM test_table_for_regexp_replace_one ORDER BY id;
+-- Perform replacement operations on the inserted data
+SELECT id, regexp_replace(original_text, pattern, replacement) as replaced_text FROM test_table_for_regexp_replace ORDER BY id;
 ```
 
 ```text
-+------+-----------------+
-| id   | replaced_result |
-+------+-----------------+
-|    1 | Hello-World     |
-|    2 | appleX23        |
-|    3 | AAbbcc          |
-|    4 | XXX-456-7890    |
-|    5 | test;data       |
-|    6 | Xb2c3           |
-|    7 | BOOk keeper     |
-|    8 | ABabab          |
-|    9 | aaBBcc          |
-|   10 | Xpple,banana    |
-+------+-----------------+
++------+------------------+
+| id   | replaced_text    |
++------+------------------+
+|    1 | Hello- World!    |
+|    2 | apple***         |
+|    3 | XXXXYY           |
+|    4 | 123 456 7890     |
+|    5 | test;data        |
+|    6 | a#b#c#           |
+|    7 | b**k k**per      |
+|    8 | XYXYXY           |
+|    9 | ZZZZYY           |
+|   10 | apple - banana   |
++------+------------------+
 ```
 
-Emoji one replace case
+Emoji replace
 
 ```sql
-SELECT regexp_replace_one('😀😊😀', '😀|😊', '[SMILE]');
+SELECT regexp_replace('🌍 Earth 🍔 Food', '🌍|🍔', '*');
 ```
 
 ```text
-+------------------------------------------------------------+
-| regexp_replace_one('😀😊😀', '😀|😊', '[SMILE]')                     |
-+------------------------------------------------------------+
-| [SMILE]😊😀                                                    |
-+------------------------------------------------------------+
++----------------------------------------------------------+
+| regexp_replace('🌍 Earth 🍔 Food', '🌍|🍔', '*')                 |
++----------------------------------------------------------+
+| * Earth * Food                                           |
++----------------------------------------------------------+
 ```
 
 'str' is NULL,return NULL
 
 ```sql
-mysql> SELECT REGEXP_REPLACE_ONE(NULL, ' ', '-');
-+------------------------------------+
-| REGEXP_REPLACE_ONE(NULL, ' ', '-') |
-+------------------------------------+
-| NULL                               |
-+------------------------------------+
+mysql> SELECT REGEXP_REPLACE(NULL, ' ', '-');
++--------------------------------+
+| REGEXP_REPLACE(NULL, ' ', '-') |
++--------------------------------+
+| NULL                           |
++--------------------------------+
 ```
 
 'pattern' is NULL,return NULL
 
 ```sql
-mysql> SELECT REGEXP_REPLACE_ONE('Hello World', NULL, '-');
-+----------------------------------------------+
-| REGEXP_REPLACE_ONE('Hello World', NULL, '-') |
-+----------------------------------------------+
-| NULL                                         |
-+----------------------------------------------+
+mysql> SELECT REGEXP_REPLACE('Hello World', NULL, '-');
++------------------------------------------+
+| REGEXP_REPLACE('Hello World', NULL, '-') |
++------------------------------------------+
+| NULL                                     |
++------------------------------------------+
 ```
 
-'repl' is NULL return NULL
+'repl' is NULL,return NULL
 
 ```sql
-mysql> SELECT REGEXP_REPLACE_ONE('Hello World', ' ', NULL);
-+----------------------------------------------+
-| REGEXP_REPLACE_ONE('Hello World', ' ', NULL) |
-+----------------------------------------------+
-| NULL                                         |
-+----------------------------------------------+
+mysql> SELECT REGEXP_REPLACE('Hello World', ' ', NULL);
++------------------------------------------+
+| REGEXP_REPLACE('Hello World', ' ', NULL) |
++------------------------------------------+
+| NULL                                     |
++------------------------------------------+
 ```
 
 All parameters are NULL,return NULL
 
 ```sql
-mysql> SELECT REGEXP_REPLACE_ONE(NULL, NULL, NULL);
-+--------------------------------------+
-| REGEXP_REPLACE_ONE(NULL, NULL, NULL) |
-+--------------------------------------+
-| NULL                                 |
-+--------------------------------------+
+mysql> SELECT REGEXP_REPLACE(NULL, NULL, NULL);
++----------------------------------+
+| REGEXP_REPLACE(NULL, NULL, NULL) |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
 
-If the `pattern` is not allowed regexp regular,throw error
+If the `pattern` is not allowed regexp regular,throw error;
 
 ```sql
-SELECT regexp_replace_one('a b b', '(b', '<\\1>');
+SELECT regexp_replace('a b c', '(b', '<\\1>');
 ```
 
 ```text
