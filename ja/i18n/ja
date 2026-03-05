@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.7", "language": "en" }
+{ "title": "Release 2.0.8", "language": "en" }
 ---
 
 <!--
@@ -21,56 +21,47 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Thanks to our community users and developers, about 80 improvements and bug fixes have been made in Doris 2.0.7 version.
+Thanks to our community users and developers, about 65 improvements and bug fixes have been made in Doris 2.0.8 version.
 
-**Quick Download:** [https://doris.apache.org/download/](https://doris.apache.org/download/)
+- **Quick Download** : [https://doris.apache.org/download/](https://doris.apache.org/download/)
 
-**GitHub：** [https://github.com/apache/doris/releases](https://github.com/apache/doris/releases)
+- **GitHub** : [https://github.com/apache/doris/releases](https://github.com/apache/doris/releases)
 
 ## 1 Behavior change
 
-- `round` function defaults to rounding normally as MySQL, eg. round(5/2) return 3 instead of 2.
+The `ADMIN SHOW` statement can not be executed with high version of MySQL 8.x jdbc driver. So rename these statement, remove the `ADMIN` keywords.
 
-  - https://github.com/apache/doris/pull/31583
+- https://github.com/apache/doris/pull/29492
 
-- `round` datetime with scale from string literal as MySQL, eg. round '2023-10-12 14:31:49.666' to '2023-10-12 14:31:50' .
-
-  - https://github.com/apache/doris/pull/27965
+```sql
+ADMIN SHOW CONFIG -> SHOW CONFIG
+ADMIN SHOW REPLICA -> SHOW REPLICA
+ADMIN DIAGNOSE TABLET -> SHOW TABLET DIAGNOSIS
+ADMIN SHOW TABLET -> SHOW TABLET
+```
 
 ## 2 New features
 
-- Support make miss slot as null alias when converting outer join to anti join to speed up query
-
-  - https://github.com/apache/doris/pull/31854
-
-- Enable proxy protocol to support IP transparency for Nginx and HAProxy.
-
-  - https://github.com/apache/doris/pull/32338
+N/A
 
 ## 3 Improvement and optimizations
 
-- Add DEFAULT_ENCRYPTION column in `information_schema` table and add `processlist` table for better compatibility for BI tools
+- Make Inverted Index work with TopN opt in Nereids
 
-- Automatically test connectivity by default when creating a JDBC Catalog.
+- Limit the max string length to 1024 while collecting column stats to control BE memory usage
 
-- Enhance auto resume to keep routine load stable
+- JDBC Catalog close when JDBC client is not empty
 
-- Use lowercase by default for Chinese tokenizer in inverted index
+- Accept all Iceberg database and do not check the name format of database
 
-- Add error msg if exceeded maximum default value in repeat function
+- Refresh external table's rowcount async to avoid cache miss and unstable query plan
 
-- Skip hidden file and dir in Hive table
+- Simplify the isSplitable method of hive external table to avoid too many hadoop metrics
 
-- Reduce file meta cache size and disable cache for some cases to avoid OOM
-
-- Reduce jvm heap memory consumed by profiles of BrokerLoadJob
-
-- Remove sort which is under table sink to speed up query like `INSERT INTO t1 SELECT * FROM t2 ORDER BY k`.
-
-See the complete list of improvements and bug fixes on [github](https://github.com/apache/doris/compare/2.0.6...2.0.7) .
+See the complete list of improvements and bug fixes on [GitHub](https://github.com/apache/doris/compare/2.0.7...2.0.8) .
 
 ## 4 Credits
 
 Thanks all who contribute to this release:
 
-924060929,airborne12,amorynan,ByteYue,dataroaring,deardeng,feiniaofeiafei,felixwluo,freemandealer,gavinchou,hello-stephen,HHoflittlefish777,jacktengg,jackwener,jeffreys-cat,Jibing-Li,KassieZ,LiBinfeng-01,luwei16,morningman,mrhhsg,Mryange,nextdreamblue,platoneko,qidaye,rohitrs1983,seawinde,shuke987,starocean999,SWJTU-ZhangLei,w41ter,wsjz,wuwenchi,xiaokang,XieJiann,XuJianxu,yujun777,Yulei-Yang,zhangstar333,zhiqiang-hhhh,zy-kkk,zzzxl1993
+924060929,  AcKing-Sam, amorynan, AshinGau, BePPPower, BiteTheDDDDt, ByteYue, cambyzju,  dongsilun, eldenmoon, feiniaofeiafei, gnehil, Jibing-Li, liaoxin01, luwei16,  morningman, morrySnow, mrhhsg, Mryange, nextdreamblue, platoneko,  starocean999, SWJTU-ZhangLei, wuwenchi, xiaokang, xinyiZzz, Yukang-Lian,  Yulei-Yang, zclllyybb, zddr, zhangstar333, zhiqiang-hhhh, ziyanTOP, zy-kkk,  zzzxl1993
