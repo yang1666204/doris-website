@@ -1,86 +1,158 @@
 ---
 {
-  "title": "STRCMP",
+  "title": "STRLEFT",
   "language": "en",
-  "description": "The STRCMP function compares two strings lexicographically. It returns an integer value indicating the result of the comparison."
+  "description": "The STRLEFT function returns a specified number of characters from the left side of a string. The length is measured in UTF8 characters."
 }
 ---
 
 ## Description
 
-The STRCMP function compares two strings lexicographically. It returns an integer value indicating the result of the comparison.
+The STRLEFT function returns a specified number of characters from the left side of a string. The length is measured in UTF8 characters.
+
+## Alias
+
+LEFT
 
 ## Syntax
 
 ```sql
-STRCMP(<str0>, <str1>)
+STRLEFT(<str>, <len>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                 |
-| --------- | --------------------------------------------------------------------------- |
-| `<str0>`  | The first string to compare. Type: VARCHAR  |
-| `<str1>`  | The second string to compare. Type: VARCHAR |
+| Parameter | Description                                                                   |
+| --------- | ----------------------------------------------------------------------------- |
+| `<str>`   | The string to extract from. Type: VARCHAR     |
+| `<len>`   | The number of characters to return. Type: INT |
 
 ## Return Value
 
-Returns TINYINT type, indicating the comparison result:
-
-- Returns 0: if str0 equals str1
-- Returns 1: if str0 is lexicographically greater than str1
-- Returns -1: if str0 is lexicographically less than str1
+Returns VARCHAR type, representing the extracted substring.
 
 Special cases:
 
 - Returns NULL if any argument is NULL
+- Returns empty string "" if len is less than or equal to 0
+- Returns the entire string if len is greater than the string length
 
 ## Examples
 
-1. Identical string comparison
+1. Basic left extraction
 
 ```sql
-SELECT strcmp('test', 'test');
+SELECT STRLEFT('Hello doris', 5), LEFT('Hello doris', 5);
 ```
 
 ```text
-+------------------------+
-| strcmp('test', 'test') |
-+------------------------+
-|                      0 |
-+------------------------+
++---------------------------+----------------------+
+| STRLEFT('Hello doris', 5) | LEFT('Hello doris', 5) |
++---------------------------+----------------------+
+| Hello                     | Hello                |
++---------------------------+----------------------+
 ```
 
-2. First string is greater
+2. Different extraction lengths
 
 ```sql
-SELECT strcmp('test1', 'test');
+SELECT STRLEFT('Hello World', 3), STRLEFT('Hello World', 8);
 ```
 
 ```text
-+-------------------------+
-| strcmp('test1', 'test') |
-+-------------------------+
-|                       1 |
-+-------------------------+
++----------------------------+----------------------------+
+| STRLEFT('Hello World', 3)  | STRLEFT('Hello World', 8)  |
++----------------------------+----------------------------+
+| Hel                        | Hello Wo                   |
++----------------------------+----------------------------+
 ```
 
-3. First string is smaller
+3. NULL value handling
 
 ```sql
-SELECT strcmp('test', 'test1');
+SELECT STRLEFT(NULL, 5), STRLEFT('Hello doris', NULL);
 ```
 
 ```text
-+-------------------------+
-| strcmp('test', 'test1') |
-+-------------------------+
-|                      -1 |
-+-------------------------+
++------------------+------------------------------+
+| STRLEFT(NULL, 5) | STRLEFT('Hello doris', NULL) |
++------------------+------------------------------+
+| NULL             | NULL                         |
++------------------+------------------------------+
+```
+
+4. Empty string and zero length
+
+```sql
+SELECT STRLEFT('', 5), STRLEFT('Hello World', 0);
+```
+
+```text
++------------------+----------------------------+
+| STRLEFT('', 5)   | STRLEFT('Hello World', 0)  |
++------------------+----------------------------+
+|                  |                            |
++------------------+----------------------------+
+```
+
+5. Negative length handling
+
+```sql
+SELECT STRLEFT('Hello doris', -5), STRLEFT('Hello doris', -1);
+```
+
+```text
++-----------------------------+----------------------------+
+| STRLEFT('Hello doris', -5)  | STRLEFT('Hello doris', -1) |
++-----------------------------+----------------------------+
+|                             |                            |
++-----------------------------+----------------------------+
+```
+
+6. Length exceeds string length
+
+```sql
+SELECT STRLEFT('ABC', 10), STRLEFT('short', 20);
+```
+
+```text
++--------------------+----------------------+
+| STRLEFT('ABC', 10) | STRLEFT('short', 20) |
++--------------------+----------------------+
+| ABC                | short                |
++--------------------+----------------------+
+```
+
+7. UTF-8 multi-byte characters
+
+```sql
+SELECT STRLEFT('ṭṛì ḍḍumai hello', 3), STRLEFT('ṭṛì ḍḍumai hello', 7);
+```
+
+```text
++---------------------------------+----------------------------------+
+| STRLEFT('ṭṛì ḍḍumai hello', 3)  | STRLEFT('ṭṛì ḍḍumai hello', 7)  |
++---------------------------------+----------------------------------+
+| ṭṛì                             | ṭṛì ḍḍu                          |
++---------------------------------+----------------------------------+
+```
+
+8. Number and ID prefix
+
+```sql
+SELECT STRLEFT('ID123456789', 5), STRLEFT('USER_987654321', 5);
+```
+
+```text
++----------------------------+------------------------------+
+| STRLEFT('ID123456789', 5)  | STRLEFT('USER_987654321', 5) |
++----------------------------+------------------------------+
+| ID123                      | USER_                        |
++----------------------------+------------------------------+
 ```
 
 ### Keywords
 
     ```
-    STRCMP
+    STRLEFT, LEFT
     ```
