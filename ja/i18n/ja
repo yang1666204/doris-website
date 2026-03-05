@@ -1,87 +1,161 @@
 ---
 {
-  "title": "JSON_SET",
+  "title": "JSON_SEARCH",
   "language": "en",
-  "description": "The JSONSET function is used to insert or replace data in JSON and return the result."
+  "description": "The JSONSEARCH function is used to search for specified values in a JSON document. If the value is found, it returns the path to the value."
 }
 ---
 
 ## Description
 
-The `JSON_SET` function is used to insert or replace data in JSON and return the result.
+The `JSON_SEARCH` function is used to search for specified values in a JSON document. If the value is found, it returns the path to the value. If the value is not found, it returns NULL. This function can recursively search within JSON data structures.
 
 ## Syntax
 
 ```sql
-JSON_SET (<json_object>, <path>,  <value>[, <path>,  <value>, ...])
+JSON_SEARCH( <json_object>, <one_or_all>, <search_value> )
 ```
 
 ## Parameters
 
-- `<json_object>`: JSON type expression, the target to be modified.
-- `<path>`: String type expression, specifies the path where the value is to be inserted
-- `<value>`: JSON type or other types supported by [`TO_JSON`](./to-json.md), the value to be inserted.
+- `<json_object>`: JSON type, the JSON document to be searched.
+- `<one_or_all>`: String type, specifies whether to find all matching values. Can be 'one' or 'all'.
+- `<search_value>`: String type, the value to search for, the search target.
+  Supports '%' (matches any number of any characters) and '_' (matches any single character) as wildcards.
 
 ## Return Value
 
-- Nullable(JSON) Returns the modified JSON object
+Nullable(JSON): Depending on the `<one_or_all>` parameter, there are two cases:
 
-## Usage Notes
+    ```
+    1. 'one': If a matching value is found, returns a JSON path pointing to the matching value. If no matching value is found, returns NULL.
+    2. 'all': Returns paths to all matching values. If there are multiple values, returns them as a JSON array. If no matches are found, returns NULL.
+    ```
 
-1. When the object pointed to by `<path>` exists, its behavior is consistent with [`JSON_REPLACE`](./json-replace.md), otherwise its behavior is consistent with [`JSON_INSERT`](./json-insert.md)
+## Notes
+
+- The `one_or_all` parameter determines whether to find all matching values. 'one' returns the first matching path, 'all' returns all matching paths. If it's any other value, an error will be reported.
+- If no matching value is found, the function returns NULL.
+- If any of `<json_object>`, `<one_or_all>`, `<search_value>` is NULL, returns NULL.
 
 ## Examples
 
-1. Path does not exist
+1. Search for a single value (one)
     ```sql
-    select json_set('{}', '$.k', json_parse('{}'), '$.k.k2', 123);
+    SELECT JSON_SEARCH('{"name": "John", "age": 30}', 'one', 'John');
     ```
     ```text
-    +--------------------------------------------------------+
-    | json_set('{}', '$.k', json_parse('{}'), '$.k.k2', 123) |
-    +--------------------------------------------------------+
-    | {"k":{"k2":123}}                                       |
-    +--------------------------------------------------------+
+    +-----------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30}', 'one', 'John') |
+    +-----------------------------------------------------------+
+    | "$.name"                                                  |
+    +-----------------------------------------------------------+
+    
     ```
-2. Value pointed to by `<path>` already exists in the JSON object
+2. Search for a single value (one), returns only one path even if there are multiple matches
     ```sql
-    select json_set('{"k": 1}', "$.k", 2);
+    SELECT JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'one', 'John');
     ```
     ```text
-    +--------------------------------+
-    | json_set('{"k": 1}', "$.k", 2) |
-    +--------------------------------+
-    | {"k":2}                        |
-    +--------------------------------+
+    +----------------------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'one', 'John') |
+    +----------------------------------------------------------------------------+
+    | "$.name"                                                                   |
+    +----------------------------------------------------------------------------+
     ```
-3. NULL parameters
+3. Search for all matching values (all)
     ```sql
-    select json_set(NULL, '$[1]', 123);
+    SELECT JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'all', 'John');
     ```
     ```text
-    +-----------------------------+
-    | json_set(NULL, '$[1]', 123) |
-    +-----------------------------+
-    | NULL                        |
-    +-----------------------------+
+    +----------------------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'all', 'John') |
+    +----------------------------------------------------------------------------+
+    | ["$.alias","$.name"]                                                       |
+    +----------------------------------------------------------------------------+
     ```
+4. '%' as a wildcard
     ```sql
-    select json_set('{"k": "v"}', NULL, 123);
+    SELECT JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'all', '%');
     ```
     ```text
+    +-------------------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30, "alias": "John"}', 'all', '%') |
+    +-------------------------------------------------------------------------+
+    | ["$.alias","$.name"]                                                    |
+    +-------------------------------------------------------------------------+
+    ```
+5. '_' as a wildcard
+    ```sql
+    SELECT JSON_SEARCH('{"name": "John", "age": 30, "alias": "Jihn"}', 'all', 'J_hn');
+    ```
+    ```text
+    +----------------------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30, "alias": "Jihn"}', 'all', 'J_hn') |
+    +----------------------------------------------------------------------------+
+    | ["$.alias","$.name"]                                                       |
+    +----------------------------------------------------------------------------+
+    ```
+6. Wildcard escape
+    ```sql
+    SELECT JSON_SEARCH('{"name": "John", "age": 30, "alias": "J_hn"}', 'all', 'J\_hn');
+    ```
+    ```text
+    +-----------------------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30, "alias": "J_hn"}', 'all', 'J\_hn') |
+    +-----------------------------------------------------------------------------+
+    | "$.alias"                                                                   |
+    +-----------------------------------------------------------------------------+
+    ```
+   > 'J\_hn' only matches "J_hn" and does not match "John".
+7. No matching value found
+
+    ```sql
+    SELECT JSON_SEARCH('{"name": "John", "age": 30}', 'one', 'Alice');
+    ```
+
+    ```text
+    +------------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30}', 'one', 'Alice') |
+    +------------------------------------------------------------+
+    | NULL                                                       |
+    +------------------------------------------------------------+
+    ```
+8. NULL parameters
+    ```sql
+    SELECT JSON_SEARCH('{"name": "John", "age": 30}', NULL, 'Alice');
+    ```
+    ```text
+    +-----------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30}', NULL, 'Alice') |
+    +-----------------------------------------------------------+
+    | NULL                                                      |
+    +-----------------------------------------------------------+
+    ```
+    ```sql
+    SELECT JSON_SEARCH('{"name": "John", "age": 30}', 'one', NULL);
+    ```
+    ```text
+    +---------------------------------------------------------+
+    | JSON_SEARCH('{"name": "John", "age": 30}', 'one', NULL) |
+    +---------------------------------------------------------+
+    | NULL                                                    |
+    +---------------------------------------------------------+
+    ```
+    ```sql
+    SELECT JSON_SEARCH(NULL, 'one', 'Alice');
+    ```
+    ```
     +-----------------------------------+
-    | json_set('{"k": "v"}', NULL, 123) |
+    | JSON_SEARCH(NULL, 'one', 'Alice') |
     +-----------------------------------+
     | NULL                              |
     +-----------------------------------+
     ```
+9. Invalid `<one_or_all>` parameter
     ```sql
-    select json_set('{"k": "v"}', '$.k[1]', NULL);
+    SELECT JSON_SEARCH('{"name": "John", "age": 30}', 'three', 'Alice');
     ```
     ```text
-    +----------------------------------------+
-    | json_set('{"k": "v"}', '$.k[1]', NULL) |
-    +----------------------------------------+
-    | {"k":["v",null]}                       |
-    +----------------------------------------+
+    ERROR 1105 (HY000): errCode = 2, detailMessage = [INVALID_ARGUMENT]the one_or_all argument three is not 'one' not 'all'
     ```
