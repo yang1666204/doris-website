@@ -1,74 +1,161 @@
 ---
 {
-  "title": "ARRAY_RANGE",
+  "title": "DATE_CEIL",
   "language": "en",
-  "description": "Generate an arithmetic sequence array of numbers or datetimes."
+  "description": "The dateceil function rounds up a specified date or time value to the nearest start of a specified time interval period."
 }
 ---
 
-## Function
+## Description
 
-Generate an arithmetic sequence array of numbers or datetimes.
+The date_ceil function rounds up a specified date or time value to the nearest start of a specified time interval period. The period rules are defined by period (number of units) and type (unit), calculated from the fixed starting point 0001-01-01 00:00:00.
 
-- For numeric types, the default step is 1
-- For datetime types, the default step is 1 day
+Date calculation formula:
+
+$$
+\begin{aligned}
+&\text{date\_ceil}(\langle\text{date\_or\_time\_expr}\rangle, \langle\text{period}\rangle, \langle\text{type}\rangle) = \\
+&\min\{\langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{type} \mid \\
+&k \in \mathbb{Z} \land \langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{type} \geq \langle\text{date\_or\_time\_expr}\rangle\}
+\end{aligned}
+$$
+
+$k$ represents the number of cycles required for the base time to reach the target time.
+
+$type$ represents the unit of period
 
 ## Syntax
 
-- `ARRAY_RANGE(end)`
-- `ARRAY_RANGE(start, end)`
-- `ARRAY_RANGE(start, end, step)`
-- `ARRAY_RANGE(start_dt, end_dt)`
-- `ARRAY_RANGE(start_dt, end_dt, interval step unit)`
+`DATE_CEIL(<datetime>, INTERVAL <period> <type>)`
 
 ## Parameters
 
-- `start`, `end`: non-negative integers. `end` is the upper bound and is excluded from the result.
-- `step`: must be a positive integer; the step length; default is 1.
-- `start_dt`, `end_dt`: DATETIME. In the two-argument form, the default step is 1 DAY.
-- `interval step unit`: datetime step. `unit` can be `YEAR|QUARTER|MONTH|WEEK|DAY|HOUR|MINUTE|SECOND`; `step` must be a positive integer.
+| Parameter           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `date_or_time_expr` | A valid date expression, supporting input of date/datetime/timestamptz types. For specific formats, please refer to [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| `period`            | Specifies the number of units each period consists of, of type INT. The starting time point is 0001-01-01T00:00:00                                                                                                                                                                                                                                                                                                   |
+| `type`              | Can be: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND                                                                                                                                                                                                                                                                                                                                                                                        |
 
-## Return value
+## Return Value
 
-- Returns `ARRAY<T>`; returns `NULL` for illegal arguments; returns an empty array `[]` for an empty range.
-- The element type `T` matches the input: integers produce `INT`, datetimes produce `DATETIME`.
+The return type is TIMESTAMPTZ, DATETIME, or DATE. Returns a date or time value representing the result of rounding up the input value to the specified unit.
 
-## Usage notes
+Returns a rounded result consistent with the `<date_or_time_expr>` type:
 
-- Numeric sequence: start from `start`, increment by `step`, up to but excluding `end` (left-closed, right-open).
-- Datetime sequence: start from `start_dt`, increment by `step` in the given `unit`, up to but excluding `end_dt`; the two-argument form is equivalent to `interval 1 day`.
-- Illegal arguments return `NULL`:
-  - Numeric: `start < 0`, `end < 0`, `step <= 0`.
-  - Datetime: `start_dt` or `end_dt` invalid, or `step <= 0`.
-- `ARRAY_RANGE` and `SEQUENCE` are equivalent.
+- If the input is TIMESTAMPTZ type, it is first converted to local_time (e.g., `2025-12-31 23:59:59+05:00` represents local_time `2026-01-01 02:59:59` when the session variable is `+08:00`), and then the DATE_CEIL calculation is performed.
+- When input is DATE, returns DATE (only the date part);
+- When input is DATETIME, returns DATETIME (including date and time).
+- When input is TIMESTAMPTZ type, returns TIMESTAMPTZ (including date, time, and offset).
+- For DATETIME and TIMESTAMPTZ with scale, the return value will also have scale, with the fractional part being zero.
+
+Special cases:
+
+- Returns NULL if any parameter is NULL;
+- Returns an error if the rounded result exceeds the range supported by the date type (e.g., after '9999-12-31 23:59:59');
+- Throws an error if the period parameter is a non-positive integer.
 
 ## Examples
 
-- Numeric: `start` defaults to 0, `step` defaults to 1
-  - `ARRAY_RANGE(5)` -> `[0, 1, 2, 3, 4]`
-  - `ARRAY_RANGE(0, 5)` -> `[0, 1, 2, 3, 4]`
+```sql
+-- Round up seconds to the nearest 5-second interval
+mysql> select date_ceil(cast("2023-07-13 22:28:18" as datetime),interval 5 second);
 
-- Numeric: `end` is the upper bound and is not included in the result.
-  - `ARRAY_RANGE(2, 6, 2)` -> `[2, 4]`
-  - `ARRAY_RANGE(3, 3)` -> `[]`
++------------------------------------------------------------------------+
+| date_ceil(cast("2023-07-13 22:28:18" as datetime),interval 5 second) |
++------------------------------------------------------------------------+
+| 2023-07-13 22:28:20.000000                                             |
++------------------------------------------------------------------------+
 
-- Numeric: `end` must be greater than or equal to `start`, otherwise returns `[]`
-  - `ARRAY_RANGE(3, 2)` -> `[]`
+-- Date time parameter with scale
+mysql> select date_ceil(cast("2023-07-13 22:28:18.123" as datetime(3)),interval 5 second);
++-----------------------------------------------------------------------------+
+| date_ceil(cast("2023-07-13 22:28:18.123" as datetime(3)),interval 5 second) |
++-----------------------------------------------------------------------------+
+| 2023-07-13 22:28:20.000                                                     |
++-----------------------------------------------------------------------------+
 
-- Numeric: `start`, `end` must be non-negative integers, and `step` must be greater than 0.
-  - `ARRAY_RANGE(-1, 3)` -> `NULL`
-  - `ARRAY_RANGE(1, 3, 0)` -> `NULL`
+-- Round up to the nearest 5-minute interval
+select date_ceil("2023-07-13 22:28:18",interval 5 minute);
++--------------------------------------------------------------+
+| minute_ceil('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
++--------------------------------------------------------------+
+| 2023-07-13 22:30:00                                          |
++--------------------------------------------------------------+
 
-- Datetime: `step` defaults to 1 day.
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-17 12:00:00')` -> `['2022-05-15 12:00:00', '2022-05-16 12:00:00']`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-17 12:00:00', interval 1 day)` -> `['2022-05-15 12:00:00', '2022-05-16 12:00:00']`
+-- Round up to the nearest 5-week interval
+select date_ceil("2023-07-13 22:28:18",interval 5 WEEK);
++--------------------------------------------------+
+| date_ceil("2023-07-13 22:28:18",interval 5 WEEK) |
++--------------------------------------------------+
+| 2023-08-14 00:00:00                              |
++--------------------------------------------------+
 
-- Datetime: `unit` can be `YEAR|QUARTER|MONTH|WEEK|DAY|HOUR|MINUTE|SECOND`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2024-05-17 12:00:00', interval 1 year)` -> `["2022-05-15 12:00:00", "2023-05-15 12:00:00"]`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2023-05-17 12:00:00', interval 1 quarter);` -> `["2022-05-15 12:00:00", "2022-08-15 12:00:00", "2022-11-15 12:00:00", "2023-02-15 12:00:00"] `
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-07-17 12:00:00', interval 1 month);` -> `["2022-05-15 12:00:00", "2022-06-15 12:00:00"]`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-17 12:00:00', interval 1 day)` -> `['2022-05-15 12:00:00', '2022-05-16 12:00:00']`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-15 14:00:00', interval 1 hour)` -> `["2022-05-15 12:00:00", "2022-05-15 13:00:00"]`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-15 12:02:00', interval 1 minute)` -> `["2022-05-15 12:00:00", "2022-05-15 12:01:00"]`
-  - `ARRAY_RANGE('2022-05-15 12:00:00', '2022-05-15 12:00:02', interval 1 second)` -> `["2022-05-15 12:00:00", "2022-05-15 12:00:01"]`
+-- Round up to the nearest 5-hour interval
+select date_ceil("2023-07-13 22:28:18",interval 5 hour);
 
++--------------------------------------------------+
+| date_ceil("2023-07-13 22:28:18",interval 5 hour) |
++--------------------------------------------------+
+| 2023-07-13 23:00:00                   |
++--------------------------------------------------+
+
+-- Round up to the nearest 5-day interval
+select date_ceil("2023-07-13 22:28:18",interval 5 day);
+
++-----------------------------------------------------------+
+| day_ceil('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
++-----------------------------------------------------------+
+| 2023-07-15 00:00:00                                       |
++-----------------------------------------------------------+
+
+-- Round up to the nearest 5-month interval
+select date_ceil("2023-07-13 22:28:18",interval 5 month);
+
++-------------------------------------------------------------+
+| month_ceil('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
++-------------------------------------------------------------+
+| 2023-12-01 00:00:00                                         |
++-------------------------------------------------------------+
+
+
+-- Round up to the nearest 5-year interval
+select date_ceil("2023-07-13 22:28:18",interval 5 year);
+
++-------------------------------------------------------------+
+| month_ceil('2023-07-13 22:28:18', 5, '0001-01-01 00:00:00') |
++-------------------------------------------------------------+
+| 2023-12-01 00:00:00                                         |
++-------------------------------------------------------------+
+
+-- TimeStampTz type example, SET time_zone = '+08:00'
+-- Convert variable value to local_time(2026-01-01 02:59:59) then perform DATE_CEIL operation
+SELECT DATE_CEIL('2025-12-31 23:59:59+05:00', INTERVAL 1 YEAR);
++---------------------------------------------------------+
+| DATE_CEIL('2025-12-31 23:59:59+05:00', INTERVAL 1 YEAR) |
++---------------------------------------------------------+
+| 2027-01-01 00:00:00+08:00                               |
++---------------------------------------------------------+
+
+-- Exceeds the maximum year
+mysql> select date_ceil("9999-07-13",interval 5 year);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation year_ceil of 9999-07-13 00:00:00, 5 out of range
+
+-- Any parameter is NULL
+mysql> select date_ceil("9900-07-13",interval NULL year);
++--------------------------------------------+
+| date_ceil("9900-07-13",interval NULL year) |
++--------------------------------------------+
+| NULL                                       |
++--------------------------------------------+
+
+mysql> select date_ceil(NULL,interval 5 year);
++---------------------------------+
+| date_ceil(NULL,interval 5 year) |
++---------------------------------+
+| NULL                            |
++---------------------------------+
+
+-- Invalid parameter, period is negative
+mysql> select date_ceil("2023-01-13 22:28:18",interval -5 month);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]Operation month_ceil of 2023-01-13 22:28:18, -5, 0001-01-01 00:00:00 out of range
+```
