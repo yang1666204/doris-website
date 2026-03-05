@@ -1,155 +1,155 @@
 ---
-{ "title": "JOBS", "language": "en" }
+{
+  "title": "LOCAL | Table Valued Functions",
+  "language": "en",
+  "description": "Local table-valued-function(tvf), allows users to read and access local file contents on be node, just like accessing relational table.",
+  "sidebar_label": "LOCAL"
+}
 ---
 
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+# LOCAL
 
-  http://www.apache.org/licenses/LICENSE-2.0
+## Description
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+Local table-valued-function(tvf), allows users to read and access local file contents on be node, just like accessing relational table. Currently supports `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc` file format.
 
-## `jobs`
-
-### Name
-
-jobs
-
-### description
-
-Table function, generating a temporary task table, which can view job information in a certain task type.
-
-This function is used in the from clause.
-
-This function is supported since 2.1.0.
-
-#### syntax
-
-`jobs("type"="")`
-
-**parameter description**
-
-| parameter | description | type   | required |
-| :-------- | :---------- | :----- | :------- |
-| type      | job type    | string | yes      |
-
-the **type** supported types
-
-- insert: insert into type job
-- mv: materialized view job
-
-##### insert job
-
-jobs("type"="insert")Table structure:
-
-```
-mysql> desc  function jobs("type"="insert");
-+-------------------+------+------+-------+---------+-------+
-| Field             | Type | Null | Key   | Default | Extra |
-+-------------------+------+------+-------+---------+-------+
-| Id                | TEXT | No   | false | NULL    | NONE  |
-| Name              | TEXT | No   | false | NULL    | NONE  |
-| Definer           | TEXT | No   | false | NULL    | NONE  |
-| ExecuteType       | TEXT | No   | false | NULL    | NONE  |
-| RecurringStrategy | TEXT | No   | false | NULL    | NONE  |
-| Status            | TEXT | No   | false | NULL    | NONE  |
-| ExecuteSql        | TEXT | No   | false | NULL    | NONE  |
-| CreateTime        | TEXT | No   | false | NULL    | NONE  |
-| SucceedTaskCount  | TEXT | No   | false | NULL    | NONE  |
-| FailedTaskCount   | TEXT | No   | false | NULL    | NONE  |
-| CanceledTaskCount | TEXT | No   | false | NULL    | NONE  |
-| Comment           | TEXT | No   | false | NULL    | NONE  |
-+-------------------+------+------+-------+---------+-------+
-12 rows in set (0.01 sec)
-```
-
-- Id: job ID.
-- Name: job name.
-- Definer: job definer.
-- ExecuteType: Execution type
-- RecurringStrategy: recurring strategy
-- Status: Job status
-- ExecuteSql: Execution SQL
-- CreateTime: Job creation time
-- SucceedTaskCount: Number of successful tasks
-- FailedTaskCount: Number of failed tasks
-- CanceledTaskCount: Number of canceled tasks
-- Comment: job comment
-
-##### matterialized view job
-
-jobs("type"="mv")Table structure:
+## syntax
 
 ```sql
-mysql> desc function jobs("type"="mv");
-+-------------------+------+------+-------+---------+-------+
-| Field             | Type | Null | Key   | Default | Extra |
-+-------------------+------+------+-------+---------+-------+
-| Id                | TEXT | No   | false | NULL    | NONE  |
-| Name              | TEXT | No   | false | NULL    | NONE  |
-| MvId              | TEXT | No   | false | NULL    | NONE  |
-| MvName            | TEXT | No   | false | NULL    | NONE  |
-| MvDatabaseId      | TEXT | No   | false | NULL    | NONE  |
-| MvDatabaseName    | TEXT | No   | false | NULL    | NONE  |
-| ExecuteType       | TEXT | No   | false | NULL    | NONE  |
-| RecurringStrategy | TEXT | No   | false | NULL    | NONE  |
-| Status            | TEXT | No   | false | NULL    | NONE  |
-| CreateTime        | TEXT | No   | false | NULL    | NONE  |
-+-------------------+------+------+-------+---------+-------+
-10 rows in set (0.00 sec)
+LOCAL(
+  "file_path" = "<file_path>", 
+  "backend_id" = "<backend_id>",
+  "format" = "<format>"
+  [, "<optional_property_key>" = "<optional_property_value>" [, ...] ]
+  );
 ```
 
-- Id: job ID.
-- Name: job name.
-- MvId: Materialized View ID
-- MvName: Materialized View Name
-- MvDatabaseId: DB ID of the materialized view
-- MvDatabaseName: Name of the database to which the materialized view belongs
-- ExecuteType: Execution type
-- RecurringStrategy: Loop strategy
-- Status: Job status
-- CreateTime: Task creation time
+## Required Parameters
 
-### example
+| Parameter    | Description                                                                                                                                                                                                                                                                                                                                                                | Remarks                                                                                                                                               |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `file_path`  | The path of the file to be read, which is relative to the `user_files_secure_path` directory. The `user_files_secure_path` parameter is a [BE configuration item](../../../admin-manual/config/be-config.md). <br /> The path cannot include `..`, and glob syntax can be used for pattern matching, such as `logs/*.log`. |                                                                                                                                                       |
+| `backend_id` | The ID of the BE node where the file is located. It can be obtained via the `show backends` command.                                                                                                                                                                                                                                       | Before version 2.1.1, Doris only supports specifying a BE node to read local data files on that node. |
+| `format`     | The file format, which is required. Supported formats are `csv/csv_with_names/csv_with_names_and_types/json/parquet/orc`.                                                                                                                                                                                                                  |                                                                                                                                                       |
 
-1. View jobs in all materialized views
+## Optional Parameters
+
+| Parameter                     | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Remarks                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `shared_storage`              | Defaults to false. If true, the specified file is located on shared storage (e.g., NAS). The shared storage must support POSIX file interfaces and be mounted on all BE nodes. <br /> When `shared_storage` is true, `backend_id` can be omitted. Doris may utilize all BE nodes to access the data. If `backend_id` is set, the data will be accessed only on the specified BE node. | Supported starting from version 2.1.2                |
+| `column_separator`            | The column separator, optional, defaults to `\t`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                      |
+| `line_delimiter`              | The line delimiter, optional, defaults to `\n`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |                                                                                      |
+| `compress_type`               | The compression type, optional. Supported types are `UNKNOWN/PLAIN/GZ/LZO/BZ2/LZ4FRAME/DEFLATE/SNAPPYBLOCK`. Defaults to `UNKNOWN`, and the type will be automatically inferred from the `uri` suffix.                                                                                                                                                                                                                                                                                   |                                                                                      |
+| `read_json_by_line`           | For JSON format imports, optional, defaults to `true`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `strip_outer_array`           | For JSON format imports, optional, defaults to `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `json_root`                   | For JSON format imports, optional, defaults to empty.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `json_paths`                  | For JSON format imports, optional, defaults to empty.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `num_as_string`               | For JSON format imports, optional, defaults to `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `fuzzy_parse`                 | For JSON format imports, optional, defaults to `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Refer to: [Json Load](../../../data-operate/import/file-format/json) |
+| `trim_double_quotes`          | For CSV format imports, optional, defaults to `false`. If true, it will trim the outermost double quotes around each field in the CSV file.                                                                                                                                                                                                                                                                                                                                                              | For CSV format                                                                       |
+| `skip_lines`                  | For CSV format imports, optional, defaults to `0`, which means skipping the first few lines of the CSV file. When the format is `csv_with_names` or `csv_with_names_and_types`, this parameter is ignored.                                                                                                                                                                                                                                                                                               | For CSV format                                                                       |
+| `path_partition_keys`         | Optional, specifies the partition column names carried in the file path, e.g., `/path/to/city=beijing/date="2023-07-09"`, then fill in `path_partition_keys="city,date"`. This will automatically read the corresponding column names and values from the path for import.                                                                                                                                                                                               |                                                                                      |
+| `enable_mapping_varbinary`    | Defaults to false. When reading PARQUET/ORC, it maps the BYTE_ARRAY type to STRING. When enabled, it maps to VARBINARY type.                                                                                                                                                                                                                                                                                                                                        | Supported since 4.0.3                                |
+| `enable_mapping_timestamp_tz` | Defaults to `false`. When reading PARQUET (`TIMESTAMP` with `isAdjustedToUTC`) or ORC (`TIMESTAMP_INSTANT`), the type is mapped to `DATETIME`. When enabled, it is mapped to the `TIMESTAMPTZ` type.                                                                                                                                                                                                                                               | Supported since version 4.0.3                        |
+
+## Access Control Requirements
+
+| Privilege                       | Object | Notes |
+| :------------------------------ | :----- | :---- |
+| ADMIN_PRIV | global |       |
+
+## Usage Notes
+
+- For more detailed usage of local tvf, please refer to [S3](./s3.md) tvf, The only difference between them is the way of accessing the storage system.
+
+- Access data on NAS through local tvf
+
+  NAS shared storage allows to be mounted to multiple nodes at the same time. Each node can access files in the shared storage just like local files. Therefore, the NAS can be thought of as a local file system, accessed through local tvf.
+
+  When setting `"shared_storage" = "true"`, Doris will think that the specified file can be accessed from any BE node. When a set of files is specified using wildcards, Doris will distribute requests to access files to multiple BE nodes, so that multiple nodes can be used to perform distributed file scanning and improve query performance.
+
+## Examples
+
+Analyze the log file on specified BE:
 
 ```sql
-mysql> select * from jobs("type"="mv");
+select * from local(
+        "file_path" = "log/be.out",
+        "backend_id" = "10006",
+        "format" = "csv")
+       where c1 like "%start_time%" limit 10;
 ```
 
-2. View job with name `inner_mtmv_75043`
+```text
++--------------------------------------------------------+
+| c1                                                     |
++--------------------------------------------------------+
+| start time: 2023 年 08 月 07 日 星期一 23:20:32 CST       |
+| start time: 2023 年 08 月 07 日 星期一 23:32:10 CST       |
+| start time: 2023 年 08 月 08 日 星期二 00:20:50 CST       |
+| start time: 2023 年 08 月 08 日 星期二 00:29:15 CST       |
++--------------------------------------------------------+
+```
+
+Read and access csv format files located at path `${DORIS_HOME}/student.csv`:
 
 ```sql
-mysql> select * from jobs("type"="mv") where Name="inner_mtmv_75043";
+select * from local(
+      "file_path" = "student.csv", 
+      "backend_id" = "10003", 
+      "format" = "csv");
 ```
 
-3. View all insert jobs
+````text
++------+---------+--------+
+| c1   | c2      | c3     |
++------+---------+--------+
+| 1    | alice   | 18     |
+| 2    | bob     | 20     |
+| 3    | jack    | 24     |
+| 4    | jackson | 19     |
+| 5    | liming  | d18    |
++------+---------+--------+
+```--+---------+--------+
+````
+
+Query files on NAS:
 
 ```sql
-mysql> select * from jobs("type"="insert");
+select * from local(
+        "file_path" = "/mnt/doris/prefix_*.txt",
+        "format" = "csv",
+        "column_separator" =",",
+        "shared_storage" = "true");
 ```
 
-4. View job with name `one_insert_job`
+```text
++------+------+------+
+| c1   | c2   | c3   |
++------+------+------+
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
+| 1    | 2    | 3    |
++------+------+------+
+```
+
+Can be used with `desc function` :
 
 ```sql
-mysql> select * from jobs("type"="insert") where Name='one_insert_job';
+desc function local(
+      "file_path" = "student.csv", 
+      "backend_id" = "10003", 
+      "format" = "csv");
 ```
 
-### keywords
-
-    ```
-    jobs, job, insert, mv, materialized view, schedule
-    ```
+```text
++-------+------+------+-------+---------+-------+
+| Field | Type | Null | Key   | Default | Extra |
++-------+------+------+-------+---------+-------+
+| c1    | TEXT | Yes  | false | NULL    | NONE  |
+| c2    | TEXT | Yes  | false | NULL    | NONE  |
+| c3    | TEXT | Yes  | false | NULL    | NONE  |
++-------+------+------+-------+---------+-------+
+```
