@@ -1,32 +1,46 @@
 ---
 {
-  "title": "SM3",
+  "title": "XXHASH_32",
   "language": "en",
-  "description": "Calculation SM3 256-bit"
+  "description": "Calculate the 32-bit xxhash value of the input string or binary."
 }
 ---
 
 ## Description
 
-Calculation SM3 256-bit
+Calculate the 32-bit xxhash value of the input string or binary.
+
+-Note: When calculating hash values, it is recommended to use `xxhash_32` instead of `murmur_hash3_32`.
 
 ## Syntax
 
 ```sql
-SM3( <input> )
+XXHASH_32( <input> [ , <input> ... ] )
 ```
 
 ## Parameters
 
-| parameter | description                                                                  |
-| --------- | ---------------------------------------------------------------------------- |
-| `<input>` | The value of sm3 that needs to be calculated, accept string and binary types |
+| parameter | description                                                              |
+| --------- | ------------------------------------------------------------------------ |
+| `<input>` | The 32-bit xxhash value to be calculated, accept string and binary types |
 
 ## Return Value
 
-Returns the sm3 value of the input string
+Returns the 32-bit xxhash value of the input string.
 
 ## Examples
+
+```sql
+select xxhash_32(NULL), xxhash_32("hello"), xxhash_32("hello", "world");
+```
+
+```text
++-----------------+--------------------+-----------------------------+
+| xxhash_32(NULL) | xxhash_32('hello') | xxhash_32('hello', 'world') |
++-----------------+--------------------+-----------------------------+
+|            NULL |          -83855367 |                  -920844969 |
++-----------------+--------------------+-----------------------------+
+```
 
 ```sql
 -- vb (VarBinary) and vc (VarChar) used the same string during insertion.
@@ -44,15 +58,15 @@ SELECT * FROM mysql_catalog.binary_test.binary_test;
 ```
 
 ```sql
-SELECT SM3(vb), SM3(vc) FROM mysql_catalog.binary_test.binary_test;
+SELECT XXHASH_32(vb), XXHASH_32(vc) FROM mysql_catalog.binary_test.binary_test;
 ```
 
 ```text
-+------------------------------------------------------------------+------------------------------------------------------------------+
-| SM3(vb)                                                          | SM3(vc)                                                          |
-+------------------------------------------------------------------+------------------------------------------------------------------+
-| 66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0 | 66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0 |
-| 869fff440724014a7e086c8b3680f4cfc6a3390670f6e7755a4f0c43c1c31db6 | 869fff440724014a7e086c8b3680f4cfc6a3390670f6e7755a4f0c43c1c31db6 |
-| NULL                                                             | NULL                                                             |
-+------------------------------------------------------------------+------------------------------------------------------------------+
++---------------+---------------+
+| XXHASH_32(vb) | XXHASH_32(vc) |
++---------------+---------------+
+|     852579327 |     852579327 |
+|    -242012205 |    -242012205 |
+|          NULL |          NULL |
++---------------+---------------+
 ```
