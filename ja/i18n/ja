@@ -1,97 +1,76 @@
 ---
 {
-  "title": "SEC",
+  "title": "CREATE ROW POLICY",
   "language": "en",
-  "description": "Returns the secant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
+  "description": "Explain can view the rewritten execution plan."
 }
 ---
 
 ## Description
 
-Returns the secant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
+Explain can view the rewritten execution plan.
 
 ## Syntax
 
 ```sql
-SEC(<x>)
+CREATE ROW POLICY [ IF NOT EXISTS ] <policy_name> 
+ON <table_name> 
+AS { RESTRICTIVE | PERMISSIVE } 
+TO { <user_name> | ROLE <role_name> } 
+USING (<filter>);
 ```
 
-## Parameters
+## Required Parameters
 
-| Parameter | Description                                        |
-| --------- | -------------------------------------------------- |
-| `<x>`     | The value for which the secant is to be calculated |
+**<policy_name>**
 
-## Return Value
+> Row security policy name
 
-Returns a Double type value means the secant of x.
+**<table_name>**
 
-## Special Cases
+> Table name
 
-- When `x` is NaN, returns NaN
-- When `x` is positive or negative infinity, returns NaN
-- When `x` is NULL, returns NULL
+**<filter_type>**
 
-## Example
+> RESTRICTIVE combines a set of policies with AND, PERMISSIVE combines a set of policies with OR
 
-```sql
-select sec(1),sec(2),sec(1000);
-```
+> Equivalent to the filter condition of a query statement, for example: id=1
 
-```text
-+--------------------+--------------------+--------------------+
-| sec(1)             | sec(2)             | sec(1000)          |
-+--------------------+--------------------+--------------------+
-| 1.8508157176809255 | -2.402997961722381 | 1.7781600385912715 |
-+--------------------+--------------------+--------------------+
-```
+## Optional Parameters
 
-Input null value.
+**<user_name>**
 
-```sql
-select sec(null);
-```
+> User name, cannot be created for root and admin users
 
-```text
-+--------------------+
-| sec(null)          |
-+--------------------+
-|      NULL          |
-+--------------------+
-```
+**<role_name>**
 
-```sql
-select sec(cast('nan' as double));
-```
+> Role name
 
-```text
-+---------------------------+
-| sec(cast('nan' AS DOUBLE))|
-+---------------------------+
-| NaN                       |
-+---------------------------+
-```
+## Access Control Requirements
 
-```sql
-select sec(cast('inf' as double));
-```
+The user executing this SQL command must have at least the following privileges:
 
-```text
-+---------------------------+
-| sec(cast('inf' AS DOUBLE))|
-+---------------------------+
-| NaN                       |
-+---------------------------+
-```
+| Privilege                                                          | Object | Notes |
+| ------------------------------------------------------------------ | ------ | ----- |
+| ADMIN_PRIV or GRANT_PRIV | Global |       |
 
-```sql
-select sec(cast('-inf' as double));
-```
+## Examples
 
-```text
-+----------------------------+
-| sec(cast('-inf' AS DOUBLE))|
-+----------------------------+
-| NaN                        |
-+----------------------------+
-```
+1. Create a set of row security policies
+
+  ```sql
+  CREATE ROW POLICY test_row_policy_1 ON test.table1 
+  AS RESTRICTIVE TO test USING (c1 = 'a');
+  CREATE ROW POLICY test_row_policy_2 ON test.table1 
+  AS RESTRICTIVE TO test USING (c2 = 'b');
+  CREATE ROW POLICY test_row_policy_3 ON test.table1 
+  AS PERMISSIVE TO test USING (c3 = 'c');
+  CREATE ROW POLICY test_row_policy_3 ON test.table1 
+  AS PERMISSIVE TO test USING (c4 = 'd');
+  ```
+
+When we execute a query on table1, the rewritten SQL is:
+
+  ```sql
+  SELECT * FROM (SELECT * FROM table1 WHERE (c1 = 'a' AND c2 = 'b') AND (c3 = 'c' OR c4 = 'd'))
+  ```
