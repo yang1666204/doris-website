@@ -1,150 +1,110 @@
 ---
 {
-  "title": "Integrating Alibaba Cloud DLF Rest Catalog",
+  "title": "Type Conversion",
   "language": "en",
-  "description": "This article explains how to integrate Apache Doris with Alibaba Cloud DLF (Data Lake Formation) Rest Catalog for seamless access and analysis of Paimon table data, including guides on creating Catalog, querying data, and incremental reading."
+  "description": "In Doris, each expression has a type, such as 1, col1, and fromunixtime(col2) in the expression select 1, col1, fromunixtime(col2) from table1."
 }
 ---
 
-Alibaba Cloud [Data Lake Formation (DLF)](https://cn.aliyun.com/product/bigdata/dlf), as a core component of the cloud-native data lake architecture, helps users quickly build cloud-native data lake solutions. DLF provides unified metadata management on the data lake, enterprise-level permission control, and seamless integration with multiple compute engines, breaking down data silos and enabling business insights.
+In Doris, each expression has a type, such as `1`, `col1`, and `from_unixtime(col2)` in the expression `select 1, col1, from_unixtime(col2) from table1`. The process of converting an expression from one type to another is called "type conversion."
 
-- Unified Metadata and Storage
+Type conversion occurs in two cases: explicit conversion and implicit conversion.
 
-  Big data compute engines share a single set of lake metadata and storage, with data flowing seamlessly between lake products.
+All type conversions follow specific rules. We describe the related rules according to the **target type** of the conversion. For example, converting from `INT` to `DOUBLE` and converting from `STRING` to `DOUBLE` are both described in the [Conversion to FLOAT/DOUBLE](./float-double-conversion) document.
 
-- Unified Permission Management
+Whether a conversion can occur and whether the result is a nullable type depends on whether strict mode is enabled (session variable `enable_strict_cast`). Generally, when strict mode is enabled, data that fails conversion will immediately cause an error and result in SQL failure. When strict mode is disabled, data rows that fail conversion will result in `NULL`.
 
-  Big data compute engines share a single set of lake table permission configurations, enabling one-time setup with universal effect.
+## Explicit Conversion
 
-- Storage Optimization
+Explicit conversion is done through the `CAST` function, for example:
 
-  Provides optimization strategies including small file compaction, expired snapshot cleanup, partition reorganization, and obsolete file cleanup to improve storage efficiency.
+`CAST(1.23 as INT)` converts the number 1.23 to INT type.
 
-- Comprehensive Cloud Ecosystem Support
+`CAST(colA as DATETIME(6))` converts the column/expression colA to DATETIME(6) type (i.e., a DATETIME type with microsecond precision).
 
-  Deep integration with Alibaba Cloud products, including streaming and batch compute engines, delivering out-of-the-box functionality and enhanced user experience.
+The following describes the type conversion relationships between different types under strict mode (`enable_strict_cast = true`) and non-strict mode (`enable_strict_cast = false`), including the following four cases:
 
-DLF supports Paimon Rest Catalog starting from version 2.5. Doris supports integration with DLF 2.5+ Paimon Rest Catalog starting from version 3.0.3/3.1.0, enabling seamless connection to DLF for accessing and analyzing Paimon table data. This article demonstrates how to connect Apache Doris with DLF 2.5+ and access Paimon table data.
+| Symbol | Meaning                                                                                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| x      | Not allowed to convert                                                                                                                                                                                                          |
+| P      | The return type will be Nullable only when the input parameter is already a Nullable type, i.e., the conversion **will not** convert non-Null values to Null                                    |
+| A      | The return type is always Nullable. The conversion **may convert non-Null values to Null**                                                                                                                      |
+| O      | The return type is Nullable when the conversion from input type to output type **may cause overflow**. For non-Null input values, if the conversion actually causes overflow, the conversion result may be Null |
 
-:::tip
-This feature is supported starting from Doris version 3.0.3/3.1.0.
-:::
+The specific type conversion rules and Nullable properties, please check the type conversion documents in the current directory.
 
-## Usage Guide
+### Strict Mode
 
-### 01 Enable DLF Service
+| **From**\\**To** | bool | tinyint | smallint | int | bigint | largeint | float | double | decimal | date | datetime | time | IPv4 | IPv6 | char | varchar | string | bitmap | hll | json | array | map | struct | variant |
+| ------------------ | ---- | ------- | -------- | --- | ------ | -------- | ----- | ------ | ------- | ---- | -------- | ---- | ---- | ---- | ---- | ------- | ------ | ------ | --- | ---- | ----- | --- | ------ | ------- |
+| bool               | P    | P       | P        | P   | P      | P        | P     | P      | O       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| tinyint            | P    | P       | P        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| smallint           | P    | A       | P        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| int                | P    | A       | A        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| bigint             | P    | A       | A        | A   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| largeint           | P    | A       | A        | A   | A      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| float              | P    | A       | A        | A   | A      | A        | P     | P      | A       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| double             | P    | A       | A        | A   | A      | A        | P     | P      | A       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| decimal            | P    | O       | O        | O   | O      | O        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| date               | x    | x       | x        | P   | P      | P        | x     | x      | x       | P    | P        | x    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| datetime           | x    | x       | x        | x   | P      | P        | x     | x      | x       | P    | A        | P    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| time               | x    | A       | A        | A   | P      | P        | x     | x      | x       | P    | P        | A    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| IPv4               | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | P    | P    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| IPv6               | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | P    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| char               | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| varchar            | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| string             | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| bitmap             | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    | x    | x       | x      | P      | x   | x    | x     | x   | x      |         |
+| hll                | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    | x    | x       | x      | x      | P   | x    | x     | x   | x      |         |
+| json               | A    | A       | A        | A   | A      | A        | A     | A      | A       | x    | x        | x    | x    | x    | A    | A       | A      | x      | x   | P    | A     | x   | A      |         |
+| array              | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | P     | x   | x      |         |
+| map                | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | x    | x     | P   | x      |         |
+| struct             | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | x     | x   | P      |         |
+| variant            |      |         |          |     |        |          |       |        |         |      |          |      |      |      |      |         |        |        |     |      |       |     |        |         |
 
-Please refer to the DLF official documentation to enable the DLF service and create the corresponding Catalog, Database, and Table.
+### Non-strict Mode
 
-### 02 Access DLF Using EMR Spark SQL
+| **From**\\**To** | bool | tinyint | smallint | int | bigint | largeint | float | double | decimal | date | datetime | time | IPv4 | IPv6 | char | varchar | string | bitmap | hll | json | array | map | struct | variant |
+| ------------------ | ---- | ------- | -------- | --- | ------ | -------- | ----- | ------ | ------- | ---- | -------- | ---- | ---- | ---- | ---- | ------- | ------ | ------ | --- | ---- | ----- | --- | ------ | ------- |
+| bool               | P    | P       | P        | P   | P      | P        | P     | P      | O       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| tinyint            | P    | P       | P        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| smallint           | P    | A       | P        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| int                | P    | A       | A        | P   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| bigint             | P    | A       | A        | A   | P      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| largeint           | P    | A       | A        | A   | A      | P        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| float              | P    | A       | A        | A   | A      | A        | P     | P      | A       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| double             | P    | A       | A        | A   | A      | A        | P     | P      | A       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| decimal            | P    | O       | O        | O   | O      | O        | P     | P      | O       | A    | A        | A    | x    | x    |      |         |        | x      | x   | P    | x     | x   | x      |         |
+| date               | x    | x       | x        | P   | P      | P        | P     | P      | x       | P    | P        | x    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| datetime           | x    | x       | x        | x   | P      | P        | P     | P      | x       | P    | A        | P    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| time               | x    | A       | A        | A   | P      | P        | P     | P      | x       | P    | P        | A    | x    | x    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| IPv4               | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | P    | P    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| IPv6               | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | P    |      |         |        | x      | x   | x    | x     | x   | x      |         |
+| char               | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| varchar            | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| string             | A    | A       | A        | A   | A      | A        | A     | A      | A       | A    | A        | A    | A    | A    |      |         |        | x      | x   | A    | A     | A   | A      |         |
+| bitmap             | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    | x    | x       | x      | P      | x   | x    | x     | x   | x      |         |
+| hll                | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    | x    | x       | x      | x      | P   | x    | x     | x   | x      |         |
+| json               | A    | A       | A        | A   | A      | A        | A     | A      | A       | x    | x        | x    | x    | x    | A    | A       | A      | x      | x   | P    | A     | x   | A      |         |
+| array              | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | P     | x   | x      |         |
+| map                | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | x    | x     | P   | x      |         |
+| struct             | x    | x       | x        | x   | x      | x        | x     | x      | x       | x    | x        | x    | x    | x    |      |         |        | x      | x   | P    | x     | x   | P      |         |
+| variant            |      |         |          |     |        |          |       |        |         |      |          |      |      |      |      |         |        |        |     |      |       |     |        |         |
 
-- Connect
+## Implicit Conversion
 
-    ```sql
-    spark-sql --master yarn \
-        --conf spark.driver.memory=5g \
-        --conf spark.sql.defaultCatalog=paimon \
-        --conf spark.sql.catalog.paimon=org.apache.paimon.spark.SparkCatalog \
-        --conf spark.sql.catalog.paimon.metastore=rest \
-        --conf spark.sql.extensions=org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions \
-        --conf spark.sql.catalog.paimon.uri=http://<region>-vpc.dlf.aliyuncs.com \
-        --conf spark.sql.catalog.paimon.warehouse=<your-catalog-name> \
-        --conf spark.sql.catalog.paimon.token.provider=dlf \
-        --conf spark.sql.catalog.paimon.dlf.token-loader=ecs
-    ```
+Implicit conversion occurs in certain situations where the input SQL does not explicitly specify, but Doris automatically plans the CAST expression. It mainly occurs in scenarios such as:
 
-  > Replace the corresponding `warehouse` and `uri` addresses.
+1. When a function call is made, the type of the actual parameter does not match the type of the function signature.
 
-- Write Data
+2. When the types on both sides of a mathematical expression are inconsistent.
 
-    ```sql
-    USE <your-catalog-name>;
-    
-    CREATE TABLE users_samples
-    (
-        user_id INT,             
-        age_level STRING,           
-        final_gender_code STRING,    
-        clk BOOLEAN
-    );
-    
-    INSERT INTO users_samples VALUES
-    (1, '25-34', 'M', true),
-    (2, '18-24', 'F', false);
-    
-    INSERT INTO users_samples VALUES
-    (3, '25-34', 'M', true),
-    (4, '18-24', 'F', false);
-    
-    INSERT INTO users_samples VALUES
-    (5, '25-34', 'M', true),
-    (6, '18-24', 'F', false);
-    ```
+etc.
 
-  If you encounter the following error, try removing `paimon-jindo-x.y.z.jar` from `/opt/apps/PAIMON/paimon-dlf-2.5/lib/spark3`, then restart the Spark service and retry.
+### Conversion matrix
 
-    ```
-    Ambiguous FileIO classes are:
-    org.apache.paimon.jindo.JindoLoader
-    org.apache.paimon.oss.OSSLoader
-    ```
+TODO
 
-### 03 Connect to DLF Using Doris
+### Common Type
 
-- Create Paimon Catalog
-
-    ```sql
-    CREATE CATALOG paimon_dlf_test PROPERTIES (
-        'type' = 'paimon',
-        'paimon.catalog.type' = 'rest',
-        'uri' = 'http://<region>-vpc.dlf.aliyuncs.com',
-        'warehouse' = '<your-catalog-name>',
-        'paimon.rest.token.provider' = 'dlf',
-        'paimon.rest.dlf.access-key-id' = '<ak>',
-        'paimon.rest.dlf.access-key-secret' = '<sk>'
-    );
-    ```
-
-  - Doris uses the temporary credentials returned by DLF to access OSS object storage, so no additional OSS credentials are required.
-  - DLF can only be accessed within the same VPC. Ensure you provide the correct URI address.
-
-- Query Data
-
-    ```sql
-    SELECT * FROM users_samples ORDER BY user_id;
-    +---------+-----------+-------------------+------+
-    | user_id | age_level | final_gender_code | clk  |
-    +---------+-----------+-------------------+------+
-    |       1 | 25-34     | M                 |    1 |
-    |       2 | 18-24     | F                 |    0 |
-    |       3 | 25-34     | M                 |    1 |
-    |       4 | 18-24     | F                 |    0 |
-    |       5 | 25-34     | M                 |    1 |
-    |       6 | 18-24     | F                 |    0 |
-    +---------+-----------+-------------------+------+
-    ```
-
-- Query System Tables
-
-    ```sql
-    SELECT snapshot_id, commit_time, total_record_count FROM users_samples$snapshots;
-    +-------------+-------------------------+--------------------+
-    | snapshot_id | commit_time             | total_record_count |
-    +-------------+-------------------------+--------------------+
-    |           1 | 2025-08-09 05:56:02.906 |                  2 |
-    |           2 | 2025-08-13 03:41:32.732 |                  4 |
-    |           3 | 2025-08-13 03:41:35.218 |                  6 |
-    +-------------+-------------------------+--------------------+
-    ```
-
-- Incremental Reading
-
-    ```sql
-    SELECT * FROM users_samples@incr('startSnapshotId'=1, 'endSnapshotId'=2) ORDER BY user_id;
-    +---------+-----------+-------------------+------+
-    | user_id | age_level | final_gender_code | clk  |
-    +---------+-----------+-------------------+------+
-    |       3 | 25-34     | M                 |    1 |
-    |       4 | 18-24     | F                 |    0 |
-    +---------+-----------+-------------------+------+
-    ```
+When an implicit conversion is required due to the operands being used as mathematical operations, the first step is to determine the common type. If the operands on both sides are not consistent with the common type, each will plan a CAST expression to the common type.
