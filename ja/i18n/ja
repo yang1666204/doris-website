@@ -1,117 +1,105 @@
 ---
 {
-  "title": "STRUCT_ELEMENT",
-  "language": "en-US",
-  "description": "Returns a specific field within a struct data column. The function supports accessing fields in a struct through field position (index) or field name."
+  "title": "EXPLODE_JSON_ARRAY_DOUBLE_OUTER",
+  "language": "en",
+  "description": "The explodejsonarraydoubleouter table function accepts a JSON array."
 }
 ---
 
 ## Description
 
-Returns a specific field within a struct data column. The function supports accessing fields in a struct through field position (index) or field name.
+The `explode_json_array_double_outer` table function accepts a JSON array. Its implementation logic is to convert the JSON array to an array type and then call the `explode_outer` function for processing. The behavior is equivalent to: `explode_outer(cast(<json_array> as Array<DOUBLE>))`.
+It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md).
 
 ## Syntax
 
 ```sql
-STRUCT_ELEMENT( <struct>, <field_location_or_name> )
+EXPLODE_JSON_ARRAY_DOUBLE_OUTER(<json>)
 ```
 
 ## Parameters
 
-- `<struct>`: Input struct column
-- `<field_location_or_name>`: Field position (starting from 1) or field name, only supports constants
+- `<json>` JSON type, the content should be an array.
 
 ## Return Value
 
-Return type: Field value type supported by struct
-
-Return value meaning:
-
-- Returns the specified field value
-- If the input struct is null, returns null
-- If the specified field does not exist, an error will be reported
-
-## Usage
-
-- Supports accessing by field position (index), index starts from 1
-- Supports accessing by field name, field name must match exactly
-- The second parameter must be a constant (cannot be a column)
-- The function is marked as AlwaysNullable, return value may be null
+- Returns a single-column, multi-row result composed of all elements in `<json>`. The column type is `Nullable<DOUBLE>`.
+- If `<json>` is NULL or an empty array (number of elements is 0), 1 row with NULL is returned.
+- If the elements in the JSON array are not of DOUBLE type, the function will try to convert them to DOUBLE. Elements that cannot be converted to DOUBLE will be converted to NULL. For type conversion rules, please refer to [JSON Type Conversion](../../basic-element/sql-data-types/conversion/json-conversion.md).
 
 ## Examples
 
-**Query Examples:**
-
-Access by position:
-
-```sql
-select struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 1);
-+--------------------------------------------------------------------------------+
-| struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 1) |
-+--------------------------------------------------------------------------------+
-| Alice                                                                          |
-+--------------------------------------------------------------------------------+
-```
-
-Access by field name:
-
-```sql
-select struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 'age');
-+------------------------------------------------------------------------------------+
-| struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 'age') |
-+------------------------------------------------------------------------------------+
-|                                                                                 25 |
-+------------------------------------------------------------------------------------+
-```
-
-Accessing struct containing complex types:
-
-```sql
-select struct_element(named_struct('array', [1,2,3], 'map', {'key':'value'}), 'array');
-+---------------------------------------------------------------------------------+
-| struct_element(named_struct('array', [1,2,3], 'map', {'key':'value'}), 'array') |
-+---------------------------------------------------------------------------------+
-| [1, 2, 3]                                                                       |
-+---------------------------------------------------------------------------------+
-```
-
-Accessing result with null field value:
-
-```sql
-select struct_element(named_struct('name', null, 'age', 25), 'name');
-+---------------------------------------------------------------+
-| struct_element(named_struct('name', null, 'age', 25), 'name') |
-+---------------------------------------------------------------+
-| NULL                                                          |
-+---------------------------------------------------------------+
-```
-
-Error Examples
-
-Accessing non-existent field name:
-
-```sql
-select struct_element(named_struct('name', 'Alice', 'age', 25), 'nonexistent');
-ERROR 1105 (HY000): errCode = 2, detailMessage = the specified field name nonexistent was not found: struct_element(named_struct('name', 'Alice', 'age', 25), 'nonexistent')
-```
-
-Accessing out-of-bounds index:
-
-```sql
-select struct_element(named_struct('name', 'Alice', 'age', 25), 5);
-ERROR 1105 (HY000): errCode = 2, detailMessage = the specified field index out of bound: struct_element(named_struct('name', 'Alice', 'age', 25), 5)
-```
-
-Second parameter is not a constant:
-
-```sql
-select struct_element(named_struct('name', 'Alice', 'age', 25), inv) from var_with_index where k = 4;
-ERROR 1105 (HY000): errCode = 2, detailMessage = struct_element only allows constant int or string second parameter: struct_element(named_struct('name', 'Alice', 'age', 25), inv)
-```
-
-Input struct is NULL, will report error:
-
-```sql
-select struct_element(NULL, 5);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: struct_element(NULL, TINYINT)
-```
+0. Prepare data
+    ```sql
+    create table example(
+        k1 int
+    ) properties(
+        "replication_num" = "1"
+    );
+    
+    insert into example values(1);
+    ```
+1. Regular parameters
+    ```sql
+    select * from example lateral view explode_json_array_double_outer('[4, 5, 5.23, null]') t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | c    |
+    +------+------+
+    |    1 |    4 |
+    |    1 |    5 |
+    |    1 | 5.23 |
+    |    1 | NULL |
+    +------+------+
+    ```
+2. DOUBLE type
+    ```sql
+    select * from example 
+        lateral view 
+        explode_json_array_double_outer('[123.445, 9223372036854775807.0, 9223372036854775808.0, -9223372036854775808.0, -9223372036854775809.0]') t2 as c;
+    ```
+    ```text
+    +------+------------------------+
+    | k1   | c                      |
+    +------+------------------------+
+    |    1 |                123.445 |
+    |    1 |  9.223372036854776e+18 |
+    |    1 |  9.223372036854776e+18 |
+    |    1 | -9.223372036854776e+18 |
+    |    1 | -9.223372036854776e+18 |
+    +------+------------------------+
+    ```
+3. Empty array
+    ```sql
+    select * from example lateral view explode_json_array_double_outer('[]') t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | c    |
+    +------+------+
+    |    1 | NULL |
+    +------+------+
+    ```
+4. NULL parameter
+    ```sql
+    select * from example lateral view explode_json_array_double_outer(NULL) t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | c    |
+    +------+------+
+    |    1 | NULL |
+    +------+------+
+    ```
+5. Non-array parameter
+    ```sql
+    select * from example lateral view explode_json_array_double_outer('{}') t2 as c;
+    ```
+    ```text
+    +------+------+
+    | k1   | c    |
+    +------+------+
+    |    1 | NULL |
+    +------+------+
+    ```
