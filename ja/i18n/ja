@@ -1,154 +1,94 @@
 ---
 {
-  "title": "RTRIM",
+  "title": "SPACE",
   "language": "en",
-  "description": "The RTRIM function is used to remove consecutive spaces or specified strings from the right side (trailing) of a string."
+  "description": "Generate a string consisting of a specified number of spaces."
 }
 ---
 
 ## Description
 
-The RTRIM function is used to remove consecutive spaces or specified strings from the right side (trailing) of a string. If the second parameter is not specified, trailing spaces are removed; if specified, the function removes the specified complete string from the right side.
+Generate a string consisting of a specified number of spaces.
 
 ## Syntax
 
 ```sql
-RTRIM(<str>[, <rhs>])
+SPACE ( <len> )
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------- |
-| `<str>`   | The string to be processed. Type: VARCHAR                            |
-| `<rhs>`   | Optional parameter, trailing characters to be trimmed. Type: VARCHAR |
+| Parameter | Description                      |
+| --------- | -------------------------------- |
+| `<len>`   | The number of spaces to generate |
 
 ## Return Value
 
-Returns a value of type VARCHAR.
+Returns a string consisting of the specified number of spaces. Special cases:
 
-Special cases:
-
-- If any parameter is NULL, NULL is returned
-- If rhs is not specified, removes trailing spaces
-- If rhs is specified, removes the complete rhs string (not character-by-character)
+- If any Parameter is NULL, NULL will be returned.
+- When `<len>` is less than 0, an empty string is returned.
 
 ## Examples
 
-1. Remove trailing spaces
+1. Generate specified number of spaces
 
 ```sql
-SELECT rtrim('ab d   ') str;
+SELECT space(5);
 ```
 
 ```text
-+------+
-| str  |
-+------+
-| ab d |
-+------+
++----------+
+| space(5) |
++----------+
+|          |
++----------+
 ```
 
-2. Remove specified trailing string
+2. Zero or negative number handling
 
 ```sql
-SELECT rtrim('ababccaab', 'ab') str;
+SELECT space(0), space(-5);
 ```
 
 ```text
-+---------+
-| str     |
-+---------+
-| ababcca |
-+---------+
++----------+-----------+
+| space(0) | space(-5) |
++----------+-----------+
+|          |           |
++----------+-----------+
 ```
 
-3. UTF-8 character support
+3. NULL value handling
 
 ```sql
-SELECT rtrim('ṭṛì ḍḍumai   ');
+SELECT space(NULL);
 ```
 
 ```text
-+---------------------------+
-| rtrim('ṭṛì ḍḍumai   ')    |
-+---------------------------+
-| ṭṛì ḍḍumai                |
-+---------------------------+
++-------------+
+| space(NULL) |
++-------------+
+| NULL        |
++-------------+
 ```
 
-4. No matching suffix, return original string
+4. Use with other functions
 
 ```sql
-SELECT rtrim('Hello World', 'xyz');
+SELECT CONCAT('Hello', space(3), 'World');
 ```
 
 ```text
-+---------------------------------+
-| rtrim('Hello World', 'xyz')     |
-+---------------------------------+
-| Hello World                     |
-+---------------------------------+
-```
-
-5. NULL value handling
-
-```sql
-SELECT rtrim(NULL), rtrim('Hello', NULL);
-```
-
-```text
-+-------------+------------------------+
-| rtrim(NULL) | rtrim('Hello', NULL)   |
-+-------------+------------------------+
-| NULL        | NULL                   |
-+-------------+------------------------+
-```
-
-6. Empty string handling
-
-```sql
-SELECT rtrim(''), rtrim('abc', '');
-```
-
-```text
-+-----------+-------------------+
-| rtrim('') | rtrim('abc', '')  |
-+-----------+-------------------+
-|           | abc               |
-+-----------+-------------------+
-```
-
-7. Repeated trailing pattern removal
-
-```sql
-SELECT rtrim('abcabcabc', 'abc');
-```
-
-```text
-+-------------------------------+
-| rtrim('abcabcabc', 'abc')     |
-+-------------------------------+
-|                               |
-+-------------------------------+
-```
-
-8. Multiple occurrences, remove only trailing match
-
-```sql
-SELECT rtrim('HelloHelloWorld', 'Hello');
-```
-
-```text
-+---------------------------------------+
-| rtrim('HelloHelloWorld', 'Hello')     |
-+---------------------------------------+
-| HelloHelloWorld                       |
-+---------------------------------------+
++------------------------------------+
+| concat('Hello', space(3), 'World') |
++------------------------------------+
+| Hello   World                      |
++------------------------------------+
 ```
 
 ### Keywords
 
     ```
-    RTRIM
+    SPACE
     ```
