@@ -1,112 +1,149 @@
 ---
 {
-  "title": "OVERLAY",
+  "title": "PARSE_DATA_SIZE",
   "language": "en",
-  "description": "The OVERLAY function is used to replace a substring at a specified position and length within a string. Starting from the specified position,"
+  "description": "The PARSEDATASIZE function parses a string with storage units (such as \"1.5GB\") and converts it to a numeric value in bytes."
 }
 ---
 
 ## Description
 
-The OVERLAY function is used to replace a substring at a specified position and length within a string. Starting from the specified position, it replaces the specified length of characters with a new string.This function is multibyte safe.
-
-This function behaves consistently with the [INSERT function](https://dev.mysql.com/doc/refman/8.4/en/string-functions.html#function_insert) in MySQL.
-
-## Alias
-
-- INSERT
+The PARSE_DATA_SIZE function parses a string with storage units (such as "1.5GB") and converts it to a numeric value in bytes.
 
 ## Syntax
 
 ```sql
-OVERLAY(<str>, <pos>, <len>, <newstr>)
+PARSE_DATA_SIZE(<str>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------------------------- |
-| `<str>`    | The original string to be modified. Type: VARCHAR                             |
-| `<pos>`    | The starting position for replacement (1-based). Type: INT |
-| `<len>`    | The length of characters to replace. Type: INT                                |
-| `<newstr>` | The new string to use for replacement. Type: VARCHAR                          |
+| Parameter | Description                                                                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<str>`   | Data size string with unit (e.g., "100MB", "2.5GB"). Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, the new string after replacement.
+Returns BIGINT type, representing the numeric value converted to bytes.
 
 Special cases:
 
-- If any parameter is NULL, returns NULL
-- If `<pos>` is less than 1 or exceeds string length, no replacement occurs and returns the original string
-- If `<len>` is less than 0 or exceeds the remaining length, replaces from `<pos>` to the end of the string
+- Supported units (case-insensitive): B, kB, MB, GB, TB, PB, EB, ZB, YB
+- Units use base 1024 (e.g., 1kB = 1024B)
+- Supports decimals (e.g., "2.5MB")
+- If parameter format is invalid, returns error
+- If parameter is NULL, returns NULL
+
+**Supported Units Table:**
+
+| Unit | Name      | Bytes |
+| ---- | --------- | ----- |
+| B    | Bytes     | 1     |
+| kB   | Kilobytes | 1024  |
+| MB   | Megabytes | 1024² |
+| GB   | Gigabytes | 1024³ |
+| TB   | Terabytes | 1024⁴ |
+| PB   | Petabytes | 1024⁵ |
+| EB   | Exabytes  | 1024⁶ |
 
 ## Examples
 
-1. Basic usage: replace middle part
+1. Basic usage: Parse bytes
 
 ```sql
-SELECT overlay('Quadratic', 3, 4, 'What');
+SELECT parse_data_size('1024B');
 ```
 
 ```text
-+------------------------------------+
-| overlay('Quadratic', 3, 4, 'What') |
-+------------------------------------+
-| QuWhattic                          |
-+------------------------------------+
++--------------------------+
+| parse_data_size('1024B') |
++--------------------------+
+| 1024                     |
++--------------------------+
 ```
 
-2. Negative length: replace to end
+2. Parse kilobytes
 
 ```sql
-SELECT overlay('Quadratic', 2, -1, 'Hi');
+SELECT parse_data_size('1kB');
 ```
 
 ```text
-+-----------------------------------+
-| overlay('Quadratic', 2, -1, 'Hi') |
-+-----------------------------------+
-| QHi                               |
-+-----------------------------------+
++------------------------+
+| parse_data_size('1kB') |
++------------------------+
+| 1024                   |
++------------------------+
 ```
 
-3. Position out of bounds: no replacement
+3. Parse megabytes with decimals
 
 ```sql
-SELECT overlay('Hello', 10, 2, 'X');
+SELECT parse_data_size('2.5MB');
 ```
 
 ```text
-+-------------------------------+
-| overlay('Hello', 10, 2, 'X')  |
-+-------------------------------+
-| Hello                         |
-+-------------------------------+
++--------------------------+
+| parse_data_size('2.5MB') |
++--------------------------+
+| 2621440                  |
++--------------------------+
 ```
 
-4. NULL value handling
+4. Parse gigabytes
 
 ```sql
-SELECT overlay('Hello', NULL, 2, 'X');
+SELECT parse_data_size('1GB');
 ```
 
 ```text
-+--------------------------------+
-| overlay('Hello', NULL, 2, 'X') |
-+--------------------------------+
-| NULL                           |
-+--------------------------------+
++------------------------+
+| parse_data_size('1GB') |
++------------------------+
+| 1073741824             |
++------------------------+
 ```
 
+5. Parse terabytes
+
 ```sql
-SELECT INSERT('🎉🎊🎈', 2, 1, '🎁');
+SELECT parse_data_size('1TB');
 ```
 
 ```text
-+--------------------------------------+
-| INSERT('🎉🎊🎈', 2, 1, '🎁')                 |
-+--------------------------------------+
-| 🎉🎁🎈                                     |
-+--------------------------------------+
++------------------------+
+| parse_data_size('1TB') |
++------------------------+
+| 1099511627776          |
++------------------------+
 ```
+
+6. Unsupported unit, error
+
+```sql
+SELECT parse_data_size('1iB');
+```
+
+```text
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]Invalid Input argument "1iB" of function parse_data_size
+```
+
+7. Input NULL
+
+```sql
+SELECT parse_data_size(NULL);
+```
+
+```text
++-----------------------+
+| parse_data_size(NULL) |
++-----------------------+
+| NULL                  |
++-----------------------+
+```
+
+### Keywords
+
+    ```
+    PARSE_DATA_SIZE
+    ```
