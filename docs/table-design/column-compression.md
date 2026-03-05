@@ -1,28 +1,10 @@
 ---
 {
     "title": "Column Compression",
-    "language": "en_US"
+    "language": "en_US",
+    "description": "Doris adopts a columnar storage model to organize and store data,"
 }
 ---
-
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 Doris adopts a **columnar storage** model to organize and store data, which is particularly suitable for analytical workloads and can significantly improve query efficiency. In columnar storage, each column of the table is stored independently, facilitating the application of compression techniques and thus improving storage efficiency. Doris provides various compression algorithms, allowing users to choose the appropriate compression method based on workload requirements to optimize storage and query performance.
 
@@ -58,6 +40,9 @@ Doris supports various compression algorithms, each with different trade-offs be
 
 **Encoding Before Compression**
    Before compressing data, Doris encodes the column data (e.g., **dictionary encoding**, **run-length encoding**, etc.) to transform the data into a form more suitable for compression, further enhancing compression efficiency.
+
+**Storage Format V3 Optimizations**
+   Starting from Doris Storage Format V3, the encoding strategy for numerical types has been further optimized. It defaults to `PLAIN_ENCODING` for integer types, which, when combined with LZ4/ZSTD, provides higher read throughput and lower CPU overhead. For more details, see [Storage Format V3](./storage-format).
 
 **Page Compression**
    Doris adopts a **page**-level compression strategy. The data in each column is divided into multiple pages, and the data within each page is compressed independently. By compressing by page, Doris can efficiently handle large-scale datasets while ensuring high compression ratios and decompression performance.
