@@ -1,312 +1,222 @@
 ---
 {
-  "title": "Compilation and Deployment",
+  "title": "Managing Compute Groups",
   "language": "en",
-  "description": "This document details the compilation and deployment process of Doris in a decoupled storage-compute model,"
+  "description": "In a compute-storage decoupled architecture, one or more compute nodes (BE) can be grouped into a Compute Group."
 }
 ---
 
-## 1. Overview
+In a compute-storage decoupled architecture, one or more compute nodes (BE) can be grouped into a Compute Group. This document describes how to use compute groups, including operations such as:
 
-This document details the compilation and deployment process of Doris in a decoupled storage-compute model, highlighting the differences from the integrated storage-compute model, especially the compilation, configuration, and management of the newly added Meta Service (MS) module.
+- Viewing all compute groups
+- Granting compute group access
+- Binding compute groups at the user level (`default_compute_group`) for user-level isolation
 
-## 2. Obtaining Binaries
+_Note_
+In versions prior to 3.0.2, this was referred to as a Compute Cluster.
 
-### 2.1 Direct Download
+## Compute Group Usage Scenarios
 
-Compiled binaries (including all Doris modules) can be obtained from the [Doris Download Page](https://doris.apache.org/download/) (select version 3.0.2 or higher).
+In a multi-compute group architecture, you can group one or more stateless BE nodes into compute clusters. By using compute cluster specification statements (use @<compute_group_name>), you can allocate specific workloads to specific compute clusters, achieving physical isolation of multiple import and query workloads.
 
-### 2.2 Compilation Output (Optional)
+Assume there are two compute clusters: C1 and C2.
 
-Compile using the `build.sh` script provided in the codebase. The new MS module is compiled with the `--cloud` parameter.
+- **Read-Read Isolation**: Before initiating two large queries, use `use @c1` and `use @c2` respectively to ensure that the queries run on different compute nodes. This prevents resource contention (CPU, memory, etc.) when accessing the same dataset.
 
-```shell
-sh build.sh --fe --be --cloud 
-```
+- **Read-Write Isolation**: Doris data imports consume substantial resources, especially in scenarios with large data volumes and high-frequency imports. To avoid resource contention between queries and imports, you can use `use @c1` and `use @c2` to specify that queries execute on C1 and imports on C2. Additionally, the C1 compute cluster can access newly imported data in the C2 compute cluster.
 
-After compilation, a new `ms` directory will be added in the `output` directory:
+- **Write-Write Isolation**: Similar to read-write isolation, imports can also be isolated from each other. For example, when the system has both high-frequency small imports and large batch imports, batch imports typically take longer and have higher retry costs, while high-frequency small imports are quick with lower retry costs. To prevent small imports from interfering with batch imports, you can use `use @c1` and `use @c2` to specify small imports to execute on C1 and batch imports on C2.
 
-```
-output
-├── be
-├── fe
-└── ms
-    ├── bin
-    ├── conf
-    └── lib
-```
+## Default Compute Group Selection Mechanism
 
-## 3. Meta Service Deployment
+When a user has not explicitly [set a default compute group](#setting-default-compute-group), the system will automatically select a compute group with Active BE that the user has usage permissions for. Once the default compute group is determined in a specific session, it will remain unchanged during that session unless the user explicitly changes the default setting.
 
-### 3.1 Configuration
+In different sessions, if the following situations occur, the system may automatically change the user's default compute group:
 
-In the `./conf/doris_cloud.conf` file, you mainly need to modify the following two parameters:
+- The user has lost usage permissions for the default compute group selected in the last session
+- A compute group has been added or removed
+- The previously selected default compute group no longer has Alive BE
 
-1. `brpc_listen_port`: The listening port for the Meta Service, default is 5000.
-2. `fdb_cluster`: Connection information for the FoundationDB cluster, which can be obtained when deploying FoundationDB. (If using the `fdb_ctl.sh` provided by Doris for deployment, this value can be found in the `$FDB_HOME/conf/fdb.cluster` file.)
+Situations one and two will definitely lead to a change in the automatically selected default compute group, while situation three may lead to a change.
 
-Example configuration:
+## Viewing All Compute Groups
 
-```Shell
-brpc_listen_port = 5000
-fdb_cluster = xxx:yyy@127.0.0.1:4500
-```
+Use the `SHOW COMPUTE GROUPS` command to view all compute groups in the current repository. The returned results will display different content based on the user's permission level:
 
-Note: The value of `fdb_cluster` should match the content of the `/etc/foundationdb/fdb.cluster` file on the FoundationDB deployment machine. (If using the `fdb_ctl.sh` provided by Doris for deployment, this value can be found in the `$FDB_HOME/conf/fdb.cluster` file.)
-
-**Example: The last line of the file is the value to fill in the doris_cloud.conf for the fdb_cluster field**
-
-```shell
-cat /etc/foundationdb/fdb.cluster
-
-# DO NOT EDIT!
-# This file is auto-generated, it is not to be edited by hand.
-cloud_ssb:A83c8Y1S3ZbqHLL4P4HHNTTw0A83CuHj@127.0.0.1:4500
-```
-
-### 3.2 Start and Stop
-
-_Environment Requirements_
-
-Ensure that the `JAVA_HOME` environment variable is correctly set to point to OpenJDK 17, and navigate to the `ms` directory.
-
-_Start Command_
-
-```Shell
-export JAVA_HOME=${path_to_jdk_17}
-bin/start.sh --daemon
-```
-
-```text
-LIBHDFS3_CONF=
-starts doris_cloud with args: --meta-service
-wait and check doris_cloud start successfully
-successfully started brpc listening on port=5000 time_elapsed_ms=11
-doris_cloud start successfully
-```
-
-The startup script returns a value of 0 to indicate that the startup was successful; otherwise, the startup fails.
-
-:::info
-In 3.0.4, the startup script will output more information:
-
-```text
-2024-12-26 15:31:53 start with args: --meta-service
-wait and check MetaService and Recycler start successfully
-process working directory: "/mnt/disk1/doris/ms"
-pid=1666015 written to file=./bin/doris_cloud.pid
-version:{doris-3.0.4-release} code_version:{commit=fd44740fadabebfedb5da201d7ce427a5dd47c44 time=2025-01-16 18:53:00 +0800} build_info: ...
-
-MetaService has been started successfully
-successfully started service listening on port=5000 time_elapsed_ms=19
-```
-
-:::
-
-_Stop Command_
-
-```shell
-bin/stop.sh
-```
-
-For production environment, please ensure that the total number of Meta Service is at least three.
-
-## 4. Independent Deployment of Data Recycling Function (Optional)
-
-:::info
-The Meta Service itself has metadata management and recycling functions, which can be deployed independently. If you want to deploy them independently, you can refer to this section.
-:::
-
-_Preparation Work_
-
-1. Create a new working directory (e.g., `recycler`).
-2. Copy the contents of the `ms` directory to the new directory:
-
-   ```shell
-   cp -r ms recycler
-   ```
-
-_Configuration_
-
-Modify the BRPC listening port `brpc_listen_port` and the value of `fdb_cluster` in the configuration file of the new directory.
-
-_Start Data Recycling Function_
-
-```Shell
-export JAVA_HOME=${path_to_jdk_17}
-bin/start.sh --recycler --daemon
-```
-
-_Start Only Metadata Operation Function_
-
-```Shell
-export JAVA_HOME=${path_to_jdk_17}
-bin/start.sh --meta-service --daemon
-```
-
-## 5. Startup Process for FE and BE
-
-This section details the steps to start FE (Frontend) and BE (Backend) in a decoupled storage-compute architecture.
-
-### 5.1 Startup Order
-
-1. Start the first FE instance with the MASTER role.
-2. Add other FE and BE instances to the cluster.
-3. Add the first Storage Vault.
-
-### 5.2 Start the MASTER Role FE
-
-#### 5.2.1 Configure fe.conf
-
-In the `fe.conf` file, the following key parameters need to be configured:
-
-1. `deploy_mode`
-   - Description: Specifies the Doris startup mode.
-   - Format: `cloud` indicates the decoupled storage-compute mode; others indicate the integrated storage-compute mode.
-   - Example: `cloud`
-
-2. `cluster_id`
-   - Description: A unique identifier for the cluster in the decoupled storage-compute architecture. Each cluster must have a distinct cluster_id to avoid conflicts.
-   - Format: Integer (int type).
-   - Example: A random `cluster_id` can be generated using the following shell command.
-      ```shell
-      echo $(($((RANDOM << 15)) | $RANDOM))
-      ```
-     :::caution
-     **Each cluster must have a distinct cluster_id to avoid conflicts**
-     :::
-
-3. `meta_service_endpoint`
-   - Description: The address and port of the Meta Service.
-   - Format: `IP address:port number`.
-   - Example: `127.0.0.1:5000`, multiple meta services can be configured separated by commas.
-
-#### 5.2.2 Start FE
-
-Example start command:
-
-```bash
-bin/start_fe.sh --daemon
-```
-
-The first FE process initializes the cluster and operates in the FOLLOWER role. Use a MySQL client to connect to the FE and use `show frontends` to confirm that the recently started FE is the master.
-
-### 5.3 Add Other FE Nodes
-
-Other nodes should also modify the configuration file and start according to the above steps. Use a MySQL client to connect to the FE with the MASTER role and use the following SQL command to add additional FE nodes:
+- Users with `ADMIN` privileges can view all compute groups
+- Regular users can only view compute groups for which they have usage permissions (USAGE_PRIV)
+- If a user doesn't have usage permissions for any compute groups, an empty result will be returned
 
 ```sql
-ALTER SYSTEM ADD FOLLOWER "host:port";
+SHOW COMPUTE GROUPS;
 ```
 
-Replace `host:port` with the actual address and editlog port of the FE node. More information refer to [ADD FOLLOWER](../sql-manual/sql-statements/cluster-management/instance-management/ADD-FOLLOWER) and [ADD OBSERVER](../sql-manual/sql-statements/cluster-management/instance-management/ADD-OBSERVER).
+## Adding Compute Groups
 
-For production environment, please ensure that the total number of Frontend (FE) nodes in the FOLLOWER role, including the first FE, remains an odd number. In general, three FOLLOWERS are sufficient. Frontend nodes in the OBSERVER role can be any number.
+Managing compute groups requires `OPERATOR` privilege, which controls node management permissions. For more details, please refer to [Privilege Management](../sql-manual/sql-statements/account-management/GRANT-TO). By default, only the root account has the `OPERATOR` privilege, but it can be granted to other accounts using the `GRANT` command.
+To add a BE and assign it to a compute group, use the [Add BE](../sql-manual/sql-statements/cluster-management/instance-management/ADD-BACKEND) command. For example:
 
-### 5.4 Add BE Nodes
+```sql
+ALTER SYSTEM ADD BACKEND 'host:9050' PROPERTIES ("tag.compute_group_name" = "new_group");
+```
 
-To add Backend nodes to the cluster, perform the following steps for each Backend:
+The above sql will add `host:9050` to compute group `new_group`. The BE will be added to compute group `default_compute_group` if you omit PROPERTIES statement, for example:
 
-#### 5.4.1 Configure be.conf
+```sql
+ALTER SYSTEM ADD BACKEND 'host:9050';
+```
 
-In the `be.conf` file, the following key parameters need to be configured:
+## Granting Compute Group Access
 
-1. `deploy_mode`
-   - Description: Specifies the Doris startup mode.
-   - Format: `cloud` indicates the decoupled storage-compute mode; others indicate the integrated storage-compute mode.
-   - Example: `cloud`
+Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
 
-2. `file_cache_path`
-   - Description: The disk paths and other parameters used for file cache, represented as an array, with one entry for each disk. The `path` specifies the disk path, and `total_size` limits the size of the cache; -1 or 0 will use the entire disk space.
-   - format: [{"path":"/path/to/file_cache","total_size":21474836480},{"path":"/path/to/file_cache2","total_size":21474836480}]
-   - Example: [{"path":"/path/to/file_cache","total_size":21474836480},{"path":"/path/to/file_cache2","total_size":21474836480}]
-   - Default: [{"path":"${DORIS_HOME}/file_cache"}]
+```sql
+GRANT USAGE_PRIV ON COMPUTE GROUP {compute_group_name} TO {user}
+```
 
-#### 5.4.1 Start and Add BE
+## Revoking Compute Group Access
 
-1. Start the Backend:
+Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
 
-   Use the following command to start the Backend:
+```sql
+REVOKE USAGE_PRIV ON COMPUTE GROUP {compute_group_name} FROM {user}
+```
 
+## Setting Default Compute Group
+
+To set the default compute group for the current user(This operation requires the current user to already have permission to use the computing group):
+
+```sql
+SET PROPERTY 'default_compute_group' = '{clusterName}';
+```
+
+To set the default compute group for other users (this operation requires Admin privileges):
+
+```sql
+SET PROPERTY FOR {user} 'default_compute_group' = '{clusterName}';
+```
+
+To view the current user's default compute group, the value of `default_compute_group` in the returned result is the default compute group:
+
+```sql
+SHOW PROPERTY;
+```
+
+To view the default compute group of other users, This operation requires the current user to have admin privileges, and the value of `default_compute_group` in the returned result is the default compute group:
+
+```sql
+SHOW PROPERTY FOR {user};
+```
+
+To view all available compute groups in the current repository:
+
+```sql
+SHOW COMPUTE GROUPS;
+```
+
+:::info Note
+
+- If the current user has an Admin role, for example: `CREATE USER jack IDENTIFIED BY '123456' DEFAULT ROLE "admin"`, then:
+  - They can set the default compute group for themselves and other users;
+  - They can view their own and other users' `PROPERTY`.
+- If the current user does not have an Admin role, for example: `CREATE USER jack1 IDENTIFIED BY '123456'`, then:
+  - They can set the default compute group for themselves;
+  - They can view their own `PROPERTY`;
+  - They cannot view all compute groups, as this operation requires `GRANT ADMIN` privileges.
+- If the current user has not configured a default compute group, the existing system will trigger an error when performing data read/write operations. To resolve this issue, the user can execute the `use @cluster` command to specify the compute group used by the current context, or use the `SET PROPERTY` statement to set the default compute group.
+- If the current user has configured a default compute group, but that cluster is subsequently deleted, an error will also be triggered during data read/write operations. The user can execute the `use @cluster` command to re-specify the compute group used by the current context, or use the `SET PROPERTY` statement to update the default cluster settings.
+
+:::
+
+## Switching Compute Groups
+
+Users can specify the database and compute group to use in a compute-storage decoupled architecture.
+
+**Syntax**
+
+```sql
+USE { [catalog_name.]database_name[@compute_group_name] | @compute_group_name }
+```
+
+If the database or compute group name contains reserved keywords, the corresponding name must be enclosed in backticks \`\`\`.
+
+## Scaling Compute Groups
+
+You can scale compute groups by adding or removing BE using `ALTER SYSTEM ADD BACKEND` and `ALTER SYSTEM DECOMMISION BACKEND`.
+
+### Load Rebalancing After Scaling
+
+Cloud rebalance is a load balancing operation in Doris's compute-storage decoupled architecture. It is used to rebalance read and write traffic across the compute group after scaling (adding or removing) backend nodes in different Compute Groups. A node that has been offline for an extended period is considered as removed.
+
+#### Balance Strategy Types
+
+:::caution
+
+The `balance_type` feature is supported starting from Doris 3.1.3 and Doris 4.0.2.  
+Prior to these versions, only the FE global configuration `enable_cloud_warm_up_for_rebalance` was available to control whether warm up tasks are executed during rebalance.
+
+:::
+
+The following table describes three strategy types, using the example of adding nodes to a Compute Group:
+
+| Type             | Time to Service | Performance Fluctuation | Technical Principle                                                                                                                                                       | Use Cases                                                                                                        |
+| :--------------- | :-------------: | :---------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------- |
+| `without_warmup` |     Fastest     |   Highest fluctuation   | FE directly modifies shard mapping; first read/write has no file cache and needs to fetch from S3                                                                         | Scenarios requiring quick node deployment with low sensitivity to performance jitter                             |
+| `async_warmup`   |      Faster     |   Possible cache miss   | Issues warm up tasks, modifies mapping after success or timeout; attempts to pull file cache to new BE during mapping switch, some scenarios may still miss on first read | General scenarios with acceptable performance                                                                    |
+| `sync_warmup`    |      Slower     |    Minimal cache miss   | Issues warm up tasks, FE modifies mapping only after task completion, ensuring cache migration                                                                            | Scenarios with extremely high performance requirements after scaling, requiring file cache to exist on new nodes |
+
+#### User Interface
+
+##### Global Default Balance Type
+
+Set the global default value through FE configuration (fe.conf):
+
+```
+cloud_default_rebalance_type = "async_warmup"
+```
+
+##### Compute Group-Level Configuration
+
+You can configure balance type for each Compute Group separately:
+
+```sql
+ALTER COMPUTE GROUP cg1 PROPERTIES("balance_type"="async_warmup");
+```
+
+##### Configuration Rules
+
+1. If a Compute Group does not have `balance_type` configured, it uses the global default value `async_warmup`.
+2. If a Compute Group has `balance_type` configured, that configuration takes priority during rebalance.
+
+#### FAQ
+
+##### How to View and Modify Global Rebalance Type?
+
+- **View**: Execute `ADMIN SHOW FRONTEND CONFIG LIKE "cloud_default_rebalance_type";`
+- **Modify**: Execute `ADMIN SET FRONTEND CONFIG ("cloud_warm_up_for_rebalance_type" = "without_warmup");` (takes effect without restarting FE)
+
+##### How to Query Compute Group Balance Type?
+
+Execute `SHOW COMPUTE GROUPS;`. The `properties` column in the result contains Compute Group attribute information, including the `balance_type` configuration.
+
+##### How to Determine if the Cluster is in a Stable Tablet State?
+
+1. **Check via `SHOW BACKENDS`**: Check if the tablet counts across BEs are close. Reference calculation range:
+   ```
+   (Total tablets in cluster / Compute Group BE count) * 0.95 
+   ~ 
+   (Total tablets in cluster / Compute Group BE count) * 1.05
+   ```
+   The value 0.05 is the default value of the FE configuration `cloud_rebalance_percent_threshold`. To make tablet distribution more uniform across BEs in the Compute Group, you can reduce this configuration value.
+
+2. **Observe via FE Metrics**: Check the `doris_fe_cloud_.*_balance_num` series of metrics in FE metrics. If there is no change for an extended period, it indicates the Compute Group has reached a balanced state. It is recommended to configure these metrics on a monitoring dashboard for continuous observation and judgment.
    ```bash
-   bin/start_be.sh --daemon
+   curl "http://feip:fe_http_port/metrics" | grep '_balance_num'
    ```
 
-2. Add the Backend to the cluster:
+## Renaming Compute Group
 
-   Connect to any Frontend using a MySQL client and execute:
+You can use the `ALTER SYSTEM RENAME COMPUTE GROUP <old_name> <new_name>` command to rename an existing compute group. Please refer to the SQL Manual on [Renaming Compute Groups](../sql-manual/sql-statements/cluster-management/instance-management/ALTER-SYSTEM-RENAME-COMPUTE-GROUP).
 
-   ```sql
-   ALTER SYSTEM ADD BACKEND "<ip>:<heartbeat_service_port>" [PROPERTIES properties];
-   ```
-
-   Replace `<ip>` with the IP address of the new Backend and `<heartbeat_service_port>` with its configured heartbeat service port (default is 9050).
-
-   You can set the computing group for the BE using PROPERTIES.
-
-   For more detailed usage, please refer to [ADD BACKEND](../sql-manual/sql-statements/cluster-management/instance-management/ADD-BACKEND) and [REMOVE BACKEND](../sql-manual/sql-statements/cluster-management/instance-management/DROP-BACKEND).
-
-3. Verify Backend Status:
-
-   Check the Backend log file (`be.log`) to ensure it has successfully started and joined the cluster.
-
-   You can also use the following SQL command to check the Backend status:
-
-   ```sql
-   SHOW BACKENDS;
-   ```
-
-   This will display all Backends in the cluster and their current status.
-
-## 6) Create Storage Vault
-
-Storage Vault is an important component in the Doris decoupled storage and computing architecture. They represent a shared storage layer for storing data. You can create one or more Storage Vaults using HDFS or S3-compatible object storage. One Storage Vault can be set as the default Storage Vault, and system tables and tables without a specified Storage Vault will be stored in this default Storage Vault. The default Storage Vault cannot be deleted. Here are the methods to create a Storage Vault for your Doris cluster:
-
-### 6.1 Create HDFS Storage Vault
-
-To create a Storage Vault using SQL, connect to your Doris cluster using a MySQL client.
-
-```sql
-CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault
-    PROPERTIES (
-    "type"="hdfs",
-    "fs.defaultFS"="hdfs://127.0.0.1:8020"
-    );
-```
-
-### 6.2 Create S3 Storage Vault
-
-To create a Storage Vault using S3-compatible object storage, follow these steps:
-
-1. Connect to your Doris cluster using a MySQL client.
-
-2. Execute the following SQL command to create an S3 Storage Vault:
-
-```sql
-CREATE STORAGE VAULT IF NOT EXISTS s3_vault
-    PROPERTIES (
-    "type"="S3",
-    "s3.endpoint"="s3.us-east-1.amazonaws.com",
-    "s3.access_key" = "ak",
-    "s3.secret_key" = "sk",
-    "s3.region" = "us-east-1",
-    "s3.root.path" = "ssb_sf1_p2_s3",
-    "s3.bucket" = "doris-build-1308700295",
-    "provider" = "S3"
-    );
-```
-
-To create a Storage Vault on other object storage, please refer to [Create Storage Vault](../sql-manual/sql-statements/cluster-management/storage-management/CREATE-STORAGE-VAULT).
-
-### 6.3 Set Default Storage Vault
-
-Use the following SQL statement to set a default Storage Vault.
-
-```sql
-SET <storage_vault_name> AS DEFAULT STORAGE VAULT
-```
-
-## 7. Notes
-
-- Only the Meta Service process for metadata operations should be configured as the `meta_service_endpoint` target for FE and BE.
-- The data recycling function process should not be configured as the `meta_service_endpoint` target.
+Note
+After renaming a compute group, users who had permissions for the old name (old_name) or had set the old name as the default compute group (default_compute_group) will not have their permissions automatically updated to the new name (new_name). Permissions need to be reset by an account with administrative privileges. This is consistent with the permission system of MySQL databases.
