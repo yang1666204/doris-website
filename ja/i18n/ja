@@ -1,314 +1,357 @@
 ---
 {
-  "title": "Common Operations FAQ",
+  "title": "Data Lakehouse FAQ",
   "language": "en",
-  "description": "Apache Doris operations FAQ and troubleshooting guide. Answers common questions about FE/BE node management, log analysis, configuration optimization, version upgrades, storage medium configuration, load balancing and other practical operation scenarios to help quickly locate and resolve Doris cluster operation issues."
+  "description": "This is usually due to incorrect Kerberos authentication information. You can troubleshoot by following these steps:"
 }
 ---
 
-This document is used to record common operations issues encountered when using Doris. It will be updated from time to time.
+## Certificate Issues
 
-**The BE binary file name `doris_be` mentioned in this document was `palo_be` in previous versions.**
+1. When querying, an error `curl 77: Problem with the SSL CA cert.` occurs. This indicates that the current system certificate is too old and needs to be updated locally.
+   - You can download the latest CA certificate from `https://curl.se/docs/caextract.html`.
+   - Place the downloaded `cacert-xxx.pem` into the `/etc/ssl/certs/` directory, for example: `sudo cp cacert-xxx.pem /etc/ssl/certs/ca-certificates.crt`.
 
-### Q1. Why are there always some tablets remaining when decommissioning a BE node through DECOMMISSION?
+2. When querying, an error occurs: `ERROR 1105 (HY000): errCode = 2, detailMessage = (x.x.x.x)[CANCELLED][INTERNAL_ERROR]error setting certificate verify locations: CAfile: /etc/ssl/certs/ca-certificates.crt CApath: none`.
 
-During the decommission process, by viewing the `tabletNum` of the decommissioned node through `show backends`, you will observe that the `tabletNum` count is decreasing, indicating that data shards are being migrated away from this node. When the count reaches 0, the system will automatically delete this node. However, in some cases, the `tabletNum` stops changing after dropping to a certain value. This usually may be due to the following two reasons:
+```
+yum install -y ca-certificates
+ln -s /etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt /etc/ssl/certs/ca-certificates.crt
+```
 
-1. These tablets belong to tables, partitions, or materialized views that have just been deleted. Newly deleted objects are retained in the recycle bin. The decommission logic does not process these shards. You can modify the FE configuration parameter `catalog_trash_expire_second` to change the retention time of objects in the recycle bin. When objects are deleted from the recycle bin, these tablets will be processed.
+## Kerberos
 
-2. The migration tasks for these tablets have encountered problems. At this point, you need to use `show proc "/cluster_balance"` to view the specific task errors.
+1. When connecting to a Hive Metastore authenticated with Kerberos, an error `GSS initiate failed` is encountered.
 
-For the above situations, you can first use `show proc "/cluster_health/tablet_health";` to check if there are any unhealthy shards in the cluster. If it is 0, you can directly delete this BE through the `drop backend` statement. Otherwise, you still need to specifically check the replica status of unhealthy shards.
+   This is usually due to incorrect Kerberos authentication information. You can troubleshoot by following these steps:
 
-### Q2. How should priority_networks be configured?
+   1. In versions prior to 1.2.1, the libhdfs3 library that Doris depends on did not enable gsasl. Please update to versions 1.2.2 and later.
 
-`priority_networks` is a configuration parameter for both FE and BE. This parameter is mainly used to help the system select the correct network card IP as its own IP. It is recommended to explicitly set this parameter in any case to prevent issues with incorrect IP selection caused by adding new network cards to machines later.
+   2. Ensure that correct keytab and principal are set for each component and verify that the keytab file exists on all FE and BE nodes.
 
-The value of `priority_networks` is expressed in CIDR format. It is divided into two parts: the first part is the IP address in dotted decimal notation, and the second part is a prefix length. For example, `10.168.1.0/8` will match all `10.xx.xx.xx` IP addresses, while `10.168.1.0/16` will match all `10.168.xx.xx` IP addresses.
+      - `hadoop.kerberos.keytab`/`hadoop.kerberos.principal`: Used for Hadoop hdfs access, fill in the corresponding values for hdfs.
+      - `hive.metastore.kerberos.principal`: Used for hive metastore.
 
-The reason for using CIDR format instead of directly specifying a specific IP is to ensure that all nodes can use a unified configuration value. For example, if there are two nodes: `10.168.10.1` and `10.168.10.2`, we can use `10.168.10.0/24` as the value for `priority_networks`.
+   3. Try replacing the IP in the principal with a domain name (do not use the default `_HOST` placeholder).
 
-### Q3. What are Master, Follower, and Observer in FE?
+   4. Ensure that the `/etc/krb5.conf` file exists on all FE and BE nodes.
 
-First, it should be clear that FE has only two roles: Follower and Observer. Master is just one FE selected from a group of Follower nodes. Master can be seen as a special type of Follower. So when we are asked how many FEs a cluster has and what roles they are, the correct answer should of course be the number of all FE nodes, as well as the number of Follower roles and Observer roles.
+2. When connecting to a Hive database through the Hive Catalog, an error occurs: `RemoteException: SIMPLE authentication is not enabled. Available:[TOKEN, KERBEROS]`.
 
-All FE nodes with the Follower role will form a selectable group, similar to the group concept in the Paxos consensus protocol. A Follower will be elected as Master within the group. When the Master fails, a new Follower will be automatically selected as Master. Observers do not participate in elections, so Observers will not become Masters.
+   If the error occurs during the query when there are no issues with `show databases` and `show tables`, follow these two steps:
 
-A metadata log needs to be successfully written to the majority of Follower nodes to be considered successful. For example, with 3 FEs, 2 successful writes are required. This is also why the number of Follower roles needs to be odd.
+   - Place core-site.xml and hdfs-site.xml in the fe/conf and be/conf directories.
+   - Execute Kerberos kinit on the BE node, restart BE, and then proceed with the query.
 
-The Observer role, as the word implies, only acts as an observer to synchronize successfully written metadata logs and provides metadata read services. It does not participate in the majority write logic.
+   When encountering the error `GSSException: No valid credentials provided (Mechanism level: Failed to find any Kerberos Ticket)` while querying a table configured with Kerberos, restarting FE and BE nodes usually resolves the issue.
 
-Under normal circumstances, you can deploy 1 Follower + 2 Observers or 3 Followers + N Observers. The former is simpler for operations and maintenance, and almost never encounters complex errors caused by consistency protocols between Followers (most enterprises use this approach). The latter can ensure high availability of metadata writes. If it is a high-concurrency query scenario, you can appropriately increase the number of Observers.
+   - Before restarting all nodes, configure `-Djavax.security.auth.useSubjectCredsOnly=false` in the JAVA_OPTS parameter in `"${DORIS_HOME}/be/conf/be.conf"` to obtain JAAS credentials information through the underlying mechanism rather than the application.
+   - Refer to [JAAS Troubleshooting](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/Troubleshooting.html) for solutions to common JAAS errors.
 
-### Q4. Why doesn't data balance to new disks when new disks are added to nodes?
+   To resolve the error `Unable to obtain password from user` when configuring Kerberos in the Catalog:
 
-The current Doris balancing strategy is node-based. That is, it judges cluster load based on the overall load indicators of nodes (number of shards and total disk utilization). And it migrates data shards from high-load nodes to low-load nodes. If each node adds a disk, from the overall node perspective, the load has not changed, so the balancing logic cannot be triggered.
+   - Ensure the principal used is listed in klist by checking with `klist -kt your.keytab`.
+   - Verify the catalog configuration for any missing settings such as `yarn.resourcemanager.principal`.
+   - If the above checks are fine, it may be due to the JDK version installed by the system's package manager not supporting certain encryption algorithms. Consider installing JDK manually and setting the `JAVA_HOME` environment variable.
+   - Kerberos typically uses AES-256 for encryption. For Oracle JDK, JCE must be installed. Some distributions of OpenJDK automatically provide unlimited strength JCE, eliminating the need for separate installation.
+   - JCE versions correspond to JDK versions; download the appropriate JCE zip package and extract it to the `$JAVA_HOME/jre/lib/security` directory based on the JDK version:
+     - JDK6: [JCE6](http://www.oracle.com/technetwork/java/javase/downloads/jce-6-download-429243.html)
+     - JDK7: [JCE7](http://www.oracle.com/technetwork/java/embedded/embedded-se/downloads/jce-7-download-432124.html)
+     - JDK8: [JCE8](http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html)
 
-In addition, Doris currently does not support balancing operations between disks within a single node. Therefore, after adding new disks, data will not be balanced to the new disks.
+   When encountering the error `java.security.InvalidKeyException: Illegal key size` while accessing HDFS with KMS, upgrade the JDK version to >= Java 8 u162 or install the corresponding JCE Unlimited Strength Jurisdiction Policy Files.
 
-However, when data is migrated between nodes, Doris will consider disk factors. For example, when a shard is migrated from node A to node B, it will preferentially select disks with lower disk space utilization in node B.
+   If configuring Kerberos in the Catalog results in the error `SIMPLE authentication is not enabled. Available:[TOKEN, KERBEROS]`, place the `core-site.xml` file in the `"${DORIS_HOME}/be/conf"` directory.
 
-Here we provide 3 ways to solve this problem:
+   If accessing HDFS results in the error `No common protection layer between client and server`, ensure that the `hadoop.rpc.protection` properties on the client and server are consistent.
 
-1. Rebuild new tables
-
-   Create a new table through the `create table like` statement, and then use `insert into select` to synchronize data from the old table to the new table. Because when creating a new table, the data shards of the new table will be distributed on the new disks, so the data will also be written to the new disks. This method is suitable for situations with small amounts of data (within tens of GB).
-
-2. Through the Decommission command
-
-   The `decommission` command is used to safely decommission a BE node. This command will first migrate the data shards on that node to other nodes, and then delete the node. As mentioned earlier, during data migration, disks with lower disk utilization will be prioritized, so this method can "force" data to migrate to disks on other nodes. After the data migration is complete, we then `cancel` this `decommission` operation, so that the data will be balanced back to this node. When we execute the above steps for all BE nodes, the data will be evenly distributed on all disks of all nodes.
-
-   Note that before executing the `decommission` command, first execute the following command to avoid the node being deleted after decommissioning is complete.
-
-   `admin set frontend config("drop_backend_after_decommission" = "false");`
-
-3. Manually migrate data using the API
-
-   Doris provides an [HTTP API](https://doris.apache.org/docs/dev/admin-manual/be/tablet-migration) that can manually specify data shards on one disk to be migrated to another disk.
-
-### Q5. How to correctly read FE/BE logs?
-
-In many cases, we need to troubleshoot problems through logs. Here we explain the format and viewing method of FE/BE logs.
-
-1. FE
-
-   FE logs mainly include:
-
-   - `fe.log`: Main log. Includes all content except `fe.out`.
-
-   - `fe.warn.log`: A subset of the main log, recording only WARN and ERROR level logs.
-
-   - `fe.out`: Standard/error output logs (stdout and stderr).
-
-   - `fe.audit.log`: Audit log, recording all SQL requests received by this FE.
-
-   A typical FE log entry is as follows:
-
-    ```text
-    2021-09-16 23:13:22,502 INFO (tablet scheduler|43) [BeLoadRebalancer.selectAlternativeTabletsForCluster():85] cluster is balance: default_cluster with medium: HDD. skip
+    ```
+    <?xml version="1.0" encoding="UTF-8"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    
+    <configuration>
+    
+        <property>
+            <name>hadoop.security.authentication</name>
+            <value>kerberos</value>
+        </property>
+        
+    </configuration>
     ```
 
-   - `2021-09-16 23:13:22,502`: Log timestamp.
+   When using Broker Load with Kerberos configured and encountering the error `Cannot locate default realm.`:
 
-   - `INFO`: Log level, default is INFO.
+   Add the configuration item `-Djava.security.krb5.conf=/your-path` to the `JAVA_OPTS` in the `start_broker.sh` script for Broker Load.
 
-   - `(tablet scheduler|43)`: Thread name and thread id. Through the thread id, you can view the context information of this thread, which is convenient for troubleshooting what happened on this thread.
+3. When using Kerberos configuration in the Catalog, the `hadoop.username` property cannot be used simultaneously.
 
-   - `BeLoadRebalancer.selectAlternativeTabletsForCluster():85`: Class name, method name, and code line number.
+4. Accessing Kerberos with JDK 17
 
-   - `cluster is balance xxx`: Log content.
+   When running Doris with JDK 17 and accessing Kerberos services, you may encounter issues accessing due to the use of deprecated encryption algorithms. You need to add the `allow_weak_crypto=true` property in krb5.conf or upgrade the encryption algorithm in Kerberos.
 
-   Under normal circumstances, we mainly view the `fe.log` log. In special cases, some logs may be output to `fe.out`.
+   For more details, refer to: <https://seanjmullan.org/blog/2021/09/14/jdk17#kerberos>
 
-2. BE
+## JDBC Catalog
 
-   BE logs mainly include:
+1. Error connecting to SQLServer via JDBC Catalog: `unable to find valid certification path to requested target`
 
-   - `be.INFO`: Main log. This is actually a soft link, linking to the latest `be.INFO.xxxx`.
+   Add the `trustServerCertificate=true` option in the `jdbc_url`.
 
-   - `be.WARNING`: A subset of the main log, recording only WARN and FATAL level logs. This is actually a soft link, linking to the latest `be.WARN.xxxx`.
+2. Connecting to MySQL database via JDBC Catalog results in Chinese character garbling or incorrect Chinese character query conditions
 
-   - `be.out`: Standard/error output logs (stdout and stderr).
+   Add `useUnicode=true&characterEncoding=utf-8` in the `jdbc_url`.
 
-   A typical BE log entry is as follows:
+   > Note: Starting from version 1.2.3, when connecting to MySQL database via JDBC Catalog, these parameters will be automatically added.
 
-    ```text
-    I0916 23:21:22.038795 28087 task_worker_pool.cpp:1594] finish report TASK. master host: 10.10.10.10, port: 9222
+3. Error connecting to MySQL database via JDBC Catalog: `Establishing SSL connection without server's identity verification is not recommended`
+
+   Add `useSSL=true` in the `jdbc_url`.
+
+4. When synchronizing MySQL data to Doris using JDBC Catalog, date data synchronization error occurs. Verify if the MySQL version matches the MySQL driver package, for example, MySQL 8 and above require the driver com.mysql.cj.jdbc.Driver.
+
+5. When a single field is too large, a Java memory OOM occurs on the BE side during a query.
+
+   When Jdbc Scanner reads data through JDBC, the session variable `batch_size` determines the number of rows processed in the JVM per batch. If a single field is too large, it may cause `field_size * batch_size` (approximate value, considering JVM static memory and data copy overhead) to exceed the JVM memory limit, resulting in OOM.
+
+   Solutions:
+
+   - Reduce the `batch_size` value by executing `set batch_size = 512;`. The default value is 4064.
+   - Increase the BE JVM memory by modifying the `-Xmx` parameter in `JAVA_OPTS`. For example: `-Xmx8g`.
+
+## Hive Catalog
+
+1. Accessing Iceberg or Hive table through Hive Catalog reports an error: `failed to get schema` or `Storage schema reading not supported`
+
+   You can try the following methods:
+
+   - Put the `iceberg` runtime-related jar package in the lib/ directory of Hive.
+
+   - Configure in `hive-site.xml`:
+
+        ```
+        metastore.storage.schema.reader.impl=org.apache.hadoop.hive.metastore.SerDeStorageSchemaReader
+        ```
+
+     After the configuration is completed, you need to restart the Hive Metastore.
+
+   - Add `"get_schema_from_table" = "true"` in the Catalog properties
+
+     This parameter is supported since versions 2.1.10 and 3.0.6.
+
+2. Error connecting to Hive Catalog: `Caused by: java.lang.NullPointerException`
+
+   If the fe.log contains the following stack trace:
+
+    ```
+    Caused by: java.lang.NullPointerException
+        at org.apache.hadoop.hive.ql.security.authorization.plugin.AuthorizationMetaStoreFilterHook.getFilteredObjects(AuthorizationMetaStoreFilterHook.java:78) ~[hive-exec-3.1.3-core.jar:3.1.3]
+        at org.apache.hadoop.hive.ql.security.authorization.plugin.AuthorizationMetaStoreFilterHook.filterDatabases(AuthorizationMetaStoreFilterHook.java:55) ~[hive-exec-3.1.3-core.jar:3.1.3]
+        at org.apache.hadoop.hive.metastore.HiveMetaStoreClient.getAllDatabases(HiveMetaStoreClient.java:1548) ~[doris-fe.jar:3.1.3]
+        at org.apache.hadoop.hive.metastore.HiveMetaStoreClient.getAllDatabases(HiveMetaStoreClient.java:1542) ~[doris-fe.jar:3.1.3]
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_181]
     ```
 
-   - `I0916 23:21:22.038795`: Log level and date time. Capital letter I represents INFO, W represents WARN, F represents FATAL.
+   Try adding `"metastore.filter.hook" = "org.apache.hadoop.hive.metastore.DefaultMetaStoreFilterHookImpl"` in the `create catalog` statement to resolve.
 
-   - `28087`: Thread id. Through the thread id, you can view the context information of this thread, which is convenient for troubleshooting what happened on this thread.
+3. If after creating Hive Catalog, `show tables` works fine but querying results in `java.net.UnknownHostException: xxxxx`
 
-   - `task_worker_pool.cpp:1594`: Code file and line number.
+   Add the following in the CATALOG's PROPERTIES:
 
-   - `finish report TASK xxx`: Log content.
+    ```
+    'fs.defaultFS' = 'hdfs://<your_nameservice_or_actually_HDFS_IP_and_port>'
+    ```
 
-   Under normal circumstances, we mainly view the `be.INFO` log. In special cases, such as BE crashes, you need to view `be.out`.
+4. Tables in orc format in Hive 1.x may encounter system column names in the underlying orc file schema as `_col0`, `_col1`, `_col2`, etc. In this case, add `hive.version` as 1.x.x in the catalog configuration to map with the column names in the hive table.
 
-### Q6. How to troubleshoot when FE/BE nodes go down?
+    ```sql
+    CREATE CATALOG hive PROPERTIES (
+        'hive.version' = '1.x.x'
+    );
+    ```
 
-1. BE
+5. When querying table data using Catalog, errors related to Hive Metastore such as `Invalid method name` are encountered, set the `hive.version` parameter.
 
-   The BE process is a C/C++ process, which may crash due to some program bugs (memory out of bounds, illegal address access, etc.) or Out Of Memory (OOM). At this time, we can view the error cause through the following steps:
+6. When querying a table in ORC format, if the FE reports `Could not obtain block` or `Caused by: java.lang.NoSuchFieldError: types`, it may be due to the FE accessing HDFS to retrieve file information and perform file splitting by default. In some cases, the FE may not be able to access HDFS. This can be resolved by adding the following parameter: `"hive.exec.orc.split.strategy" = "BI"`. Other options include HYBRID (default) and ETL.
 
-   1. Check `be.out`
+7. In Hive, you can find the partition field values of a Hudi table, but in Doris, you cannot. Doris and Hive currently have different ways of querying Hudi. In Doris, you need to add the partition fields in the avsc file structure of the Hudi table. If not added, Doris will query with partition_val being empty (even if `hoodie.datasource.hive_sync.partition_fields=partition_val` is set).
 
-      The BE process is implemented to print the current error stack to `be.out` when the program exits due to abnormal conditions (note it is `be.out`, not `be.INFO` or `be.WARNING`). Through the error stack, you can usually roughly obtain the location where the program went wrong.
-
-      Note that if an error stack appears in `be.out`, it is usually due to a program bug, and ordinary users may not be able to solve it by themselves. Welcome to seek help in the WeChat group, GitHub Discussion, or dev mailing list, and post the corresponding error stack for quick troubleshooting.
-
-   2. dmesg
-
-      If there is no stack information in `be.out`, it is most likely because it was forcibly killed by the system due to OOM. At this time, you can use the command `dmesg -T` to view the Linux system log. If there is a log similar to `Memory cgroup out of memory: Kill process 7187 (doris_be) score 1007 or sacrifice child` at the end, it means it was caused by OOM.
-
-      Memory issues may be caused by multiple aspects, such as large queries, imports, compaction, etc. Doris is also constantly optimizing memory usage. Welcome to seek help in the WeChat group, GitHub Discussion, or dev mailing list.
-
-   3. Check if there are logs starting with F in `be.INFO`
-
-      Logs starting with F are Fatal logs. For example, `F0916` represents the Fatal log on September 16. Fatal logs usually indicate program assertion errors, and assertion errors will directly cause the process to exit (indicating that the program has a bug). Welcome to seek help in the WeChat group, GitHub Discussion, or dev mailing list.
-
-2. FE
-
-   FE is a Java process, and its robustness is better than C/C++ programs. Usually, the reason for FE crashing may be OOM (Out-of-Memory) or metadata write failure. These errors usually have error stacks in `fe.log` or `fe.out`. Further troubleshooting is needed based on the error stack information.
-
-### Q7. Regarding the configuration of data directories SSD and HDD, sometimes you may encounter the error `Failed to find enough host with storage medium and tag` when creating tables
-
-Doris supports configuring multiple storage paths for a BE node. Under normal circumstances, configuring one storage path per disk is sufficient. At the same time, Doris supports specifying the storage medium attributes of paths, such as SSD or HDD. SSD represents high-speed storage devices, and HDD represents low-speed storage devices.
-
-If the cluster has only one type of medium, such as all HDD or all SSD, the best practice is not to explicitly specify the medium attribute in `be.conf`. If you encounter the above error `Failed to find enough host with storage medium and tag`, it is generally because only the SSD medium is configured in `be.conf`, while `properties {"storage_medium" = "hdd"}` is explicitly specified during table creation; similarly, if only the HDD medium is configured in `be.conf`, while `properties {"storage_medium" = "ssd"}` is explicitly specified during table creation, the above error will also occur. The solution is to modify the `properties` parameter of table creation to match the configuration; or remove the explicit configuration of SSD/HDD in `be.conf`.
-
-By specifying the storage medium attributes of paths, we can use Doris's hot and cold data partition storage function to store hot data on SSD at the partition level, while cold data will be automatically transferred to HDD.
-
-It should be noted that Doris will not automatically sense the actual storage medium type of the disk where the storage path is located. This type needs to be explicitly indicated by the user in the path configuration. For example, the path `/path/to/data1.SSD` indicates that this path is an SSD storage medium. And `data1.SSD` is the actual directory name. Doris determines the storage medium type based on the `.SSD` suffix after the directory name, not the actual storage medium type. That is to say, users can specify any path as an SSD storage medium, and Doris only recognizes the directory suffix and does not judge whether the storage medium matches. If no suffix is written, it defaults to HDD.
-
-In other words, `.HDD` and `.SSD` are only used to identify the "relative" "low-speed" and "high-speed" distinction of storage directories, and do not identify the actual storage medium type. So if there is no medium difference among the storage paths on the BE node, there is no need to fill in the suffix.
-
-### Q8. When using Nginx to implement Web UI load balancing with multiple FEs, unable to log in
-
-Doris can deploy multiple FEs. When accessing the Web UI, if Nginx is used for load balancing, the Session problem will cause constant prompts to log in again. This problem is actually a Session sharing problem. Nginx provides a centralized Session sharing solution. Here we use the `ip_hash` technology in Nginx. `ip_hash` can direct requests from a certain IP to the same backend, so that a certain client under this IP and a certain backend can establish a stable Session. `ip_hash` is defined in the `upstream` configuration:
-
-```text
-upstream  doris.com {
-   server    172.22.197.238:8030 weight=3;
-   server    172.22.197.239:8030 weight=4;
-   server    172.22.197.240:8030 weight=4;
-   ip_hash;
-}
-```
-
-The complete Nginx example configuration is as follows:
-
-```text
-user nginx;
-worker_processes auto;
-error_log /var/log/nginx/error.log;
-pid /run/nginx.pid;
-
-# Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
-include /usr/share/nginx/modules/*.conf;
-
-events {
-    worker_connections 1024;
-}
-
-http {
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-
-    sendfile            on;
-    tcp_nopush          on;
-    tcp_nodelay         on;
-    keepalive_timeout   65;
-    types_hash_max_size 2048;
-
-    include             /etc/nginx/mime.types;
-    default_type        application/octet-stream;
-
-    # Load modular configuration files from the /etc/nginx/conf.d directory.
-    # See http://nginx.org/en/docs/ngx_core_module.html#include
-    # for more information.
-    include /etc/nginx/conf.d/*.conf;
-    #include /etc/nginx/custom/*.conf;
-    upstream  doris.com {
-      server    172.22.197.238:8030 weight=3;
-      server    172.22.197.239:8030 weight=4;
-      server    172.22.197.240:8030 weight=4;
-      ip_hash;
+    ```
+    {
+        "type": "record",
+        "name": "record",
+        "fields": [{
+            "name": "partition_val",
+            "type": [
+                "null",
+                "string"
+                ],
+            "doc": "Preset partition field, empty string when not partitioned",
+            "default": null
+            },
+            {
+            "name": "name",
+            "type": "string",
+            "doc": "Name"
+            },
+            {
+            "name": "create_time",
+            "type": "string",
+            "doc": "Creation time"
+            }
+        ]
     }
+    ```
 
-    server {
-        listen       80;
-        server_name  gaia-pro-bigdata-fe02;
-        if ($request_uri ~ _load) {
-           return 307 http://$host$request_uri ;
-        }
+8. When querying a Hive external table, if you encounter the error `java.lang.ClassNotFoundException: Class com.hadoop.compression.lzo.LzoCodec not found`, search for `hadoop-lzo-*.jar` in the Hadoop environment, place it in the `"${DORIS_HOME}/fe/lib/"` directory, and restart the FE. Starting from version 2.0.2, you can place this file in the `custom_lib/` directory of the FE (if it does not exist, create it manually) to prevent file loss when upgrading the cluster due to the lib directory being replaced.
 
-        location / {
-            proxy_pass http://doris.com;
-            proxy_redirect default;
-        }
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
-    }
- }
-```
+9. When creating a Hive table specifying the serde as `org.apache.hadoop.hive.contrib.serde2.MultiDelimitserDe`, and encountering the error `storage schema reading not supported` when accessing the table, add the following configuration to the hive-site.xml file and restart the HMS service:
 
-### Q9. FE startup fails, fe.log keeps scrolling "wait catalog to be ready. FE type UNKNOWN"
+    ```
+    <property>
+      <name>metastore.storage.schema.reader.impl</name>
+      <value>org.apache.hadoop.hive.metastore.SerDeStorageSchemaReader</value>
+    </property> 
+    ```
 
-This problem usually has two reasons:
+10. Error: `java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty`. The complete error message in the FE log is as follows:
 
-1. The local IP obtained when FE started this time is inconsistent with the last startup, usually because `priority_network` was not set correctly, causing FE to match the wrong IP address when starting. You need to modify `priority_network` and restart FE.
+    ```
+    org.apache.doris.common.UserException: errCode = 2, detailMessage = S3 list path failed. path=s3://bucket/part-*,msg=errors while get file status listStatus on s3://bucket: com.amazonaws.SdkClientException: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    org.apache.doris.common.UserException: errCode = 2, detailMessage = S3 list path exception. path=s3://bucket/part-*, err: errCode = 2, detailMessage = S3 list path failed. path=s3://bucket/part-*,msg=errors while get file status listStatus on s3://bucket: com.amazonaws.SdkClientException: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    org.apache.hadoop.fs.s3a.AWSClientIOException: listStatus on s3://bucket: com.amazonaws.SdkClientException: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    Caused by: com.amazonaws.SdkClientException: Unable to execute HTTP request: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    Caused by: javax.net.ssl.SSLException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    Caused by: java.lang.RuntimeException: Unexpected error: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    Caused by: java.security.InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty
+    ```
 
-2. Most Follower FE nodes in the cluster have not started. For example, there are 3 Followers, but only one has started. At this time, you need to start at least one more FE so that the FE electable group can elect a Master to provide services.
+    Try updating the CA certificate on the FE node using `update-ca-trust (CentOS/RockyLinux)`, and then restart the FE process.
 
-If the above situations cannot be resolved, you can recover according to the [Metadata Operations Documentation](../admin-manual/trouble-shooting/metadata-operation.md) in the Doris official documentation.
+11. BE error: `java.lang.InternalError`. If you see an error similar to the following in `be.INFO`:
 
-### Q10. Lost connection to MySQL server at 'reading initial communication packet', system error: 0
+    ```
+    W20240506 15:19:57.553396 266457 jni-util.cpp:259] java.lang.InternalError
+            at org.apache.hadoop.io.compress.zlib.ZlibDecompressor.init(Native Method)
+            at org.apache.hadoop.io.compress.zlib.ZlibDecompressor.<init>(ZlibDecompressor.java:114)
+            at org.apache.hadoop.io.compress.GzipCodec$GzipZlibDecompressor.<init>(GzipCodec.java:229)
+            at org.apache.hadoop.io.compress.GzipCodec.createDecompressor(GzipCodec.java:188)
+            at org.apache.hadoop.io.compress.CodecPool.getDecompressor(CodecPool.java:183)
+            at org.apache.parquet.hadoop.CodecFactory$HeapBytesDecompressor.<init>(CodecFactory.java:99)
+            at org.apache.parquet.hadoop.CodecFactory.createDecompressor(CodecFactory.java:223)
+            at org.apache.parquet.hadoop.CodecFactory.getDecompressor(CodecFactory.java:212)
+            at org.apache.parquet.hadoop.CodecFactory.getDecompressor(CodecFactory.java:43)
+    ```
 
-If the following problem occurs when using the MySQL client to connect to Doris, it is usually because the JDK version used when compiling FE is different from the JDK version used when running FE. Note that when compiling with the Docker compilation image, the default JDK version is OpenJDK 11, which can be switched to OpenJDK 8 through commands (see the compilation documentation for details).
+    It is because the Doris built-in `libz.a` conflicts with the system environment's `libz.so`. To resolve this issue, first execute `export LD_LIBRARY_PATH=/path/to/be/lib:$LD_LIBRARY_PATH`, and then restart the BE process.
 
-### Q11. recoveryTracker should overlap or follow on disk last VLSN of 4,422,880 recoveryFirst= 4,422,882 UNEXPECTED_STATE_FATAL
+12. When inserting data into Hive, an error occurred as `HiveAccessControlException Permission denied: user [user_a] does not have [UPDATE] privilege on [database/table]`.
 
-Sometimes when restarting FE, the above error will occur (usually only in the case of multiple Followers). And the two values in the error differ by 2, causing FE startup to fail.
+    Since after inserting the data, the corresponding statistical information needs to be updated, and this update operation requires the alter privilege. Therefore, the alter privilege needs to be added for this user on Ranger.
 
-This is a bug in BDB JE that has not been resolved yet. If you encounter this situation, you can only recover the metadata through the fault recovery operation in the [Metadata Operations Documentation](../admin-manual/trouble-shooting/metadata-operation.md).
+13. When querying ORC files, if an error like  
+    `Orc row reader nextBatch failed. reason = Can't open /usr/share/zoneinfo/+08:00`  
+    occurs.
 
-### Q12. Doris compilation and installation JDK version incompatibility issue
+First check the `time_zone` setting of the current session. It is recommended to use a region-based timezone name such as `Asia/Shanghai`.
 
-When compiling Doris using Docker yourself, after the compilation is completed and installed, when starting FE, the exception information `java.lang.Suchmethoderror: java.nio.ByteBuffer.limit(I)Ljava/nio/ByteBuffer;` appears. This is because the default in Docker is JDK 11. If your installation environment uses JDK 8, you need to switch the JDK environment in Docker to JDK 8. For specific switching methods, refer to the [Compilation Documentation](https://doris.apache.org/community/source-install/compilation-with-docker).
+If the session timezone is already set to `Asia/Shanghai` but the query still fails, it indicates that the ORC file was generated with the timezone `+08:00`. During query execution, this timezone is required when parsing the ORC footer. In this case, you can try creating a symbolic link under the `/usr/share/zoneinfo/` directory that points `+08:00` to an equivalent timezone.
 
-### Q13. Starting FE locally or starting unit tests reports error Cannot find external parser table action_table.dat
+## HDFS
 
-Execute the following command:
+1. When accessing HDFS 3.x, if you encounter the error `java.lang.VerifyError: xxx`, in versions prior to 1.2.1, Doris depends on Hadoop version 2.8. You need to update to 2.10.2 or upgrade Doris to versions after 1.2.2.
 
-```bash
-cd fe && mvn clean install -DskipTests
-```
+2. Using Hedged Read to optimize slow HDFS reads. In some cases, high load on HDFS may lead to longer read times for data replicas on a specific HDFS, thereby slowing down overall query efficiency. The HDFS Client provides the Hedged Read feature. This feature initiates another read thread to read the same data if a read request exceeds a certain threshold without returning, and the result returned first is used.
 
-If the same error still occurs, manually execute the following command:
+   Note: This feature may increase the load on the HDFS cluster, so use it judiciously.
 
-```bash
-cp fe-core/target/generated-sources/cup/org/apache/doris/analysis/action_table.dat fe-core/target/classes/org/apache/doris/analysis
-```
+   You can enable this feature by:
 
-### Q15. After upgrading to version 1.2, BE fails to start with NoClassDefFoundError issue
+    ```
+    create catalog regression properties (
+        'type'='hms',
+        'hive.metastore.uris' = 'thrift://172.21.16.47:7004',
+        'dfs.client.hedged.read.threadpool.size' = '128',
+        'dfs.client.hedged.read.threshold.millis' = "500"
+    );
+    ```
 
-:::note
-Java UDF dependency error is supported starting from Doris version 1.2
-:::
+   `dfs.client.hedged.read.threadpool.size` represents the number of threads used for Hedged Read, which are shared by an HDFS Client. Typically, for an HDFS cluster, BE nodes will share an HDFS Client.
 
-If the following Java `NoClassDefFoundError` error occurs when starting BE after upgrading:
+   `dfs.client.hedged.read.threshold.millis` is the read threshold in milliseconds. When a read request exceeds this threshold without returning, a Hedged Read is triggered.
 
-```text
-Exception in thread "main" java.lang.NoClassDefFoundError: org/apache/doris/udf/JniUtil
-Caused by: java.lang.ClassNotFoundException: org.apache.doris.udf.JniUtil
-```
+   When enabled, you can see the related parameters in the Query Profile:
 
-You need to download the Java UDF function dependency package `apache-doris-java-udf-jar-with-dependencies-1.2.0` from the official website, place it in the `lib` directory under the BE installation directory, and then restart BE.
+   `TotalHedgedRead`: Number of times Hedged Read was initiated.
 
-### Q16. After upgrading to version 1.2, BE startup shows Failed to initialize JNI issue
+   `HedgedReadWins`: Number of successful Hedged Reads (times when the request was initiated and returned faster than the original request)
 
-:::note
-Java environment issue is supported starting from Doris version 1.2
-:::
+   Note that these values are cumulative for a single HDFS Client, not for a single query. The same HDFS Client can be reused by multiple queries.
 
-If the following `Failed to initialize JNI` error occurs when starting BE after upgrading:
+3. `Couldn't create proxy provider class org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider`
 
-```text
-Failed to initialize JNI: Failed to find the library libjvm.so.
-```
+   In the start scripts of FE and BE, the environment variable `HADOOP_CONF_DIR` is added to the CLASSPATH. If `HADOOP_CONF_DIR` is set incorrectly, such as pointing to a non-existent or incorrect path, it may load the wrong xxx-site.xml file, resulting in reading incorrect information.
 
-You need to set the `JAVA_HOME` environment variable in the system, or set the `JAVA_HOME` variable in `be.conf`, and then restart the BE node.
+   Check if `HADOOP_CONF_DIR` is configured correctly or remove this environment variable.
 
-### Q17. Docker: backend fails to start
+4. `BlockMissingExcetpion: Could not obtain block: BP-XXXXXXXXX No live nodes contain current block`
 
-This may be due to the CPU not supporting AVX2, check the backend logs with `docker logs -f be`.
-If the CPU does not support AVX2, the `apache/doris:1.2.2-be-x86_64-noavx2` image must be used,
-instead of `apache/doris:1.2.2-be-x86_64`.
-Note that the image version number will change over time, check [Dockerhub](https://registry.hub.docker.com/r/apache/doris/tags?page=1&name=avx2) for the most recent version.
+   Possible solutions include:
+
+   - Use `hdfs fsck file -files -blocks -locations` to check if the file is healthy.
+
+   - Check connectivity with datanodes using `telnet`.
+
+     The following error may be printed in the error log:
+
+        ```
+        No live nodes contain current block Block locations: DatanodeInfoWithStorage[10.70.150.122:50010,DS-7bba8ffc-651c-4617-90e1-6f45f9a5f896,DISK]
+        ```
+
+     You can first check the connectivity between the Doris cluster and `10.70.150.122:50010`.
+
+     In addition, in some cases, the HDFS cluster uses dual network  with internal and external IPs. In this case, domain names are required for communication, and the following needs to be added to the Catalog properties: `"dfs.client.use.datanode.hostname" = "true"`.
+
+     At the same time, please check whether the parameter is true in the `hdfs-site.xml` file placed under `fe/conf` and `be/conf`.
+
+   - Check datanode logs.
+
+     If you encounter the following error:
+
+        ```
+        org.apache.hadoop.hdfs.server.datanode.DataNode: Failed to read expected SASL data transfer protection handshake from client at /XXX.XXX.XXX.XXX:XXXXX. Perhaps the client is running an older version of Hadoop which does not support SASL data transfer protection
+        ```
+
+     it means that the current hdfs has enabled encrypted transmission, but the client has not, causing the error.
+
+     Use any of the following solutions:
+
+     - Copy `hdfs-site.xml` and `core-site.xml` to `fe/conf` and `be/conf`. (Recommended)
+     - In `hdfs-site.xml`, find the corresponding configuration `dfs.data.transfer.protection` and set this parameter in the catalog.
+
+## DLF Catalog
+
+1. When using the DLF Catalog, if `Invalid address` occurs during BE reading JindoFS data, add the domain name appearing in the logs to IP mapping in `/etc/hosts`.
+
+2. If there is no permission to read data, use the `hadoop.username` property to specify a user with permission.
+
+3. The metadata in the DLF Catalog should be consistent with DLF. When managing metadata using DLF, newly imported partitions in Hive may not be synchronized by DLF, leading to inconsistencies between DLF and Hive metadata. To address this, ensure that Hive metadata is fully synchronized by DLF.
+
+## Other Issues
+
+1. Query results in garbled characters after mapping Binary type to Doris
+
+   Doris natively does not support the Binary type, so when mapping Binary types from various data lakes or databases to Doris, it is usually done using the String type. The String type can only display printable characters. If you need to query the content of Binary data, you can use the `TO_BASE64()` function to convert it to Base64 encoding before further processing.
+
+2. Analyzing Parquet files
+
+   When querying Parquet files, due to potential differences in the format of Parquet files generated by different systems, such as the number of RowGroups, index values, etc., sometimes it is necessary to check the metadata of Parquet files for issue identification or performance analysis. Here is a tool provided to help users analyze Parquet files more conveniently:
+
+   1. Download and unzip [Apache Parquet Cli 1.14.0](https://github.com/morningman/tools/releases/download/apache-parquet-cli-1.14.0/apache-parquet-cli-1.14.0.tar.xz)
+
+   2. Download the Parquet file to be analyzed to your local machine, assuming the path is `/path/to/file.parquet`
+
+   3. Use the following command to analyze the metadata of the Parquet file:
+
+      `./parquet-tools meta /path/to/file.parquet`
+
+   4. For more functionalities, refer to [Apache Parquet Cli documentation](https://github.com/apache/parquet-java/tree/apache-parquet-1.14.0/parquet-cli)
