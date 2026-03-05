@@ -1,23 +1,23 @@
 ---
 {
-  "title": "BITMAP_AND_NOT_COUNT,BITMAP_ANDNOT_COUNT",
+  "title": "BITMAP_AND_NOT,BITMAP_ANDNOT",
   "language": "en",
-  "description": "Performs a NOT operation on two BITMAPs and returns the number of elements in the result set."
+  "description": "Perform a NOT operation on two BITMAPs and return the result. The first input parameter is called base BITMAP and the second is called exclude BITMAP."
 }
 ---
 
 ## Description
 
-Performs a NOT operation on two BITMAPs and returns the number of elements in the result set. The first input parameter is called `base BITMAP` and the second is called `exclusion BITMAP`.
+Perform a NOT operation on two BITMAPs and return the result. The first input parameter is called `base BITMAP` and the second is called `exclude BITMAP`.
 
 ## Alias
 
-- BITMAP_ANDNOT_COUNT
+- BITMAP_ANDNOT
 
 ## Syntax
 
 ```sql
-BITMAP_AND_NOT_COUNT(<bitmap1>, <bitmap2>)
+BITMAP_AND_NOT(<bitmap1>, <bitmap2>)
 ```
 
 ## Parameters
@@ -29,32 +29,56 @@ BITMAP_AND_NOT_COUNT(<bitmap1>, <bitmap2>)
 
 ## Return Value
 
-Returns an integer.
+Returns a BITMAP.
 
-- If the parameter has a NULL value, returns 0
+- If the parameter has a NULL value, returns NULL
 
 ## Examples
 
 ```sql
-select bitmap_and_not_count(NULL, bitmap_from_string('1,2,3')) banc1, bitmap_and_not_count(bitmap_from_string('1,2,3'), NULL) banc2;
+select bitmap_count(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_from_string('3,4,5'))) cnt;
 ```
 
 ```text
-+-------+-------+
-| banc1 | banc2 |
-+-------+-------+
-|     0 |     0 |
-+-------+-------+
++------+
+| cnt  |
++------+
+|    2 |
++------+
 ```
 
 ```sql
-select bitmap_and_not_count(bitmap_from_string('1,2,3'), bitmap_from_string('3,4,5')) banc;
+select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_from_string('3,4,5'))) as cnt;
 ```
 
 ```text
 +------+
-| banc |
+| cnt  |
 +------+
-|    2 |
+| 1,2  |
++------+
+```
+
+```sql
+select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_empty())) cnt;
+```
+
+```text
++-------+
+| cnt   |
++-------+
+| 1,2,3 |
++-------+
+```
+
+```sql
+select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),NULL)) as res;
+```
+
+```text
++------+
+| res  |
++------+
+| NULL |
 +------+
 ```
