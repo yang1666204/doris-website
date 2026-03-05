@@ -1,50 +1,52 @@
 ---
 {
-  "title": "BIT_COUNT",
+  "title": "BITNOT",
   "language": "en",
-  "description": "Returns the number of 1 bits in the binary representation of an integer value."
+  "description": "Performs a bitwise NOT operation on an integer."
 }
 ---
 
 ## Description
 
-Returns the number of 1 bits in the binary representation of an integer value. This function can be used to quickly count the "active" bits in the binary representation of an integer, which is often useful for analyzing data distribution or performing certain bitwise operations.
+Performs a bitwise NOT operation on an integer.
+
+Supported integer types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT.
 
 ## Syntax
 
 ```sql
-BIT_COUNT(<x>)
+BITNOT(<x>)
 ```
 
 ## Parameters
 
-- `<x>`: The integer whose binary representation will be counted for 1 bits. Supported types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT.
+- `<x>`: The integer to perform the operation on.
 
 ## Return Value
 
-Returns the number of 1 bits in the binary representation of `<x>`.
+Returns the result of the bitwise NOT operation on the integer.
 
 ## Examples
 
 1. Example 1
     ```sql
-    select BIT_COUNT(0), BIT_COUNT(8), BIT_COUNT(-1);
+    select BITNOT(7), BITNOT(-127);
     ```
     ```text
-    +--------------+--------------+---------------+
-    | BIT_COUNT(0) | BIT_COUNT(8) | BIT_COUNT(-1) |
-    +--------------+--------------+---------------+
-    |            0 |            1 |             8 |
-    +--------------+--------------+---------------+
+    +-----------+--------------+
+    | BITNOT(7) | BITNOT(-127) |
+    +-----------+--------------+
+    |        -8 |          126 |
+    +-----------+--------------+
     ```
 2. NULL argument
     ```sql
-    select BIT_COUNT(NULL);
+    select BITNOT(NULL);
     ```
     ```text
-    +-----------------+
-    | BIT_COUNT(NULL) |
-    +-----------------+
-    |            NULL |
-    +-----------------+
+    +--------------+
+    | BITNOT(NULL) |
+    +--------------+
+    |         NULL |
+    +--------------+
     ```
