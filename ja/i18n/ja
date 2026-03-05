@@ -1,149 +1,93 @@
 ---
 {
-  "title": "HOUR_FLOOR",
+  "title": "HOUR",
   "language": "en",
-  "description": "HOUR_FLOOR function rounds down the input datetime value to the nearest moment of the specified hour period. For example, if the period is 5 hours, the function adjusts the input time to the starting hour mark within that period."
+  "description": "The HOUR function extracts the hour part from a datetime or time expression. This function supports multiple time type inputs,"
 }
 ---
 
 ## Description
 
-HOUR_FLOOR function rounds down the input datetime value to the nearest moment of the specified hour period. For example, if the period is 5 hours, the function adjusts the input time to the starting hour mark within that period.
+The HOUR function extracts the hour part from a datetime or time expression. This function supports multiple time type inputs, including DATE/DATETIME and TIME, and returns the corresponding hour value.
 
-Date calculation formula:
+For DATETIME (such as '2023-10-01 14:30:00'), the return value ranges from 0-23 (24-hour format).
+For TIME type (such as '456:26:32'), the return value can exceed 24, ranging from [0,838].
 
-$$
-\begin{aligned}
-&\text{hour\_floor}(\langle\text{date\_or\_time\_expr}\rangle, \langle\text{period}\rangle, \langle\text{origin}\rangle) = \\
-&\max\{\langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{hour} \mid \\
-&k \in \mathbb{Z} \land \langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{hour} \leq \langle\text{date\_or\_time\_expr}\rangle\}
-\end{aligned}
-$$
-
-$k$ represents the number of periods from the baseline time to the target time.
+This function behaves consistently with the [hour function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_hour) in MySQL.
 
 ## Syntax
 
 ```sql
-HOUR_FLOOR(`<date_or_time_expr>`)
-HOUR_FLOOR(`<date_or_time_expr>`, `<origin>`)
-HOUR_FLOOR(`<date_or_time_expr>`, `<period>`)
-HOUR_FLOOR(`<date_or_time_expr>`, `<period>`, `<origin>`)
+HOUR(`<date_or_time_expr>`)
 ```
 
 ## Parameters
 
-| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<date_or_time_expr>` | A valid date expression that supports datetime/date/timestamptz types. Date type will be converted to the start time 00:00:00 of the corresponding date. For specific formats please see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), and for datetime/date formats refer to [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
-| `<period>`            | Optional parameter that specifies the period length (unit: hours), must be a positive integer (such as 2, 6, 12). Default value is 1, representing one period every 1 hour                                                                                                                                                                                                                                                                                                                                                                                 |
-| `<origin>`            | The starting time origin, supports datetime/date types. If not provided, the default is 0001-01-01T00:00:00                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr>` | A valid date expression that supports datetime/date/time types. Date type will be converted to the start time 00:00:00 of the corresponding date. For specific datetime/date/time formats, please refer to [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion), and [time conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/time-conversion) |
 
 ## Return Value
 
-Returns a TIMESTAMPTZ, DATETIME or DATE type value representing the nearest period moment after rounding down.
+Returns an integer type (INT) representing the hour part of the input expression.
 
-- If the input is TIMESTAMPTZ type, it will first be converted to local_time (for example: `2025-12-31 23:59:59+05:00` represents local_time `2026-01-01 02:59:59` when the session variable is `+08:00`), and then perform FLOOR calculation.
-- If the input time values (`<date_or_time_expr>` and `<period>`) contain both TIMESTAMPTZ and DATETIME types, the output is DATETIME type.
-- If the input period is a non-positive integer, returns error.
-- If any parameter is NULL, the result returns NULL.
-- If origin or datetime has scale, the returned result has scale.
-- If the `<origin>` date and time is after the `<period>`, it will still be calculated according to the above formula, but the period k will be negative.
+- For DATETIME, returns an integer from 0-23.
+- For DATE type, returns 0.
+- For TIME type, returns an integer from 0 to 838 (consistent with the TIME type range), it return tht absolute value.
+- If the input parameter is NULL, returns NULL.
 
 ## Examples
 
 ```sql
+-- Extract hour from datetime (24-hour format)
+select 
+    hour('2018-12-31 23:59:59') as last_hour,
+    hour('2023-01-01 00:00:00') as midnight,   
+    hour('2023-10-01 12:30:45') as noon;     
 
--- Round down by 5-hour period, default origin is 0001-01-01 00:00:00
-mysql> select hour_floor("2023-07-13 22:28:18", 5);
-+--------------------------------------+
-| hour_floor("2023-07-13 22:28:18", 5) |
-+--------------------------------------+
-| 2023-07-13 18:00:00                  |
-+--------------------------------------+
++-----------+----------+------+
+| last_hour | midnight | noon |
++-----------+----------+------+
+|        23 |        0 |   12 |
++-----------+----------+------+
 
--- Using 2023-07-13 08:00 as origin, divide by 4-hour periods
-mysql> select hour_floor('2023-07-13 19:30:00', 4, '2023-07-13 08:00:00') as custom_origin;
-+---------------------+
-| custom_origin       |
-+---------------------+
-| 2023-07-13 16:00:00 |
-+---------------------+
+-- Extract hour from TIME type (supports over 24 or negative values)
+select 
+    hour(cast('14:30:00' as time)) as normal_hour,     
+    hour(cast('25:00:00' as time)) as over_24,
+    hour(cast('456:26:32' as time)) as large_hour,     
+    hour(cast('-12:30:00' as time)) as negative_hour, 
+    hour(cast('838:59:59' as time)) as max_hour,    
+    hour(cast('-838:59:59' as time)) as min_hour;    
 
--- Input datetime exactly at period edge, return input datetime value
-select hour_floor("2023-07-13 18:00:00", 5);
-+--------------------------------------+
-| hour_floor("2023-07-13 18:00:00", 5) |
-+--------------------------------------+
-| 2023-07-13 18:00:00                  |
-+--------------------------------------+
++-------------+---------+------------+---------------+----------+----------+
+| normal_hour | over_24 | large_hour | negative_hour | max_hour | min_hour |
++-------------+---------+------------+---------------+----------+----------+
+|          14 |      25 |        456 |            12 |      838 |      838 |
++-------------+---------+------------+---------------+----------+----------+
 
--- Only with origin date and specified date
-select hour_floor("2023-07-13 22:28:18", "2023-07-01 12:12:00");
-+----------------------------------------------------------+
-| hour_floor("2023-07-13 22:28:18", "2023-07-01 12:12:00") |
-+----------------------------------------------------------+
-| 2023-07-13 22:12:00                                      |
-+----------------------------------------------------------+
+-- Extract hour from date type, returns 0
+select hour("2022-12-12");
++--------------------+
+| hour("2022-12-12") |
++--------------------+
+|                  0 |
++--------------------+
 
--- Input date type will be converted to start time 2023-07-13 00:00:00 of the day
-mysql> select hour_floor('2023-07-13 20:30:00', 4, '2023-07-13');
-+----------------------------------------------------+
-| hour_floor('2023-07-13 20:30:00', 4, '2023-07-13') |
-+----------------------------------------------------+
-| 2023-07-13 20:00:00                                |
-+----------------------------------------------------+
+-- Will not automatically convert input time string to time, returns NULL
+select hour('14:30:00') as normal_hour;
++-------------+
+| normal_hour |
++-------------+
+|        NULL |
++-------------+
 
--- TimeStampTz sample, SET time_zone = '+08:00'
--- Convert to local_time (2026-01-01 02:59:59) and then perform HOUR_FLOOR
-SELECT HOUR_FLOOR('2025-12-31 23:59:59+05:00');
-+-----------------------------------------+
-| HOUR_FLOOR('2025-12-31 23:59:59+05:00') |
-+-----------------------------------------+
-| 2026-01-01 02:00:00                     |
-+-----------------------------------------+
-
--- If parameters contain both TimeStampTz and Datetime types, output DateTime type
-SELECT HOUR_FLOOR('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123');
-+--------------------------------------------------------------------+
-| HOUR_FLOOR('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123') |
-+--------------------------------------------------------------------+
-| 2026-01-01 02:00:00.123                                            |
-+--------------------------------------------------------------------+
-
--- If origin or datetime has scale, the returned result has scale
-mysql> select hour_floor('2023-07-13 19:30:00.123', 4, '2023-07-03 08:00:00') as custom_origin;
-+-------------------------+
-| custom_origin           |
-+-------------------------+
-| 2023-07-13 16:00:00.000 |
-+-------------------------+
-
-mysql> select hour_floor('2023-07-13 19:30:00', 4, '2023-07-03 08:00:00.123') as custom_origin;
-+-------------------------+
-| custom_origin           |
-+-------------------------+
-| 2023-07-13 16:00:00.123 |
-+-------------------------+
-
---- If the <origin> date and time is after the <period>, it will still be calculated according to the above formula, but the period k will be negative.
-select hour_floor('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00') ;
-+-----------------------------------------------------------------+
-| hour_floor('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00') |
-+-----------------------------------------------------------------+
-| 2023-07-13 16:00:00.000                                         |
-+-----------------------------------------------------------------+
-
--- Input any parameter as NULL (returns NULL)
-mysql> select hour_floor(null, 6) as null_input;
+-- Input parameter is NULL, returns NULL
+mysql> select hour(NULL);
 +------------+
-| null_input |
+| hour(NULL) |
 +------------+
-| NULL       |
+|       NULL |
 +------------+
-
--- Period is negative, returns erro
-mysql> select hour_floor('2023-12-31 23:59:59', -3);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation hour_floor of 2023-12-31 23:59:59, -3 out of range
-
 ```
+
