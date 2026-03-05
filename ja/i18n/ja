@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_JOIN",
-  "language": "en-US",
-  "description": "Joins the elements of an array into a string. The function converts all elements in the array to strings and then concatenates them with the "
+  "title": "ARRAY_LAST_INDEX",
+  "language": "en",
+  "description": "Finds the position index (starting from 1) of the last element in the array that satisfies the lambda expression."
 }
 ---
 
-## array_join
+## array_last_index
 
 <version since="2.0.0">
 
@@ -14,19 +14,18 @@
 
 ## Description
 
-Joins the elements of an array into a string. The function converts all elements in the array to strings and then concatenates them with the specified separator.
+Finds the position index (starting from 1) of the last element in the array that satisfies the lambda expression. Finds the last element that satisfies the condition and returns its position index.
 
 ## Syntax
 
 ```sql
-array_join(ARRAY<T> arr, STRING separator [, STRING null_replacement])
+array_last_index(lambda, ARRAY<T> arr1, [ARRAY<T> arr2, ...])
 ```
 
 ### Parameters
 
-- `arr`：ARRAY<T> type, the array to be joined
-- `separator`：STRING type, required parameter, the separator used to separate array elements
-- `null_replacement`：STRING type, optional parameter, the string used to replace null values in the array. If this parameter is not provided, null values will be skipped
+- `lambda`：lambda expression used to define search conditions
+- `arr1, arr2, ...`：ARRAY<T> type, arrays to search. Supports one or more array parameters.
 
 **Supported types for T:**
 
@@ -35,146 +34,140 @@ array_join(ARRAY<T> arr, STRING separator [, STRING null_replacement])
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
+- Complex types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
-Return type: STRING
+Return type: BIGINT
 
 Return value meaning:
 
-- Returns a string containing all elements of the array, joined with the separator
-- NULL: if the input array is NULL
+- Returns the position index of the last element in the array that satisfies the lambda expression. The return value starts from 1, not 0. If the found element that satisfies the condition matches the first element in the array, this function returns 1, not 0
+- 0: if the input array is NULL and there is no lambda expression, or the array is empty, or no element satisfies the condition
 
 Usage notes:
 
-- The function converts each element in the array to a string and joins them with the specified separator
-- For null values in array elements:
-  - If the `null_replacement` parameter is provided, null elements will be replaced with that string
-  - If the `null_replacement` parameter is not provided, null elements will be skipped
-- Empty arrays return empty strings
+- The number of parameters in the lambda expression must match the number of array parameters
+- Empty arrays return 0. When the input parameter is a NULL array and there is no lambda expression, returns 0. If the input parameter is a NULL array with a lambda expression, it will error
+- When there are multiple array parameters, all arrays must have the same length
+- Lambda can use any scalar expression, but cannot use aggregate functions
+- Lambda expressions can call other higher-order functions, but the return types must be compatible
+- For null values in array elements: null elements will be passed to the lambda expression for processing, and lambda can check for null values
 
 **Query Examples:**
 
-Join arrays with a separator:
+Find the position index of the last element greater than or equal to 3 in a floating-point array:
 
 ```sql
-SELECT array_join([1, 2, 3, 4, 5], ',');
-+--------------------------------------+
-| array_join([1, 2, 3, 4, 5], ',')    |
-+--------------------------------------+
-| 1,2,3,4,5                           |
-+--------------------------------------+
+SELECT array_last_index(x -> x >= 3, [1.1, 2.2, 3.3, 4.4, 5.5]);
++----------------------------------------------------------+
+| array_last_index(x -> x >= 3, [1.1, 2.2, 3.3, 4.4, 5.5]) |
++----------------------------------------------------------+
+|                                                        5 |
++----------------------------------------------------------+
 ```
 
-Join string arrays with a space separator:
+Find the position index of the last element with length greater than 2 in a string array:
 
 ```sql
-SELECT array_join(['hello', 'world', 'doris'], ' ');
-+--------------------------------------------------+
-| array_join(['hello', 'world', 'doris'], ' ')    |
-+--------------------------------------------------+
-| hello world doris                                |
-+--------------------------------------------------+
+SELECT array_last_index(x -> length(x) > 2, ['a', 'bb', 'ccc', 'dddd', 'eeeee']);
++---------------------------------------------------------------------------+
+| array_last_index(x -> length(x) > 2, ['a', 'bb', 'ccc', 'dddd', 'eeeee']) |
++---------------------------------------------------------------------------+
+|                                                                         5 |
++---------------------------------------------------------------------------+
 ```
 
-Join arrays containing null values (null values are skipped):
+Empty array returns 0:
 
 ```sql
-SELECT array_join([1, null, 3, null, 5], '-');
-+--------------------------------------------+
-| array_join([1, null, 3, null, 5], '-')    |
-+--------------------------------------------+
-| 1-3-5                                      |
-+--------------------------------------------+
+SELECT array_last_index(x -> x > 0, []);
++----------------------------------------+
+| array_last_index(x -> x > 0, [])     |
++----------------------------------------+
+| 0                                      |
++----------------------------------------+
 ```
 
-Replace null values using the null_replacement parameter:
+NULL array and lambda expression combination. When there is a lambda expression with NULL, it will error. When there is no lambda expression, it returns 0:
 
 ```sql
-SELECT array_join([1, null, 3, null, 5], '-', 'NULL');
-+--------------------------------------------------+
-| array_join([1, null, 3, null, 5], '-', 'NULL')  |
-+--------------------------------------------------+
-| 1-NULL-3-NULL-5                                 |
-+--------------------------------------------------+
+SELECT array_last_index(NULL);
++-------------------------+
+| array_last_index(NULL) |
++-------------------------+
+|                       0 |
++-------------------------+
+
+SELECT array_last_index(x -> x > 2, NULL);
+ERROR 1105 (HY000): errCode = 2, detailMessage = lambda argument must be array but is NULL
 ```
 
-Join float arrays:
+Array containing null values, lambda can check for null:
 
 ```sql
-SELECT array_join([1.1, 2.2, 3.3], ' | ');
-+------------------------------------------+
-| array_join([1.1, 2.2, 3.3], ' | ')      |
-+------------------------------------------+
-| 1.1 | 2.2 | 3.3                         |
-+------------------------------------------+
+SELECT array_last_index(x -> x is not null, [null, 1, null, 3, null, 5]);
++-------------------------------------------------------------------+
+| array_last_index(x -> x is not null, [null, 1, null, 3, null, 5]) |
++-------------------------------------------------------------------+
+|                                                                 6 |
++-------------------------------------------------------------------+
 ```
 
-Join date arrays:
+Multi-array search, find the position index of the last element where the first array is greater than the second array:
 
 ```sql
-SELECT array_join(CAST(['2023-01-01', '2023-06-15', '2023-12-31'] AS ARRAY<DATETIME>), ' to ');
-+-----------------------------------------------------------------------------------------+
-| array_join(CAST(['2023-01-01', '2023-06-15', '2023-12-31'] AS ARRAY<DATETIME>), ' to ') |
-+-----------------------------------------------------------------------------------------+
-| 2023-01-01 00:00:00 to 2023-06-15 00:00:00 to 2023-12-31 00:00:00                       |
-+-----------------------------------------------------------------------------------------+
+SELECT array_last_index((x, y) -> x > y, [1, 2, 3, 4, 5], [1.1, 2.2, 3.3, 4.4, 5.5]);
++-------------------------------------------------------------------------------+
+| array_last_index((x, y) -> x > y, [1, 2, 3, 4, 5], [1.1, 2.2, 3.3, 4.4, 5.5]) |
++-------------------------------------------------------------------------------+
+|                                                                             0 |
++-------------------------------------------------------------------------------+
 ```
 
-Join IP address arrays:
+Nested array search, find the position index of the last element where each sub-array length is greater than 2:
 
 ```sql
-SELECT array_join(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), ' -> ');
-+----------------------------------------------------------------------------------+
-| array_join(CAST(['192.168.1.1', '192.168.1.2', '192.168.1.3'] AS ARRAY<IPV4>), ' -> ') |
-+----------------------------------------------------------------------------------+
-| 192.168.1.1 -> 192.168.1.2 -> 192.168.1.3                                       |
-+----------------------------------------------------------------------------------+
+SELECT array_last_index(x -> size(x) > 2, [[1,2],[3,4,5],[6],[7,8,9,10]]);
++--------------------------------------------------------------------+
+| array_last_index(x -> size(x) > 2, [[1,2],[3,4,5],[6],[7,8,9,10]]) |
++--------------------------------------------------------------------+
+|                                                                  4 |
++--------------------------------------------------------------------+
 ```
 
-Empty arrays return empty strings:
+Map type search, find the position index of the last element where the value with key 'a' is greater than 10:
 
 ```sql
-SELECT array_join([], ',');
-+----------------------+
-| array_join([], ',')  |
-+----------------------+
-|                      |
-+----------------------+
+SELECT array_last_index(x -> x['a'] > 10, [{'a':5}, {'a':15}, {'a':20}]);
++-------------------------------------------------------------------+
+| array_last_index(x -> x['a'] > 10, [{'a':5}, {'a':15}, {'a':20}]) |
++-------------------------------------------------------------------+
+|                                                                 3 |
++-------------------------------------------------------------------+
 ```
 
-NULL arrays return NULL:
+Error when parameter count is wrong:
 
 ```sql
-SELECT array_join(NULL, ',');
-+----------------------+
-| array_join(NULL, ',') |
-+----------------------+
-| NULL                 |
-+----------------------+
+SELECT array_last_index();
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_last_index' which has 0 arity. Candidate functions are: [array_last_index(Expression, Expression...)]
 ```
 
-Error when passing complex types:
+Error when the number of parameters in lambda expression doesn't match the number of array parameters:
 
 ```sql
-SELECT array_join([{'name':'Alice','age':20}, {'name':'Bob','age':30}], '; ');
-ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<MAP<TEXT,TEXT>> to target type=ARRAY<VARCHAR(65533)>
+SELECT array_last_index(x -> x > 0, [1,2,3], [4,5,6], [7,8,9]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = lambda x -> (x > 0) arguments' size is not equal parameters' size
 ```
 
-Error with wrong number of parameters:
+Error when passing non-array type:
 
 ```sql
-SELECT array_join([1,2,3], ',', 'extra', 'too_many');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_join' which has 4 arity. Candidate functions are: [array_join(Expression, Expression, Expression), array_join(Expression, Expression)]
-```
-
-Error when passing non-array types:
-
-```sql
-SELECT array_join('not_an_array', ',');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_join(VARCHAR(12), VARCHAR(1))
+SELECT array_last_index(x -> x > 0, 'not_an_array');
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_last_index(Expression, VARCHAR(12))
 ```
 
 ### Keywords
 
-ARRAY, JOIN, ARRAY_JOIN
+ARRAY, LAST, INDEX, ARRAY_LAST_INDEX
