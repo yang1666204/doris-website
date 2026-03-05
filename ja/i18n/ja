@@ -1,68 +1,72 @@
 ---
 {
-  "title": "GROUP_BIT_XOR",
+  "title": "GROUP_BITMAP_XOR",
   "language": "en",
-  "description": "Performs a bitwise XOR operation on all values in a single integer column or expression."
+  "description": "Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results."
 }
 ---
 
 ## Description
 
-Performs a bitwise XOR operation on all values in a single integer column or expression.
+Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results.
 
 ## Syntax
 
 ```sql
-GROUP_BIT_XOR(<expr>)
+GROUP_BITMAP_XOR(<expr>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                   |
-| --------- | --------------------------------------------------------------------------------------------- |
-| `<expr>`  | Supports types: TinyInt, SmallInt, Integer, BigInt, LargeInt. |
+| Parameter | Description                 |
+| --------- | --------------------------- |
+| `<expr>`  | Supported bitmap data types |
 
 ## Return Value
 
-Returns an integer value of the same type as <expr>. If all values are NULL, returns NULL. NULL values are not involved in the bitwise operation.
+The data type of the return value is BITMAP. If there is no valid data in the group, returns NULL.
 
 ## Example
 
 ```sql
 -- setup
-create table group_bit(
-    value int
-) distributed by hash(value) buckets 1
-properties ("replication_num"="1");
-
-insert into group_bit values
-    (3),
-    (1),
-    (2),
-    (4),
-    (NULL);
+CREATE TABLE pv_bitmap (
+	page varchar(10),
+	user_id BITMAP
+) DISTRIBUTED BY HASH(page) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO pv_bitmap VALUES
+	('m', to_bitmap(4)),
+	('m', to_bitmap(7)),
+	('m', to_bitmap(8)),
+	('m', to_bitmap(1)),
+	('m', to_bitmap(3)),
+	('m', to_bitmap(6)),
+	('m', to_bitmap(15)),
+	('m', to_bitmap(4)),
+	('m', to_bitmap(7));
 ```
 
 ```sql
-select group_bit_xor(value) from group_bit;
+select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
 ```
 
 ```text
-+----------------------+
-| group_bit_xor(value) |
-+----------------------+
-|                    4 |
-+----------------------+
++------+---------------------------------------------+
+| page | bitmap_to_string(group_bitmap_xor(user_id)) |
++------+---------------------------------------------+
+| m    | 1,3,6,8,15                                  |
++------+---------------------------------------------+
 ```
 
 ```sql
-select group_bit_xor(value) from group_bit where value is null;
+select bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap where page is null;
 ```
 
 ```text
-+----------------------+
-| group_bit_xor(value) |
-+----------------------+
-|                 NULL |
-+----------------------+
++---------------------------------------------+
+| bitmap_to_string(group_bitmap_xor(user_id)) |
++---------------------------------------------+
+| NULL                                        |
++---------------------------------------------+
 ```
