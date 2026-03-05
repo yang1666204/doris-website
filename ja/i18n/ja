@@ -1,56 +1,104 @@
 ---
 {
-  "title": "UTC_TIMESTAMP",
+  "title": "WEEK",
   "language": "en",
-  "description": "The UTCTIMESTAMP function returns the current date and time in UTC timezone."
+  "description": "The WEEK function returns the week number for a specified date, with default Mode 0."
 }
 ---
 
 ## Description
 
-The UTC_TIMESTAMP function returns the current date and time in UTC timezone. This function is not affected by local timezone and always returns the current time based on UTC timezone, ensuring time consistency across different timezone scenarios.
+The WEEK function returns the week number for a specified date, with default Mode 0. It supports customizing week calculation rules through the mode parameter (such as whether the first day of the week is Sunday or Monday, the range of week numbers, criteria for determining the first week, etc.).
 
-This function behaves consistently with the [utc_timestamp function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_utc-timestamp) in MySQL.
+The effect of the mode parameter is shown in the following table:
+
+```sql
+|Mode |First day of week |Week number range |Definition of the first week                     |
+|:----|:-----------------|:-----------------|:------------------------------------------------|
+|0    |Sunday            |0-53             |The week containing the first Sunday of the year |
+|1    |Monday            |0-53             |The first week with 4 or more days in this year  |
+|2    |Sunday            |1-53             |The week containing the first Sunday of the year |
+|3    |Monday            |1-53             |The first week with 4 or more days in this year  |
+|4    |Sunday            |0-53             |The first week with 4 or more days in this year  |
+|5    |Monday            |0-53             |The week containing the first Monday of the year |
+|6    |Sunday            |1-53             |The first week with 4 or more days in this year  |
+|7    |Monday            |1-53             |The week containing the first Monday of the year |
+```
+
+This function is consistent with the [week function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_week) in MySQL.
 
 ## Syntax
 
 ```sql
-UTC_TIMESTAMP([`<precision>`])
+WEEK(`<date_or_time_expr>`)
+WEEK(`<date_or_time_expr>`, `<mode>`)
 ```
 
 ## Parameters
 
-| Parameter     | Description                                                                                                                                                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<precision>` | The precision of the returned date-time value supports integer types within the range [0, 6]. Only integer type constants are accepted. |
+| Parameter            | Description                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<datetime_or_date>` | Input datetime value, supports date/datetime types. For datetime and date formats, please refer to [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| `mode`               | Specified calculation method for the first week of the year, type INT, range 0-7                                                                                                                                                                                                                                                   |
 
 ## Return Value
 
-Returns the current UTC date and time.
+Returns INT type, representing the week number for the specified date, with specific range determined by `<mode>` (0-53 or 1-53).
 
-Returns DATETIME type (format: YYYY-MM-DD HH:mm:ss[.ssssss]). When using the returned result for numeric operations, it will be converted to the [integer format](../../../../sql-manual/basic-element/sql-data-types/conversion/int-conversion#from-datetime) (format YYYYMMDDHHmmss).
-
-When the input is NULL or the precision is out of range, an error will be thrown.
+- If `<mode>` is an integer outside 0-7, calculation is performed using Mode 7;
+- If any parameter is NULL, returns NULL;
+- Cross-year dates may return the last week of the previous year (e.g., January 1, 2023 belongs to week 52 of 2022 in some modes).
 
 ## Examples
 
 ```sql
--- Current local time is UTC+8 2025-10-27 14:43:21
-SELECT UTC_TIMESTAMP(), UTC_TIMESTAMP() + 0, UTC_TIMESTAMP(5), UTC_TIMESTAMP(5) + 0;
-```
+-- 2020-01-01 is Wednesday, the first Sunday of the year is 2020-01-05, so it belongs to week 0
+SELECT WEEK('2020-01-01') AS week_result;
++-------------+
+| week_result |
++-------------+
+|           0 |
++-------------+
 
-```text
-+---------------------+---------------------+---------------------------+----------------------+
-| UTC_TIMESTAMP()     | UTC_TIMESTAMP() + 0 | UTC_TIMESTAMP(5)          | UTC_TIMESTAMP(5) + 0 |
-+---------------------+---------------------+---------------------------+----------------------+
-| 2025-10-27 06:43:21 |      20251027064321 | 2025-10-27 06:43:21.88177 |       20251027064321 |
-+---------------------+---------------------+---------------------------+----------------------+
-```
+-- 2020-07-01 is Wednesday, its week contains ≥4 days belonging to 2020, so it's week 27
+SELECT WEEK('2020-07-01', 1) AS week_result;
++-------------+
+| week_result |
++-------------+
+|          27 |
++-------------+
 
-```sql
-SELECT UTC_TIMESTAMP(7);
--- ERROR 1105 (HY000): errCode = 2, detailMessage = scale must be between 0 and 6
+-- Compare mode=0 and mode=3 (differences between different rules)
+SELECT 
+  WEEK('2023-01-01', 0) AS mode_0, 
+  WEEK('2023-01-01', 3) AS mode_3;  
++--------+--------+
+| mode_0 | mode_3 |
++--------+--------+
+|      1 |     52 |
++--------+--------+
 
-SELECT UTC_TIMESTAMP(NULL);
--- ERROR 1105 (HY000): errCode = 2, detailMessage = UTC_TIMESTAMP argument cannot be NULL.
+-- Input outside 0-7 range, processed as mode 7
+SELECT WEEK('2023-01-01', -1) AS week_result;
++-------------+
+| week_result |
++-------------+
+|          52 |
++-------------+
+
+-- Input is DATETIME type (ignores time portion)
+SELECT WEEK('2023-12-31 23:59:59', 3) AS week_result;
++-------------+
+| week_result |
++-------------+
+|          52 |  
++-------------+
+
+-- Any parameter is NULL, result returns NULL
+SELECT WEEK('2023-12-31 23:59:59', NULL), WEEK(NULL, 3);
++-----------------------------------+--------------+
+| WEEK('2023-12-31 23:59:59', NULL) | WEEK(NULL,3) |
++-----------------------------------+--------------+
+|                              NULL |         NULL |
++-----------------------------------+--------------+
 ```
