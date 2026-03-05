@@ -1,119 +1,98 @@
 ---
 {
-  "title": "GROUP_CONCAT",
+  "title": "GROUPING_ID",
   "language": "en",
-  "description": "The GROUPCONCAT function concatenates multiple rows of results in the result set into a string."
+  "description": "Computes the level of grouping for rows in a GROUP BY query."
 }
 ---
 
 ## Description
 
-The GROUP_CONCAT function concatenates multiple rows of results in the result set into a string.
+Computes the level of grouping for rows in a GROUP BY query. The GROUPING_ID function returns an integer bitmap indicating which columns in the GROUP BY list are not aggregated for a given output row. It can be used in the SELECT list, HAVING, or ORDER BY clauses when a GROUP BY is specified.
 
 ## Syntax
 
 ```sql
-GROUP_CONCAT([DISTINCT] <str>[, <sep>] [ORDER BY { <col_name> | <expr>} [ASC | DESC]])
+GROUPING_ID(<column_expression> [, ...])
 ```
 
 ## Parameters
 
-| Parameters   | Description                                                                               |
-| ------------ | ----------------------------------------------------------------------------------------- |
-| `<str>`      | Required. The expression of the value to be concatenated. |
-| `<sep>`      | Optional. The separator between strings.                  |
-| `<col_name>` | Optional. The column used for sorting.                    |
-| `<expr>`     | Optional. The expression used for sorting.                |
+| Parameters            | Description                                                   |
+| --------------------- | ------------------------------------------------------------- |
+| `<column_expression>` | A column expression from the GROUP BY clause. |
 
 ## Return Value
 
-Returns a value of type VARCHAR.
-If the input data contains NULL, returns NULL.
+Returns a BIGINT value representing the grouping bitmap for the given columns.
 
-## Example
+## Examples
 
-```sql
--- setup
-create table test(
-    value varchar(10)
-) distributed by hash(value) buckets 1
-properties ("replication_num"="1");
-
-insert into test values
-    ("a"),
-    ("b"),
-    ("c"),
-    ("c");
-```
+### Example A: Identify grouping levels
 
 ```sql
-select GROUP_CONCAT(value) from test;
+SELECT
+  department,
+  CASE 
+    WHEN GROUPING_ID(department, level) = 0 THEN level
+    WHEN GROUPING_ID(department, level) = 1 THEN CONCAT('Total: ', department)
+    WHEN GROUPING_ID(department, level) = 3 THEN 'Total: Company'
+    ELSE 'Unknown'
+  END AS `Job Title`,
+  COUNT(uid) AS `Employee Count`
+FROM employee 
+GROUP BY ROLLUP(department, level)
+ORDER BY GROUPING_ID(department, level) ASC;
 ```
+
+_Expected Output:_
 
 ```text
-+-----------------------+
-| GROUP_CONCAT(`value`) |
-+-----------------------+
-| a, b, c, c            |
-+-----------------------+
++--------------------+---------------------------+----------------+
+| department         | Job Title                 | Employee Count |
++--------------------+---------------------------+----------------+
+| Board of Directors | Senior                    |              2 |
+| Technology         | Senior                    |              3 |
+| Sales              | Senior                    |              1 |
+| Sales              | Assistant                 |              2 |
+| Sales              | Trainee                   |              1 |
+| Marketing          | Senior                    |              1 |
+| Marketing          | Trainee                   |              2 |
+| Marketing          | Assistant                 |              1 |
+| Board of Directors | Total: Board of Directors |              2 |
+| Technology         | Total: Technology         |              3 |
+| Sales              | Total: Sales              |              4 |
+| Marketing          | Total: Marketing          |              4 |
+| NULL               | Total: Company            |             13 |
++--------------------+---------------------------+----------------+
 ```
+
+### Example B: Filter result set using GROUPING_ID
 
 ```sql
-select GROUP_CONCAT(DISTINCT value) from test;
+SELECT
+  department,
+  CASE 
+    WHEN GROUPING_ID(department, level) = 0 THEN level
+    WHEN GROUPING_ID(department, level) = 1 THEN CONCAT('Total: ', department)
+    WHEN GROUPING_ID(department, level) = 3 THEN 'Total: Company'
+    ELSE 'Unknown'
+  END AS `Job Title`,
+  COUNT(uid) AS `Count`
+FROM employee 
+GROUP BY ROLLUP(department, level)
+HAVING `Job Title` = 'Senior';
 ```
+
+_Expected Output:_
 
 ```text
-+-----------------------+
-| GROUP_CONCAT(`value`) |
-+-----------------------+
-| a, b, c               |
-+-----------------------+
-```
-
-```sql
-select GROUP_CONCAT(value ORDER BY value DESC) from test;
-```
-
-```text
-+-----------------------+
-| GROUP_CONCAT(`value`) |
-+-----------------------+
-| c, c, b, a            |
-+-----------------------+
-```
-
-```sql
-select GROUP_CONCAT(DISTINCT value ORDER BY value DESC) from test;
-```
-
-```text
-+-----------------------+
-| GROUP_CONCAT(`value`) |
-+-----------------------+
-| c, b, a               |
-+-----------------------+
-```
-
-```sql
-select GROUP_CONCAT(value, " ") from test;
-```
-
-```text
-+----------------------------+
-| GROUP_CONCAT(`value`, ' ') |
-+----------------------------+
-| a b c c                    |
-+----------------------------+
-```
-
-```sql
-select GROUP_CONCAT(value, NULL) from test;
-```
-
-```text
-+----------------------------+
-| GROUP_CONCAT(`value`, NULL)|
-+----------------------------+
-| NULL                       |
-+----------------------------+
++--------------------+-----------+-------+
+| department         | Job Title | Count |
++--------------------+-----------+-------+
+| Board of Directors | Senior    |     2 |
+| Technology         | Senior    |     3 |
+| Sales              | Senior    |     1 |
+| Marketing          | Senior    |     1 |
++--------------------+-----------+-------+
 ```
