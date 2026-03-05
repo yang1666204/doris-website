@@ -1,95 +1,83 @@
 ---
 {
-  "title": "ARRAY_UNION",
+  "title": "ARRAY_WITH_CONSTANT",
   "language": "en",
-  "description": "ARRAYUNION returns the union of multiple arrays, i.e., merges all elements from the arrays, removes duplicates, and returns a new array."
+  "description": "ARRAYWITHCONSTANT is used to generate an array of a specified length, where all elements have the given value."
 }
 ---
 
 ## Function
 
-`ARRAY_UNION` returns the union of multiple arrays, i.e., merges all elements from the arrays, removes duplicates, and returns a new array.
+`ARRAY_WITH_CONSTANT` is used to generate an array of a specified length, where all elements have the given value.
 
 ## Syntax
 
 ```SQL
-ARRAY_UNION(arr1, arr2, ..., arrN)
+ARRAY_WITH_CONSTANT(count, element)
 ```
 
 ## Parameters
 
-- `arr1, arr2, ..., arrN`: Any number of array inputs, all of type `ARRAY<T>`.
-  - The element type `T` of all arrays must be the same, or implicitly convertible to a unified type.
-  - The element type `T` can be numeric, string, date/time, or IP type.
+- `count`: Integer type, specifies the length of the returned array.
+
+- `element`: Any storage type supported in an `ARRAY`.
 
 ## Return Value
 
-- Returns a new array of type `ARRAY<T>` containing all unique elements from the input arrays (duplicates removed).
-  - If any input parameter is `NULL`, returns `NULL` (see example).
+- Returns an array of type `ARRAY<T>`, where `T` is the type of `element`.
+  - The array contains `count` copies of the same `element`.
 
 ## Usage Notes
 
-1. Duplicate removal is based on equality comparison (`=` operator).
-2. Only one `NULL` will be kept in the result array (see example).
-3. If the input array itself contains multiple identical elements, only one will be kept (see example).
-4. The order of elements in the result array is not guaranteed.
+- If `count = 0` or `NULL`, returns an empty array.
+- If `element` is `NULL`, all elements in the array are `NULL`.
+- This function has the same functionality as `ARRAY_REPEAT`, but the parameter order is reversed.
+- Can be combined with other array functions to construct more complex data.
 
 ## Examples
 
 1. Simple example
 
     ```SQL
-    SELECT ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', 'world')); 
-    +---------------------------------------------------------------+
-    | ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', 'world')) |
-    +---------------------------------------------------------------+
-    | ["world", "hello"]                                            |
-    +---------------------------------------------------------------+
+    SELECT ARRAY_WITH_CONSTANT(3, 'hello');
+    +---------------------------------+
+    | ARRAY_WITH_CONSTANT(3, 'hello') |
+    +---------------------------------+
+    | ["hello", "hello", "hello"]     |
+    +---------------------------------+
+    ```
+
+2. Special cases
+
+    ```SQL
+    SELECT ARRAY_WITH_CONSTANT(0, 'hello');
+    +---------------------------------+
+    | ARRAY_WITH_CONSTANT(0, 'hello') |
+    +---------------------------------+
+    | []                              |
+    +---------------------------------+
     
-    SELECT ARRAY_UNION(ARRAY(1, 2, 3), ARRAY(3, 5, 6));
-    +---------------------------------------------+
-    | ARRAY_UNION(ARRAY(1, 2, 3), ARRAY(3, 5, 6)) |
-    +---------------------------------------------+
-    | [1, 5, 2, 6, 3]                             |
-    +---------------------------------------------+
-    ```
-
-2. If any input array is `NULL`, returns `NULL`
-
-    ```SQL
-    SELECT ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', 'world'), NULL); 
-    +---------------------------------------------------------------------+
-    | ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', 'world'), NULL) |
-    +---------------------------------------------------------------------+
-    | NULL                                                                |
-    +---------------------------------------------------------------------+
-    ```
-
-3. If input arrays contain `NULL`, the output array will contain only one `NULL`
-
-    ```SQL
-    SELECT ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', NULL)); 
-    +------------------------------------------------------------+
-    | ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', NULL)) |
-    +------------------------------------------------------------+
-    | [null, "world", "hello"]                                   |
-    +------------------------------------------------------------+
+    SELECT ARRAY_WITH_CONSTANT(NULL, 'hello');
+    +------------------------------------+
+    | ARRAY_WITH_CONSTANT(NULL, 'hello') |
+    +------------------------------------+
+    | []                                 |
+    +------------------------------------+
     
-    SELECT ARRAY_UNION(ARRAY(NULL, 'world'), ARRAY('hello', NULL)); 
-    +---------------------------------------------------------+
-    | ARRAY_UNION(ARRAY(NULL, 'world'), ARRAY('hello', NULL)) |
-    +---------------------------------------------------------+
-    | [null, "world", "hello"]                                |
-    +---------------------------------------------------------+
-    ```
-
-4. If an array contains duplicate elements, only one will be returned
-
-    ```SQL
-    SELECT ARRAY_UNION(ARRAY('hello', 'world', 'hello'), ARRAY('hello', NULL)); 
-    +------------------------------------------------------------+
-    | ARRAY_UNION(ARRAY('hello', 'world'), ARRAY('hello', NULL)) |
-    +------------------------------------------------------------+
-    | [null, "world", "hello"]                                   |
-    +------------------------------------------------------------+
+    SELECT ARRAY_WITH_CONSTANT(2, NULL);
+    +------------------------------+
+    | ARRAY_WITH_CONSTANT(2, NULL) |
+    +------------------------------+
+    | [null, null]                 |
+    +------------------------------+
+    
+    SELECT ARRAY_WITH_CONSTANT(NULL, NULL);
+    +---------------------------------+
+    | ARRAY_WITH_CONSTANT(NULL, NULL) |
+    +---------------------------------+
+    | []                              |
+    +---------------------------------+
+    
+    -- Returns error: INVALID_ARGUMENT
+    SELECT ARRAY_WITH_CONSTANT(-1, 'hello');
     ```
