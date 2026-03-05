@@ -1,82 +1,56 @@
 ---
 {
-  "title": "TO_MONDAY",
+  "title": "UTC_TIMESTAMP",
   "language": "en",
-  "description": "Rounds a date or datetime down to the nearest Monday. As a special case, the date parameters 1970-01-01, 1970-01-02, 1970-01-03,"
+  "description": "The UTCTIMESTAMP function returns the current date and time in UTC timezone."
 }
 ---
 
 ## Description
 
-Rounds a date or datetime down to the nearest Monday. As a special case, the date parameters 1970-01-01, 1970-01-02, 1970-01-03, and 1970-01-04 return the date 1970-01-01.
+The UTC_TIMESTAMP function returns the current date and time in UTC timezone. This function is not affected by local timezone and always returns the current time based on UTC timezone, ensuring time consistency across different timezone scenarios.
+
+This function behaves consistently with the [utc_timestamp function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_utc-timestamp) in MySQL.
 
 ## Syntax
 
 ```sql
-TO_MONDAY(`<date_or_time_expr>`)
+UTC_TIMESTAMP([`<precision>`])
 ```
 
 ## Parameters
 
-| Parameter             | Description                                                                                                                                                                                                                                                                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<date_or_date_expr>` | Input datetime value, supports date/datetime types. For datetime and date formats, please refer to [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| Parameter     | Description                                                                                                                                                                                                                 |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<precision>` | The precision of the returned date-time value supports integer types within the range [0, 6]. Only integer type constants are accepted. |
 
 ## Return Value
 
-Returns DATE type (format YYYY-MM-DD), representing the Monday of the week containing the input date.
+Returns the current UTC date and time.
 
-- If input is any of 1970-01-01, 1970-01-02, 1970-01-03, 1970-01-04, always returns 1970-01-01;
-- If input is NULL, returns NULL;
+Returns DATETIME type (format: YYYY-MM-DD HH:mm:ss[.ssssss]). When using the returned result for numeric operations, it will be converted to the [integer format](../../../../sql-manual/basic-element/sql-data-types/conversion/int-conversion#from-datetime) (format YYYYMMDDHHmmss).
+
+When the input is NULL or the precision is out of range, an error will be thrown.
 
 ## Examples
 
 ```sql
--- 2022-09-10 is Saturday, returns the Monday of that week (2022-09-05)
-SELECT TO_MONDAY('2022-09-10') AS result;
-+------------+
-| result     |
-+------------+
-| 2022-09-05 |
-+------------+
+-- Current local time is UTC+8 2025-10-27 14:43:21
+SELECT UTC_TIMESTAMP(), UTC_TIMESTAMP() + 0, UTC_TIMESTAMP(5), UTC_TIMESTAMP(5) + 0;
+```
 
--- input value of datetime type
-SELECT TO_MONDAY('2022-09-10 12:22:15') AS result;
-+------------+
-| result     |
-+------------+
-| 2022-09-05 |
-+------------+
+```text
++---------------------+---------------------+---------------------------+----------------------+
+| UTC_TIMESTAMP()     | UTC_TIMESTAMP() + 0 | UTC_TIMESTAMP(5)          | UTC_TIMESTAMP(5) + 0 |
++---------------------+---------------------+---------------------------+----------------------+
+| 2025-10-27 06:43:21 |      20251027064321 | 2025-10-27 06:43:21.88177 |       20251027064321 |
++---------------------+---------------------+---------------------------+----------------------+
+```
 
--- Returns the Monday of the week for dates before 1970
-SELECT TO_MONDAY('1022-09-10') AS result;
-+------------+
-| result     |
-+------------+
-| 1022-09-09 |
-+------------+
+```sql
+SELECT UTC_TIMESTAMP(7);
+-- ERROR 1105 (HY000): errCode = 2, detailMessage = scale must be between 0 and 6
 
--- Date that is already Monday: returns itself
-SELECT TO_MONDAY('2023-10-09') AS result;  -- 2023-10-09 is Monday
-+------------+
-| result     |
-+------------+
-| 2023-10-09 |
-+------------+
-
--- Special dates
-SELECT TO_MONDAY('1970-01-02'),TO_MONDAY('1970-01-01'),TO_MONDAY('1970-01-03'),TO_MONDAY('1970-01-04');
-+-------------------------+-------------------------+-------------------------+-------------------------+
-| TO_MONDAY('1970-01-02') | TO_MONDAY('1970-01-01') | TO_MONDAY('1970-01-03') | TO_MONDAY('1970-01-04') |
-+-------------------------+-------------------------+-------------------------+-------------------------+
-| 1970-01-01              | 1970-01-01              | 1970-01-01              | 1970-01-01              |
-+-------------------------+-------------------------+-------------------------+-------------------------+
-
--- Input NULL, returns NULL
-SELECT TO_MONDAY(NULL) AS result;
-+--------+
-| result |
-+--------+
-| NULL   |
-+--------+
+SELECT UTC_TIMESTAMP(NULL);
+-- ERROR 1105 (HY000): errCode = 2, detailMessage = UTC_TIMESTAMP argument cannot be NULL.
 ```
