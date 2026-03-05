@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.5", "language": "en" }
+{ "title": "Release 2.0.6", "language": "en" }
 ---
 
 <!--
@@ -21,50 +21,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Thanks to our community users and developers, about 217 improvements and bug fixes have been made in Doris 2.0.5 version.
+Thanks to our community users and developers, about 114 improvements and bug fixes have been created by 51 contributors in Doris 2.0.6 version.
 
-**Quick Download：** [https://doris.apache.org/download/](https://doris.apache.org/download/)
+**Quick Download:** [https://doris.apache.org/download/](https://doris.apache.org/download/)
 
 **GitHub：** [https://github.com/apache/doris/releases](https://github.com/apache/doris/releases)
 
 ## Behavior change
 
-- Change char function behaviour: `select char(0) = '\0'` return true as MySQL
-  - https://github.com/apache/doris/pull/30034
-- Allow exporting empty data
-  - https://github.com/apache/doris/pull/30703
+- N/A
 
 ## New features
 
-- Eliminate left outer join with `is null` condition
-- Add `show-tablets-belong` stmt for analyzing a batch of tablet-ids
-- InferPredicates support In, such as `a = b & a in [1, 2] -> b in [1, 2]`
-- Optimize plan when column stats are unavailable
-- Optimize plan using rollup column stats
-- Support analyze materialized view
-- Support ShowProcessStmt Show all FE connection
+- Support match a function with alias in materialized-view
+- Add a command to drop a tablet replica safely on backend
+- Add row count cache for external table.
+- Support analyze rollup to gather statistics for optimizer
 
 ## Improvement and optimizations
 
-- Optimize query plan when column stats are unaviable
-- Optimize query plan using rollup column stats
-- Stop analyze quickly after user close auto analyze
-- Catch load column stats exception, avoid print too much stack info to fe.out
-- Select materialized view by specify the view name in SQL
-- Change auto analyze max table width default value to 100
-- Escape characters for columns in recovery predicate pushdown in JDBC Catalog
-- Fix JDBC MYSQL Catalog `to_date` fun pushdown
-- Optimize the close logic of JDBC client
-- Optimize JDBC connection pool parameter settings
-- Obtain hudi partition information through HMS's API
-- Optimize routine load job error msg and memory
-- Skip all backup/restore jobs if max allowd option is set to 0
+- Improve tablet schema cache memory by using deterministic way to serialize protobuf
+- Improve show column stats performance
+- Support estimate row count for iceberg and paimon
+- Support sqlserver timestamp type read for JDBC catalog
 
-See the complete list of improvements and bug fixes on [github](https://github.com/apache/doris/compare/2.0.4-rc06...2.0.5-rc02).
+See the complete list of improvements and bug fixes on [github](https://github.com/apache/doris/compare/2.0.5-rc02...2.0.6).
 
 ## Credits
 
 Thanks all who contribute to this release:
 
-airborne12, alexxing662, amorynan, AshinGau, BePPPower, bingquanzhao, BiteTheDDDDt, ByteYue, caiconghui, cambyzju, catpineapple, dataroaring, eldenmoon, Emor-nj, englefly, felixwluo, GoGoWen, HappenLee, hello-stephen, HHoflittlefish777, HowardQin, JackDrogon, jacktengg, jackwener, Jibing-Li, KassieZ, LemonLiTree, liaoxin01, liugddx, LuGuangming, morningman, morrySnow, mrhhsg, Mryange, mymeiyi, nextdreamblue, qidaye, ryanzryu, seawinde,starocean999, TangSiyang2001, vinlee19, w41ter, wangbo, wsjz, wuwenchi, xiaokang, XieJiann, xingyingone, xy720,xzj7019, yujun777, zclllyybb, zhangstar333, zhannngchen, zhiqiang-hhhh, zxealous, zy-kkk, zzzxl1993
+924060929, AshinGau, BePPPower, BiteTheDDDDt, CalvinKirs, cambyzju, deardeng, DongLiang-0, eldenmoon, englefly, feelshana, feiniaofeiafei, felixwluo, HappenLee, hust-hhb, iwanttobepowerful, ixzc, JackDrogon, Jibing-Li, KassieZ, larshelge, liaoxin01, LiBinfeng-01, liutang123, luennng, morningman, morrySnow, mrhhsg, qidaye, starocean999, TangSiyang2001, wangbo, wsjz, wuwenchi, xiaokang, XieJiann, xuwei0912, xy720, xzj7019, yiguolei, yujun777, Yukang-Lian, Yulei-Yang, zclllyybb, zddr, zhangstar333, zhannngchen, zhiqiang-hhhh, zy-kkk, zzzxl1993
 
