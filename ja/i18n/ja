@@ -1,5 +1,5 @@
 ---
-{ "title": "Environment Checking", "language": "en" }
+{ "title": "OS Checking", "language": "en" }
 ---
 
 <!--
@@ -21,115 +21,129 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-When deploying Doris, the following checks need to be performed for the hardware and software environment:
+When deploying Doris, the following operating system items need to be checked:
 
-- Hardware Environment Check
+- Ensure swap partition is disabled
+- Ensure transparent huge pages are disabled
+- Ensure the system has a sufficiently large virtual memory area
+- Ensure CPU is not using power-saving mode
+- Ensure network connections automatically reset new connections when overflow occurs
+- Ensure Doris-related ports are open or the system firewall is disabled
+- Ensure the system has a sufficiently large number of open file descriptors
+- Ensure cluster deployment machines have NTP service installed
 
-- Recommended Server Configuration
+## Ensure Swap Partition is Disabled
 
-- Disk Space Calculation
+When deploying Doris, it is recommended to disable the swap partition. The swap partition is used by the kernel to move some memory data to the configured swap area when it detects memory pressure. Since the kernel's strategy does not fully understand the application's behavior, it can significantly impact Doris's performance. Therefore, it is recommended to disable it.
 
-- Java Environment Check
+You can disable it temporarily or permanently using the following commands.
 
-## Hardware Environment Check
-
-During the hardware environment check, the following hardware conditions should be examined:
-
-| Check Item   | Expected Result                                            |
-| ------------ | ---------------------------------------------------------- |
-| CPU          | Should support AVX2 instruction set.       |
-| Memory       | Recommended at least 4 times the CPU size. |
-| Storage      | SSD recommended.                           |
-| File System  | ext4 or xfs file system.                   |
-| Network Card | 10 Gigabit network card.                   |
-
-### CPU Check
-
-When installing Doris, it is recommended to choose a machine that supports the AVX2 instruction set to leverage the vectorization capabilities of AVX2 for query acceleration.
-
-Run the following command to check if the machine supports the AVX2 instruction set:
+To disable temporarily, the swap will be re-enabled upon the next machine restart.
 
 ```bash
-cat /proc/cpuinfo | grep avx2
+swapoff -a
 ```
 
-If the machine does not support the AVX2 instruction set, you can use the no AVX2 Doris installation package for deployment.
+To disable it permanently, use a Linux root account to comment out the swap partition in `/etc/fstab` and restart the machine to completely disable the swap partition.
 
-### Memory Check
+```bash
+# /etc/fstab
+# <file system>        <dir>         <type>    <options>             <dump> <pass>
+tmpfs                  /tmp          tmpfs     nodev,nosuid          0      0
+/dev/sda1              /             ext4      defaults,noatime      0      1
+# /dev/sda2              none          swap      defaults              0      0
+/dev/sda3              /home         ext4      defaults,noatime      0      2
+```
 
-Doris does not have strict memory limits. Generally, for production environments, you can choose the memory size based on the following recommendations:
+## Ensure Transparent Huge Pages are Disabled
 
-| Component | Recommended Memory Configuration                                                                                                                                                                                                                                        |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FE        | At least 16GB recommended.                                                                                                                                                                                                                              |
-| BE        | Memory should be at least 4 times the number of CPU cores (for example, for a 16-core machine, at least 64GB memory is recommended). Better performance can be achieved with memory 8 times the number of CPU cores. |
+In high-load, low-latency scenarios, it is recommended to disable the operating system's Transparent Huge Pages (THP) to avoid performance fluctuations and memory fragmentation issues, ensuring that Doris can use memory in a stable and efficient manner.
 
-### Storage Check
+Use the following commands to temporarily disable Transparent Huge Pages:
 
-Doris allows data to be stored on SSD, HDD, or object storage during deployment.
+```bash
+echo madvise > /sys/kernel/mm/transparent_hugepage/enabled
+echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
+```
 
-SSD is recommended for data storage in the following scenarios:
+If you need to disable Transparent Huge Pages permanently, you can use the following command, which will take effect after the next host machine restart:
 
-- High-concurrency point query scenarios with large-scale data
+```bash
+cat >> /etc/rc.d/rc.local << EOF
+   echo madvise > /sys/kernel/mm/transparent_hugepage/enabled
+   echo madvise > /sys/kernel/mm/transparent_hugepage/defrag
+EOF
+chmod +x /etc/rc.d/rc.local
+```
 
-- High-frequency data update scenarios with large-scale data
+## Ensure the System Has a Sufficiently Large Virtual Memory Area
 
-### File System Check
+To ensure Doris has enough memory mapping area to handle large amounts of data, you need to modify the size of the virtual memory area. If there is not enough memory mapping area, Doris may encounter errors like `Too many open files` or similar during startup or runtime.
 
-Doris recommends using EXT4 or XFS file systems. The EXT4 file system offers good stability, performance, and lower fragmentation issues. The XFS file system performs excellently in handling large-scale data and high-concurrency write operations, making it suitable for high-throughput applications.
+You can permanently modify the virtual memory area to at least 2000000 with the following command, and it will take effect immediately:
 
-### Network Card Check
+```bash
+cat >> /etc/sysctl.conf << EOF
+vm.max_map_count = 2000000
+EOF
 
-Doris involves distributing data partitions across different instances for parallel processing, which results in some network resource overhead. To optimize Doris performance and reduce network resource overhead, it is strongly recommended to use a 10 Gigabit Ethernet (10GbE) or faster network during deployment. If multiple network cards are available, it is recommended to use link aggregation to combine multiple network cards into one virtual interface, which improves network bandwidth, redundancy, and complex balancing capabilities.
+# Take effect immediately
+sysctl -p
+```
 
-## Server Configuration Recommendations
+## Ensure CPU is Not Using Power-Saving Mode
 
-Doris can be deployed on x86-64 or ARM64 architecture server platforms.
+When deploying Doris, ensure that the CPU's power-saving modes are disabled to guarantee stable high performance under high load. This prevents performance fluctuations, response delays, and system bottlenecks caused by reduced CPU frequencies, thereby enhancing Doris's reliability and throughput. If your CPU does not support Scaling Governor, you can skip this configuration.
 
-- Development and Testing Environments
+You can disable CPU power-saving mode with the following commands:
 
-  | Module   | CPU       | Memory | Disk                | Network             | Minimum Instance Count |
-  | -------- | --------- | ------ | ------------------- | ------------------- | ---------------------- |
-  | Frontend | 8 cores + | 8 GB+  | SSD or SATA, 10 GB+ | Gigabit/Ten-Gigabit | 1                      |
-  | Backend  | 8 cores + | 16 GB+ | SSD or SATA, 50 GB+ | Gigabit/Ten-Gigabit | 1                      |
+```bash
+echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+```
 
-  :::info
+## Ensure Network Connections Automatically Reset New Connections When Overflow Occurs
 
-  - In the test validation environment, you can deploy FE and BE on the same server.
-  - It is generally recommended to deploy only one BE instance per machine and only one FE instance.
-  - If 3 replicas of data are required, at least 3 machines should each deploy one BE instance, instead of deploying 3 instances on a single machine.
+When deploying Doris, you need to ensure that when the TCP connection's send buffer overflows, the connection is immediately terminated. This prevents Doris from experiencing buffer blocking under high load or high concurrency, avoids connections being suspended for long periods, and thereby improves the system's responsiveness and stability.
 
-  :::
+You can permanently configure the system to automatically reset new connections with the following commands, and it will take effect immediately:
 
-- Production Environments
+```bash
+cat >> /etc/sysctl.conf << EOF
+net.ipv4.tcp_abort_on_overflow=1
+EOF
 
-  | Module   | CPU        | Memory | Disk                      | Network    | Minimum Instance Count |
-  | -------- | ---------- | ------ | ------------------------- | ---------- | ---------------------- |
-  | Frontend | 16 cores + | 64 GB+ | SSD or RAID card, 100 GB+ | 10-Gigabit | 1                      |
-  | Backend  | 16 cores + | 64 GB+ | SSD or SATA, 100 GB+      | 10-Gigabit | 3                      |
+# Take effect immediately
+sysctl -p
+```
 
-  :::info
+## Ensure Doris-related Ports are Open or the System Firewall is Disabled
 
-  - In production environments, if FE and BE are mixed, attention should be paid to resource contention. It is recommended to store metadata and data on separate disks.
-  - BE nodes can be configured with multiple hard drives, binding multiple HDDs or SSDs on a single BE instance.
-  - The performance of the cluster depends on the resources of the BE nodes. The more BE nodes, the better the Doris performance. Typically, Doris can fully perform on clusters with 10 to 100 machines.
+If you find that ports are not accessible, you can try disabling the firewall to confirm whether it is caused by the local firewall. If the firewall is the cause, you can open the corresponding ports for Doris's various components based on their configuration.
 
-  :::
+```sql
+sudo systemctl stop firewalld.service
+sudo systemctl disable firewalld.service
+```
 
-## Disk Space Calculation
+## Ensure the System Has a Sufficiently Large Number of Open File Descriptors
 
-In the Doris cluster, FE (Frontend) is mainly used for metadata storage, including metadata edit logs and images. BE (Backend) disk space is primarily used for storing data, and it needs to be calculated based on business requirements.
+Since Doris relies on a large number of files to manage table data, it is necessary to increase the system's limit on the number of open files per program.
 
-| Component | Disk Space Description                                                                                                                                                                                                                                                                                                                                      |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FE        | It is recommended to reserve more than 100 GB of storage space, using SSD disks.                                                                                                                                                                                                                                                            |
-| BE        | Doris uses LZ4 compression by default. The compression ratio is around 0.3 - 0.5. Disk space should be calculated as total data volume \* 3 (for 3 replicas), and 40% of the space should be reserved for backend compaction and temporary data storage. |
+You can adjust the maximum number of file descriptors using the following commands. After making the adjustments, you need to restart the session for the configuration to take effect:
 
-## Java Environment Check
+```sql
+vi /etc/security/limits.conf 
+* soft nofile 1000000
+* hard nofile 1000000
+```
 
-All Doris processes depend on Java.
+## Ensure NTP Service is Installed on Cluster Deployment Machines
 
-- For versions prior to 2.1, use Java 8. Recommended version: `openjdk-8u352-b08-linux-x64`.
+Doris requires the metadata time accuracy to be less than 5000ms. Therefore, all machines in the cluster must synchronize their clocks to prevent metadata inconsistencies caused by clock issues, which could lead to service abnormalities.
 
-- For versions 3.0 and later, use Java 17. Recommended version: `jdk-17.0.10_linux-x64_bin.tar.gz`.
+Typically, you can ensure clock synchronization across nodes by configuring the NTP service.
 
+```sql
+sudo systemctl start ntpd.service
+sudo systemctl enable ntpd.service
+```
