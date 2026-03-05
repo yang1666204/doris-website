@@ -1,117 +1,34 @@
 ---
 {
-  "title": "FORMAT_ROUND",
+  "title": "Comments",
   "language": "en",
-  "description": "Formats a number in a format similar to \"#,###,###.##\", rounds to the specified decimal places, and returns the result as a string."
+  "description": "Comments can make your application easier to read and maintain. For example,"
 }
 ---
 
 ## Description
 
-Formats a number in a format similar to "#,###,###.##", rounds to the specified decimal places, and returns the result as a string.
+Comments can make your application easier to read and maintain. For example, you can include a comment within a statement to describe the purpose of that statement in your application. Comments in SQL statements (except for HINT) do not affect the execution of the statement. For information on using this specific form of comments with HINT, please refer to the [HINT](../../query-acceleration/hints/hints-overview.md) section.
 
-:::tip
-This function is supported since version 3.0.6.
-:::
+In SQL statements, comments can appear between any keywords, parameters, or punctuation marks. You can include comments in statements in two ways:
 
-## Syntax
-
-```sql
-FORMAT_ROUND(<number>, <D>)
-```
-
-## Parameters
-
-| Parameter  | Description                                                                                   |
-| ---------- | --------------------------------------------------------------------------------------------- |
-| `<number>` | The number to be formatted                                                                    |
-| `<D>`      | Number of decimal places, range [0, 1024] |
-
-## Return Value
-
-Returns the formatted string. Special cases:
-
-- Returns NULL when the parameter is NULL
-- If D is 0, the result will have no decimal point or decimal part.
-- If D is not in [0, 1024], an error is returned indicating the argument should be within this range.
+- Multi-line comments: Start the comment with a slash and asterisk (`/*`), followed by the comment text. This text can span multiple lines. End the comment with an asterisk and a slash (`*/`). There is no need for spaces or line breaks between the start and end characters and the text.
+- Single-line comments: Start the comment with two dashes (`--`), followed by the comment text. This text cannot extend to a new line. The comment ends with a newline character.
 
 ## Examples
 
-```sql
-mysql> select format_round(17014116, 2);
-+---------------------------+
-| format_round(17014116, 2) |
-+---------------------------+
-| 17,014,116.00             |
-+---------------------------+
-```
+### Multi-line Comment
 
 ```sql
-mysql> select format_round(1123.456, 2);
-+---------------------------+
-| format_round(1123.456, 2) |
-+---------------------------+
-| 1,123.46                  |
-+---------------------------+
+SELECT /* This is a multi-line comment
+          that can span multiple lines */
+       column_name
+FROM   table_name;
 ```
 
-```sql
-mysql> select format_round(1123.4, 2);
-+-------------------------+
-| format_round(1123.4, 2) |
-+-------------------------+
-| 1,123.40                |
-+-------------------------+
-```
+### Single-line Comment
 
 ```sql
-mysql> select format_round(123456, 0);
-+-------------------------+
-| format_round(123456, 0) |
-+-------------------------+
-| 123,456                 |
-+-------------------------+
-```
-
-```sql
-mysql> select format_round(123456, 3);
-+-------------------------+
-| format_round(123456, 3) |
-+-------------------------+
-| 123,456.000             |
-+-------------------------+
-```
-
-```sql
-mysql> select format_round(123456.123456, 0);
-+--------------------------------+
-| format_round(123456.123456, 0) |
-+--------------------------------+
-| 123,456                        |
-+--------------------------------+
-```
-
-```sql
-mysql> select format_round(123456.123456, 3);
-+--------------------------------+
-| format_round(123456.123456, 3) |
-+--------------------------------+
-| 123,456.123                    |
-+--------------------------------+
-```
-
-```sql
-mysql> select format_round(123456.123456, 6);
-+--------------------------------+
-| format_round(123456.123456, 6) |
-+--------------------------------+
-| 123,456.123456                 |
-+--------------------------------+
-```
-
-```sql
-mysql> SELECT format_round(-0.01, -1);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (127.0.0.1)[INVALID_ARGUMENT]The second argument is -1, it should be in range [0, 1024].
-mysql> SELECT format_round(-0.01, -1500);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (127.0.0.1)[INVALID_ARGUMENT]The second argument is -1500, it should be in range [0, 1024].
+SELECT column_name -- This is a single-line comment
+FROM   table_name;
 ```
