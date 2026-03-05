@@ -1,156 +1,366 @@
 ---
 {
-  "title": "Lakehouse Overview",
+  "title": "Metadata Cache",
   "language": "en",
-  "description": "The lakehouse is a modern big data solution that combines the advantages of data lakes and data warehouses."
+  "description": "To improve the performance of accessing external data sources, Apache Doris caches the metadata of external data sources."
 }
 ---
 
-**The lakehouse is a modern big data solution that combines the advantages of data lakes and data warehouses**. It integrates the low cost and high scalability of data lakes with the high performance and strong data governance capabilities of data warehouses, enabling efficient, secure, and quality-controlled storage and processing analysis of various data in the big data era. Through standardized open data formats and metadata management, it unifies **real-time** and **historical** data, **batch processing**, and **stream processing**, gradually becoming the new standard for enterprise big data solutions.
+To improve the performance of accessing external data sources, Apache Doris caches the **metadata** of external data sources.
 
-## Doris Lakehouse Solution
+Metadata includes information such as databases, tables, columns, partitions, snapshots, file lists, etc.
 
-Doris provides an excellent lakehouse solution for users through an extensible connector framework, a compute-storage decoupled architecture, a high-performance data processing engine, and data ecosystem openness.
+This article details the types, strategies, and related parameter configurations of cached metadata.
 
-![doris lakehouse architecture](/images/Lakehouse/lakehouse-arch-1.jpeg)
+For **data cache**, refer to the [data cache documentation](./data-cache.md).
 
-### Flexible Data Access
+:::tip
+This document applies to versions after 2.1.6.
+:::
 
-Doris supports mainstream data systems and data format access through an extensible connector framework and provides unified data analysis capabilities based on SQL, allowing users to easily perform cross-platform data queries and analysis without moving existing data. For details, refer to [Catalog Overview](./catalog-overview.md)
+## Cache Strategies
 
-### Data Source Connectors
+Most caches have the following three strategy indicators:
 
-Whether it's Hive, Iceberg, Hudi, Paimon, or database systems supporting the JDBC protocol, Doris can easily connect and efficiently access data.
+- Maximum cache count
 
-For lakehouse systems, Doris can obtain the structure and distribution information of data tables from metadata services such as Hive Metastore, AWS Glue, and Unity Catalog, perform reasonable query planning, and utilize the MPP architecture for distributed computing.
+  The maximum number of objects the cache can hold. For example, up to 1000 tables can be cached. When the cache count exceeds the threshold, the LRU (Least-Recent-Used) strategy is used to remove some caches.
 
-For details, refer to each catalog document, such as [Iceberg Catalog](./catalogs/iceberg-catalog.mdx)
+- Eviction time
 
-#### Extensible Connector Framework
+  - Before version 3.0.6 (inclusive):
 
-Doris provides a good extensibility framework to help developers quickly connect to unique data sources within enterprises, achieving fast data interoperability.
+    After a cache object is written to the cache for a period of time, the object will be automatically removed from the cache. The next access will re-fetch the latest information from the data source and update the cache.
 
-Doris defines three levels of standard Catalog, Database, and Table, allowing developers to easily map to the required data source levels. Doris also provides standard interfaces for metadata service and storage service accessing, and developers only need to implement the corresponding interface to complete the data source connection.
+    For example, a user first accesses table A at 08:00 and writes it to the cache. If the eviction time is 4 hours, then, unless replaced due to capacity issues, the user will directly access table A in the cache between 08:00-14:00. After 14:00, the cache is evicted. If the user accesses table A again, the latest information will be fetched from the data source and the cache will be updated.
 
-Doris is compatible with the Trino Connector plugin, allowing the Trino plugin package to be directly deployed to the Doris cluster, and with minimal configuration, the corresponding data source can be accessed. Doris has already completed connections to data sources such as [Kudu](./catalogs/kudu-catalog.md), [BigQuery](./catalogs/bigquery-catalog.md), and [Delta Lake](./catalogs/delta-lake-catalog.md). You can also [adapt new plugins yourself](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide).
+  - After version 3.0.7 (inclusive):
 
-#### Convenient Cross-Source Data Processing
+    Starting from version 3.0.7, this strategy is changed to **the cache object will be automatically removed after being accessed** for a period of time, instead of **after being written** for a period of time. Each time the cache object is accessed, the timer is reset to ensure that frequently accessed objects always remain in the cache.
 
-Doris supports creating multiple data catalogs at runtime and using SQL to perform federated queries on these data sources. For example, users can associate query fact table data in Hive with dimension table data in MySQL:
+    For example, a user first accesses table A at 08:00 and writes it to the cache. If the eviction time is 4 hours, then, unless replaced due to capacity issues, the user will directly access table A in the cache between 08:00-14:00. Suppose the user accesses this object again at 09:00, then the cache eviction time will be recalculated from 09:00, i.e., it becomes 15:00.
+
+- Minimum refresh time
+
+  After a cache object is written to the cache for a period of time, it will automatically trigger a refresh.
+
+  For example, a user first accesses table A at 08:00 and writes it to the cache. If the minimum refresh time is 10 minutes, then, unless replaced due to capacity issues, the user will directly access table A in the cache between 08:00-8:10. At 08:10, the cache object will be marked as [ready to refresh]. When the user accesses this cache object again, the current object will still be returned, but the cache refresh operation will be triggered at the same time. Suppose the cache update takes 1 minute, then after 1 minute, accessing the cache again will get the updated cache object.
+
+  Note that the time to trigger the cache refresh is [the first access to the cache object after exceeding the minimum refresh time], and it is an asynchronous refresh. So, for example, if the minimum refresh time is 10 minutes, it does not mean that the latest object will be obtained after 10 minutes.
+
+  This strategy is different from [eviction time], mainly used to adjust the timeliness of the cache, and avoids blocking the current operation by asynchronously refreshing the cache.
+
+## Cache Types
+
+### Database and Table Name Lists
+
+The database name list refers to the list of all database names under a Catalog.
+
+The table name list refers to the list of all table names under a database.
+
+The name list is only used for operations that need to enumerate names, such as the `SHOW TABLES` or `SHOW DATABASES` statements.
+
+Each Catalog has a database name list cache. Each database has a table name list cache.
+
+- Maximum cache count
+
+  Each cache has only one entry. So the maximum cache count is 1.
+
+- Eviction time
+
+  Fixed at 86400 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest name list in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Database and Table Objects
+
+Caches individual database and table objects. Any access operation to a database or table, such as query, write, etc., will obtain the corresponding object from this cache.
+
+Note that the list of objects in this cache may be inconsistent with the **database and table name list** cache.
+
+For example, through the `SHOW TABLES` command, you get tables `A`, `B`, and `C` from the name list cache. Suppose table `D` is added to the external data source at this time, then `SELECT * FROM D` can access table `D`, and the [table object] cache will add the table `D` object, but the [table name list] cache may still be `A`, `B`, `C`. Only when the [table name list] cache is refreshed will it become `A`, `B`, `C`, `D`.
+
+Each Catalog has a database name list cache. Each database has a table name list cache.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_meta_object_cache_num`, default is 1000. You can adjust this parameter appropriately according to the number of databases under a single Catalog or the number of tables under a single database.
+
+- Eviction time
+
+  Fixed at 86400 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest database or table in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Table Schema
+
+Caches the schema information of tables, such as column names. This cache is mainly used to load the schema of accessed tables on demand, to prevent synchronizing a large number of unnecessary table schemas and occupying FE memory.
+
+This cache is shared by all Catalogs and is globally unique.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_external_schema_cache_num`, default is 10000.
+
+  You can adjust this parameter appropriately according to the total number of tables under a Catalog.
+
+- Eviction time
+
+  Fixed at 86400 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest schema in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Hive Metastore Table Partition List
+
+Used to cache the partition list of tables synchronized from Hive Metastore. The partition list is used for partition pruning during queries.
+
+This cache, each Hive Catalog has one.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_hive_partition_table_cache_num`, default is 1000.
+
+  You can adjust this parameter appropriately according to the total number of tables under a Catalog.
+
+- Eviction time
+
+  Fixed at 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest partition list in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Hive Metastore Table Partition Properties
+
+Used to cache the properties of each partition of a Hive table, such as file format, partition root path, etc. For each query, after partition pruning to get the list of partitions to be accessed, the detailed properties of each partition are obtained through this cache.
+
+This cache, each Hive Catalog has one.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_hive_partition_cache_num`, default is 10000.
+
+  You can adjust this parameter appropriately according to the total number of partitions to be accessed under a Catalog.
+
+- Eviction time
+
+  Fixed at 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest partition properties in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Hive Metastore Table Partition File List
+
+Used to cache the file list information under a single partition of a Hive table. This cache is used to reduce the overhead of file system List operations.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_external_file_cache_num`, default is 100000.
+
+  You can adjust this parameter appropriately according to the number of files to be accessed.
+
+- Eviction time
+
+  Default is 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+  If the `file.meta.cache.ttl-second` property is set in the Catalog properties, the set time is used.
+
+  In some cases, the data files of Hive tables change frequently, resulting in the cache not meeting timeliness requirements. You can set this parameter to 0 to disable this cache. In this case, the file list will be obtained in real time for each query, which may reduce performance but improve file timeliness.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest partition properties in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Hudi Table Partitions
+
+Used to cache partition information of Hudi tables.
+
+This cache, each Hudi Catalog has one.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_external_table_cache_num`, default is 1000.
+
+  You can adjust this parameter appropriately according to the number of Hudi tables.
+
+- Eviction time
+
+  Fixed at 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest Hudi partition properties in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Iceberg Table Information
+
+Used to cache Iceberg table objects. The object is loaded and constructed through the Iceberg API.
+
+This cache, each Iceberg Catalog has one.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_external_table_cache_num`, default is 1000.
+
+  You can adjust this parameter appropriately according to the number of Iceberg tables.
+
+- Eviction time
+
+  Fixed at 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest Iceberg table properties in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+### Iceberg Table Snapshot
+
+Used to cache the snapshot list of Iceberg tables. The object is loaded and constructed through the Iceberg API.
+This cache, each Iceberg Catalog has one.
+
+- Maximum cache count
+
+  Controlled by the FE configuration item `max_external_table_cache_num`, default is 1000.
+
+  You can adjust this parameter appropriately according to the number of Iceberg tables.
+
+- Eviction time
+
+  Fixed at 28800 seconds. After version 3.0.7, configured by the FE parameter `external_cache_expire_time_seconds_after_access`, default is 86400 seconds.
+
+- Minimum refresh time
+
+  Controlled by the FE configuration item `external_cache_expire_time_minutes_after_access`, in minutes. Default is 10 minutes. Reducing this time allows you to see the latest Iceberg table properties in Doris more in real time, but increases the frequency of accessing external data sources.
+
+  After version 3.0.7, the configuration item name is changed to `external_cache_refresh_time_minutes`. The default value remains unchanged.
+
+## Cache Refresh
+
+In addition to the refresh and eviction strategies of each cache above, users can also directly refresh the metadata cache manually or on a schedule.
+
+### Manual Refresh
+
+Users can manually refresh metadata using the `REFRESH` command.
+
+1. REFRESH CATALOG
+
+   Refresh the specified Catalog.
+
+   `REFRESH CATALOG ctl1 PROPERTIES("invalid_cache" = "true");`
+
+   - This command refreshes the database list, table column names, and all cache information of the specified Catalog.
+   - `invalid_cache` indicates whether to refresh caches such as partitions and file lists. The default is true. If false, only the database and table lists of the Catalog will be refreshed, but not caches such as partitions and file lists. This parameter is suitable for cases where the user only wants to synchronize newly added or deleted databases and tables, and can be set to false.
+
+2. REFRESH DATABASE
+
+   Refresh the specified Database.
+
+   `REFRESH DATABASE [ctl.]db1 PROPERTIES("invalid_cache" = "true");`
+
+   - This command refreshes the table column names and all cache information under the specified Database.
+   - The meaning of the `invalid_cache` property is the same as above. The default is true. If false, only the table list of the Database will be refreshed, but not the cache information. This parameter is suitable for cases where the user only wants to synchronize newly added or deleted tables.
+
+3. REFRESH TABLE
+
+   Refresh the specified Table.
+
+   `REFRESH TABLE [ctl.][db.]tbl1;`
+
+   - This command refreshes all cache information under the specified Table.
+
+### Scheduled Refresh
+
+Users can set up scheduled refreshes for a Catalog when creating it.
 
 ```sql
-SELECT h.id, m.name
-FROM hive.db.hive_table h JOIN mysql.db.mysql_table m
-ON h.id = m.id;
+CREATE CATALOG hive PROPERTIES (
+    'type'='hms',
+    'hive.metastore.uris' = 'thrift://172.0.0.1:9083',
+    'metadata_refresh_interval_sec' = '3600'
+);
 ```
 
-Combined with Doris's built-in [job scheduling](../admin-manual/workload-management/job-scheduler.md) capabilities, you can also create scheduled tasks to further simplify system complexity. For example, users can set the result of the above query as a routine task executed every hour and write each result into an Iceberg table:
+In the above example, `metadata_refresh_interval_sec` means the Catalog is refreshed every 3600 seconds. This is equivalent to automatically executing once every 3600 seconds:
 
-```sql
-CREATE JOB schedule_load
-ON SCHEDULE EVERY 1 HOUR DO
-INSERT INTO iceberg.db.ice_table
-SELECT h.id, m.name
-FROM hive.db.hive_table h JOIN mysql.db.mysql_table m
-ON h.id = m.id;
-```
+`REFRESH CATALOG ctl1 PROPERTIES("invalid_cache" = "true");`
 
-### High-Performance Data Processing
+## Best Practices
 
-As an analytical data warehouse, Doris has made numerous optimizations in lakehouse data processing and computation and provides rich query acceleration features:
+Caching can significantly improve metadata access performance and avoid frequent remote access to metadata, which can cause performance jitter or put pressure on the metadata service. However, caching also reduces data timeliness. For example, if the cache refresh time is 10 minutes, only cached metadata can be read within ten minutes. Therefore, it is necessary to set the cache reasonably according to the situation.
 
-- Execution Engine
+### Default Behavior
 
-  The Doris execution engine is based on the MPP execution framework and Pipeline data processing model, capable of quickly processing massive data in a multi-machine, multi-core distributed environment. Thanks to fully vectorized execution operators, Doris leads in computing performance in standard benchmark datasets like TPC-DS.
+This section mainly introduces the cache behavior that users may be concerned about under the default parameter configuration.
 
-- Query Optimizer
+- After a new database or table is added to the external data source, it can be queried in real time in Doris through SELECT. But SHOW DATABASES and SHOW TABLES may not see it; you need to manually refresh the cache or wait up to 10 minutes.
+- When a new partition is added to the external data source, you need to manually refresh the cache or wait up to 10 minutes to query the new partition data.
+- When partition data files change, you need to manually refresh the cache or wait up to 10 minutes to query the new partition data.
 
-  Doris can automatically optimize and process complex SQL requests through the query optimizer. The query optimizer deeply optimizes various complex SQL operators such as multi-table joins, aggregation, sorting, and pagination, fully utilizing cost models and relational algebra transformations to automatically obtain better or optimal logical and physical execution plans, greatly reducing the difficulty of writing SQL and improving usability and performance.
+### Disable Schema Cache
 
-- Data Cache and IO Optimization
+For all types of External Catalogs, if you want to see the latest Table Schema in real time, you can disable the Schema Cache:
 
-  Access to external data sources is usually network access, which can have high latency and poor stability. Apache Doris provides rich caching mechanisms and has made numerous optimizations in cache types, timeliness, and strategies, fully utilizing memory and local high-speed disks to enhance the analysis performance of hot data. Additionally, Doris has made targeted optimizations for network IO characteristics such as high throughput, low IOPS, and high latency, providing external data source access performance comparable to local data.
+- Disable globally
 
-- Materialized Views and Transparent Acceleration
+    ```text
+    -- fe.conf
+    max_external_schema_cache_num=0 // Disable Schema cache.
+    ```
 
-  Doris provides rich materialized view update strategies, supporting full and partition-level incremental refresh to reduce construction costs and improve timeliness. In addition to manual refresh, Doris also supports scheduled refresh and data-driven refresh, further reducing maintenance costs and improving data consistency. Materialized views also have transparent acceleration capabilities, allowing the query optimizer to automatically route to appropriate materialized views for seamless query acceleration. Additionally, Doris's materialized views use high-performance storage formats, providing efficient data access capabilities through column storage, compression, and intelligent indexing technologies, serving as an alternative to data caching and improving query efficiency.
+- Disable at Catalog level
 
-As shown below, on a 1TB TPCDS standard test set based on the Iceberg table format, Doris's overall execution of 99 queries is only 1/3 of Trino's.
+    ```text
+    -- Catalog property
+    "schema.cache.ttl-second" = "0" // For a specific Catalog, disable Schema cache (supported in 2.1.11, 3.0.6)
+    ```
 
-![doris-tpcds](/images/Lakehouse/tpcds1000.jpeg)
+After setting, Doris will see the latest Table Schema in real time. However, this setting may increase the pressure on the metadata service.
 
-In actual user scenarios, Doris reduces average query latency by 20% and 95th percentile latency by 50% compared to Presto while using half the resources, significantly reducing resource costs while enhancing user experience.
+### Disable Hive Catalog Metadata Cache
 
-![doris-performance](/images/Lakehouse/performance.jpeg)
+For Hive Catalog, if you want to disable the cache to query real-time updated data, you can configure the following parameters:
 
-### Convenient Service Migration
+- Disable globally
 
-In the process of integrating multiple data sources and achieving lakehouse transformation, migrating SQL queries to Doris is a challenge due to differences in SQL dialects across systems in terms of syntax and function support. Without a suitable migration plan, the business side may need significant modifications to adapt to the new system's SQL syntax.
+    ```text
+    -- fe.conf
+    max_external_file_cache_num=0    // Disable file list cache
+    max_hive_partition_table_cache_num=0  // Disable partition list cache
+    ```
 
-### Modern Deployment Architecture
+- Disable at Catalog level
 
-Since version 3.0, Doris supports a cloud-native [compute-storage separation architecture](../compute-storage-decoupled/overview.md). This architecture, with its low cost and high elasticity, effectively improves resource utilization and enables independent scaling of compute and storage.
+    ```text
+    -- Catalog property
+    "file.meta.cache.ttl-second" = "0" // For a specific Catalog, disable file list cache
+    "partition.cache.ttl-second" = "0" // For a specific Catalog, disable partition list cache (supported in 2.1.11, 3.0.6)
+    ```
 
-![compute-storage-decouple](/images/Lakehouse/compute-storage-decouple.png)
+After setting the above parameters:
 
-The above diagram shows the system architecture of Doris's compute-storage separation, decoupling compute and storage. Compute nodes no longer store primary data, and the underlying shared storage layer (HDFS and object storage) serves as the unified primary data storage space, supporting independent scaling of compute and storage resources. The compute-storage separation architecture brings significant advantages to the lakehouse solution:
+- New partitions in the external data source can be queried in real time.
+- Changes in partition data files can be queried in real time.
 
-- **Low-Cost Storage**: Storage and compute resources can be independently scaled, allowing enterprises to increase storage capacity without increasing compute resources. Additionally, by using cloud object storage, enterprises can enjoy lower storage costs and higher availability, while still using local high-speed disks for caching relatively low-proportion hot data.
+But this will increase the access pressure on external data sources (such as Hive Metastore and HDFS), which may cause unstable metadata access latency and other phenomena.
 
-- **Single Source of Truth**: All data is stored in a unified storage layer, allowing the same data to be accessed and processed by different compute clusters, ensuring data consistency and integrity, and reducing the complexity of data synchronization and duplicate storage.
-
-- **Workload Diversity**: Users can dynamically allocate compute resources based on different workload needs, supporting various application scenarios such as batch processing, real-time analysis, and machine learning. By separating storage and compute, enterprises can more flexibly optimize resource usage, ensuring efficient operation under different loads.
-
-In addition, under the storage-computing coupled architecture, [elastic computing nodes](./compute-node.md) can still be used to provide elastic computing capabilities in lake warehouse data query scenarios.
-
-### Openness
-
-Doris not only supports access to open lake table formats but also has good openness for its own stored data. Doris provides an open storage API and [implements a high-speed data link based on the Arrow Flight SQL protocol](../db-connect/arrow-flight-sql-connect.md), offering the speed advantages of Arrow Flight and the ease of use of JDBC/ODBC. Based on this interface, users can access data stored in Doris using Python/Java/Spark/Flink's ABDC clients.
-
-Compared to open file formats, the open storage API abstracts the specific implementation of the underlying file format, allowing Doris to accelerate data access through advanced features in its storage format, such as rich indexing mechanisms. Additionally, upper-layer compute engines do not need to adapt to changes or new features in the underlying storage format, allowing all supported compute engines to simultaneously benefit from new features.
-
-## Lakehouse Best Practices
-
-In the lakehouse solution, Doris is mainly used for **lakehouse query acceleration**, **multi-source federated analysis**, and **lakehouse data processing**.
-
-### Lakehouse Query Acceleration
-
-In this scenario, Doris acts as a **compute engine**, accelerating query analysis on lakehouse data.
-
-![lakehouse query acceleration](/images/Lakehouse/query-acceleration.jpeg)
-
-#### Cache Acceleration
-
-For lakehouse systems like Hive and Iceberg, users can configure local disk caching. Local disk caching automatically stores query-designed data files in local cache directories and manages cache eviction using the LRU strategy. For details, refer to the [Data Cache](./data-cache.md) document.
-
-#### Materialized Views and Transparent Rewrite
-
-Doris supports creating materialized views for external data sources. Materialized views store pre-computed results as Doris internal table formats based on SQL definition statements. Additionally, Doris's query optimizer supports a transparent rewrite algorithm based on the SPJG (SELECT-PROJECT-JOIN-GROUP-BY) pattern. This algorithm can analyze the structure information of SQL, automatically find suitable materialized views for transparent rewrite, and select the optimal materialized view to respond to query SQL.
-
-This feature can significantly improve query performance by reducing runtime computation. It also allows access to data in materialized views through transparent rewrite without business awareness. For details, refer to the [Materialized Views](../query-acceleration/materialized-view/async-materialized-view/overview.md) document.
-
-### Multi-Source Federated Analysis
-
-Doris can act as a **unified SQL query engine**, connecting different data sources for federated analysis, solving data silos.
-
-![federated analysis](/images/Lakehouse/federation-query.png)
-
-Users can dynamically create multiple catalogs in Doris to connect different data sources. They can use SQL statements to perform arbitrary join queries on data from different data sources. For details, refer to the [Catalog Overview](catalog-overview.md).
-
-### Lakehouse Data Processing
-
-In this scenario, **Doris acts as a data processing engine**, processing lakehouse data.
-
-![lakehouse data processing](/images/Lakehouse/data-management.jpeg)
-
-#### Task Scheduling
-
-Doris introduces the Job Scheduler feature, enabling efficient and flexible task scheduling, reducing dependency on external systems. Combined with data source connectors, users can achieve periodic processing and storage of external data. For details, refer to the [Job Scheduler](../admin-manual/workload-management/job-scheduler.md).
-
-#### Data Modeling
-
-User typically use data lakes to store raw data and perform layered data processing on this basis, making different layers of data available to different business needs. Doris's materialized view feature supports creating materialized views for external data sources and supports further processing based on materialized views, reducing system complexity and improving data processing efficiency.
-
-#### Data Write-Back
-
-The data write-back feature forms a closed loop of Doris's lakehouse data processing capabilities. Users can directly create databases and tables in external data sources through Doris and write data. Currently, JDBC, Hive, and Iceberg data sources are supported, with more data sources to be added in the future. For details, refer to the documentation of the corresponding data source.
