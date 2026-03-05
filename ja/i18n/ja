@@ -1,222 +1,233 @@
 ---
 {
-  "title": "Managing Compute Groups",
+  "title": "Managing Storage Vault",
   "language": "en",
-  "description": "In a compute-storage decoupled architecture, one or more compute nodes (BE) can be grouped into a Compute Group."
+  "description": "The Storage Vault is a remote shared storage used by Doris in a decoupled storage-compute model."
 }
 ---
 
-In a compute-storage decoupled architecture, one or more compute nodes (BE) can be grouped into a Compute Group. This document describes how to use compute groups, including operations such as:
+The Storage Vault is a remote shared storage used by Doris in a decoupled storage-compute model. You can configure one or more Storage Vaults to store different tables in different Storage Vaults.
 
-- Viewing all compute groups
-- Granting compute group access
-- Binding compute groups at the user level (`default_compute_group`) for user-level isolation
-
-_Note_
-In versions prior to 3.0.2, this was referred to as a Compute Cluster.
-
-## Compute Group Usage Scenarios
-
-In a multi-compute group architecture, you can group one or more stateless BE nodes into compute clusters. By using compute cluster specification statements (use @<compute_group_name>), you can allocate specific workloads to specific compute clusters, achieving physical isolation of multiple import and query workloads.
-
-Assume there are two compute clusters: C1 and C2.
-
-- **Read-Read Isolation**: Before initiating two large queries, use `use @c1` and `use @c2` respectively to ensure that the queries run on different compute nodes. This prevents resource contention (CPU, memory, etc.) when accessing the same dataset.
-
-- **Read-Write Isolation**: Doris data imports consume substantial resources, especially in scenarios with large data volumes and high-frequency imports. To avoid resource contention between queries and imports, you can use `use @c1` and `use @c2` to specify that queries execute on C1 and imports on C2. Additionally, the C1 compute cluster can access newly imported data in the C2 compute cluster.
-
-- **Write-Write Isolation**: Similar to read-write isolation, imports can also be isolated from each other. For example, when the system has both high-frequency small imports and large batch imports, batch imports typically take longer and have higher retry costs, while high-frequency small imports are quick with lower retry costs. To prevent small imports from interfering with batch imports, you can use `use @c1` and `use @c2` to specify small imports to execute on C1 and batch imports on C2.
-
-## Default Compute Group Selection Mechanism
-
-When a user has not explicitly [set a default compute group](#setting-default-compute-group), the system will automatically select a compute group with Active BE that the user has usage permissions for. Once the default compute group is determined in a specific session, it will remain unchanged during that session unless the user explicitly changes the default setting.
-
-In different sessions, if the following situations occur, the system may automatically change the user's default compute group:
-
-- The user has lost usage permissions for the default compute group selected in the last session
-- A compute group has been added or removed
-- The previously selected default compute group no longer has Alive BE
-
-Situations one and two will definitely lead to a change in the automatically selected default compute group, while situation three may lead to a change.
-
-## Viewing All Compute Groups
-
-Use the `SHOW COMPUTE GROUPS` command to view all compute groups in the current repository. The returned results will display different content based on the user's permission level:
-
-- Users with `ADMIN` privileges can view all compute groups
-- Regular users can only view compute groups for which they have usage permissions (USAGE_PRIV)
-- If a user doesn't have usage permissions for any compute groups, an empty result will be returned
-
-```sql
-SHOW COMPUTE GROUPS;
-```
-
-## Adding Compute Groups
-
-Managing compute groups requires `OPERATOR` privilege, which controls node management permissions. For more details, please refer to [Privilege Management](../sql-manual/sql-statements/account-management/GRANT-TO). By default, only the root account has the `OPERATOR` privilege, but it can be granted to other accounts using the `GRANT` command.
-To add a BE and assign it to a compute group, use the [Add BE](../sql-manual/sql-statements/cluster-management/instance-management/ADD-BACKEND) command. For example:
-
-```sql
-ALTER SYSTEM ADD BACKEND 'host:9050' PROPERTIES ("tag.compute_group_name" = "new_group");
-```
-
-The above sql will add `host:9050` to compute group `new_group`. The BE will be added to compute group `default_compute_group` if you omit PROPERTIES statement, for example:
-
-```sql
-ALTER SYSTEM ADD BACKEND 'host:9050';
-```
-
-## Granting Compute Group Access
-
-Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
-
-```sql
-GRANT USAGE_PRIV ON COMPUTE GROUP {compute_group_name} TO {user}
-```
-
-## Revoking Compute Group Access
-
-Prerequisite: The current operating user has' ADMIN 'permission, or the current user belongs to the admin role.
-
-```sql
-REVOKE USAGE_PRIV ON COMPUTE GROUP {compute_group_name} FROM {user}
-```
-
-## Setting Default Compute Group
-
-To set the default compute group for the current user(This operation requires the current user to already have permission to use the computing group):
-
-```sql
-SET PROPERTY 'default_compute_group' = '{clusterName}';
-```
-
-To set the default compute group for other users (this operation requires Admin privileges):
-
-```sql
-SET PROPERTY FOR {user} 'default_compute_group' = '{clusterName}';
-```
-
-To view the current user's default compute group, the value of `default_compute_group` in the returned result is the default compute group:
-
-```sql
-SHOW PROPERTY;
-```
-
-To view the default compute group of other users, This operation requires the current user to have admin privileges, and the value of `default_compute_group` in the returned result is the default compute group:
-
-```sql
-SHOW PROPERTY FOR {user};
-```
-
-To view all available compute groups in the current repository:
-
-```sql
-SHOW COMPUTE GROUPS;
-```
-
-:::info Note
-
-- If the current user has an Admin role, for example: `CREATE USER jack IDENTIFIED BY '123456' DEFAULT ROLE "admin"`, then:
-  - They can set the default compute group for themselves and other users;
-  - They can view their own and other users' `PROPERTY`.
-- If the current user does not have an Admin role, for example: `CREATE USER jack1 IDENTIFIED BY '123456'`, then:
-  - They can set the default compute group for themselves;
-  - They can view their own `PROPERTY`;
-  - They cannot view all compute groups, as this operation requires `GRANT ADMIN` privileges.
-- If the current user has not configured a default compute group, the existing system will trigger an error when performing data read/write operations. To resolve this issue, the user can execute the `use @cluster` command to specify the compute group used by the current context, or use the `SET PROPERTY` statement to set the default compute group.
-- If the current user has configured a default compute group, but that cluster is subsequently deleted, an error will also be triggered during data read/write operations. The user can execute the `use @cluster` command to re-specify the compute group used by the current context, or use the `SET PROPERTY` statement to update the default cluster settings.
-
-:::
-
-## Switching Compute Groups
-
-Users can specify the database and compute group to use in a compute-storage decoupled architecture.
+## Create a Storage Vault
 
 **Syntax**
 
 ```sql
-USE { [catalog_name.]database_name[@compute_group_name] | @compute_group_name }
+CREATE STORAGE VAULT [IF NOT EXISTS] <vault_name>
+PROPERTIES
+("key" = "value",...)
 ```
 
-If the database or compute group name contains reserved keywords, the corresponding name must be enclosed in backticks \`\`\`.
+<vault_name> is the user-defined name of the Storage Vault, which serves as the identifier for accessing the Storage Vault.
 
-## Scaling Compute Groups
+### Create an HDFS Storage Vault
 
-You can scale compute groups by adding or removing BE using `ALTER SYSTEM ADD BACKEND` and `ALTER SYSTEM DECOMMISION BACKEND`.
+To create an HDFS-based decoupled storage-compute Doris cluster, ensure that all nodes (including FE/BE nodes, Meta Service) have privilege to access the specified HDFS, including completing Kerberos authorization configuration and connectivity checks in advance (which can be tested using Hadoop Client on each corresponding node).
 
-### Load Rebalancing After Scaling
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault_demo
+    PROPERTIES (
+        "type"="hdfs",                                     -- required
+        "fs.defaultFS"="hdfs://127.0.0.1:8020",            -- required
+        "path_prefix"="big/data",                          -- optional, generally filled in according to business name
+        "hadoop.username"="user"                           -- optional
+        "hadoop.security.authentication"="kerberos"        -- optional
+        "hadoop.kerberos.principal"="hadoop/127.0.0.1@XXX" -- optional
+        "hadoop.kerberos.keytab"="/etc/emr.keytab"         -- optional
+    );
+```
 
-Cloud rebalance is a load balancing operation in Doris's compute-storage decoupled architecture. It is used to rebalance read and write traffic across the compute group after scaling (adding or removing) backend nodes in different Compute Groups. A node that has been offline for an extended period is considered as removed.
+### Create an S3 Storage Vault
 
-#### Balance Strategy Types
+```sql
+CREATE STORAGE VAULT IF NOT EXISTS s3_vault_demo
+PROPERTIES (
+    "type" = "S3",                                 -- required
+    "s3.endpoint" = "oss-cn-beijing.aliyuncs.com", -- required
+    "s3.region" = "cn-beijing",                    -- required
+    "s3.bucket" = "bucket",                        -- required
+    "s3.root.path" = "big/data/prefix",            -- required
+    "s3.access_key" = "ak",                        -- required
+    "s3.secret_key" = "sk",                        -- required
+    "provider" = "OSS",                            -- required
+    "use_path_style" = "false"                     -- optional
+);
+```
 
-:::caution
+More parameter explanations and examples can be found in [CREATE-STORAGE-VAULT](../sql-manual/sql-statements/cluster-management/storage-management/CREATE-STORAGE-VAULT).
 
-The `balance_type` feature is supported starting from Doris 3.1.3 and Doris 4.0.2.  
-Prior to these versions, only the FE global configuration `enable_cloud_warm_up_for_rebalance` was available to control whether warm up tasks are executed during rebalance.
+**Note**
+The provided object storage path must have head/get/list/put/multipartUpload/delete access permissions.
+
+## View Storage Vaults
+
+**Syntax**
+
+```
+SHOW STORAGE VAULTS
+```
+
+The returned result includes 4 columns: the Storage Vault name, Storage Vault ID, properties, and whether it is the default Storage Vault.
+
+## Set the Default Storage Vault
+
+**Syntax**
+
+```sql
+SET <vault_name> AS DEFAULT STORAGE VAULT
+```
+
+## Specify Storage Vault When Creating a Table
+
+When creating a table, specify `storage_vault_name` in `PROPERTIES`, and the data will be stored in the Storage Vault corresponding to the specified `vault name`. Once the table is successfully created, the `storage_vault` cannot be modified, meaning changing the Storage Vault is not supported.
+
+**Example**
+
+```sql
+CREATE TABLE IF NOT EXISTS supplier (
+  s_suppkey int(11) NOT NULL COMMENT "",
+  s_name varchar(26) NOT NULL COMMENT "",
+  s_address varchar(26) NOT NULL COMMENT "",
+  s_city varchar(11) NOT NULL COMMENT "",
+  s_nation varchar(16) NOT NULL COMMENT "",
+  s_region varchar(13) NOT NULL COMMENT "",
+  s_phone varchar(16) NOT NULL COMMENT ""
+)
+UNIQUE KEY (s_suppkey)
+DISTRIBUTED BY HASH(s_suppkey) BUCKETS 1
+PROPERTIES (
+"replication_num" = "1",
+"storage_vault_name" = "hdfs_demo_vault"
+);
+```
+
+## Specify Storage Vault When Creating a Database
+
+When creating a database, specify `storage_vault_name` in `PROPERTIES`. If `storage_vault_name` is not specified when creating a table under the database, the table will use the Storage Vault corresponding to the database's `vault name` for data storage. Users can change the `storage_vault_name` of the database via [ALTER-DATABASE](../sql-manual/sql-statements/database/ALTER-DATABASE.md). However, this action will not affect the `storage_vault` of tables that have already been created under the database, and only newly created tables will use the updated `storage_vault`.
+
+**Example**
+
+```sql
+CREATE DATABASE IF NOT EXIST `db_test`
+PROPERTIES (
+    "storage_vault_name" = "hdfs_demo_vault"
+);
+```
+
+:::info Note
+
+This feature is supported since version 3.0.5.
+
+The priority order for using Storage Vault when creating a table is: Table -> Database -> Default Storage Vault. If Storage Vault is not specified in the table's PROPERTY, it will check if Storage Vault is specified in the database; if the database also does not specify it, it will further check if there is a default Storage Vault.
+
+If the `VAULT_NAME` attribute of Storage Vault is modified, it may cause the Storage Vault set in the database to become invalid, resulting in an error. Users will need to configure a valid `storage_vault_name` for the database based on the actual situation.
 
 :::
 
-The following table describes three strategy types, using the example of adding nodes to a Compute Group:
+## Alter Storage Vault
 
-| Type             | Time to Service | Performance Fluctuation | Technical Principle                                                                                                                                                       | Use Cases                                                                                                        |
-| :--------------- | :-------------: | :---------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------- |
-| `without_warmup` |     Fastest     |   Highest fluctuation   | FE directly modifies shard mapping; first read/write has no file cache and needs to fetch from S3                                                                         | Scenarios requiring quick node deployment with low sensitivity to performance jitter                             |
-| `async_warmup`   |      Faster     |   Possible cache miss   | Issues warm up tasks, modifies mapping after success or timeout; attempts to pull file cache to new BE during mapping switch, some scenarios may still miss on first read | General scenarios with acceptable performance                                                                    |
-| `sync_warmup`    |      Slower     |    Minimal cache miss   | Issues warm up tasks, FE modifies mapping only after task completion, ensuring cache migration                                                                            | Scenarios with extremely high performance requirements after scaling, requiring file cache to exist on new nodes |
+Used to alter modifiable properties of the Storage Vault configuration.
 
-#### User Interface
+S3 Storage Vault allowed properties:
 
-##### Global Default Balance Type
+- `VAULT_NAME`
+- `s3.access_key`
+- `s3.secret_key`
+- `use_path_style`
 
-Set the global default value through FE configuration (fe.conf):
+HDFS Storage Vault forbidden properties:
 
-```
-cloud_default_rebalance_type = "async_warmup"
-```
+- `path_prefix`
+- `fs.defaultFS`
 
-##### Compute Group-Level Configuration
+Properties explanations can be found in [CREATE-STORAGE-VAULT](../sql-manual/sql-statements/cluster-management/storage-management/CREATE-STORAGE-VAULT).
 
-You can configure balance type for each Compute Group separately:
+**Example**
 
 ```sql
-ALTER COMPUTE GROUP cg1 PROPERTIES("balance_type"="async_warmup");
+ALTER STORAGE VAULT old_s3_vault
+PROPERTIES (
+    "type" = "S3",
+    "VAULT_NAME" = "new_s3_vault",
+    "s3.access_key" = "new_ak"
+    "s3.secret_key" = "new_sk"
+);
 ```
 
-##### Configuration Rules
+```sql
+ALTER STORAGE VAULT old_hdfs_vault
+PROPERTIES (
+    "type" = "hdfs",
+    "VAULT_NAME" = "new_hdfs_vault",
+    "hadoop.username" = "hdfs"
+);
+```
 
-1. If a Compute Group does not have `balance_type` configured, it uses the global default value `async_warmup`.
-2. If a Compute Group has `balance_type` configured, that configuration takes priority during rebalance.
+## Delete an Storage Vault
 
-#### FAQ
+Not supported
 
-##### How to View and Modify Global Rebalance Type?
+## Storage Vault Privilege
 
-- **View**: Execute `ADMIN SHOW FRONTEND CONFIG LIKE "cloud_default_rebalance_type";`
-- **Modify**: Execute `ADMIN SET FRONTEND CONFIG ("cloud_warm_up_for_rebalance_type" = "without_warmup");` (takes effect without restarting FE)
+Grant a specified MySQL user the usage privilege for a certain Storage Vault, allowing the user to specify that Storage Vault when creating tables or viewing Storage Vaults.
 
-##### How to Query Compute Group Balance Type?
+### Grant
 
-Execute `SHOW COMPUTE GROUPS;`. The `properties` column in the result contains Compute Group attribute information, including the `balance_type` configuration.
+```sql
+GRANT
+    USAGE_PRIV
+    ON STORAGE VAULT <vault_name>
+    TO { ROLE | USER } {<role> | <user>}
+```
 
-##### How to Determine if the Cluster is in a Stable Tablet State?
+Only Admin users have the authority to execute the `GRANT` statement, which is used to grant specified Storage Vault privileges to User/Role. Users/Roles with `USAGE_PRIV` privilege for a certain Storage Vault can perform the following operations:
 
-1. **Check via `SHOW BACKENDS`**: Check if the tablet counts across BEs are close. Reference calculation range:
-   ```
-   (Total tablets in cluster / Compute Group BE count) * 0.95 
-   ~ 
-   (Total tablets in cluster / Compute Group BE count) * 1.05
-   ```
-   The value 0.05 is the default value of the FE configuration `cloud_rebalance_percent_threshold`. To make tablet distribution more uniform across BEs in the Compute Group, you can reduce this configuration value.
+- View the information of that Storage Vault through `SHOW STORAGE VAULTS`;
+- Specify the use of that Storage Vault in `PROPERTIES` when creating tables.
 
-2. **Observe via FE Metrics**: Check the `doris_fe_cloud_.*_balance_num` series of metrics in FE metrics. If there is no change for an extended period, it indicates the Compute Group has reached a balanced state. It is recommended to configure these metrics on a monitoring dashboard for continuous observation and judgment.
-   ```bash
-   curl "http://feip:fe_http_port/metrics" | grep '_balance_num'
-   ```
+**Example**
 
-## Renaming Compute Group
+```sql
+grant usage_priv on storage vault my_storage_vault to user1
+```
 
-You can use the `ALTER SYSTEM RENAME COMPUTE GROUP <old_name> <new_name>` command to rename an existing compute group. Please refer to the SQL Manual on [Renaming Compute Groups](../sql-manual/sql-statements/cluster-management/instance-management/ALTER-SYSTEM-RENAME-COMPUTE-GROUP).
+### Revoke
 
-Note
-After renaming a compute group, users who had permissions for the old name (old_name) or had set the old name as the default compute group (default_compute_group) will not have their permissions automatically updated to the new name (new_name). Permissions need to be reset by an account with administrative privileges. This is consistent with the permission system of MySQL databases.
+Revoke the Storage Vault privileges of a specified MySQL user.
+
+**Syntax**
+
+```sql
+REVOKE 
+    USAGE_PRIV
+    ON STORAGE VAULT <vault_name>
+    FROM { ROLE | USER } {<role> | <user>}
+```
+
+Only Admin users have the authority to execute the `REVOKE` statement, which is used to revoke the privileges of User/Role for the specified Storage Vault.
+
+**Example**
+
+```sql
+revoke usage_priv on storage vault my_storage_vault from user1
+```
+
+## FAQ
+
+#### Q1. 如何查询特定storage vault被那些表引用？
+
+1. Use `show storage vault` to find the ​​storage vault id​​ corresponding to the storage vault name.
+
+2. Execute the following SQL statement:
+
+```sql
+mysql> select * from information_schema.table_properties where PROPERTY_NAME = "storage_vault_id" and PROPERTY_VALUE=3;
++---------------+---------------------------------+-------------------------------------+------------------+----------------+
+| TABLE_CATALOG | TABLE_SCHEMA                    | TABLE_NAME                          | PROPERTY_NAME    | PROPERTY_VALUE |
++---------------+---------------------------------+-------------------------------------+------------------+----------------+
+| internal      | regression_test_vault_p0_create | s3_92ba28c209154d968e680e58dd54d0cc | storage_vault_id | 3              |
++---------------+---------------------------------+-------------------------------------+------------------+----------------+
+1 row in set (0.04 sec)
+```
+
+Replace `PROPERTY_VALUE=3` with the corresponding ​​storage vault id​​ value.
