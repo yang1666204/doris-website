@@ -1,48 +1,119 @@
 ---
 {
-  "title": "MAP_ENTRIES",
+  "title": "ATAN",
   "language": "en",
-  "description": "Converts the given map into an ARRAY<STRUCT<key, value>>."
+  "description": "Return the arctangent value."
 }
 ---
 
 ## Description
 
-Converts the given `map` into an `ARRAY<STRUCT<key, value>>`.
+Return the arctangent value.
 
-Each element of the returned array is a struct with two named fields: `key` and `value`. Both fields are nullable.
-The `key` and `value` field types are the same as the map's key and value types respectively.
+- When there is only one parameter: Return the arctangent of `x`, with the result range of [-π/2, π/2]
+
+- When there are two parameters: Return the arctangent of `y/x`, with the same behavior as [ATAN2(y, x)](https://doris.apache.org/docs/dev/sql-manual/sql-functions/scalar-functions/numeric-functions/atan2), with the result range of [-π, π]
 
 ## Syntax
 
 ```sql
-MAP_ENTRIES(<map>)
+ATAN([<y>, ]<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description       |
-| --------- | ----------------- |
-| `<map>`   | Input map content |
+| Parameter | Description                                                                                                                                                                                                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<x>`     | When there is only one parameter, it indicates the value that needs to be calculated as the arctangent; when there are two parameters, it indicates the horizontal coordinate (or x-value), the distance along the x-axis from the origin (0,0). |
+| `<y>`     | Optional, representing the vertical coordinate (or y-value), the distance along the y-axis from the origin (0,0)                                                                                                                                                 |
 
 ## Return Value
 
-Returns an array of structs that represent the entries of the map. If `<map>` is `NULL`, returns `NULL`.
+The atan value of parameter `x`.
 
-## Example
+## Special Cases
+
+### Single-parameter version
+
+- When `x` is NaN, returns NaN
+- When `x` is positive infinity, returns π/2 (approximately 1.570796326794897)
+- When `x` is negative infinity, returns -π/2 (approximately -1.570796326794897)
+- When `x` is NULL, returns NULL
+
+### Two-parameter version
+
+- If `y` or `x` is NaN, returns NaN
+- If `x > 0` and `y = ±0.0`, returns ±0 (sign follows `y`)
+- If `x = 0.0` (either +0.0 or -0.0) and `y > 0`, returns π/2 (about 1.570796326794897)
+- If `x = 0.0` (either +0.0 or -0.0) and `y < 0`, returns -π/2 (about -1.570796326794897)
+- If `x < 0` and `y = +0.0`, returns π (about 3.141592653589793); if `x < 0` and `y = -0.0`, returns -π
+- If `y = +Infinity` and `x` is finite, returns π/2; if `y = -Infinity` and `x` is finite, returns -π/2
+- If `y = +Infinity` and `x = +Infinity`, returns π/4 (about 0.7853981633974483)
+- If `y = -Infinity` and `x = +Infinity`, returns -π/4 (about -0.7853981633974483)
+- If `y = +Infinity` and `x = -Infinity`, returns 3π/4 (about 2.356194490192345)
+- If `y = -Infinity` and `x = -Infinity`, returns -3π/4 (about -2.356194490192345)
+- If `x = +Infinity` and finite `y` > 0, returns 0; if finite `y` < 0, returns -0
+- If `x = -Infinity` and finite `y` > 0, returns π; if finite `y` < 0, returns -π
+- If `y` or `x` is NULL, returns NULL
+
+## Examples
 
 ```sql
-select 
-  map_entries(map()),
-  map_entries(map(1, '100', 0.1, '2'));
+select atan(0);
 ```
 
 ```text
-+--------------------+--------------------------------------------------------+
-| map_entries(map()) | map_entries(map(1, '100', 0.1, '2'))                   |
-+--------------------+--------------------------------------------------------+
-| []                 | [{"key":1.0, "value":"100"}, {"key":0.1, "value":"2"}] |
-+--------------------+--------------------------------------------------------+
++-----------+
+| atan(0.0) |
++-----------+
+|         0 |
++-----------+
 ```
 
+```sql
+select atan(2);
+```
 
+```text
++--------------------+
+| atan(2.0)          |
++--------------------+
+| 1.1071487177940904 |
++--------------------+
+```
+
+```sql
+select atan(cast('nan' as double));
+```
+
+```text
++-----------------------------+
+| atan(cast('nan' AS DOUBLE)) |
++-----------------------------+
+| NaN                         |
++-----------------------------+
+```
+
+```sql
+select atan(cast('inf' as double));
+```
+
+```text
++-----------------------------+
+| atan(cast('inf' AS DOUBLE)) |
++-----------------------------+
+| 1.570796326794897           |
++-----------------------------+
+```
+
+```sql
+select atan(cast('-inf' as double));
+```
+
+```text
++------------------------------+
+| atan(cast('-inf' AS DOUBLE)) |
++------------------------------+
+| -1.570796326794897           |
++------------------------------+
+```
