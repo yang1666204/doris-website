@@ -1,95 +1,90 @@
 ---
 {
-  "title": "CHAR | String Functions",
+  "title": "COMPRESS",
   "language": "en",
-  "description": "The CHAR function interprets each argument as an integer and returns a string consisting of the characters represented by those integer code values.",
-  "sidebar_label": "CHAR"
+  "description": "The COMPRESS function compresses a string into binary data using the zlib compression algorithm."
 }
 ---
 
-# CHAR
-
 ## Description
 
-The CHAR function interprets each argument as an integer and returns a string consisting of the characters represented by those integer code values.
+The COMPRESS function compresses a string into binary data using the zlib compression algorithm. The compressed data can be decompressed back to the original string using the UNCOMPRESS function.
 
 ## Syntax
 
 ```sql
-CHAR(<expr>[, <expr> ...] [USING <charset_name>])
+COMPRESS(<str>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                  |
-| --------- | -------------------------------------------------------------------------------------------- |
-| `<expr>`  | Integer code value to be converted to a character. Type: INT |
+| Parameter | Description                                                                |
+| --------- | -------------------------------------------------------------------------- |
+| `<str>`   | The string to be compressed. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, a string composed of characters corresponding to the argument integer code values.
+Returns VARCHAR type, which is the compressed binary data (not human-readable).
 
 Special cases:
 
-- If any argument is NULL, returns an empty string
-- If the result string is illegal for the given character set, returns NULL
-- Arguments greater than 255 are converted to multi-byte characters. For example, `CHAR(15049882)` is equivalent to `CHAR(229, 164, 154)`
+- If the parameter is NULL, returns NULL
+- If the input is an empty string `''`, returns an empty string `''`
 
 ## Examples
 
-1. Basic usage: ASCII character generation
+1. Basic usage: compression and decompression
 
 ```sql
-SELECT CHAR(68, 111, 114, 105, 115);
+SELECT uncompress(compress('hello'));
 ```
 
 ```text
-+--------------------------------------+
-| char('utf8', 68, 111, 114, 105, 115) |
-+--------------------------------------+
-| Doris                                |
-+--------------------------------------+
++-------------------------------+
+| uncompress(compress('hello')) |
++-------------------------------+
+| hello                         |
++-------------------------------+
 ```
 
-2. Multi-byte UTF-8 characters (Chinese)
+2. Empty string handling
 
 ```sql
-SELECT CHAR(15049882, 15179199, 14989469);
+SELECT compress('');
 ```
 
 ```text
-+--------------------------------------------+
-| char('utf8', 15049882, 15179199, 14989469) |
-+--------------------------------------------+
-| 多睿丝                                     |
-+--------------------------------------------+
++--------------+
+| compress('') |
++--------------+
+|              |
++--------------+
 ```
 
-3. Illegal character returns NULL
+3. NULL value handling
 
 ```sql
-SELECT CHAR(255);
+SELECT compress(NULL);
 ```
 
 ```text
-+-------------------+
-| char('utf8', 255) |
-+-------------------+
-| NULL              |
-+-------------------+
++----------------+
+| compress(NULL) |
++----------------+
+| NULL           |
++----------------+
 ```
 
-4. NULL value handling
+4. UTF-8 character test
 
 ```sql
-SELECT CHAR(NULL);
+SELECT uncompress(compress('ṭṛì'));
 ```
 
 ```text
-+------------+
-| CHAR(NULL) |
-+------------+
-|            |
-+------------+
++----------------------------------+
+| uncompress(compress('ṭṛì'))      |
++----------------------------------+
+| ṭṛì                              |
++----------------------------------+
 ```
-
