@@ -1,22 +1,25 @@
 ---
 {
-  "title": "ALTER WORKLOAD GROUP",
+  "title": "CREATE WORKLOAD GROUP | Compute Management",
   "language": "en",
-  "description": "This statement is used to modify the workload group."
+  "description": "This statement is used to create a workload group. Workload groups enable the isolation of cpu resources and memory resources on a single be.",
+  "sidebar_label": "CREATE WORKLOAD GROUP"
 }
 ---
 
+# CREATE WORKLOAD GROUP
+
 ## Description
 
-This statement is used to modify the workload group.
+This statement is used to create a workload group. Workload groups enable the isolation of cpu resources and memory resources on a single be.
 
 ## Syntax
 
 ```sql
-ALTER WORKLOAD GROUP  "<rg_name>"
+CREATE WORKLOAD GROUP [IF NOT EXISTS] "rg_name"
 PROPERTIES (
-  `<property>`
-  [ , ... ]
+    `<property>`
+    [ , ... ]
 );
 ```
 
@@ -28,12 +31,12 @@ PROPERTIES (
 
 ## Examples
 
-1. Modify the workload group named g1:
+1. Create a workload group named g1:
 
-    ```sql
-    alter workload group g1
+   ```sql
+    create workload group if not exists g1
     properties (
-        "max_cpu_percent"="20%",
-        "max_memory_percent"="40%"
+        "max_cpu_percent"="10%",
+        "max_memory_percent"="30%"
     );
-    ```
+   ```
