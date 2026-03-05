@@ -1,25 +1,25 @@
 ---
 {
-  "title": "DAYOFWEEK",
+  "title": "DAYOFYEAR",
   "language": "en",
-  "description": "The DAYOFWEEK function is used to return the weekday index value corresponding to a date or time expression, following the rule where Sunday is 1,"
+  "description": "The DAYOFYEAR function is used to calculate the number of days in the current year corresponding to a date or time expression, i.e.,"
 }
 ---
 
 ## Description
 
-The DAYOFWEEK function is used to return the weekday index value corresponding to a date or time expression, following the rule where Sunday is 1, Monday is 2, ..., and Saturday is 7.
+The DAYOFYEAR function is used to calculate the number of days in the current year corresponding to a date or time expression, i.e., which day of the year the date is. The return value is an integer ranging from 1 (January 1st) to 366 (December 31st in a leap year).
 
-This function behaves consistently with the [dayofweek function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_dayofweek) in MySQL
+This function behaves consistently with the [dayofyear function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_dayofyear) in MySQL
 
 ## Alias
 
-- DOW
+- DOY
 
 ## Syntax
 
 ```sql
-DAYOFWEEK(<date_or_time_expr>)
+DAYOFYEAR(<date_or_time_expr>)
 ```
 
 ## Parameters
@@ -30,44 +30,47 @@ DAYOFWEEK(<date_or_time_expr>)
 
 ## Return Value
 
-Returns an integer representing the weekday index value corresponding to the date (1-7, where 1 represents Sunday and 7 represents Saturday).
+Returns an integer representing the number of days in the current year (1-366), of type SMALLINT.
 
 Special cases:
 
-If `<date_or_time_expr>` is NULL, returns NULL;
+- If <date_or_time_expr> is NULL, returns NULL;
+- For February 29th in a leap year, it will be correctly calculated as the 60th day of the year.
 
 ## Examples
 
 ```sql
----Calculate weekday index value for date type
-select dayofweek('2019-06-25');
+
+---Extract the day number in the year from datetime type
+select dayofyear('2007-02-03 00:00:00');
 
 +----------------------------------+
-| dayofweek('2019-06-25 00:00:00') |
+| dayofyear('2007-02-03 00:00:00') |
 +----------------------------------+
-|                                3 |
+|                               34 |
 +----------------------------------+
 
----Calculate weekday index value for datetime type
-select dayofweek('2019-06-25 15:30:45');
-
-+----------------------------------+
-| dayofweek('2019-06-25 15:30:45') |
-+----------------------------------+
-|                                3 |
-+----------------------------------+
----Index for Sunday
-select dayofweek('2024-02-18');
+---Extract day number from date type
+select dayofyear('2023-12-31');
 +-------------------------+
-| dayofweek('2024-02-18') |
+| dayofyear('2023-12-31') |
 +-------------------------+
-|                       1 |
+|                     365 |
 +-------------------------+
 
----Input datetime is NULL, returns NULL
-select dayofweek(NULL);
+
+---Calculate day number in a leap year
+select dayofyear('2024-12-31');
++-------------------------+
+| dayofyear('2024-12-31') |
++-------------------------+
+|                     366 |
++-------------------------+
+
+---Input is NULL, returns NULL
+select dayofyear(NULL);
 +-----------------+
-| dayofweek(NULL) |
+| dayofyear(NULL) |
 +-----------------+
 |            NULL |
 +-----------------+
