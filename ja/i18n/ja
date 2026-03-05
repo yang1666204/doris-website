@@ -1,30 +1,30 @@
 ---
 {
-  "title": "COT",
+  "title": "CSC",
   "language": "en",
-  "description": "Returns the cotangent of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
+  "description": "Returns the cosecant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
 }
 ---
 
 ## Description
 
-Returns the cotangent of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
+Returns the cosecant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
 
 ## Syntax
 
 ```sql
-COT(<x>)
+CSC(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                           |
-| --------- | ----------------------------------------------------- |
-| `<x>`     | The value for which the cotangent is to be calculated |
+| Parameter | Description                                          |
+| --------- | ---------------------------------------------------- |
+| `<x>`     | The value for which the cosecant is to be calculated |
 
 ## Return Value
 
-Returns a Double type value means the cotangent of x.
+Returns a Double type value means the cosecant of x.
 
 ## Special Cases
 
@@ -35,63 +35,63 @@ Returns a Double type value means the cotangent of x.
 ## Example
 
 ```sql
-select cot(1),cot(2),cot(1000);
+select csc(1),csc(2),csc(1000);
 ```
 
 ```text
-+--------------------+----------------------+--------------------+
-| cot(1)             | cot(2)               | cot(1000)          |
-+--------------------+----------------------+--------------------+
-| 0.6420926159343306 | -0.45765755436028577 | 0.6801221323348698 |
-+--------------------+----------------------+--------------------+
++--------------------+--------------------+------------------+
+| csc(1)             | csc(2)             | csc(1000)        |
++--------------------+--------------------+------------------+
+| 1.1883951057781212 | 1.0997501702946164 | 1.20936599707935 |
++--------------------+--------------------+------------------+
 ```
 
 Input null value.
 
 ```sql
-select cot(null);
+select csc(null);
 ```
 
 ```text
 +--------------------+
-| cot(null)          |
+| csc(null)          |
 +--------------------+
 |      NULL          |
 +--------------------+
 ```
 
 ```sql
-select cot(cast('nan' as double));
+select csc(cast('nan' as double));
 ```
 
 ```text
-+----------------------------+
-| cot(cast('nan' AS DOUBLE)) |
-+----------------------------+
-| NaN                        |
-+----------------------------+
++---------------------------+
+| csc(cast('nan' AS DOUBLE))|
++---------------------------+
+| NaN                       |
++---------------------------+
 ```
 
 ```sql
-select cot(cast('inf' as double));
+select csc(cast('inf' as double));
 ```
 
 ```text
-+----------------------------+
-| cot(cast('inf' AS DOUBLE)) |
-+----------------------------+
-| NaN                        |
-+----------------------------+
++---------------------------+
+| csc(cast('inf' AS DOUBLE))|
++---------------------------+
+| NaN                       |
++---------------------------+
 ```
 
 ```sql
-select cot(cast('-inf' as double));
+select csc(cast('-inf' as double));
 ```
 
 ```text
-+-----------------------------+
-| cot(cast('-inf' AS DOUBLE)) |
-+-----------------------------+
-| NaN                         |
-+-----------------------------+
++----------------------------+
+| csc(cast('-inf' AS DOUBLE))|
++----------------------------+
+| NaN                        |
++----------------------------+
 ```
