@@ -1,77 +1,106 @@
 ---
 {
-  "title": "EXPLODE_JSON_ARRAY_STRING",
+  "title": "FROM_UNIXTIME",
   "language": "en",
-  "description": "The explodejsonarraystring table function accepts a JSON array."
+  "description": "The FROMUNIXTIME function is used to convert a Unix timestamp (in seconds) to a date-time string or VARCHAR type value in a specified format."
 }
 ---
 
 ## Description
 
-The `explode_json_array_string` table function accepts a JSON array. Its implementation logic is to convert the JSON array to an array type and then call the `explode` function for processing. The behavior is equivalent to: `explode(cast(<json_array> as Array<STRING>))`.
-It should be used together with [`LATERAL VIEW`](../../../query-data/lateral-view.md).
+The FROM_UNIXTIME function is used to convert a Unix timestamp (in seconds) to a date-time string or VARCHAR type value in a specified format. The reference time for Unix timestamps is 1970-01-01 00:00:00 UTC, and the function generates the corresponding date-time representation based on the input timestamp and format string.
+
+This function is consistent with the [from_unixtime function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_from-unixtime) in MySQL.
 
 ## Syntax
 
 ```sql
-EXPLODE_JSON_ARRAY_STRING(<json>)
+FROM_UNIXTIME(<unix_timestamp> [, <string_format>])
 ```
 
 ## Parameters
 
-- `<json>` JSON type, the content should be an array.
+| Parameter          | Description                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<unix_timestamp>` | Input Unix timestamp, of integer type BIGINT, representing the number of seconds from 1970-01-01 00:00:00 UTC                                                      |
+| `<string_format>`  | Format string, supports varchar and string types, default is %Y-%m-%d %H:%i:%s. For specific formats, please refer to [date-format](./date-format) |
 
 ## Return Value
 
-- Returns a single-column, multi-row result composed of all elements in `<json>`. The column type is `Nullable<STRING>`.
-- If `<json>` is NULL or an empty array (number of elements is 0), 0 rows are returned.
-- If the elements in the JSON array are not of STRING type, the function will try to convert them to STRING. If conversion to STRING fails, the element will be converted to NULL. For type conversion rules, please refer to [JSON Type Conversion](../../basic-element/sql-data-types/conversion/json-conversion.md).
+Returns date in specified format, of type VARCHAR, returning the result of converting the UTC timezone unix timestamp to the current timezone time.
+
+- Currently supported unix_timestamp range is [0, 253402271999] corresponding to dates from 1970-01-01 00:00:00 to 9999-12-31 23:59:59, unix_timestamp outside this range will return an error
+- If string_format is invalid, returns a string that does not meet expectations.
+- If any parameter is NULL, returns NULL
+- If the format length is over 128 characters, returns error
 
 ## Examples
 
-0. Prepare data
-    ```sql
-    create table example(
-        k1 int
-    ) properties(
-        "replication_num" = "1"
-    );
-    
-    insert into example values(1);
-    ```
-1. Regular parameters
-    ```sql
-    select * from example lateral view explode_json_array_string('[4, "5", "abc", 5.23, null]') t2 as c;
-    ```
-    ```text
-    +------+------+
-    | k1   | c    |
-    +------+------+
-    |    1 | 4    |
-    |    1 | 5    |
-    |    1 | abc  |
-    |    1 | 5.23 |
-    |    1 | NULL |
-    +------+------+
-    ```
-2. Empty array
-    ```sql
-    select * from example lateral view explode_json_array_string('[]') t2 as c;
-    ```
-    ```text
-    Empty set (0.03 sec)
-    ```
-3. NULL parameter
-    ```sql
-    select * from example lateral view explode_json_array_string(NULL) t2 as c;
-    ```
-    ```text
-    Empty set (0.03 sec)
-    ```
-4. Non-array parameter
-    ```sql
-    select * from example lateral view explode_json_array_string('{}') t2 as c;
-    ```
-    ```text
-    Empty set (0.03 sec)
-    ```
+```sql
+
+----Since the current timezone is East 8th zone, the returned time is 8 hours ahead of UTC
+select from_unixtime(0);
++---------------------+
+| from_unixtime(0)    |
++---------------------+
+| 1970-01-01 08:00:00 |
++---------------------+
+
+---Default format %Y-%m-%d %H:%i:%s return
+mysql> select from_unixtime(1196440219);
++---------------------------+
+| from_unixtime(1196440219) |
++---------------------------+
+| 2007-12-01 00:30:19       |
++---------------------------+
+
+---Specify yyyy-MM-dd HH:mm:ss format return
+mysql> select from_unixtime(1196440219, 'yyyy-MM-dd HH:mm:ss');
++--------------------------------------------------+
+| from_unixtime(1196440219, 'yyyy-MM-dd HH:mm:ss') |
++--------------------------------------------------+
+| 2007-12-01 00:30:19                              |
++--------------------------------------------------+
+
+
+---Specify %Y-%m-%d date-only format return
+mysql> select from_unixtime(1196440219, '%Y-%m-%d');
++-----------------------------------------+
+| from_unixtime(1196440219, '%Y-%m-%d') |
++-----------------------------------------+
+| 2007-12-01                              |
++-----------------------------------------+
+
+---Specify %Y-%m-%d %H:%i:%s format return
+mysql> select from_unixtime(1196440219, '%Y-%m-%d %H:%i:%s');
++--------------------------------------------------+
+| from_unixtime(1196440219, '%Y-%m-%d %H:%i:%s') |
++--------------------------------------------------+
+| 2007-12-01 00:30:19                              |
++--------------------------------------------------+
+
+---Exceeds maximum range, returns error
+select from_unixtime(253402281999);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]Operation from_unixtime_new of 253402281999, yyyy-MM-dd HH:mm:ss is invalid
+
+---result over max length
+select from_unixtime(32536799,repeat('a',129));
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT]Operation from_unixtime_new of invalid or oversized format is invalid
+
+---string-format does not reference any time values
+mysql> select from_unixtime(32536799,"gdaskpdp");
++------------------------------------+
+| from_unixtime(32536799,"gdaskpdp") |
++------------------------------------+
+| gdaskpdp                           |
++------------------------------------+
+
+---Input is NULL, returns NULL
+mysql> select from_unixtime(NULL);
++---------------------+
+| from_unixtime(NULL) |
++---------------------+
+| NULL                |
++---------------------+
+
+```
