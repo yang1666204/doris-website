@@ -1,46 +1,44 @@
 ---
 {
-  "title": "RTRIM_IN",
+  "title": "RTRIM",
   "language": "en",
-  "description": "The RTRIMIN function removes specified characters from the right side of a string. When no character set is specified,"
+  "description": "The RTRIM function is used to remove consecutive spaces or specified strings from the right side (trailing) of a string."
 }
 ---
 
 ## Description
 
-The RTRIM_IN function removes specified characters from the right side of a string. When no character set is specified, it removes trailing spaces by default. When a character set is specified, it removes all specified characters from the right side (regardless of their order in the set).
-
-The key feature of RTRIM_IN is that it removes any combination of characters from the specified set, while the RTRIM function removes characters based on exact string matching.
+The RTRIM function is used to remove consecutive spaces or specified strings from the right side (trailing) of a string. If the second parameter is not specified, trailing spaces are removed; if specified, the function removes the specified complete string from the right side.
 
 ## Syntax
 
 ```sql
-RTRIM_IN(<str>[, <rhs>])
+RTRIM(<str>[, <rhs>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------ |
-| `<str>`   | The string to be processed. Type: VARCHAR                              |
-| `<rhs>`   | Optional parameter, the set of characters to be removed. Type: VARCHAR |
+| Parameter | Description                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| `<str>`   | The string to be processed. Type: VARCHAR                            |
+| `<rhs>`   | Optional parameter, trailing characters to be trimmed. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the processed string.
+Returns a value of type VARCHAR.
 
 Special cases:
 
-- If str is NULL, returns NULL
-- If rhs is not specified, removes all trailing spaces
-- If rhs is specified, removes all characters from the right side that appear in rhs until encountering the first character not in rhs
+- If any parameter is NULL, NULL is returned
+- If rhs is not specified, removes trailing spaces
+- If rhs is specified, removes the complete rhs string (not character-by-character)
 
 ## Examples
 
 1. Remove trailing spaces
 
 ```sql
-SELECT rtrim_in('ab d   ') str;
+SELECT rtrim('ab d   ') str;
 ```
 
 ```text
@@ -51,92 +49,106 @@ SELECT rtrim_in('ab d   ') str;
 +------+
 ```
 
-2. Remove specified character set
+2. Remove specified trailing string
 
 ```sql
-SELECT rtrim_in('ababccaab', 'ab') str;
+SELECT rtrim('ababccaab', 'ab') str;
 ```
 
 ```text
 +---------+
 | str     |
 +---------+
-| ababcc  |
+| ababcca |
 +---------+
 ```
 
-3. Comparison with RTRIM function
+3. UTF-8 character support
 
 ```sql
-SELECT rtrim_in('ababccaab', 'ab'), rtrim('ababccaab', 'ab');
+SELECT rtrim('ṭṛì ḍḍumai   ');
 ```
 
 ```text
-+-----------------------------+--------------------------+
-| rtrim_in('ababccaab', 'ab') | rtrim('ababccaab', 'ab') |
-+-----------------------------+--------------------------+
-| ababcc                      | ababcca                  |
-+-----------------------------+--------------------------+
++---------------------------+
+| rtrim('ṭṛì ḍḍumai   ')    |
++---------------------------+
+| ṭṛì ḍḍumai                |
++---------------------------+
 ```
 
-4. Character set order does not matter
+4. No matching suffix, return original string
 
 ```sql
-SELECT rtrim_in('Helloabc', 'cba');
+SELECT rtrim('Hello World', 'xyz');
 ```
 
 ```text
-+-----------------------------+
-| rtrim_in('Helloabc', 'cba') |
-+-----------------------------+
-| Hello                       |
-+-----------------------------+
++---------------------------------+
+| rtrim('Hello World', 'xyz')     |
++---------------------------------+
+| Hello World                     |
++---------------------------------+
 ```
 
-5. UTF-8 character support
+5. NULL value handling
 
 ```sql
-SELECT rtrim_in('ṭṛì ḍḍumai+++', '+');
+SELECT rtrim(NULL), rtrim('Hello', NULL);
 ```
 
 ```text
-+------------------------------------+
-| rtrim_in('ṭṛì ḍḍumai+++', '+')    |
-+------------------------------------+
-| ṭṛì ḍḍumai                         |
-+------------------------------------+
++-------------+------------------------+
+| rtrim(NULL) | rtrim('Hello', NULL)   |
++-------------+------------------------+
+| NULL        | NULL                   |
++-------------+------------------------+
 ```
 
-6. NULL value handling
+6. Empty string handling
 
 ```sql
-SELECT rtrim_in(NULL, 'abc');
+SELECT rtrim(''), rtrim('abc', '');
 ```
 
 ```text
-+------------------------+
-| rtrim_in(NULL, 'abc')  |
-+------------------------+
-| NULL                   |
-+------------------------+
++-----------+-------------------+
+| rtrim('') | rtrim('abc', '')  |
++-----------+-------------------+
+|           | abc               |
++-----------+-------------------+
 ```
 
-7. Empty character handling
+7. Repeated trailing pattern removal
 
 ```sql
-SELECT rtrim_in('', 'abc'), rtrim_in('abc', '');
+SELECT rtrim('abcabcabc', 'abc');
 ```
 
 ```text
-+---------------------+---------------------+
-| rtrim_in('', 'abc') | rtrim_in('abc', '') |
-+---------------------+---------------------+
-|                     | abc                 |
-+---------------------+---------------------+
++-------------------------------+
+| rtrim('abcabcabc', 'abc')     |
++-------------------------------+
+|                               |
++-------------------------------+
+```
+
+8. Multiple occurrences, remove only trailing match
+
+```sql
+SELECT rtrim('HelloHelloWorld', 'Hello');
+```
+
+```text
++---------------------------------------+
+| rtrim('HelloHelloWorld', 'Hello')     |
++---------------------------------------+
+| HelloHelloWorld                       |
++---------------------------------------+
 ```
 
 ### Keywords
 
     ```
-    RTRIM_IN, RTRIM
+    RTRIM
     ```
