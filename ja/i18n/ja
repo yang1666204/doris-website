@@ -1,110 +1,108 @@
 ---
 {
-  "title": "ATANH",
+  "title": "SINH",
   "language": "en",
-  "description": "Returns the hyperbolic arc tangent of x, or NULL if x is not in the range -1 to 1 (excluding -1 and 1)."
+  "description": "Returns the hyperbolic sine of x."
 }
 ---
 
 ## Description
 
-Returns the hyperbolic arc tangent of `x`, or `NULL` if `x` is not in the range `-1` to `1` (excluding `-1` and `1`).
+Returns the hyperbolic sine of `x`.
 
 ## Syntax
 
 ```sql
-ATANH(<x>)
+SINH(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                        |
-| --------- | ------------------------------------------------------------------ |
-| `<x>`     | The value for which the hyperbolic arc tangent is to be calculated |
+| Parameter | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| `<x>`     | The value for which the hyperbolic sine value is to be calculated |
 
 ## Return Value
 
-The hyperbolic arc tangent value of parameter `x`.
+The sinh value of parameter `x`.
 
 ## Special Cases
 
-- When `x` equals 0, returns 0
-- When `x` equals 1 or -1, returns `NULL`
-- When `x` is outside the range (-1, 1), returns `NULL`
 - When `x` is NaN, returns NaN
-- When `x` is positive or negative infinity, returns `NULL`
+- When `x` is positive infinity, returns Infinity
+- When `x` is negative infinity, returns -Infinity
 - When `x` is NULL, returns NULL
 
-## Examples
+## Example
 
 ```sql
-select atanh(0.0);
+select sinh(0.0);
 ```
 
-```text
-+------------+
-| atanh(0.0) |
-+------------+
-|          0 |
-+------------+
 ```
-
-```sql
-select atanh(-1.0);
-```
-
-```text
-+-------------+
-| atanh(-1.0) |
-+-------------+
-|        NULL |
-+-------------+
++-----------+
+| sinh(0.0) |
++-----------+
+|         0 |
++-----------+
 ```
 
 ```sql
-select atanh(1.0);
+select sinh(1.0);
 ```
 
-```text
-+------------+
-| atanh(1.0) |
-+------------+
-|       NULL |
-+------------+
 ```
-
-```sql
-select atanh(0.5);
-```
-
-```text
 +--------------------+
-| atanh(0.5)         |
+| sinh(1.0)          |
 +--------------------+
-| 0.5493061443340548 |
+| 1.1752011936438014 |
 +--------------------+
 ```
 
 ```sql
-select atanh(cast('nan' as double));
+select sinh(-1.0);
 ```
 
-```text
-+---------------------------+
-| atanh(cast('nan' AS DOUBLE)) |
-+---------------------------+
-| NaN                       |
-+---------------------------+
+```
++---------------------+
+| sinh(-1.0)          |
++---------------------+
+| -1.1752011936438014 |
++---------------------+
 ```
 
 ```sql
-select atanh(cast('inf' as double));
+select sinh(cast('nan' as double));
 ```
 
-```text
-+---------------------------+
-| atanh(cast('inf' AS DOUBLE)) |
-+---------------------------+
-| NULL                      |
-+---------------------------+
+```
++------------------------------+
+| sinh(cast('nan' AS DOUBLE))  |
++------------------------------+
+| NaN                          |
++------------------------------+
+```
+
+```sql
+select sinh(cast('inf' as double));
+```
+
+```
++------------------------------+
+| sinh(cast('inf' AS DOUBLE))  |
++------------------------------+
+| Infinity                     |
++------------------------------+
+```
+
+```sql
+select sinh(cast('-inf' as double));
+```
+
+```
++-------------------------------+
+| sinh(cast('-inf' AS DOUBLE))  |
++-------------------------------+
+| -Infinity                     |
++-------------------------------+
 ```
