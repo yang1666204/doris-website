@@ -1,87 +1,98 @@
 ---
 {
-  "title": "MINUTES_DIFF",
+  "title": "MINUTES_SUB",
   "language": "en",
-  "description": "The MINUTESDIFF function calculates the difference in minutes between two datetime values."
+  "description": "The MINUTESSUB function subtracts a specified number of minutes from the input datetime value and returns the resulting new datetime value."
 }
 ---
 
 ## Description
 
-The MINUTES_DIFF function calculates the difference in minutes between two datetime values. The result is the number of minutes obtained by subtracting the start time from the end time. This function supports processing DATE and DATETIME (including microsecond precision) types.
+The MINUTES_SUB function subtracts a specified number of minutes from the input datetime value and returns the resulting new datetime value. This function supports processing DATE, DATETIME and TIMESTAMPTZ types.
+
+This function is consistent with [date_sub function](./date-sub) and MySQL's [date_sub function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_date-sub) when using MINUTE as the unit.
 
 ## Syntax
 
 ```sql
-MINUTES_DIFF(`<date_or_time_expr1>`, `<date_or_time_expr2>`)
+MINUTES_SUB(`<date_or_time_expr>`, `<minutes>`)
 ```
 
 ## Parameters
 
-| Parameter              | Description                                                                                                                                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<date_or_time_expr1>` | The end time, which can be of type DATE or DATETIME. For specific datetime/date formats, [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion)       |
-| `<date_or_time_expr2>` | The start time, which can be of type DATE or DATETIME. For specific datetime/date formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr>` | The input datetime value, which can be of type DATE, DATETIME or TIMESTAMPTZ. For specific datetime/date formats, see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion). |
+| `<minutes>`           | The number of minutes to subtract, of type BIGINT. Can be positive or negative.                                                                                                                                                                                                                                                                                                                                                                         |
 
 ## Return Value
 
-Returns an INT type integer representing the minute difference between `<date_or_time_expr1>` and `<date_or_time_expr2>` (1 hour = 60 minutes).
+Return the result of subtracting the specified minutes `<minutes>` from the base time `<datetime_like_type>`, with the return type being related to the type of the first parameter:
 
-- If `<date_or_time_expr1>` is later than `<date_or_time_expr2>`, returns a positive number.
-- If `<date_or_time_expr1>` is earlier than `<date_or_time_expr2>`, returns a negative number.
-- The calculation considers the actual difference and does not ignore seconds or microseconds.
+- If the first parameter is TIMESTAMPTZ, then return TIMESTAMPTZ.
+- If the first parameter is DATETIME, then return DATETIME.
+
+Special cases:
+
+- If `<minutes>` is negative, the function behaves the same as adding the corresponding minutes to the base time (i.e., MINUTES_SUB(date, -n) is equivalent to MINUTES_ADD(date, n)).
 - If the input is of DATE type (only includes year, month, and day), its time part defaults to 00:00:00.
-- If the input datetime includes scale, seconds, or microsecond parts that are non-zero, they are not ignored during calculation.
+- If the input datetime includes microseconds, the original microsecond precision is preserved after subtracting minutes (e.g., '2023-01-01 00:01:00.123456' becomes '2023-01-01 00:00:00.123456' after subtracting 1 minute).
+- If the calculation result exceeds the valid range of the DATETIME type (0000-01-01 00:00:00 to 9999-12-31 23:59:59.999999), an exception is thrown.
 - If any parameter is NULL, returns NULL.
 
 ## Examples
 
 ```sql
--- Minute difference when end time is greater than start time
-SELECT MINUTES_DIFF('2020-12-25 22:00:00', '2020-12-25 21:00:00') AS result;
-+--------+
-| result |
-+--------+
-|     60 |
-+--------+
+-- Subtract minutes from DATETIME
+SELECT MINUTES_SUB('2020-02-02 02:02:02', 1) AS result;
++---------------------+
+| result              |
++---------------------+
+| 2020-02-02 02:01:02 |
++---------------------+
 
--- Includes scale, calculation does not ignore it
-SELECT MINUTES_DIFF('2020-12-25 21:00:00.999', '2020-12-25 22:00:00.923');
-+--------------------------------------------------------------------+
-| MINUTES_DIFF('2020-12-25 21:00:00.999', '2020-12-25 22:00:00.923') |
-+--------------------------------------------------------------------+
-|                                                                -59 |
-+--------------------------------------------------------------------+
+-- Time with microseconds (preserves precision)
+SELECT MINUTES_SUB('2023-07-13 22:38:18.456789', 10) AS result;
++----------------------------+
+| result                     |
++----------------------------+
+| 2023-07-13 22:28:18.456789 |
++----------------------------+
 
--- End time is earlier than start time, returns negative number
-SELECT MINUTES_DIFF('2023-07-13 21:50:00', '2023-07-13 22:00:00') AS result;
-+--------+
-| result |
-+--------+
-|    -10 |
-+--------+
+-- Negative minutes (equivalent to addition)
+SELECT MINUTES_SUB('2023-07-13 22:23:18', -5) AS result;
++---------------------+
+| result              |
++---------------------+
+| 2023-07-13 22:28:18 |
++---------------------+
 
 -- Input is of DATE type (default time 00:00:00)
-SELECT MINUTES_DIFF('2023-07-14', '2023-07-13') AS result;
-+--------+
-| result |
-+--------+
-|   1440 |
-+--------+
+SELECT MINUTES_SUB('2023-07-13', 30) AS result;
++---------------------+
+| result              |
++---------------------+
+| 2023-07-12 23:30:00 |
++---------------------+
 
--- Two times have different seconds, seconds are also calculated
-SELECT MINUTES_DIFF('2023-07-13 22:30:59', '2023-07-13 22:31:01') AS result;
-+--------+
-| result |
-+--------+
-|      0 |
-+--------+
+-- Example of TimeStampTz type, SET time_zone = '+08:00'
+SELECT MINUTES_SUB('2025-10-10 11:22:33.123+07:00', 1);
++-------------------------------------------------+
+| MINUTES_SUB('2025-10-10 11:22:33.123+07:00', 1) |
++-------------------------------------------------+
+| 2025-10-10 12:21:33.123+08:00                   |
++-------------------------------------------------+
 
 -- Any parameter is NULL, returns NULL
-SELECT MINUTES_DIFF(NULL, '2023-07-13 22:00:00'), MINUTES_DIFF('2023-07-13 22:00:00', NULL) AS result;
-+-------------------------------------------+--------+
-| MINUTES_DIFF(NULL, '2023-07-13 22:00:00') | result |
-+-------------------------------------------+--------+
-|                                      NULL |   NULL |
-+-------------------------------------------+--------+
+SELECT MINUTES_SUB(NULL, 10), MINUTES_SUB('2023-07-13 22:28:18', NULL) AS result;
++-----------------------+--------+
+| MINUTES_SUB(NULL, 10) | result |
++-----------------------+--------+
+| NULL                  | NULL   |
++-----------------------+--------+
+
+
+-- Calculation result exceeds datetime range, throws error
+SELECT MINUTES_SUB('0000-01-01 00:00:00', 1) AS result;
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation minutes_add of 0000-01-01 00:00:00, -1 out of range
 ```
