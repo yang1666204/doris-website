@@ -1,125 +1,110 @@
 ---
 {
-  "title": "AI Overview",
+  "title": "Release 4.0.2",
   "language": "en",
-  "description": "As AI technologies continue to advance at an unprecedented pace, data infrastructure has become the cornerstone of modern AI applications."
+  "description": "Here's a professional translation of the Apache Doris release notes:"
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## New Feature
 
-  http://www.apache.org/licenses/LICENSE-2.0
+### AI & Search
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+- Inverted index supports custom analyzers, including Pinyin tokenizer and Pinyin filter (#57097)
+- Added support for multi-position PhraseQuery in inverted index search functions (#57588)
+- Added Ann index only-scan capability (#57243)
 
-As AI technologies continue to advance at an unprecedented pace, data infrastructure has become the cornerstone of modern AI applications. Apache Doris, a high-performance real-time analytical database, provides native integration of full-text search, vector search, AI functions, and MCP-based intelligent interaction. Together, these capabilities form a comprehensive AI data stack that spans storage, retrieval, and analysis.
+### Function
 
-- [full-text search](text-search/overview.md)
-- [vector search](vector-search/overview.md)
-- [AI functions](ai-function-overview.md)
-- [Doris MCP Server](https://github.com/apache/doris-mcp-server)
+- Added the `sem` aggregate function (#57545)
+- Supported the `factorial` simple SQL function derived from Hive (#57144)
+- Added support for zero-width assertions in some regular expression functions (#57643)
+- Enabled GROUP BY and DISTINCT operations for JSON type (#57679)
+- Added the `add_time`/`sub_time` time functions (#56200)
+- Added the `deduplicate_map` function (#58403)
 
-Doris delivers a unified, high-performance, and cost-efficient solution for a wide range of AI-driven workloads, including hybrid search and analytics, agent facing data analysis, semantic search, RAG application development, and observability for large-scale AI systems.
+### Materialized View (MTMV)
 
-## Agent Facing Analytics
+- Materialized views can still participate in transparent query rewrite when data changes occur in their non-partitioned base tables (#56745)
+- Supported creating MTMV based on views (#56423)
+- MTMV refresh supports multiple PCT tables (#58140)
+- Supported window function rewrite when materialized views contain window functions (#55066)
 
-With the rise of AI Agent technology, an increasing number of analytical decisions will be completed automatically by AI, requiring data platforms to deliver ultimate real-time performance and high concurrency capabilities. Unlike traditional "manual analysis," Agent Facing Analytics demands data queries and decision-making to be completed at millisecond scale, supporting concurrent access from massive numbers of Agents. Typical scenarios include real-time fraud detection, intelligent advertising placement, and personalized recommendations.
+### Data Lake
 
-Doris demonstrates outstanding advantages in these agent-facing analytical scenarios with its high-performance MPP architecture:
+Here's a professional translation of the Apache Doris release notes:
 
-- **Real-Time Ingestion & Update**: ensuring Agent decisions are based on the latest data, ~ 1s minimum data latency
+- Added Doris Catalog
+  - This feature enables users to connect multiple independent Doris clusters through the Catalog capability and perform efficient federated data queries, addressing the inability to query data across Doris clusters.
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/catalogs/doris-catalog
+- Support for Iceberg table compaction via rewrite_data_files method
+  - This operation allows users to merge small Iceberg files, thereby optimizing read performance.
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/catalogs/iceberg-catalog#rewrite_data_files
+- Support for cache warmup of external tables (Hive, Iceberg, Paimon, etc.) using the WARM UP statement
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/data-cache#cache-warmup
+- Support for Iceberg table Partition Evolution operations via ALTER statement
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/catalogs/iceberg-catalog#partition-evolution
+- Support for HTTP Table Valued Function
+  - Enables direct reading of HTTP resource files through Table Valued Functions.
+  - Documentation: https://doris.apache.org/docs/4.x/sql-manual/sql-functions/table-valued-functions/http
+- Supports direct access to datasets on Hugging Face.
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/huggingface
+- Support for accessing Microsoft OneLake via Iceberg REST Catalog protocol
+  - Documentation: https://doris.apache.org/docs/4.x/lakehouse/best-practices/doris-onelake
+- Support for direct mapping of binary types from Hive, Iceberg, Paimon, and JDBC external tables to Doris varbinary type
+  - Please refer to the "Column Mapping" section in each Catalog's documentation.
 
-- **Blazing-Fast Analytics**: Average query latency < 100ms, meeting real-time decision requirements for Agents
+## Optimizations
 
-- **High-Concurrent Queries**: Supports 10,000+ QPS, easily handling massive Agent concurrent queries
+- Optimized performance of the `FROM_UNIXTIME` function (#57423)
+- Removed `castTo` conversion operations in PartitionKey comparisons to improve partition processing efficiency (#57518)
+- Reduced memory footprint of the Column class in Catalog (#57401)
+- Ann index now accumulates multiple small batches of data before training to improve training efficiency (#57623)
+- Upgraded Hadoop dependency to version 3.4.2 (#58307)
+- Optimized graceful shutdown mechanism for FE and BE to minimize the impact of node exits on queries (#56601)
+- Improved write efficiency for Hive tables containing a large number of partitions (#58166)
+- Optimized the issue of excessive memory consumption by Paimon table Splits (#57950)
+- Improved read efficiency for Parquet RLE_DICTIONARY encoding (#57208)
+- Optimized graceful shutdown mechanism for FE and BE to minimize the impact of node exits on queries (#56601)
 
-- **Native Agent integration**: Seamlessly integrates with AI Agents through MCP Server, simplifying development and integration workflows
+## Bug Fixes
 
-## Hybrid Search and Analytics Processing
+### Query
 
-![img](/images/vector-search/image-5.png)
+- Fixed the issue where the `utc_time` function returned incorrect results when the input was null (#57716)
+- Fixed the exception thrown when UNION ALL is combined with TVF (#57889)
+- Fixed the problem that the WHERE clause contained non-key columns when creating a materialized view on a unique key table (#57915)
+- Fixed window functions: enabled constant expression evaluation for the offset parameter of LAG/LEAD (#58200)
+- Fixed aggregate functions: abnormal push-down of aggregate operations before projection on nullable columns; count push-down aggregation issue on non-null columns (#58234)
+- Fixed time functions: the `second`/`microsecond` functions did not handle time literals; `time_to_sec` reported errors due to garbage values when processing null values (#56659, #58410)
+- Fixed AI functions: unknown error occurred when `_exec_plan_fragment_impl` called AI functions (#58521)
+- Fixed geo module: memory leak in the geo module (#58004)
+- Fixed information_schema: timezone format incompatibility when using offset timezone (#58412)
 
-Semi-structured and unstructured data are becoming first-class citizens in data analytics. Customer reviews, chat logs, production logs, vehicle signals, and other data have been deeply integrated into business decision-making processes. Traditional structured analytics solutions need to incorporate full-text retrieval and vector search capabilities, supporting semantic search while enabling multidimensional analysis and aggregation statistics on the same platform. Examples include:
+### Materialized View and Schema Change
 
-- **Customer insights**: Combining review text retrieval with user behavior analysis to precisely identify customer needs and satisfaction trends
-- **Smart manufacturing**: Integrating production log full-text search, equipment image recognition, and IoT metric analysis to achieve fault prediction and quality optimization
-- **Internet of Vehicles**: Synthesizing vehicle signal data analysis, user feedback text mining, and driving behavior vector retrieval to enhance smart cockpit experiences
+- Fixed the failure of rewrite when materialized views contain group sets and filters above scan (#57343)
+- Fixed the coredump issue caused by reading non-overlapping segments from a single rowset during heavy schema change (#57191)
 
-Building AI applications for the above scenarios based on Doris's high-performance real-time analytics, text indexing, and vector indexing capabilities offers multiple advantages:
+### Storage-Compute Separation
 
-- **Unified architecture**: Processes structured analytics, full-text retrieval, and vector search on a single platform, eliminating data migration and heterogeneous system integration
-- **Hybrid query performance**: Single SQL executes vector similarity search, keyword filtering, and aggregation analysis simultaneously with excellent query performance
-- **Flexible schema support**: VARIANT type natively supports dynamic JSON structures, Light Schema Change enables second-level field and index modifications
-- **Full-stack optimization**: End-to-end optimization from inverted indexes and vector indexes to MPP execution engine, balancing retrieval accuracy and analytical efficiency
+- Fixed the issue of broadcast remote read in TopN queries (#58044)
+- Fixed the accumulation of tablet deletion tasks in the cloud environment (#58131)
+- Fixed the problem of long service startup time during the first boot in the cloud environment (#58152)
 
-## Lakehouse for AI
+### Data Lake
 
-AI model and application development requires preparing training sets, performing feature engineering, and evaluating data quality from massive datasets. Traditional architectures often require frequent data migration between data lakes and analytical engines. The Lakehouse architecture deeply integrates the open storage of data lakes with real-time analytical engines, supporting the entire workflow of data preparation, feature engineering, and model evaluation on a unified platform, eliminating data silos and accelerating AI development iterations.
+- Fixed an issue where Hive partition changes could cause metadata cache inconsistency in certain cases (#58707)
+- Fixed an error when writing to Iceberg tables with TIMESTAMP type partitions (#58603)
+- Fixed inconsistent Paimon table Incremental Read behavior compared to Spark (#58239)
+- Fixed a potential deadlock issue caused by external table metadata cache in certain cases (#57856)
+- Fixed low I/O throughput caused by unreasonable s3 client thread count on the BE side (#58511)
+- Fixed failures when writing to external tables stored on non-S3 object storage in certain cases (#58504)
+- Fixed SQL passthrough failures for JDBC Catalog using query() in certain cases (#57745)
+- Fixed performance degradation in read operations caused by JNI Reader time statistics (#58224)
+- Fixed an issue where jni.log could not be printed on the BE side (#58457)
 
-- **Lakehouse unified architecture**: Builds an open lakehouse based on open table formats (such as Iceberg/Paimon) and Catalogs, uniformly managing analytical data and AI data
-- **Real-Time Analytics Engine**: Doris serves as a real-time analytical engine, supporting interactive queries and lightweight ETL, providing the fastest SQL computing capabilities for data preparation and feature engineering
-- **Seamless data flow**: Directly reads and writes to data lakes without data movement, unified management at the storage layer and flexible acceleration at the compute layer
+### Others
 
-Lakehouse architecture based on Doris accelerates the entire AI workflow:
-
-- **Large-scale data preparation**: Leveraging Doris's efficient data processing capabilities to filter, sample, and cleanse data from PB-scale data lakes, rapidly building high-quality training datasets
-- **Real-time feature engineering**: Utilizing Doris's real-time analytics capabilities to perform online feature extraction, transformation, and aggregation computing, providing real-time feature services for model training and inference
-- **Quality evaluation**: Conducting multidimensional rapid analysis on test sets and production data, continuously monitoring model performance and data drift
-
-## RAG (Retrieval-Augmented Generation)
-
-RAG retrieves relevant information from external knowledge bases to provide context for large models, effectively addressing model hallucination and knowledge currency issues. The vector engine is a core component of RAG systems, requiring rapid recall of the most relevant document fragments from massive knowledge bases while supporting high-concurrency user query requests to ensure application responsiveness.
-
-- **Enterprise knowledge**: Building intelligent Q&A systems based on internal documents and manuals, enabling employees to quickly obtain accurate answers through natural language
-- **Intelligent customer service assistant**: Combining product knowledge bases and historical cases to provide precise response suggestions for customer service personnel or chatbots
-- **Intelligent document assistant**: Rapidly locating relevant content in large-scale document collections to assist research, writing, and decision-making processes
-
-Building RAG applications based on Doris offers the following advantages in these scenarios:
-
-- **High concurrency performance**: Distributed architecture supports high-concurrency vector retrieval, easily handling large-scale concurrent user access
-- **Hybrid retrieval capability**: Single SQL executes vector similarity search and keyword filtering simultaneously, balancing semantic recall and exact matching
-- **Elastic scaling**: Query performance scales linearly with cluster expansion, seamlessly transitioning from millions to tens of billions of vectors
-- **Unified solution**: Uniformly manages vector data, original documents, and business data, simplifying the data architecture for RAG applications
-
-## AI Observability
-
-AI model training iterations and application operations generate massive amounts of logs, metrics, and tracing data. To precisely locate issues and continuously optimize performance, observability systems have become a critical component of AI infrastructure. As business scale expands, observability platforms face multiple challenges including high-throughput writes of PB-scale data, millisecond-level retrieval response, and cost control. Typical use cases include:
-
-- **Model training monitoring**: Real-time tracking of training metrics and resource consumption, rapidly identifying training anomalies and performance bottlenecks
-- **Inference service tracing**: Recording the complete trace of each inference request, analyzing latency sources and error patterns
-- **AI** **application log analysis**: Full-text retrieval and aggregation analysis of massive application logs, supporting troubleshooting and behavioral insights
-
-Building AI Observability with Doris offers the following advantages:
-
-- **Ultimate performance**: Supports sustained writes of PB/day (10GB/s), inverted indexes accelerate log retrieval with second-level response
-- **Cost optimization**: Compression ratios of 5:1 to 10:1, storage cost savings of 50%-80%, supports low-cost storage for cold data
-- **Flexible schema**: Light Schema Change enables second-level field modifications, VARIANT type natively supports dynamic JSON structures
-- **Ecosystem-friendly**: Compatible with OpenTelemetry and ELK ecosystems, supports integration with Grafana/Kibana visualization tools
-
-## Semantic Search
-
-Semantic search captures the deep meaning of text through vectorization techniques. Even when query terms differ from document wording, semantically relevant content can still be retrieved. This is crucial for scenarios such as cross-language retrieval, synonym recognition, and intent understanding, significantly improving search recall rates and user experience. Typical use cases include:
-
-- **Enterprise document retrieval**: Employees describe issues in natural language, and the system understands intent to recall semantically relevant policies, procedures, and knowledge from massive documents
-- **E-commerce product search**: Users input "breathable shoes suitable for summer," and the system understands the need to recall relevant products rather than merely matching keywords
-- **Content recommendation**: Intelligent recommendations based on semantic similarity of articles and videos, discovering content of potential interest with different wording
-
-Building semantic search applications based on Doris offers the following advantages:
-
-- **High-performance vector retrieval**: Supports HNSW and IVF algorithms, sub-second response for hundred-million-scale vectors, easily handling large-scale semantic search requirements
-- **Enhanced hybrid retrieval**: Single SQL integrates semantic search and keyword filtering, ensuring necessary vocabulary hits while recalling semantically relevant content
-- **Multimodal extension**: Supports not only text semantic search but can also extend to semantic retrieval of multimodal content such as images and audio
-- **Flexible quantization optimization**: Through SQ/PQ quantization techniques, significantly reduces storage and computing costs while maintaining retrieval accuracy
+- Fixed an error when using UNSET GLOBAL variable during non-Master phase (#58285)
+- Fixed an issue where abnormal export tasks could not be canceled in certain cases (#57488)
