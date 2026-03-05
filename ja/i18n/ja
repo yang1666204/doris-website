@@ -1,62 +1,114 @@
 ---
 {
-  "title": "TO_BASE64_BINARY",
+  "title": "FROM_BASE64",
   "language": "en",
-  "description": "The TOBASE64BINARY function converts the input binary string into Base64 encoding format."
+  "description": "The FROMBASE64 function decodes a Base64-encoded string back to its original string."
 }
 ---
 
 ## Description
 
-The TO_BASE64_BINARY function converts the input binary string into Base64 encoding format. Base64 encoding converts arbitrary binary data into a string composed of 64 characters.
+The FROM_BASE64 function decodes a Base64-encoded string back to its original string. This is the inverse operation of TO_BASE64 and follows RFC 4648 standards. Base64 encoding is commonly used to transmit binary data in text protocols, and this function can restore the encoded data. It supports standard Base64 character set (A-Z, a-z, 0-9, +, /) and padding character (=).
 
 ## Syntax
 
 ```sql
-TO_BASE64_BINARY(<bin>)
+FROM_BASE64(<str>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                      |
-| --------- | -------------------------------------------------------------------------------- |
-| `<bin>`   | The binary to be Base64 encoded. Type: VARBINARY |
+| Parameter | Description                                                                        |
+| --------- | ---------------------------------------------------------------------------------- |
+| `<str>`   | The Base64-encoded string to decode. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the Base64 encoded string.
+Returns VARCHAR type, representing the original string after Base64 decoding.
+
+Decoding rules:
+
+- Accepts standard Base64 character set: A-Z, a-z, 0-9, +, /
+- Supports padding character =
+- Follows RFC 4648 standards
+- Automatically ignores whitespace characters (spaces, newlines, etc.)
+- Decoding result may contain non-printable characters
 
 Special cases:
 
 - If input is NULL, returns NULL
+- If input contains illegal Base64 characters, returns NULL
 - If input is an empty string, returns an empty string
+- If padding is incorrect or format is invalid, returns NULL
 
 ## Examples
 
-1. Single character encoding
+1. Basic decoding
 
 ```sql
-SELECT to_base64_binary(x'12');
+SELECT FROM_BASE64('MQ=='), FROM_BASE64('QQ==');
 ```
 
 ```text
-+-------------------------+
-| to_base64_binary(x'12') |
-+-------------------------+
-| Eg==                    |
-+-------------------------+
++---------------------+---------------------+
+| FROM_BASE64('MQ==') | FROM_BASE64('QQ==') |
++---------------------+---------------------+
+| 1                   | A                   |
++---------------------+---------------------+
 ```
 
-2. Multiple character encoding
+2. Multi-character decoding
 
 ```sql
-SELECT to_base64_binary(x'234AAA');
+SELECT FROM_BASE64('MjM0'), FROM_BASE64('SGVsbG8=');
 ```
 
 ```text
-+-----------------------------+
-| to_base64_binary(x'234AAA') |
-+-----------------------------+
-| I0qq                        |
-+-----------------------------+
++---------------------+-------------------------+
+| FROM_BASE64('MjM0') | FROM_BASE64('SGVsbG8=') |
++---------------------+-------------------------+
+| 234                 | Hello                   |
++---------------------+-------------------------+
+```
+
+3. NULL value handling
+
+```sql
+SELECT FROM_BASE64(NULL);
+```
+
+```text
++-------------------+
+| FROM_BASE64(NULL) |
++-------------------+
+| NULL              |
++-------------------+
+```
+
+4. Empty string handling
+
+```sql
+SELECT FROM_BASE64('');
+```
+
+```text
++-----------------+
+| FROM_BASE64('') |
++-----------------+
+|                 |
++-----------------+
+```
+
+5. Illegal character handling
+
+```sql
+SELECT FROM_BASE64('!!!'), FROM_BASE64('ABC@DEF');
+```
+
+```text
++--------------------+------------------------+
+| FROM_BASE64('!!!') | FROM_BASE64('ABC@DEF') |
++--------------------+------------------------+
+| NULL               | NULL                   |
++--------------------+------------------------+
 ```
