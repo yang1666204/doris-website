@@ -1,122 +1,111 @@
 ---
 {
-  "title": "ACOSH",
+  "title": "ASINH",
   "language": "en",
-  "description": "Returns the hyperbolic arc cosine of x, or NULL if x is less than 1."
+  "description": "Returns the hyperbolic arc sine of x."
 }
 ---
 
 ## Description
 
-Returns the hyperbolic arc cosine of `x`, or `NULL` if `x` is less than `1`.
+Returns the hyperbolic arc sine of `x`.
 
 ## Syntax
 
 ```sql
-ACOSH(<x>)
+ASINH(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                       |
-| --------- | ----------------------------------------------------------------- |
-| `<x>`     | The value for which the hyperbolic arc cosine is to be calculated |
+| Parameter | Description                                                           |
+| --------- | --------------------------------------------------------------------- |
+| `<x>`     | The value for which the hyperbolic arc sine value is to be calculated |
 
 ## Return Value
 
-The hyperbolic arc cosine value of parameter `x`.
+The asinh value of parameter `x`.
 
 ## Special Cases
 
-- When `x` equals 1, returns 0
-- When `x` is less than 1, returns `NULL`
 - When `x` is NaN, returns NaN
 - When `x` is positive infinity, returns Infinity
-- When `x` is negative infinity, returns `NULL`
+- When `x` is negative infinity, returns -Infinity
+- When `x` is +0.0, returns 0
+- When `x` is -0.0, returns -0
+- Very large magnitudes may overflow to Infinity/-Infinity (for example, ±1e308)
 - When `x` is NULL, returns NULL
 
-## Examples
+## Example
 
 ```sql
-select acosh(0.0);
-```
-
-```text
-+------------+
-| acosh(0.0) |
-+------------+
-|       NULL |
-+------------+
+select asinh(0.0);
 ```
 
 ```sql
-select acosh(-1.0);
-```
-
-```text
-+-------------+
-| acosh(-1.0) |
-+-------------+
-|        NULL |
-+-------------+
-```
-
-```sql
-select acosh(1.0);
-```
-
-```text
 +------------+
-| acosh(1.0) |
+| asinh(0.0) |
 +------------+
 |          0 |
 +------------+
 ```
 
 ```sql
-select acosh(1.0000001);
-```
-
-```text
-+-------------------------+
-| acosh(1.0000001)        |
-+-------------------------+
-| 0.0004472135918947727   |
-+-------------------------+
+select asinh(1.0);
 ```
 
 ```sql
-select acosh(cast('nan' as double));
-```
-
-```text
-+----------------------------+
-| acosh(cast('nan' AS DOUBLE)) |
-+----------------------------+
-| NaN                        |
-+----------------------------+
++-------------------+
+| asinh(1.0)        |
++-------------------+
+| 0.881373587019543 |
++-------------------+
 ```
 
 ```sql
-select acosh(cast('inf' as double));
-```
-
-```text
-+----------------------------+
-| acosh(cast('inf' AS DOUBLE)) |
-+----------------------------+
-| Infinity                   |
-+----------------------------+
+select asinh(-1.0);
 ```
 
 ```sql
-select acosh(10.0);
++--------------------+
+| asinh(-1.0)        |
++--------------------+
+| -0.881373587019543 |
++--------------------+
 ```
 
-```text
-+-------------------+
-| acosh(10.0)       |
-+-------------------+
-| 2.993222846126381 |
-+-------------------+
+```sql
+select asinh(cast('nan' as double));
+```
+
+```sql
++------------------------------+
+| asinh(cast('nan' AS DOUBLE)) |
++------------------------------+
+| NaN                          |
++------------------------------+
+```
+
+```sql
+select asinh(cast('inf' as double));
+```
+
+```sql
++------------------------------+
+| asinh(cast('inf' AS DOUBLE)) |
++------------------------------+
+| Infinity                     |
++------------------------------+
+```
+
+```sql
+select asinh(cast('-inf' as double));
+```
+
+```sql
++-------------------------------+
+| asinh(cast('-inf' AS DOUBLE)) |
++-------------------------------+
+| -Infinity                     |
++-------------------------------+
 ```
