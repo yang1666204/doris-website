@@ -1,95 +1,39 @@
 ---
 {
-  "title": "FACTORIAL",
+  "title": "ALTER WORKLOAD GROUP",
   "language": "en",
-  "description": "Returns the factorial of x, or NULL if x is not in the range 0 to 20 (including 0 and 20)."
+  "description": "This statement is used to modify the workload group."
 }
 ---
 
 ## Description
 
-Returns the factorial of `x`, or `NULL` if `x` is not in the range `0` to `20` (including `0` and `20`).
+This statement is used to modify the workload group.
 
 ## Syntax
 
 ```sql
-FACTORIAL(<x>)
+ALTER WORKLOAD GROUP  "<rg_name>"
+PROPERTIES (
+  `<property>`
+  [ , ... ]
+);
 ```
 
 ## Parameters
 
-| Parameter | Description                                           |
-| --------- | ----------------------------------------------------- |
-| `<x>`     | The value for which the factorial is to be calculated |
+1.`<property>`
 
-## Return Value
-
-The factorial value of parameter `x`.
-
-## Special Cases
-
-- When `x` equals 0, returns 1
-- When `x` is not in the range [0, 20], returns `NULL`
-- When `x` is NULL, returns NULL
+`<property>` format is `<key>` = `<value>`，`<key>`'s specific optional values can be referred to [workload group](../../../../admin-manual/workload-management/workload-group.md).
 
 ## Examples
 
-```sql
-select factorial(0);
-```
+1. Modify the workload group named g1:
 
-```text
-+--------------+
-| factorial(0) |
-+--------------+
-|            1 |
-+--------------+
-```
-
-```sql
-select factorial(-1);
-```
-
-```text
-+---------------+
-| factorial(-1) |
-+---------------+
-|          NULL |
-+---------------+
-```
-
-```sql
-select factorial(21);
-```
-
-```text
-+---------------+
-| factorial(21) |
-+---------------+
-|          NULL |
-+---------------+
-```
-
-```sql
-select factorial(20);
-```
-
-```text
-+---------------------+
-| factorial(20)       |
-+---------------------+
-| 2432902008176640000 |
-+---------------------+
-```
-
-```sql
-select factorial(NULL);
-```
-
-```text
-+-----------------+
-| factorial(NULL) |
-+-----------------+
-|            NULL |
-+-----------------+
-```
+    ```sql
+    alter workload group g1
+    properties (
+        "max_cpu_percent"="20%",
+        "max_memory_percent"="40%"
+    );
+    ```
