@@ -1,46 +1,54 @@
 ---
 {
-  "title": "Meta Action",
+  "title": "Meta Info Action V2 | Fe Http",
   "language": "en",
-  "description": "This is a set of APIs related to FE metadata, except for /dump, they are all used for internal communication between FE nodes."
+  "description": "Used to obtain metadata information about the cluster, including the database list, table list, and table schema.",
+  "sidebar_label": "Meta Info Action V2"
 }
 ---
 
-# Meta Action
+# Meta Info Action
 
 ## Request
 
-```
-GET /image
-GET /info
-GET /version
-GET /put
-GET /journal_id
-GET /role
-GET /check
-GET /dump
-```
+`GET /api/meta/namespaces/<ns>/databases`
+`GET /api/meta/namespaces/<ns>/databases/<db>/tables`
+`GET /api/meta/namespaces/<ns>/databases/<db>/tables/<tbl>/schema`
 
 ## Description
 
-This is a set of APIs related to FE metadata, except for `/dump`, they are all used for internal communication between FE nodes.
+Used to obtain metadata information about the cluster, including the database list, table list, and table schema.
 
 ## Path parameters
 
-TODO
+- `ns`
+
+  Specify cluster name.
+
+- `db`
+
+  Specify database name.
+
+- `tbl`
+
+  Specify table name.
 
 ## Query parameters
 
-TODO
+None
 
 ## Request body
 
-TODO
+None
 
 ## Response
 
-TODO
+```
+{
+    "msg":"success",
+    "code":0,
+    "data":["database list" / "table list" / "table schema"],
+    "count":0
+}
+```
 
-## Examples
-
-TODO
