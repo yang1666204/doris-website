@@ -1,5 +1,8 @@
 ---
-{ "title": "DML Tuning Plan", "language": "en" }
+{
+  "title": "Optimizing Join with Colocate Group",
+  "language": "en"
+}
 ---
 
 <!-- 
@@ -21,6 +24,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-For DML plan tuning, it is first necessary to identify whether the performance bottleneck is caused by the import process or the query section. For the troubleshooting and tuning of performance bottlenecks in the query section, please refer to other subsections in [Plan Tuning](optimizing-table-schema.md) for details.
+Defining colocate group is an efficient way of Join, through which the execution engine can effectively avoid the transmission overhead of input data in Join operations (for an introduction to Colocate Group, see [Colocation Join](../../colocation-join.md))
 
-Doris supports importing data from multiple data sources. By flexibly utilizing the various import functions provided by Doris, data from various sources can be efficiently imported into Doris for analysis. For details of best practices, please refer to [Import Overview](../../../data-operate/import/load-manual.md).
+However, in some use cases, even if a Colocate Group has been successfully established, the execution plan may still show as Shuffle Join or Bucket Shuffle Join. This situation typically occurs when Doris is in the process of data organization, for instance, it may be migrating tablets between BE to ensure a more balanced distribution of data across multiple BE.
+
+You can view the Colocate Group status using the command `show proc "/colocation_group"`; as shown in the figure below: If `IsStable` appears as false, it indicates that there are unavailable `colocation group` instances.
+
+![Optimizing Join with Colocate Group](/images/use-colocate-group.jpg)
