@@ -1,169 +1,163 @@
 ---
 {
-  "title": "DAY_CEIL",
+  "title": "YEAR_CEIL",
   "language": "en",
-  "description": "The dayceil function rounds up a specified date or time value to the start of the nearest specified day period."
+  "description": "The yearceil function rounds up an input datetime value to the nearest specified year interval start time, with the interval unit being year."
 }
 ---
 
 ## Description
 
-The day_ceil function rounds up a specified date or time value to the start of the nearest specified day period. The period rule is defined by period (number of days) and origin (reference time). If origin is not specified, it defaults to 0001-01-01 00:00:00.
+The year_ceil function rounds up an input datetime value to the nearest specified year interval start time, with the interval unit being year. If origin is specified, it uses that as the reference; otherwise, it defaults to 0000-01-01 00:00:00.
 
 Date calculation formula:
 
 $$
 \begin{aligned}
-&\text{day\_ceil}(\langle\text{date\_or\_time\_expr}\rangle, \langle\text{period}\rangle, \langle\text{origin}\rangle) = \\
-&\min\{\langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{day} \mid \\
-&k \in \mathbb{Z} \land \langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{day} \geq \langle\text{date\_or\_time\_expr}\rangle\}
+&\text{year\_ceil}(\langle\text{date\_or\_time\_expr}\rangle, \langle\text{period}\rangle, \langle\text{origin}\rangle) = \\
+&\min\{\langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{year} \mid \\
+&k \in \mathbb{Z} \land \langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{year} \geq \langle\text{date\_or\_time\_expr}\rangle\}
 \end{aligned}
 $$
 
-$k$ represents the number of periods needed from the baseline time to reach the target time.
+$k$ represents the number of periods needed to reach the target time from the reference time.
 
 ## Syntax
 
 ```sql
-DAY_CEIL(<date_or_time_expr>)
-DAY_CEIL(<date_or_time_expr>, <origin>)
-DAY_CEIL(<date_or_time_expr>, <period>)
-DAY_CEIL(<date_or_time_expr>, <period>, <origin>)
+YEAR_CEIL(<date_or_time_expr>)
+YEAR_CEIL(<date_or_time_expr>, origin)
+YEAR_CEIL(<date_or_time_expr>, <period>)
+YEAR_CEIL(<date_or_time_expr>, <period>, <origin>)
 ```
 
 ## Parameters
 
-| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<date_or_time_expr>` | A valid date expression that supports date/datetime/timestamptz types. For specific formats please see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
-| `<period>`            | Specifies the number of days in each period, of type INT. If not specified, the default period is 1 day.                                                                                                                                                                                                                                                                                                                |
-| `<origin>`            | The starting reference time for period calculation, supports date/datetime types                                                                                                                                                                                                                                                                                                                                                                        |
+| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr>` | The datetime value to round up, supports date/datetime/timestamptz types. Date type will be converted to the start time 00:00:00 of the corresponding date. For specific formats please see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| `<period>`            | Optional, represents how many seconds each period consists of, supports positive integer type (INT). Default is 1 second.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `<origin_datetime>`   | Starting point for the interval, supports date/datetime types; defaults to 0000-01-01 00:00:00.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Return Value
 
-Returns TIMESTAMPTZ, DATETIME or DATE, representing the result of rounding up the input value to the specified day period.
+Returns a result consistent with the input type (DATETIME or DATE), representing the year interval start time after rounding up:
 
-If the input is valid, returns a rounding result consistent with the datetime type:
-
-- If input is TIMESTAMPTZ, it will first be converted to local_time (for example: `2025-12-31 23:59:59+05:00` represents local_time `2026-01-01 02:59:59` when session variable is `+08:00`), and then perform DAY_CEIL.
-- If `<date_or_time_expr>` and `<period>` contain both TIMESTAMPTZ and DATETIME, return DATETIME type.
-
-Special cases:
-
-- When any parameter is NULL, returns NULL;
-- If period is negative or 0, returns an error;
-- If the rounding result exceeds the supported range of date types (such as after '9999-12-31'), an error is reported.
-- For datetime input with scale, the output will truncate all decimal to 0, and the return value will have scale
+- If input is DATE type, returns DATE type (containing only date part); if input is DATETIME or properly formatted string, returns DATETIME type (time part consistent with origin, defaults to 00:00:00 when no origin).
+- If `<period>` is a non-positive integer (≤0), the function returns an error.
+- If any parameter is NULL, returns NULL.
+- If `<date_or_time_expr>` is exactly at an interval start point (based on `<period>` and `<origin>`), returns that start point.
+- If calculation result exceeds maximum datetime 9999-12-31 23:59:59, returns an error.
 - If the `<origin>` date and time is after the `<period>`, it will still be calculated according to the above formula, but the period k will be negative.
+- If date_or_time_expr has a scale, the returned result will also have a scale with the fractional part being zero.
+- If the input is TIMESTAMPTZ type, it will first be converted to local_time (for example: `2025-12-31 23:59:59+05:00` represents local_time `2026-01-01 02:59:59` when the session variable is `+08:00`), and then perform CEIL calculation.
+- If the input time values (`<date_or_time_expr>` and `<period>`) contain both TIMESTAMPTZ and DATETIME types, the output is DATETIME type.
 
 ## Examples
 
 ```sql
--- Round up with a period of five days
-select day_ceil( cast("2023-07-13 22:28:18" as datetime), 5);
+-- Default 1-year interval (start point is January 1st each year), 2023-07-13 rounds up to 2024-01-01
+SELECT YEAR_CEIL('2023-07-13 22:28:18') AS result;
++---------------------+
+| result              |
++---------------------+
+| 2024-01-01 00:00:00 |
++---------------------+
 
-+------------------------------------+
-| day_ceil("2023-07-13 22:28:18", 5) |
-+------------------------------------+
-| 2023-07-15 00:00:00                |
-+------------------------------------+
+-- Specify 5-year interval, 2023-07-13 rounds up to nearest 5-year interval start (calculated with default origin)
+SELECT YEAR_CEIL('2023-07-13 22:28:18', 5) AS result;
++---------------------+
+| result              |
++---------------------+
+| 2025-01-01 00:00:00 |  
++---------------------+
 
--- Datetime input with scale, return value has scale with all decimals as 0
-select day_ceil( "2023-07-13 22:28:18.123", 5);
-+-----------------------------------------+
-| day_ceil( "2023-07-13 22:28:18.123", 5) |
-+-----------------------------------------+
-| 2023-07-15 00:00:00.000                 |
-+-----------------------------------------+
-
--- Without specifying period, default to round up by one day
-select day_ceil("2023-07-13 22:28:18");
-
-+---------------------------------+
-| day_ceil("2023-07-13 22:28:18") |
-+---------------------------------+
-| 2023-07-14 00:00:00             |
-+---------------------------------+
+-- Input is DATE type, returns DATE type interval start
+SELECT YEAR_CEIL(cast('2023-07-13' as date)) AS result;
++------------+
+| result     |
++------------+
+| 2024-01-01 |
++------------+
 
 -- Only with origin date and specified date
-select day_ceil("2023-07-13 22:28:18", "2021-07-01 12:22:34");
-+--------------------------------------------------------+
-| day_ceil("2023-07-13 22:28:18", "2021-07-01 12:22:34") |
-+--------------------------------------------------------+
-| 2023-07-14 12:22:34                                    |
-+--------------------------------------------------------+
+select year_ceil("2023-07-13 22:28:18", "2021-03-13 22:13:00");
++---------------------------------------------------------+
+| year_ceil("2023-07-13 22:28:18", "2021-03-13 22:13:00") |
++---------------------------------------------------------+
+| 2024-03-13 22:13:00                                     |
++---------------------------------------------------------+
 
--- Specify period as 7 days (1 week), custom reference time as 2023-01-01 00:00:00
-select day_ceil("2023-07-13 22:28:18", 7, "2023-01-01 00:00:00");
-+-----------------------------------------------------------+
-| day_ceil("2023-07-13 22:28:18", 7, "2023-01-01 00:00:00") |
-+-----------------------------------------------------------+
-| 2023-07-16 00:00:00                                       |
-+-----------------------------------------------------------+
+-- Specify origin reference point='2020-01-01', 1-year interval, 2023-07-13 rounds to 2024-01-01
+SELECT YEAR_CEIL('2023-07-13', 1, '2020-01-01') AS result;
++---------------------+
+| result              |
++---------------------+
+| 2024-01-01 00:00:00 |
++---------------------+
 
--- Date and time is exactly at the start of the period
-select day_ceil("2023-07-16 00:00:00", 7, "2023-01-01 00:00:00");
-+-----------------------------------------------------------+
-| day_ceil("2023-07-13 22:28:18", 7, "2023-01-01 00:00:00") |
-+-----------------------------------------------------------+
-| 2023-07-16 00:00:00                                       |
-+-----------------------------------------------------------+
+-- input with scale
+mysql> SELECT YEAR_CEIL('2023-07-13 22:28:18.123', 5) AS result;
++-------------------------+
+| result                  |
++-------------------------+
+| 2026-01-01 00:00:00.000 |
++-------------------------+
 
--- Input is DATE type, period is 3 days
-select day_ceil(cast("2023-07-13" as date), 3);
-+-----------------------------------------+
-| day_ceil(cast("2023-07-13" as date), 3) |
-+-----------------------------------------+
-| 2023-07-14                              |
-+-----------------------------------------+
+-- Specify origin with time part, returned result's time part matches origin
+SELECT YEAR_CEIL('2023-07-13', 1, '2020-01-01 08:30:00') AS result;
++---------------------+
+| result              |
++---------------------+
+| 2024-01-01 08:30:00 |
++---------------------+
+
+-- Input exactly at interval start point (origin='2023-01-01', period=1), returns itself
+SELECT YEAR_CEIL('2023-01-01', 1, '2023-01-01') AS result;
++---------------------+
+| result              |
++---------------------+
+| 2023-01-01 00:00:00 |
++---------------------+
+
+--- If the <origin> date and time is after the <period>, it will still be calculated according to the above formula, but the period k will be negative.
+SELECT YEAR_CEIL('2023-07-13 22:22:56', 1, '2028-01-01 08:30:00') AS result;
++---------------------+
+| result              |
++---------------------+
+| 2024-01-01 08:30:00 |
++---------------------+
 
 -- TimeStampTz sample, SET time_zone = '+08:00'
--- Convert to local_time (2026-01-01 02:59:59) and then perform DAY_CEIL
-SELECT DAY_CEIL('2025-12-31 23:59:59+05:00');
+-- Convert to local_time (2026-01-01 02:59:59) and then perform YEAR_CEIL
+SELECT YEAR_CEIL('2025-12-31 23:59:59+05:00');
 +---------------------------------------+
-| DAY_CEIL('2025-12-31 23:59:59+05:00') |
+| YEAR_CEIL('2025-12-31 23:59:59+05:00')|
 +---------------------------------------+
-| 2026-01-02 00:00:00+08:00             |
+| 2027-01-01 00:00:00+08:00             |
 +---------------------------------------+
 
 -- If parameters contain both TimeStampTz and Datetime types, output DateTime type
-SELECT DAY_CEIL('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123');
-+------------------------------------------------------------------+
-| DAY_CEIL('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123') |
-+------------------------------------------------------------------+
-| 2026-01-02 00:00:00.123                                          |
-+------------------------------------------------------------------+
+SELECT YEAR_CEIL('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123');
++-------------------------------------------------------------------+
+| YEAR_CEIL('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123') |
++-------------------------------------------------------------------+
+| 2027-01-01 00:00:00.123                                           |
++-------------------------------------------------------------------+
 
---- If the <origin> date and time is after the <period>, it will still be calculated according to the above formula, but the period k will be negative.
-select day_ceil('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00');
-+---------------------------------------------------------------+
-| day_ceil('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00') |
-+---------------------------------------------------------------+
-| 2023-07-17 08:00:00.000                                       |
-+---------------------------------------------------------------+
-
--- Period time is zero, returns NULL
-select day_ceil(cast("2023-07-13" as date), 0);
-+-----------------------------------------+
-| day_ceil(cast("2023-07-13" as date), 0) |
-+-----------------------------------------+
-| NULL                                    |
-+-----------------------------------------+
-
--- Period is negative
-mysql> select day_ceil("2023-07-13 22:28:18", -2);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation day_ceil of 2023-07-13 22:28:18, -2 out of range
-
--- Return date exceeds maximum range, returns error
-select day_ceil("9999-12-31", 5);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation day_ceil of 9999-12-31 00:00:00, 5 out of range
+-- Invalid period (non-positive integer)
+SELECT YEAR_CEIL('2023-07-13', 0) AS result;
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation year_ceil of 2023-07-13 00:00:00, 0 out of range
 
 -- Any parameter is NULL, returns NULL
-select day_ceil(NULL, 5, "2023-01-01");
+SELECT YEAR_CEIL(NULL, 1) AS result;
++--------+
+| result |
++--------+
+| NULL   |
++--------+
 
-+---------------------------------+
-| day_ceil(NULL, 5, "2023-01-01") |
-+---------------------------------+
-| NULL                            |
-+---------------------------------+
+-- Calculation result exceeds maximum datetime, returns error
+SELECT YEAR_CEIL('9999-12-31 22:28:18', 5) AS result;
+-- ERROR: Operation out of range
 ```
