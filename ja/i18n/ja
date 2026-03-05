@@ -1,72 +1,119 @@
 ---
 {
-  "title": "GROUP_BITMAP_XOR",
+  "title": "GROUP_CONCAT",
   "language": "en",
-  "description": "Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results."
+  "description": "The GROUPCONCAT function concatenates multiple rows of results in the result set into a string."
 }
 ---
 
 ## Description
 
-Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results.
+The GROUP_CONCAT function concatenates multiple rows of results in the result set into a string.
 
 ## Syntax
 
 ```sql
-GROUP_BITMAP_XOR(<expr>)
+GROUP_CONCAT([DISTINCT] <str>[, <sep>] [ORDER BY { <col_name> | <expr>} [ASC | DESC]])
 ```
 
 ## Parameters
 
-| Parameter | Description                 |
-| --------- | --------------------------- |
-| `<expr>`  | Supported bitmap data types |
+| Parameters   | Description                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| `<str>`      | Required. The expression of the value to be concatenated. |
+| `<sep>`      | Optional. The separator between strings.                  |
+| `<col_name>` | Optional. The column used for sorting.                    |
+| `<expr>`     | Optional. The expression used for sorting.                |
 
 ## Return Value
 
-The data type of the return value is BITMAP. If there is no valid data in the group, returns NULL.
+Returns a value of type VARCHAR.
+If the input data contains NULL, returns NULL.
 
 ## Example
 
 ```sql
 -- setup
-CREATE TABLE pv_bitmap (
-	page varchar(10),
-	user_id BITMAP
-) DISTRIBUTED BY HASH(page) BUCKETS 1
-PROPERTIES ("replication_num" = "1");
-INSERT INTO pv_bitmap VALUES
-	('m', to_bitmap(4)),
-	('m', to_bitmap(7)),
-	('m', to_bitmap(8)),
-	('m', to_bitmap(1)),
-	('m', to_bitmap(3)),
-	('m', to_bitmap(6)),
-	('m', to_bitmap(15)),
-	('m', to_bitmap(4)),
-	('m', to_bitmap(7));
+create table test(
+    value varchar(10)
+) distributed by hash(value) buckets 1
+properties ("replication_num"="1");
+
+insert into test values
+    ("a"),
+    ("b"),
+    ("c"),
+    ("c");
 ```
 
 ```sql
-select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
+select GROUP_CONCAT(value) from test;
 ```
 
 ```text
-+------+---------------------------------------------+
-| page | bitmap_to_string(group_bitmap_xor(user_id)) |
-+------+---------------------------------------------+
-| m    | 1,3,6,8,15                                  |
-+------+---------------------------------------------+
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| a, b, c, c            |
++-----------------------+
 ```
 
 ```sql
-select bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap where page is null;
+select GROUP_CONCAT(DISTINCT value) from test;
 ```
 
 ```text
-+---------------------------------------------+
-| bitmap_to_string(group_bitmap_xor(user_id)) |
-+---------------------------------------------+
-| NULL                                        |
-+---------------------------------------------+
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| a, b, c               |
++-----------------------+
+```
+
+```sql
+select GROUP_CONCAT(value ORDER BY value DESC) from test;
+```
+
+```text
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| c, c, b, a            |
++-----------------------+
+```
+
+```sql
+select GROUP_CONCAT(DISTINCT value ORDER BY value DESC) from test;
+```
+
+```text
++-----------------------+
+| GROUP_CONCAT(`value`) |
++-----------------------+
+| c, b, a               |
++-----------------------+
+```
+
+```sql
+select GROUP_CONCAT(value, " ") from test;
+```
+
+```text
++----------------------------+
+| GROUP_CONCAT(`value`, ' ') |
++----------------------------+
+| a b c c                    |
++----------------------------+
+```
+
+```sql
+select GROUP_CONCAT(value, NULL) from test;
+```
+
+```text
++----------------------------+
+| GROUP_CONCAT(`value`, NULL)|
++----------------------------+
+| NULL                       |
++----------------------------+
 ```
