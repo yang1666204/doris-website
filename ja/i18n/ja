@@ -1,125 +1,307 @@
 ---
 {
-  "title": "Unique Key Table",
+  "title": "Auto Partition",
   "language": "en",
-  "description": "When data updates are required, use the Unique Key Table."
+  "description": "The Auto Partition feature supports automatic detection of whether the corresponding partition exists during the data import process."
 }
 ---
 
-When data updates are required, use the **Unique Key Table**. It guarantees the uniqueness of the Key columns so that new data overwrites existing records with matching keys, ensuring that only the most up-to-date records are maintained. This table is ideal for update scenarios, enabling unique-key-level updates during data insertion.
-The Unique Key Table has the following characteristics:
+## Application scenario
 
-- **Unique Key UPSERT**: During insertion, records with duplicate keys are updated, while new keys are inserted.
+The Auto Partition feature supports automatic detection of whether the corresponding partition exists during the data import process. If it does not exist, the partition will be created automatically and imported normally.
 
-- **Automatic Deduplication**: The table ensures key uniqueness and automatically deduplicates data based on the unique key.
+The auto partition function mainly solves the problem that the user expects to partition the table based on a certain column, but the data distribution of the column is scattered or unpredictable, so it is difficult to accurately create the required partitions when building or adjusting the structure of the table, or the number of partitions is so large that it is too cumbersome to create them manually.
 
-- **Optimized for High-frequency Updates**: It efficiently handles high-frequency updates while balancing update and query performance.
+Take the time type partition column as an example, in dynamic partitioning, we support the automatic creation of new partitions to accommodate real-time data at specific time periods. For real-time user behavior logs and other scenarios, this feature basically meets the requirements. However, in more complex scenarios, such as dealing with non-real-time data, the partition column is independent of the current system time and contains a large number of discrete values. At this time, to improve efficiency we want to partition the data based on this column, but the data may actually involve the partition can not be grasped in advance, or the expected number of required partitions is too large. In this case, dynamic partitioning or manually created partitions cannot meet our needs, while Auto Partition covers such needs.
 
-## Use Cases
-
-- **High-frequency Data Updates**: In upstream OLTP databases, where dimension tables are frequently updated, the Unique Key Table can efficiently synchronize the upstream updated records and perform efficient UPSERT operations.
-
-- **Efficient Data Deduplication**: In scenarios such as advertising campaigns or customer relationship management systems, where deduplication is required based on user IDs, the Unique Key Table ensures efficient deduplication.
-
-- **Partial Columns Updates**: In scenarios such as in user profiling where dynamic tags change frequently, or in order consumption scenarios where the transaction status needs to be updated. The Unique Key Table's partial column update capability allows for changes to specific columns.
-
-## Implementation Methods
-
-In Doris, the Unique Key Table has two implementation methods:
-
-- **Merge-on-write**: Starting from version 1.2, the default implementation of the Unique Key Table in Doris is the merge-on-write mode. In this mode, data is immediately merged for the same Key upon writing, ensuring that the data storage state after each write is the final merged result of the unique key, and only the latest result is stored. Merge-on-write provides a good balance between query and write performance, avoiding the need to merge multiple versions of data during queries and ensuring predicate pushdown to the storage layer. The merge-on-write table is recommended for most scenarios.
-
-- **Merge-on-read**: Prior to version 1.2, Doris's Unique Key Table defaulted to merge-on-read mode. In this mode, data is not merged upon writing but is appended incrementally, retaining multiple versions within Doris. During queries or Compaction, data is merged by the same Key version. Merge-on-read is suitable for write-heavy and read-light scenarios, but during queries, multiple versions must be merged, and predicates cannot be pushed down, which may affect query speed.
-
-In Doris, there are two types of update semantics for the Unique Key Table:
-
-- **Full Row Upsert**: The default update semantic for the Unique Key Table is **full row UPSERT**, i.e., UPDATE OR INSERT. If the Key of the row exists, it will be updated; if it does not exist, new data will be inserted. In the full row UPSERT semantic, even if the user inserts data into specific columns using `INSERT INTO`, Doris will fill in the missing columns with NULL values or default values during the planner stage.
-
-- **Partial Column Upsert**: If users want to update specific fields, they need to use the merge-on-write implementation and enable partial column updates support via specific parameters. Please refer to the documentation on [Partial Column Updates](../../data-operate/update/update-of-unique-model).
-
-## Merge-on-write
-
-### Creating a Merge-on-write Table
-
-To create a Unique Key table, use the `UNIQUE KEY` keyword. Enable merge-on-write mode by setting the `enable_unique_key_merge_on_write` attribute (default since Doris 2.1):
+Suppose the table DDL is as follows:
 
 ```sql
-CREATE TABLE IF NOT EXISTS example_tbl_unique
+CREATE TABLE `DAILY_TRADE_VALUE`
 (
-    user_id         LARGEINT        NOT NULL,
-    user_name       VARCHAR(50)     NOT NULL,
-    city            VARCHAR(20),
-    age             SMALLINT,
-    sex             TINYINT
+    `TRADE_DATE`              datev2 NOT NULL COMMENT 'TRADE_DATE',
+    `TRADE_ID`                varchar(40) NOT NULL COMMENT 'TRADE_ID',
+    ......
 )
-UNIQUE KEY(user_id, user_name)
-DISTRIBUTED BY HASH(user_id) BUCKETS 10
+UNIQUE KEY(`TRADE_DATE`, `TRADE_ID`)
+PARTITION BY RANGE(`TRADE_DATE`)
+(
+    PARTITION p_2000 VALUES [('2000-01-01'), ('2001-01-01')),
+    PARTITION p_2001 VALUES [('2001-01-01'), ('2002-01-01')),
+    PARTITION p_2002 VALUES [('2002-01-01'), ('2003-01-01')),
+    PARTITION p_2003 VALUES [('2003-01-01'), ('2004-01-01')),
+    PARTITION p_2004 VALUES [('2004-01-01'), ('2005-01-01')),
+    PARTITION p_2005 VALUES [('2005-01-01'), ('2006-01-01')),
+    PARTITION p_2006 VALUES [('2006-01-01'), ('2007-01-01')),
+    PARTITION p_2007 VALUES [('2007-01-01'), ('2008-01-01')),
+    PARTITION p_2008 VALUES [('2008-01-01'), ('2009-01-01')),
+    PARTITION p_2009 VALUES [('2009-01-01'), ('2010-01-01')),
+    PARTITION p_2010 VALUES [('2010-01-01'), ('2011-01-01')),
+    PARTITION p_2011 VALUES [('2011-01-01'), ('2012-01-01')),
+    PARTITION p_2012 VALUES [('2012-01-01'), ('2013-01-01')),
+    PARTITION p_2013 VALUES [('2013-01-01'), ('2014-01-01')),
+    PARTITION p_2014 VALUES [('2014-01-01'), ('2015-01-01')),
+    PARTITION p_2015 VALUES [('2015-01-01'), ('2016-01-01')),
+    PARTITION p_2016 VALUES [('2016-01-01'), ('2017-01-01')),
+    PARTITION p_2017 VALUES [('2017-01-01'), ('2018-01-01')),
+    PARTITION p_2018 VALUES [('2018-01-01'), ('2019-01-01')),
+    PARTITION p_2019 VALUES [('2019-01-01'), ('2020-01-01')),
+    PARTITION p_2020 VALUES [('2020-01-01'), ('2021-01-01')),
+    PARTITION p_2021 VALUES [('2021-01-01'), ('2022-01-01'))
+)
+DISTRIBUTED BY HASH(`TRADE_DATE`) BUCKETS 10
 PROPERTIES (
-    "enable_unique_key_merge_on_write" = "true"
+  "replication_num" = "1"
 );
 ```
 
-## Merge-on-read
+The table stores a large amount of business history data, partitioned based on the date the transaction occurred. As you can see when building the table, we need to manually create the partitions in advance. If the data range of the partitioned columns changes, for example, 2022 is added to the above table, we need to create a partition by [ALTER-TABLE-PARTITION](../../sql-manual/sql-statements/table-and-view/table/ALTER-TABLE-PARTITION) to make changes to the table partition. If such partitions need to be changed, or subdivided at a finer level of granularity, it is very tedious to modify them. At this point we can rewrite the table DDL using Auto Partition.
 
-### Creating a Merge-on-read Table
+## Syntax
 
-When creating a table, the `UNIQUE KEY` keyword can be used to specify a Unique Key table. The merge-on-read mode can be enabled by explicitly disabling the `enable_unique_key_merge_on_write` attribute. Before Doris version 2.1, the merge-on-read mode was enabled by default:
+When creating a table, use the following syntax to populate the `partitions_definition` section in the [CREATE-TABLE](../../sql-manual/sql-statements/table-and-view/table/CREATE-TABLE) statement.
+
+1. AUTO RANGE PARTITION:
+
+    ```sql
+      [AUTO] PARTITION BY RANGE(<partition_expr>)
+      <origin_partitions_definition>
+    ```
+
+   where
+
+    ```sql
+      partition_expr ::= date_trunc ( <partition_column>, '<interval>' )
+    ```
+
+2. AUTO LIST PARTITION:
+
+    ```sql
+        AUTO PARTITION BY LIST(`partition_col1` [, `partition_col2`, ...])
+        <origin_partitions_definition>
+    ```
+
+### Sample
+
+1. AUTO RANGE PARTITION
+
+    ```sql
+      CREATE TABLE `date_table` (
+          `TIME_STAMP` datev2 NOT NULL
+      ) ENGINE=OLAP
+      DUPLICATE KEY(`TIME_STAMP`)
+      AUTO PARTITION BY RANGE (date_trunc(`TIME_STAMP`, 'month'))
+      (
+      )
+      DISTRIBUTED BY HASH(`TIME_STAMP`) BUCKETS 10
+      PROPERTIES (
+      "replication_allocation" = "tag.location.default: 1"
+      );
+    ```
+
+   In AUTO RANGE PARTITION, the `AUTO` keyword can be omitted, and it still conveys the meaning of automatic partitioning.
+
+2. AUTO LIST PARTITION
+
+    ```sql
+      CREATE TABLE `str_table` (
+          `str` varchar not null
+      ) ENGINE=OLAP
+      DUPLICATE KEY(`str`)
+      AUTO PARTITION BY LIST (`str`)
+      ()
+      DISTRIBUTED BY HASH(`str`) BUCKETS 10
+      PROPERTIES (
+      "replication_allocation" = "tag.location.default: 1"
+      );
+    ```
+
+   List Auto Partition supports multiple partition columns, which are written in the same way as normal List Partition: ``AUTO PARTITION BY LIST (`col1`, `col2`, ...)``
+
+### Constraints
+
+- In auto List Partition, the partition name length **must not exceed 50 characters**. This length is derived from the concatenation and escape of contents of partition columns on corresponding data rows, so the actual allowed length may be shorter.
+- In auto Range Partition, the partition function only supports `date_trunc`, and the partition column supports only `DATE` or `DATETIME` types.
+- In auto List Partition, function calls are not supported, and the partition column supports `BOOLEAN`, `TINYINT`, `SMALLINT`, `INT`, `BIGINT`, `LARGEINT`, `DATE`, `DATETIME`, `CHAR`, `VARCHAR` data types, with partition values being enumeration values.
+- In auto List Partition, for every existing value in the partition column that does not correspond to a partition, a new independent partition will be created.
+
+### NULL value partition
+
+When the session variable `allow_partition_column_nullable` is enabled:
+
+- For Auto List Partition, the corresponding NULL value partition will be created automatically:
+
+    ```sql
+      create table auto_null_list(
+        k0 varchar null
+      )
+      auto partition by list (k0)
+      (
+      )
+      DISTRIBUTED BY HASH(`k0`) BUCKETS 1
+      properties("replication_num" = "1");
+    
+      insert into auto_null_list values (null);
+    
+      select * from auto_null_list;
+      +------+
+      | k0   |
+      +------+
+      | NULL |
+      +------+
+    
+      select * from auto_null_list partition(pX);
+      +------+
+      | k0   |
+      +------+
+      | NULL |
+      +------+
+    ```
+
+- For Auto Range Partition, **null columns are not supported to be partition columns**.
+
+    ```sql
+      CREATE TABLE `range_table_nullable` (
+        `k1` INT,
+        `k2` DATETIMEV2(3),
+        `k3` DATETIMEV2(6)
+      ) ENGINE=OLAP
+      DUPLICATE KEY(`k1`)
+      AUTO PARTITION BY RANGE (date_trunc(`k2`, 'day'))
+      ()
+      DISTRIBUTED BY HASH(`k1`) BUCKETS 16
+      PROPERTIES (
+      "replication_allocation" = "tag.location.default: 1"
+      );
+    
+    ERROR 1105 (HY000): errCode = 2, detailMessage = AUTO RANGE PARTITION doesn't support NULL column
+    ```
+
+## Example
+
+When using Auto Partition, the example in the Application scenarios section can be rewritten as:
 
 ```sql
-CREATE TABLE IF NOT EXISTS example_tbl_unique
+CREATE TABLE `DAILY_TRADE_VALUE`
 (
-    user_id         LARGEINT        NOT NULL,
-    username        VARCHAR(50)     NOT NULL,
-    city            VARCHAR(20),
-    age             SMALLINT,
-    sex             TINYINT
+    `TRADE_DATE`              datev2 NOT NULL COMMENT '交易日期',
+    `TRADE_ID`                varchar(40) NOT NULL COMMENT '交易编号',
+    ......
 )
-UNIQUE KEY(user_id, username)
-DISTRIBUTED BY HASH(user_id) BUCKETS 10
+UNIQUE KEY(`TRADE_DATE`, `TRADE_ID`)
+AUTO PARTITION BY RANGE (date_trunc(`TRADE_DATE`, 'year'))
+(
+)
+DISTRIBUTED BY HASH(`TRADE_DATE`) BUCKETS 10
 PROPERTIES (
-    "enable_unique_key_merge_on_write" = "false"
+  "replication_num" = "1"
 );
 ```
 
-## Data Insertion and Storage
-
-In a Unique Key table, the Key columns serve both for sorting and deduplication. New insertions overwrite existing records with matching keys.
-
-![unique-key-model-insert](/images/table-desigin/unique-key-model-insert.png)
-
-As shown in the example, there were 4 rows of data in the original table. After inserting 2 new rows, the newly inserted rows are updated based on the unique key:
+Take the example of a table with only two columns, at which point the new table has no default partitions:
 
 ```sql
--- insert into raw data
-INSERT INTO example_tbl_unique VALUES
-(101, 'Tom', 'BJ', 26, 1),
-(102, 'Jason', 'BJ', 27, 1),
-(103, 'Juice', 'SH', 20, 2),
-(104, 'Olivia', 'SZ', 22, 2);
-
--- insert into data to update by key
-INSERT INTO example_tbl_unique VALUES
-(101, 'Tom', 'BJ', 27, 1),
-(102, 'Jason', 'SH', 28, 1);
-
--- check updated data
-SELECT * FROM example_tbl_unique;
-+---------+----------+------+------+------+
-| user_id | username | city | age  | sex  |
-+---------+----------+------+------+------+
-| 101     | Tom      | BJ   |   27 |    1 |
-| 102     | Jason    | SH   |   28 |    1 |
-| 104     | Olivia   | SZ   |   22 |    2 |
-| 103     | Juice    | SH   |   20 |    2 |
-+---------+----------+------+------+------+
+show partitions from `DAILY_TRADE_VALUE`;
+Empty set (0.12 sec)
 ```
 
-## Notes
+After inserting data and checking again, it is found that the table has created the corresponding partitions:
 
-- The implementation mode for Unique Key tables is fixed at creation and cannot be changed via schema alterations.
+```sql
+insert into `DAILY_TRADE_VALUE` values ('2012-12-13', 1), ('2008-02-03', 2), ('2014-11-11', 3);
 
-- Under full row UPSERT semantics, if specific columns are omitted during insertion, Doris fills them with NULL or default values during planning.
+show partitions from `DAILY_TRADE_VALUE`;
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+----------+------------+-------------------------+-----------+
+| PartitionId | PartitionName   | VisibleVersion | VisibleVersionTime  | State  | PartitionKey | Range                                                                          | DistributionKey | Buckets | ReplicationNum | StorageMedium | CooldownTime        | RemoteStoragePolicy | LastConsistencyCheckTime | DataSize | IsInMemory | ReplicaAllocation       | IsMutable |
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+----------+------------+-------------------------+-----------+
+| 180060      | p20080101000000 | 2              | 2023-09-18 21:49:29 | NORMAL | TRADE_DATE   | [types: [DATEV2]; keys: [2008-01-01]; ..types: [DATEV2]; keys: [2009-01-01]; ) | TRADE_DATE      | 10      | 1              | HDD           | 9999-12-31 23:59:59 |                     | NULL                     | 0.000    | false      | tag.location.default: 1 | true      |
+| 180039      | p20120101000000 | 2              | 2023-09-18 21:49:29 | NORMAL | TRADE_DATE   | [types: [DATEV2]; keys: [2012-01-01]; ..types: [DATEV2]; keys: [2013-01-01]; ) | TRADE_DATE      | 10      | 1              | HDD           | 9999-12-31 23:59:59 |                     | NULL                     | 0.000    | false      | tag.location.default: 1 | true      |
+| 180018      | p20140101000000 | 2              | 2023-09-18 21:49:29 | NORMAL | TRADE_DATE   | [types: [DATEV2]; keys: [2014-01-01]; ..types: [DATEV2]; keys: [2015-01-01]; ) | TRADE_DATE      | 10      | 1              | HDD           | 9999-12-31 23:59:59 |                     | NULL                     | 0.000    | false      | tag.location.default: 1 | true      |
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+----------+------------+-------------------------+-----------+
+```
 
-- For partial column upsert, enable merge-on-write mode with the appropriate parameters. Refer to [Partial Column Updates](../../data-operate/update/update-of-unique-model) for guidance.
+It can be concluded that the partitions created by Auto Partition share the same functionality as partitions created by manual partitioning.
 
-- When using a Unique table, the partition key must be included in the Key columns to ensure data uniqueness.
+## Conjunct with Dynamic Partition
+
+Doris supports both Auto and Dynamic Partition. In this case, both functions are in effect:
+
+1. Auto Partition will automatically create partitions on demand during data import;
+2. Dynamic Partition will automatically create, recycle and dump partitions.
+
+There is no conflict between the two syntaxes, just set the corresponding clauses/attributes at the same time. Please note that it is uncertain whether the partition in current period is created by Auto Partition or Dynamic Partition. Different creation methods will lead to different naming formats for the partitions.
+
+## Lifecycle Management
+
+:::info
+Doris supports the simultaneous use of automatic partitioning and dynamic partitioning for lifecycle management, but it is now not recommended.
+:::
+
+In the AUTO RANGE PARTITION table, the property `partition.retention_count` is supported, which accepts a positive integer value as a parameter (denoted as `N`), indicating that **only the top `N` historical partitions with the largest partition values** are retained among all historical partitions. All current and future partitions are retained. Specifically:
+
+- Since RANGE partitions are always non-overlapping, `partition A's value > partition B's value` is equivalent to `partition A's lower bound value > partition B's upper bound value` which is equivalent to `partition A's upper bound value > partition B's upper bound value`.
+- Historical partitions refer to **partitions whose upper bound is <= current time**.
+- Current and future partitions refer to **partitions whose lower bound is >= current time**.
+
+For example:
+
+```sql
+create table auto_recycle(
+    k0 datetime(6) not null
+)
+AUTO PARTITION BY RANGE (date_trunc(k0, 'day')) ()
+DISTRIBUTED BY HASH(`k0`) BUCKETS 1
+properties(
+    "partition.retention_count" = "3"
+);
+```
+
+This represents keeping only the top 3 partitions with the largest date values in the history. Assuming the current date is `2025-10-21`, and inserting data for each day from `2025-10-16` to `2025-10-23`, after one recycling, as shown in the figure, the remaining partitions are as follows:
+
+![Recycle](/images/blogs/auto-partition-lifetime1.png)
+
+- p20251018000000
+- p20251019000000
+- p20251020000000 (This partition and above: Only keep three historical partitions)
+- p20251021000000 (This partition and below: The current and future partitions are not affected)
+- p20251022000000
+- p20251023000000
+
+## Conjunct with Auto Bucket
+
+Only AUTO RANGE PARTITION can be used together with the [Auto Bucket](./data-bucketing.md#auto-setting-bucket-number) feature. When using this feature, Doris assumes that the data import is incremental in time order, and each import only involves one partition. In other words, this usage is only recommended for tables that are incrementally imported batch by batch.
+
+:::warning Note!
+If the data import method does not conform to the above pattern, and both auto partitioning and auto bucketing are used at the same time, there is a possibility that the number of buckets in the new partition is extremely unreasonable, which may greatly affect query performance.
+:::
+
+## Partition Management
+
+:::tip
+Since 2.1.6, Doris supports the `partitions` table function and the `auto_partition_name` function, which can be used to easily find and manage partitions for data.
+:::
+
+When Auto Partition is enabled, partition names can be mapped to partitions using the `auto_partition_name` function.The `partitions` table function generates detailed partition information from partition names. Let's take the `DAILY_TRADE_VALUE` table as an example to see its current partition after we insert data:
+
+```sql
+select * from partitions("catalog"="internal","database"="optest","table"="DAILY_TRADE_VALUE") where PartitionName = auto_partition_name('range', 'year', '2008-02-03');
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+-----------+------------+-------------------------+-----------+--------------------+--------------+
+| PartitionId | PartitionName   | VisibleVersion | VisibleVersionTime  | State  | PartitionKey | Range                                                                          | DistributionKey | Buckets | ReplicationNum | StorageMedium | CooldownTime        | RemoteStoragePolicy | LastConsistencyCheckTime | DataSize  | IsInMemory | ReplicaAllocation       | IsMutable | SyncWithBaseTables | UnsyncTables |
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+-----------+------------+-------------------------+-----------+--------------------+--------------+
+|      127095 | p20080101000000 |              2 | 2024-11-14 17:29:02 | NORMAL | TRADE_DATE   | [types: [DATEV2]; keys: [2008-01-01]; ..types: [DATEV2]; keys: [2009-01-01]; ) | TRADE_DATE      |      10 |              1 | HDD           | 9999-12-31 23:59:59 |                     | \N                       | 985.000 B |          0 | tag.location.default: 1 |         1 |                  1 | \N           |
++-------------+-----------------+----------------+---------------------+--------+--------------+--------------------------------------------------------------------------------+-----------------+---------+----------------+---------------+---------------------+---------------------+--------------------------+-----------+------------+-------------------------+-----------+--------------------+--------------+
+```
+
+In this way the IDs and values of each partition can be precisely filtered for subsequent partition-specific operations (e.g. `insert overwrite partition`).
+
+For a detailed grammar description, see: [auto_partition_name](../../sql-manual/sql-functions/scalar-functions/string-functions/auto-partition-name)，[partitions](../../sql-manual/sql-functions/table-valued-functions/partitions)。
+
+## Key points
+
+- Similar to regular partitioned tables, aoto List Partition supports multi-column partitioning with no syntax differences.
+- If partitions are created during data insertion or import processes, and the entire import process is not completed (fails or is canceled), the created partitions will not be automatically deleted.
+- Tables using Auto Partition only differ in the method of partition creation, switching from manual to automatic. The original usage of the table and its created partitions remains the same as non-Auto Partition tables or partitions.
+- To prevent the accidental creation of too many partitions, Apache Doris controls the maximum number of partitions an Auto Partition table can accommodate through the `max_auto_partition_num setting` in the FE configuration. This value can be adjusted if needed.
+- When importing data into a table with Auto Partition enabled, the coordinator sends data with a polling interval different from regular tables. Refer to `olap_table_sink_send_interval_auto_partition_factor`  in [BE Configuration](../../admin-manual/config/be-config) for details. This setting does not have an impact after `enable_memtable_on_sink_node` is enabled.
+- When use [insert-overwrite](../../sql-manual/sql-statements/data-modification/DML/INSERT-OVERWRITE) to load data into Auto Partition table, the behaviour is detailed in the INSERT OVERWRITE documentation.
+- If metadata operations are involved when importing and creating partitions, the import process may fail.
