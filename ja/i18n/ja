@@ -1,106 +1,82 @@
 ---
 {
-  "title": "SIN",
+  "title": "TAN",
   "language": "en",
-  "description": "Calculate the sine of the parameter"
+  "description": "Returns the tangent of x, where x is the value in radians."
 }
 ---
 
 ## Description
 
-Calculate the sine of the parameter
+Returns the tangent of x, where x is the value in radians.
 
 ## Syntax
 
 ```sql
-SIN(<a>)
+TAN(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                           |
-| --------- | --------------------------------------------------------------------- |
-| `<a>`     | floating point number, the radian value of the parameter to calculate |
+| Parameter | Description                                         |
+| --------- | --------------------------------------------------- |
+| `<x>`     | The value for which the tangent is to be calculated |
 
 ## Return Value
 
-The sine of the parameter `<a>`, expressed in radians.
+Returns the tangent of x.
 
 ## Special Cases
 
-- When `a` is NaN, returns NaN
-- When `a` is positive or negative infinity, returns NaN
-- When `a` is NULL, returns NULL
+- When `x` is NaN, returns NaN
+- When `x` is positive or negative infinity, returns NaN
+- When `x` is NULL, returns NULL
 
-## Examples
+## Example
 
 ```sql
-select sin(1);
+select tan(0),tan(1),tan(-1);
 ```
 
 ```text
-+------------------------+
-| sin(cast(1 as DOUBLE)) |
-+------------------------+
-|     0.8414709848078965 |
-+------------------------+
++------------------------+------------------------+-------------------------+
+| tan(cast(0 as DOUBLE)) | tan(cast(1 as DOUBLE)) | tan(cast(-1 as DOUBLE)) |
++------------------------+------------------------+-------------------------+
+|                      0 |     1.5574077246549023 |     -1.5574077246549023 |
++------------------------+------------------------+-------------------------+
 ```
 
 ```sql
-select sin(0);
-```
-
-```text
-+------------------------+
-| sin(cast(0 as DOUBLE)) |
-+------------------------+
-|                    0.0 |
-+------------------------+
-```
-
-```sql
-select sin(Pi());
-```
-
-```text
-+------------------------------------+
-| sin(pi())                          |
-+------------------------------------+
-| 0.00000000000000012246467991473532 |
-+------------------------------------+
-```
-
-```sql
-select sin(cast('nan' as double));
+select tan(cast('nan' as double));
 ```
 
 ```text
 +----------------------------+
-| sin(cast('nan' AS DOUBLE)) |
+| tan(cast('nan' AS DOUBLE)) |
 +----------------------------+
 | NaN                        |
 +----------------------------+
 ```
 
 ```sql
-select sin(cast('inf' as double));
+select tan(cast('inf' as double));
 ```
 
 ```text
 +----------------------------+
-| sin(cast('inf' AS DOUBLE)) |
+| tan(cast('inf' AS DOUBLE)) |
 +----------------------------+
 | NaN                        |
 +----------------------------+
 ```
 
 ```sql
-select sin(cast('-inf' as double));
+select tan(cast('-inf' as double));
 ```
 
 ```text
 +-----------------------------+
-| sin(cast('-inf' AS DOUBLE)) |
+| tan(cast('-inf' AS DOUBLE)) |
 +-----------------------------+
 | NaN                         |
 +-----------------------------+
