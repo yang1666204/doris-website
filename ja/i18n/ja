@@ -1,24 +1,24 @@
 ---
 {
-  "title": "DROP FOLLOWER",
+  "title": "DROP OBSERVER",
   "language": "en",
-  "description": "This statement deletes the node with the FOLLOWER role of FRONTEND. (For administrators only!)"
+  "description": "This statement deletes the node with the OBSERVER role of FRONTEND (only used by administrators!)"
 }
 ---
 
 ## Description
 
-This statement deletes the node with the FOLLOWER role of FRONTEND. (For administrators only!)
+This statement deletes the node with the OBSERVER role of FRONTEND (only used by administrators!)
 
 ## Syntax
 
 ```sql
-ALTER SYSTEM DROP FOLLOWER "<follower_host>:<edit_log_port>"
+ALTER SYSTEM DROP OBSERVER "<observer_host>:<edit_log_port>"
 ```
 
 ## Required Parameters
 
-**1. `<follower_host>`**
+**1. `<observer_host>`**
 
 > Can be the hostname or IP address of the FE node
 
@@ -36,16 +36,14 @@ The user executing this SQL command must have at least the following permissions
 
 ## Usage Notes
 
-1. Before deleting a FOLLOWER node, make sure that the node that needs to be taken offline is not a Master node.
-2. Before deleting a FOLLOWER node, ensure that the number of FOLLOWER nodes in the cluster is an odd number after they go offline.
-3. After deleting the FOLLOWER node[`SHOW FRONTENDS`](./SHOW-FRONTENDS.md)command to verify that they were successfully deleted.
+1. After deleting the OBSERVER node, use[`SHOW FRONTENDS`](./SHOW-FRONTENDS.md)command to verify that they were successfully deleted.
 
 ## Examples
 
-1. Delete a FOLLOWER node
+1. Deleting an OBSERVER node
 
    ```sql
-   ALTER SYSTEM DROP FOLLOWER "host_ip:9010"
+   ALTER SYSTEM DROP OBSERVER "host_ip:9010"
    ```
 
-   This command deletes a FOLLOWER node in the cluster (IP host_ip, port 9010)
+   This command deletes an OBSERVER node in the cluster (IP host_ip, port 9010)
