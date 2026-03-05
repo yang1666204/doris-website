@@ -1,102 +1,129 @@
 ---
 {
-  "title": "JSON_CONTAINS",
+  "title": "JSON_KEYS",
   "language": "en",
-  "description": "Used to determine whether a JSON document contains a specified JSON element. If the specified element exists in the JSON document, it returns 1,"
+  "description": "Returns all keys of a JSON object in array form. By default, it returns the keys of the root object,"
 }
 ---
 
 ## Description
 
-Used to determine whether a JSON document contains a specified JSON element. If the specified element exists in the JSON document, it returns 1, otherwise it returns 0. If the JSON document or the queried element is invalid, it returns `NULL`.
+Returns all keys of a JSON object in array form. By default, it returns the keys of the root object, but you can also control which specific path's object keys to return through parameters.
 
 ## Syntax
 
 ```sql
-JSON_CONTAINS(<json_object>, <candidate>[, <json_path>])
+JSON_KEYS(<json_object>[, <path>])
 ```
 
 ## Parameters
 
 ### Required Parameters
 
-- `<json_object>` JSON type, check whether `<candidate>` exists in it.
-- `<candidate>` JSON type, the candidate value to be determined.
+- `<json_object>` JSON type, the JSON object from which keys need to be extracted.
 
 ### Optional Parameters
 
-- `<json_path>` String type, the search starting path. If not provided, it starts from root by default.
+- `<path>` String type, optional JSON path that specifies the JSON subdocument to check. If not provided, defaults to the root document.
 
 ## Return Value
 
-- Null: If any of the three parameters is NULL, returns NULL
-- True: If `<json_object>` contains `<candidate>`, returns True.
-- False: If `<json_object>` does not contain `<candidate>`, returns False.
-- If `<json_object>` or `<candidate>` is not a JSON type, an error is reported.
+- Array<String> Returns an array of strings, where the array members are all the keys of the JSON object.
+
+## Notes
+
+- Returns NULL when `<json_object>` or `<path>` is NULL.
+- Returns NULL if it's not a JSON object (e.g., if it's a JSON array).
+- Returns NULL if the object pointed to by `<path>` does not exist.
 
 ## Examples
 
 1. Example 1
     ```sql
-    SET @j = '{"a": 1, "b": 2, "c": {"d": 4}}';
-    SET @j2 = '1';
-    SELECT JSON_CONTAINS(@j, @j2, '$.a');
+    SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}');
     ```
     ```text
-    +-------------------------------+
-    | JSON_CONTAINS(@j, @j2, '$.a') |
-    +-------------------------------+
-    |                             1 |
-    +-------------------------------+
+    +---------------------------------------+
+    | JSON_KEYS('{"a": 1, "b": {"c": 30}}') |
+    +---------------------------------------+
+    | ["a", "b"]                            |
+    +---------------------------------------+
     ```
     ```sql
-    SELECT JSON_CONTAINS(@j, @j2, '$.b');
+    SELECT JSON_KEYS('{}');
     ```
     ```text
-    +-------------------------------+
-    | JSON_CONTAINS(@j, @j2, '$.b') |
-    +-------------------------------+
-    |                             0 |
-    +-------------------------------+
+    +-----------------+
+    | JSON_KEYS('{}') |
+    +-----------------+
+    | []              |
+    +-----------------+
     ```
+
+2. Specify path
     ```sql
-    SELECT JSON_CONTAINS(@j, '{"a": 1}');
+    SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.b');
     ```
     ```text
-    +-------------------------------+
-    | JSON_CONTAINS(@j, '{"a": 1}') |
-    +-------------------------------+
-    |                             1 |
-    +-------------------------------+
+    +----------------------------------------------+
+    | JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.b') |
+    +----------------------------------------------+
+    | ["c"]                                        |
+    +----------------------------------------------+
     ```
-2. NULL parameters
+
+3. NULL parameters
     ```sql
-    SELECT JSON_CONTAINS(NULL, '{"a": 1}');
-    ```
-    ```text
-    +---------------------------------+
-    | JSON_CONTAINS(NULL, '{"a": 1}') |
-    +---------------------------------+
-    |                            NULL |
-    +---------------------------------+
-    ```
-    ```sql
-    SELECT JSON_CONTAINS('{"a": 1}', NULL);
-    ```
-    ```text
-    +---------------------------------+
-    | JSON_CONTAINS('{"a": 1}', NULL) |
-    +---------------------------------+
-    |                            NULL |
-    +---------------------------------+
-    ```
-    ```sql
-    SELECT JSON_CONTAINS('{"a": 1}', '{"a": 1}', NULL);
+    SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', NULL);
     ```
     ```text
     +---------------------------------------------+
-    | JSON_CONTAINS('{"a": 1}', '{"a": 1}', NULL) |
+    | JSON_KEYS('{"a": 1, "b": {"c": 30}}', NULL) |
     +---------------------------------------------+
-    |                                        NULL |
+    | NULL                                        |
     +---------------------------------------------+
+    ```
+    ```sql
+    SELECT JSON_KEYS(NULL);
+    ```
+    ```text
+    +-----------------+
+    | JSON_KEYS(NULL) |
+    +-----------------+
+    | NULL            |
+    +-----------------+
+    ```
+
+4. Not a JSON object
+    ```sql
+    SELECT JSON_KEYS('[1,2]');
+    ```
+    ```text
+    +--------------------+
+    | JSON_KEYS('[1,2]') |
+    +--------------------+
+    | NULL               |
+    +--------------------+
+    ```
+    ```sql
+    SELECT JSON_KEYS('{"k": [1, 2, 3]}', '$.k');
+    ```
+    ```text
+    +--------------------------------------+
+    | JSON_KEYS('{"k": [1, 2, 3]}', '$.k') |
+    +--------------------------------------+
+    | NULL                                 |
+    +--------------------------------------+
+    ```
+
+5. Object specified by path does not exist
+    ```sql
+    SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.c');
+    ```
+    ```text
+    +----------------------------------------------+
+    | JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.c') |
+    +----------------------------------------------+
+    | NULL                                         |
+    +----------------------------------------------+
     ```
