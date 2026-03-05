@@ -1,59 +1,139 @@
 ---
 {
-  "title": "Native",
+  "title": "Full-Text Search and Query Acceleration Support",
   "language": "en",
-  "description": "This document explains how to load Native format data files in Doris.It is suitable as an internal data exchange and backup format ,"
+  "description": "Comprehensive guide to full-text search operators (MATCH_ANY, MATCH_ALL, MATCH_PHRASE, MATCH_REGEXP) and inverted index query acceleration for optimizing text search and structured data queries in database systems with practical SQL examples."
 }
 ---
 
-This document explains how to load Native format data files in Doris.It is suitable as an \*\* internal data exchange and backup format \*\*, rather than a general-purpose file exchange format. When data is circulated only within Doris, Native should be preferred to achieve the highest efficiency.
+## Full-Text Search Operators
 
-## Supported Loading Methods
+### MATCH_ANY
 
-The following loading methods support Native format data:
-
-- [Stream Load](../import-way/stream-load-manual.md)
-- [Broker Load](../import-way/broker-load-manual.md)
-- [INSERT INTO FROM S3 TVF](../../../sql-manual/sql-functions/table-valued-functions/s3)
-- [INSERT INTO FROM HDFS TVF](../../../sql-manual/sql-functions/table-valued-functions/hdfs)
-
-## Usage Examples
-
-This section demonstrates the usage of Native format in different loading methods.
-
-### Stream Load
-
-```shell
-curl --location-trusted -u <user>:<passwd> \
-    -H "format: native" \
-    -T example.native \
-    http://<fe_host>:<fe_http_port>/api/example_db/example_table/_stream_load
-```
-
-### Broker Load
+- Matches rows containing any of the specified keywords in a field.
 
 ```sql
-LOAD LABEL example_db.example_label
-(
-    DATA INFILE("s3://bucket/example.native")
-    INTO TABLE example_table
-    FORMAT AS "native"
-)
-WITH S3 
-(
-    ...
-);
+SELECT * FROM table_name WHERE content MATCH_ANY 'keyword1 keyword2';
 ```
 
-### TVF Load
+### MATCH_ALL
+
+- Matches rows containing all specified keywords in a field.
 
 ```sql
-INSERT INTO example_table
-SELECT *
-FROM S3
-(
-    "path" = "s3://bucket/example.native",
-    "format" = "native",
-    ...
-);
+SELECT * FROM table_name WHERE content MATCH_ALL 'keyword1 keyword2';
+```
+
+### MATCH_PHRASE
+
+- Phrase match where terms appear adjacent and in order.
+- Requires index property `"support_phrase" = "true"` for acceleration.
+
+```sql
+SELECT * FROM table_name WHERE content MATCH_PHRASE 'keyword1 keyword2';
+```
+
+### MATCH_PHRASE with slop
+
+- Loose phrase matching that allows gaps between terms up to a maximum distance.
+
+```sql
+-- Allow up to 3 terms between keyword1 and keyword2
+SELECT * FROM table_name WHERE content MATCH_PHRASE 'keyword1 keyword2 ~3';
+```
+
+### MATCH_PHRASE with strict order
+
+- Combine slop with strict order using `+` to enforce term order.
+
+```sql
+SELECT * FROM table_name WHERE content MATCH_PHRASE 'keyword1 keyword2 ~3+';
+```
+
+### MATCH_PHRASE_PREFIX
+
+- Phrase match where the last term uses prefix matching.
+- With a single term, it degrades to prefix matching for that term.
+
+```sql
+-- Last term as prefix
+SELECT * FROM table_name WHERE content MATCH_PHRASE_PREFIX 'keyword1 key';
+
+-- Single-term prefix match
+SELECT * FROM table_name WHERE content MATCH_PHRASE_PREFIX 'keyword1';
+```
+
+### MATCH_REGEXP
+
+- Regular expression match on the tokenized terms of a field.
+
+```sql
+SELECT * FROM table_name WHERE content MATCH_REGEXP '^key_word.*';
+```
+
+### MATCH_PHRASE_EDGE
+
+- Treats the first term as suffix-match, middle terms as exact, last term as prefix-match; terms must be adjacent.
+
+```sql
+SELECT * FROM table_name WHERE content MATCH_PHRASE_EDGE 'search engine optim';
+```
+
+### Specifying Analyzer with USING ANALYZER
+
+When a column has multiple inverted indexes with different analyzers, use the `USING ANALYZER` clause to specify which analyzer to use for the query.
+
+**Syntax:**
+
+```sql
+SELECT * FROM table_name WHERE column MATCH 'keywords' USING ANALYZER analyzer_name;
+```
+
+**Supported Operators:**
+All MATCH operators support the `USING ANALYZER` clause:
+
+- MATCH / MATCH_ANY
+- MATCH_ALL
+- MATCH_PHRASE
+- MATCH_PHRASE_PREFIX
+- MATCH_PHRASE_EDGE
+- MATCH_REGEXP
+
+**Examples:**
+
+```sql
+-- Use standard analyzer (tokenizes text into words)
+SELECT * FROM articles WHERE content MATCH 'hello world' USING ANALYZER std_analyzer;
+
+-- Use keyword analyzer (exact match, no tokenization)
+SELECT * FROM articles WHERE content MATCH 'hello world' USING ANALYZER kw_analyzer;
+
+-- Use with MATCH_PHRASE
+SELECT * FROM articles WHERE content MATCH_PHRASE 'hello world' USING ANALYZER std_analyzer;
+
+-- Use built-in analyzers
+SELECT * FROM articles WHERE content MATCH 'hello' USING ANALYZER standard;
+SELECT * FROM articles WHERE content MATCH 'hello' USING ANALYZER none;
+```
+
+**Notes:**
+
+- If the specified analyzer's index is not built, the query automatically falls back to non-index path (correct results, slower performance)
+- If no analyzer is specified, the system uses any available index
+- Built-in analyzer names: `none` (exact match), `standard`, `chinese`
+
+## Inverted Index Query Acceleration
+
+### Supported Operators and Functions
+
+- Equality and set: `=`, `!=`, `IN`, `NOT IN`
+- Range: `>`, `>=`, `<`, `<=`, `BETWEEN`
+- Null checks: `IS NULL`, `IS NOT NULL`
+- Arrays: `array_contains`, `array_overlaps`
+
+```sql
+-- Examples
+SELECT * FROM t WHERE price >= 100 AND price < 200;          -- range
+SELECT * FROM t WHERE tags IN ('a','b','c');                  -- set
+SELECT * FROM t WHERE array_contains(attributes, 'color');    -- arrays
 ```
