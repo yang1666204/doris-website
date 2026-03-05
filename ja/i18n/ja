@@ -1,108 +1,107 @@
 ---
 {
-  "title": "CBRT",
+  "title": "COS",
   "language": "en",
-  "description": "Calculate the cube root of the parameter"
+  "description": "Calculate the cosine of the parameter"
 }
 ---
 
 ## Description
 
-Calculate the cube root of the parameter
+Calculate the cosine of the parameter
 
 ## Syntax
 
 ```sql
-CBRT(<a>)
+COS(<a>)
 ```
 
 ## Parameters
 
-| Parameter | Description              |
-| --------- | ------------------------ |
-| `<a>`     | Floating point parameter |
+| Parameter | Description                                                           |
+| --------- | --------------------------------------------------------------------- |
+| `<a>`     | floating point number, the radian value of the parameter to calculate |
 
 ## Return Value
 
-Cubic root of parameter `<a>`, a floating point number.
+The cosine of the parameter `<a>`, expressed in radians.
 
 ## Special Cases
 
 - When `a` is NaN, returns NaN
-- When `a` is positive infinity, returns Infinity
-- When `a` is negative infinity, returns -Infinity
+- When `a` is positive or negative infinity, returns NaN
 - When `a` is NULL, returns NULL
 
 ## Examples
 
 ```sql
-select cbrt(0);
+select cos(1);
 ```
 
 ```text
-+-------------------------+
-| cbrt(cast(0 as DOUBLE)) |
-+-------------------------+
-|                     0.0 |
-+-------------------------+
++---------------------+
+| cos(1.0)            |
++---------------------+
+| 0.54030230586813977 |
++---------------------+
 ```
 
 ```sql
-select cbrt(-111);
+select cos(0);
+```
+
+```text
++------------------------+
+| cos(cast(0 as DOUBLE)) |
++------------------------+
+|                    1.0 |
++------------------------+
+```
+
+```sql
+select cos(Pi());
+```
+
+```text
++-----------+
+| cos(pi()) |
++-----------+
+|        -1 |
++-----------+
+```
+
+```sql
+select cos(cast('nan' as double));
 ```
 
 ```text
 +----------------------------+
-| cbrt(cast(-111 as DOUBLE)) |
+| cos(cast('nan' AS DOUBLE)) |
 +----------------------------+
-|         -4.805895533705333 |
+| NaN                        |
 +----------------------------+
 ```
 
 ```sql
-select cbrt(1234);
+select cos(cast('inf' as double));
 ```
 
 ```text
 +----------------------------+
-| cbrt(cast(1234 as DOUBLE)) |
+| cos(cast('inf' AS DOUBLE)) |
 +----------------------------+
-|         10.726014668827325 |
+| NaN                        |
 +----------------------------+
 ```
 
 ```sql
-select cbrt(cast('nan' as double));
+select cos(cast('-inf' as double));
 ```
 
 ```text
-+------------------------------+
-| cbrt(cast('nan' AS DOUBLE))  |
-+------------------------------+
-| NaN                          |
-+------------------------------+
-```
-
-```sql
-select cbrt(cast('inf' as double));
-```
-
-```text
-+------------------------------+
-| cbrt(cast('inf' AS DOUBLE))  |
-+------------------------------+
-| Infinity                     |
-+------------------------------+
-```
-
-```sql
-select cbrt(cast('-inf' as double));
-```
-
-```text
-+-------------------------------+
-| cbrt(cast('-inf' AS DOUBLE))  |
-+-------------------------------+
-| -Infinity                     |
-+-------------------------------+
++-----------------------------+
+| cos(cast('-inf' AS DOUBLE)) |
++-----------------------------+
+| NaN                         |
++-----------------------------+
 ```
