@@ -1,16 +1,12 @@
 ---
 {
-  "title": "Convert to FLOAT/DOUBLE",
+  "title": "Cast to INT Types",
   "language": "en",
   "description": "If the source type is nullable, returns nullable type;"
 }
 ---
 
 ## From string
-
-:::caution Behavior Change
-Since version 4.0, the result of overflow is no longer NULL, but +/-Infinity.
-:::
 
 ### Strict mode
 
@@ -21,70 +17,43 @@ If the source type is non-nullable, returns non-nullable type;
 #### BNF definition
 
 ```xml
-<float>       ::= <whitespace>* <value> <whitespace>*
+<integer>       ::= <whitespace>* <sign>? <decimal_digit>+ <whitespace>*
 
-<whitespace>  ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
+<sign>          ::= "+" | "-"
 
-<value>       ::= <decimal> | <infinity> | <nan>
+<decimal_digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-<decimal>     ::= <sign>? <significand> <exponent>?
-
-<infinity>    ::= <sign>? <inf_literal>
-
-<nan>         ::= <sign>? <nan_literal>
-
-<sign>        ::= "+" | "-"
-
-<significand> ::= <digits> | <digits> "." <digits> | <digits> "." | "." <digits>
-
-<digits>      ::= <digit>+
-
-<digit>       ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-
-<exponent>    ::= <e_marker> <sign>? <digits>
-
-<e_marker>    ::= "e" | "E"
-
-<inf_literal> ::= <"INF" case-insensitive> | <"INFINITY" case-insensitive>
-
-<nan_literal> ::= <"NAN" case-insensitive>
+<whitespace>    ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
 ```
 
 #### Rule description
 
 - Only supports decimal format numbers;
 
-- Supports scientific notation;
-
 - Numbers can be prefixed with positive or negative sign characters;
 
-- Strings allow arbitrary prefix and suffix whitespace characters, including: " ", "\t", "\n", "\r", "\f", "\v";
+- Strings allow arbitrary prefix and suffix whitespace characters, including: ' ', '\t', '\n', '\r', '\f', '\v';
 
-- Supports Infinity and NaN;
+- Does not support scientific notation;
 
 - Return error for other formats;
 
-- Overflow converts to +|-Infinity.
+- Return error if overflow.
 
 #### Examples
 
-| String                                              | float/double             | Comment                                          |
-| --------------------------------------------------- | ------------------------ | ------------------------------------------------ |
-| "123.456"                           | 123.456  |                                                  |
-| "123456."                           | 123456                   |                                                  |
-| "123456"                                            | 123456                   |                                                  |
-| ".123456"                           | 0.123456 |                                                  |
-| " \t\r\n\f\v123.456 \t\r\n\f\v"     | 123.456  | With prefix and suffix whitespace                |
-| " \t\r\n\f\v+123.456 \t\r\n\f\v"    | 123.456  | With prefix and suffix whitespace, positive sign |
-| " \t\r\n\f\v-123.456 \t\r\n\f\v"    | -123.456 | With prefix and suffix whitespace, negative sign |
-| " \t\r\n\f\v+1.234e5 \t\r\n\f\v"    | 123400                   | Scientific notation                              |
-| " \t\r\n\f\v+1.234e+5 \t\r\n\f\v"   | 123400                   | Scientific notation with positive exponent       |
-| " \t\r\n\f\v+1.23456e-1 \t\r\n\f\v" | 0.123456 | Scientific notation with negative exponent       |
-| "Infinity"                                          | Infinity                 |                                                  |
-| "NaN"                                               | NaN                      |                                                  |
-| "123.456a"                          | Error                    | Invalid format                                   |
-| "1.7e409"                           | Infinity                 | Overflow                                         |
-| "-1.7e409"                          | -Infinity                | Overflow                                         |
+| String                              | Cast as int result | Comment                                          |
+| ----------------------------------- | ------------------ | ------------------------------------------------ |
+| "2147483647"                        | 2147483647         |                                                  |
+| "-2147483648"                       | -2147483648        |                                                  |
+| " \t\r\n\f\v2147483647 \t\r\n\f\v"  | 2147483647         | With prefix and suffix whitespace                |
+| " \t\r\n\f\v+2147483647 \t\r\n\f\v" | 2147483647         | With prefix and suffix whitespace, positive sign |
+| " \t\r\n\f\v-2147483648 \t\r\n\f\v" | -2147483648        | With prefix and suffix whitespace, negative sign |
+| 'abc'                               | Error              | Invalid format                                   |
+| '123.456'           | Error              | Decimal format not supported                     |
+| '1.23456e5'         | Error              | Scientific notation not supported                |
+| '2147483648'                        | Error              | Overflow                                         |
+| '-2147483649'                       | Error              | Overflow                                         |
 
 ### Non-strict mode
 
@@ -93,59 +62,45 @@ Always returns nullable type.
 #### BNF definition
 
 ```xml
-<float>       ::= <whitespace>* <value> <whitespace>*
+<integer_non_strict> ::= <whitespace_char>* <sign>? <number> <whitespace_char>*
 
-<whitespace>  ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
+<sign>               ::= "+" | "-"
 
-<value>       ::= <decimal> | <infinity> | <nan>
+<number>             ::= <decimal_number> | <decimal_number> "." <decimal_number> | <decimal_number> "." | "." <decimal_number>
 
-<decimal>     ::= <sign>? <significand> <exponent>?
+<decimal_number>     ::= <decimal_digit>+
 
-<infinity>    ::= <sign>? <inf_literal>
+<decimal_digit>      ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-<nan>         ::= <sign>? <nan_literal>
-
-<sign>        ::= "+" | "-"
-
-<significand> ::= <digits> | <digits> "." <digits> | <digits> "." | "." <digits>
-
-<digits>      ::= <digit>+
-
-<digit>       ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-
-<exponent>    ::= <e_marker> <sign>? <digits>
-
-<e_marker>    ::= "e" | "E"
-
-<inf_literal> ::= <"INF" case-insensitive> | <"INFINITY" case-insensitive>
-
-<nan_literal> ::= <"NAN" case-insensitive>
+<whitespace_char>    ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
 ```
 
 #### Rule description
 
 - Supports all valid formats from strict mode;
 
-- Invalid format converts to NULL;
+- Supports strict mode format followed by decimal part, conversion result directly discards the decimal part;
 
-- Overflow converts to +|-Infinity.
+- Scientific notation format converts to NULL;
+
+- All other format cases convert to NULL;
+
+- Converts to NULL when overflow occurs.
 
 #### Examples
 
-| String                                           | float/double             | Comment                                          |
-| ------------------------------------------------ | ------------------------ | ------------------------------------------------ |
-| "123.456"                        | 123.456  |                                                  |
-| "12345."                         | 12345                    |                                                  |
-| ".123456"                        | 0.123456 |                                                  |
-| " \t\r\n\f\v123.456 \t\r\n\f\v"  | 123.456  | With prefix and suffix whitespace                |
-| " \t\r\n\f\v+123.456 \t\r\n\f\v" | 123.456  | With prefix and suffix whitespace, positive sign |
-| " \t\r\n\f\v-123.456 \t\r\n\f\v" | -123.456 | With prefix and suffix whitespace, negative sign |
-| " \t\r\n\f\v+1.234e5 \t\r\n\f\v" | 123400                   | Scientific notation                              |
-| "Infinity"                                       | Infinity                 |                                                  |
-| "NaN"                                            | NaN                      |                                                  |
-| "123.456a"                       | NULL                     | Invalid format                                   |
-| "1.7e409"                        | Infinity                 | Overflow                                         |
-| "-1.7e409"                       | -Infinity                | Overflow                                         |
+| String                              | Cast as int result | Comment                                          |
+| ----------------------------------- | ------------------ | ------------------------------------------------ |
+| "2147483647"                        | 2147483647         |                                                  |
+| "-2147483648"                       | -2147483648        |                                                  |
+| " \t\r\n\f\v2147483647 \t\r\n\f\v"  | 2147483647         | With prefix and suffix whitespace                |
+| " \t\r\n\f\v+2147483647 \t\r\n\f\v" | 2147483647         | With prefix and suffix whitespace, positive sign |
+| " \t\r\n\f\v-2147483648 \t\r\n\f\v" | -2147483648        | With prefix and suffix whitespace, negative sign |
+| '123.456'           | 123                |                                                  |
+| '1.23456e5'         | NULL               | Scientific notation                              |
+| 'abc'                               | NULL               | Invalid format                                   |
+| '2147483648'                        | NULL               | Overflow                                         |
+| '-2147483649'                       | NULL               | Overflow                                         |
 
 ## From bool
 
@@ -155,23 +110,51 @@ If the source type is nullable, returns nullable type.
 
 If the source type is non-nullable, returns non-nullable type.
 
-## From integer
+## From integer to integer
 
-Follows C++ static cast semantics. May lose precision.
+Supports conversion between any integer types.
 
-If the source type is nullable, returns nullable type.
+### Strict mode
 
-If the source type is non-nullable, returns non-nullable type.
-
-## From float to double
-
-Follows C++ static cast semantics.
+Return error when overflow occurs.
 
 If the source type is nullable, returns nullable type.
 
 If the source type is non-nullable, returns non-nullable type.
 
-## From double to float
+#### Examples
+
+| Bigint      | int        | Comment  |
+| ----------- | ---------- | -------- |
+| 2147483647  | 2147483647 |          |
+| 2147483648  | Error      | Overflow |
+| -2147483649 | Error      | Overflow |
+
+### Non-strict mode
+
+:::caution Behavior Change
+Since version 4.0, the result of overflow is no longer undefined value, but NULL.
+:::
+
+Returns NULL when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast bigint as int`), returns nullable type;
+
+- Otherwise returns non-nullable type (e.g., `cast int as bigint`).
+
+#### Examples
+
+| Bigint      | int        | Comment  |
+| ----------- | ---------- | -------- |
+| 2147483647  | 2147483647 |          |
+| 2147483648  | NULL       | Overflow |
+| -2147483649 | NULL       | Overflow |
+
+## From date
 
 If the source type is nullable, returns nullable type.
 
@@ -179,80 +162,101 @@ If the source type is non-nullable, returns non-nullable type.
 
 ### Rule description
 
-- Follows C++ static cast semantics.
+:::caution Behavior Change
+Since version 4.0, does not support casting date to tinyint and smallint anymore.
+:::
 
-- Overflow converts to +-Infinity.
+- Does not support casting to tinyint and smallint, as overflow will definitely occur.
 
-### Examples
-
-| double                        | float     | Comment  |
-| ----------------------------- | --------- | -------- |
-| 1.79769e+308  | Infinity  | Overflow |
-| -1.79769e+308 | -Infinity | Overflow |
-
-## From decimal to float
-
-Casting Decimal type to float may lose precision.
-
-Doris's `Decimal(p, s)` type is actually represented by an integer in memory, where the integer value equals `Decimal actual value * 10^s`. For example, a `Decimal(10, 6)` value `1234.56789` is represented by integer value `1234567890` in memory.
-
-When converting Decimal type to float or double type, Doris actually performs the following operation: `static_cast<float>(integer value in memory) / (10^scale)`.
-
-### Strict mode
-
-Converts to Infinity if overflow.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| Decimal(76, 6)                                                             | float     | Comment                              |
-| --------------------------------------------------------------------------------------------- | --------- | ------------------------------------ |
-| 123456789.012345                                                              | 123456790 | Casting to float will lose precision |
-| 9999999999999999999999999999999999999999999999999999999999999999999999.123456 | Infinity  | Overflow                             |
-
-### Non-strict mode
-
-Converts to Infinity if overflow.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| Decimal(76, 6)                                                             | float     | Comment                              |
-| --------------------------------------------------------------------------------------------- | --------- | ------------------------------------ |
-| 123456789.012345                                                              | 123456790 | Casting to float will lose precision |
-| 9999999999999999999999999999999999999999999999999999999999999999999999.123456 | Infinity  | Overflow                             |
-
-## From decimal to double
-
-Currently, Decimal type can have at most 76 significant digits. Casting to double type does not have overflow issues, only precision loss issues.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
+- Supports casting to int, bigint and largeint. Concatenates the year, month, and day numbers of the date in order to form an integer, with month and day treated as two digits, padding with a leading 0 if less than 10.
 
 ### Examples
 
-| Decimal(76, 6)                                                             | double                             | Comment                                                          |
-| --------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| 123456789.012345                                                              | 123456789.012345   | 15 significant digits, casting to double will not lose precision |
-| 12345678901.012345                                                            | 12345678901.012344 | 17 significant digits, casting to double will lose precision     |
-| 9999999999999999999999999999999999999999999999999999999999999999999999.123456 | 1e+70                              | Will lose precision                                              |
+| date       | int      |
+| ---------- | -------- |
+| 2025-03-14 | 20250314 |
 
-## From date to float
+## From datetime
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
+
+### Rule description
+
+:::caution Behavior Change
+Since version 4.0, does not support casting datetime to tinyint, smallint and int anymore.
+:::
+
+- Does not support casting to tinyint, smallint, int, as overflow will definitely occur;
+
+- Supports casting to bigint, largeint. Discards the microsecond part of datetime, then concatenates year, month, day, hour, minute, second in order to form an integer, with month, day, hour, minute, second treated as two digits, padding with a leading 0 if less than 10.
+
+### Examples
+
+| datetime                                                                   | int            |
+| -------------------------------------------------------------------------- | -------------- |
+| 2025-03-14 17:00:01.123456 | 20250314170001 |
+| 9999-12-31 23:59:59.999999 | 99991231235959 |
+
+## From float/double
+
+Does not support rounding.
 
 ### Strict mode
 
-Return error.
+#### Rule description
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
+
+- Return error when overflow occurs;
+
+- Return error for Infinity and NaN values.
+
+#### Examples
+
+| float/double                | Cast as int | Comment    |
+| --------------------------- | ----------- | ---------- |
+| 1.5         | 1           | Truncation |
+| 1.79769E308 | Error       | Overflow   |
+| Infinity                    | Error       |            |
+| NaN                         | Error       |            |
 
 ### Non-strict mode
 
-Concatenates the year, month, and day numbers of the date in order to form an integer, with month and day treated as two digits, padding with a leading 0 if less than 10. Then static_cast this integer to float, which may lose precision.
+Always returns nullable type.
+
+#### Rule description
+
+:::caution Behavior Change
+Since version 4.0, the result of overflow is no longer undefined value, but NULL.
+:::
+
+- Converts to NULL when overflow occurs;
+
+- Infinity converts to NULL;
+
+- NaN converts to NULL.
+
+#### Examples
+
+| float/double                | Cast as int | Comment    |
+| --------------------------- | ----------- | ---------- |
+| 1.5         | 1           | Truncation |
+| 1.79769E308 | NULL        | Overflow   |
+| Infinity                    | NULL        |            |
+| -Infinity                   | NULL        |            |
+| NaN                         | NULL        |            |
+
+## From decimal
+
+Does not support rounding.
+
+### Strict mode
+
+Return error when overflow occurs.
 
 If the source type is nullable, returns nullable type.
 
@@ -260,81 +264,37 @@ If the source type is non-nullable, returns non-nullable type.
 
 #### Examples
 
-| date       | float    | Comment        |
-| ---------- | -------- | -------------- |
-| 2025-04-21 | 20250420 | Precision loss |
-
-## From date to double
-
-### Strict mode
-
-Return error.
+| Decimal(18, 6) | int   | comment    |
+| --------------------------------- | ----- | ---------- |
+| 1.654321          | 1     | Truncation |
+| 12345678901.123   | Error | Overflow   |
 
 ### Non-strict mode
 
-Concatenates the year, month, and day numbers of the date in order to form an integer, with month and day treated as two digits, padding with a leading 0 if less than 10. Then static_cast this integer to double.
+Converts to NULL when overflow occurs.
 
 If the source type is nullable, returns nullable type.
 
-If the source type is non-nullable, returns non-nullable type.
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast decimal(18, 0) as int`), returns nullable type;
+
+- Otherwise returns non-nullable type (e.g., `cast decimal(9, 0) as bigint`).
 
 #### Examples
 
-| date       | double   | Comment                                 |
-| ---------- | -------- | --------------------------------------- |
-| 2025-04-21 | 20250421 | 8 significant digits, no precision loss |
-
-## From datetime to float
-
-### Strict mode
-
-Return error.
-
-### Non-strict mode
-
-Discards the microsecond part of datetime, then concatenates the year, month, day, hour, minute, and second in order to form an integer, with month, day, hour, minute, and second treated as two digits, padding with a leading 0 if less than 10. Then static_cast this integer to float, which may lose precision.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| datetime                                                                   | float          | Comment        |
-| -------------------------------------------------------------------------- | -------------- | -------------- |
-| 2025-03-14 17:00:01.123456 | 20250314170001 | Precision loss |
-| 9999-12-31 23:59:59.999999 | 99991231235959 | Precision loss |
-
-## From datetime to double
-
-### Strict mode
-
-Return error.
-
-### Non-strict mode
-
-Discards the microsecond part of datetime, then concatenates the year, month, day, hour, minute, and second in order to form an integer, with month, day, hour, minute, and second treated as two digits, padding with a leading 0 if less than 10. Then static_cast this integer to double.
-
-If the source type is nullable, returns nullable type.
-
-If the source type is non-nullable, returns non-nullable type.
-
-#### Examples
-
-| datetime                                                                   | double         | Comment                                  |
-| -------------------------------------------------------------------------- | -------------- | ---------------------------------------- |
-| 2025-03-14 17:00:01.123456 | 20250314170001 | 14 significant digits, no precision loss |
-| 9999-12-31 23:59:59.999999 | 99991231235959 |                                          |
+| Decimal(18, 6) | int  | comment    |
+| --------------------------------- | ---- | ---------- |
+| 1.654321          | 1    | Truncation |
+| 12345678901.123   | NULL | Overflow   |
 
 ## From time
 
+Converts to microseconds.
+
 ### Strict mode
 
-Return error.
-
-### Non-strict mode
-
-Converts to float/double number in microseconds.
+Return error when overflow occurs.
 
 If the source type is nullable, returns nullable type.
 
@@ -342,12 +302,34 @@ If the source type is non-nullable, returns non-nullable type.
 
 #### Examples
 
-| Time                                                             | float         | Comment |
-| ---------------------------------------------------------------- | ------------- | ------- |
-| 00:00:01                         | 1000000       |         |
-| 838:59:58                        | 3020398000000 |         |
-| 838:59:58.123456 | 3020398123456 |         |
+| Time                                      | int     | Comment  |
+| ----------------------------------------- | ------- | -------- |
+| 00:00:01  | 1000000 |          |
+| 838:59:58 | Error   | Overflow |
 
-## From other types
+### Non-strict mode
 
-Not supported.
+:::caution Behavior Change
+Since version 4.0, the result of overflow is no longer undefined value, but NULL.
+:::
+
+Converts to NULL when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast time as tinyint`), returns nullable type;
+
+- Otherwise returns non-nullable type (e.g., `cast time as bigint`).
+
+#### Examples
+
+| Time                                      | int     | Comment  |
+| ----------------------------------------- | ------- | -------- |
+| 00:00:01  | 1000000 |          |
+| 838:59:58 | NULL    | Overflow |
+
+## Other types
+
+Not supported
