@@ -1,108 +1,117 @@
 ---
 {
-  "title": "SORT_JSON_OBJECT_KEYS",
+  "title": "Condition Cache",
   "language": "en",
-  "description": "SORTJSONOBJECTKEYS sorts the keys of a JSON object. This function takes a JSON object as input and returns a new JSON object with keys sorted in "
+  "description": "In large-scale analytical workloads, queries often include repeated filtering conditions (Conditions)"
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+# Condition Cache
 
-  http://www.apache.org/licenses/LICENSE-2.0
+## Introduction
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+In large-scale analytical workloads, queries often include **repeated filtering conditions (Conditions)**, for example:
 
-## Description
-
-`SORT_JSON_OBJECT_KEYS` sorts the keys of a JSON object. This function takes a JSON object as input and returns a new JSON object with keys sorted in lexicographical order.
-
-Note that according to the JSON standard, JSON objects are unordered collections. However, this function is useful when you need to ensure consistency in key ordering, for example, when comparing two JSON objects for identical content.
-
-## Syntax
-
-```sql
-SORT_JSON_OBJECT_KEYS(json_value)
+```
+SELECT * FROM orders WHERE region = 'ASIA';
+SELECT count(*) FROM orders WHERE region = 'ASIA';
 ```
 
-## Alias
+Such queries repeatedly execute the same filtering logic on identical data segments, leading to **redundant CPU and I/O overhead**.
 
-SORT_JSONB_OBJECT_KEYS
+To address this, **Apache Doris introduces the Condition Cache mechanism**.
+It caches the filtering results of specific conditions on a given segment, allowing subsequent queries to **reuse those results directly**, thereby **reducing unnecessary scans and filtering operations** and significantly lowering query latency.
 
-## Parameters
+## Working Principle
 
-**json_value** - The JSON value whose keys need to be sorted. Must be of JSON type.
+The core concept of the Condition Cache is:
 
-## Return Value
+- **The same filtering condition produces the same result on the same data segment.**
+- Doris generates a **64-bit digest** from the combination of “condition expression + key range,” which serves as a unique cache identifier.
+- Each segment can then look up existing filtering results in the cache using this digest.
 
-Returns a new JSON object with keys sorted in lexicographical order. The return type matches the input JSON type.
+Cached results are stored as compressed **bit vectors (`std::vector<bool>`)**:
 
-When the input is NULL, the function returns NULL.
+- **0** indicates that the row range does not meet the condition and can be skipped directly;
+- **1** indicates that the range may contain matching data and needs further scanning.
 
-## Examples
+Through this mechanism, Doris can quickly eliminate irrelevant data blocks at a coarse granularity, performing fine-grained filtering only when necessary.
 
-### Basic key sorting
+## Applicable Scenarios
 
-```sql
-SELECT sort_json_object_keys(cast('{"b":123,"b":456,"a":789}' as json));
+Condition Cache is most effective in the following cases:
+
+- **Repeated conditions**: Identical or similar filter conditions are frequently used.
+- **Relatively stable data**: Data inside a segment is typically immutable (new segments are generated after INSERT/Compaction, naturally invalidating old caches).
+- **High selectivity**: When filters leave only a small subset of rows, it maximizes scan reduction.
+
+Condition Cache will **not** be used in the following situations:
+
+- Queries containing **delete predicates** (to ensure correctness, caching is disabled).
+- **TopN runtime filters** generated at runtime (currently unsupported).
+
+## Configuration and Management
+
+### Enable or Disable
+
+```
+SET enable_condition_cache = true;
 ```
 
-```text
-+------------------------------------------------------------------+
-| sort_json_object_keys(cast('{"b":123,"b":456,"a":789}' as json)) |
-+------------------------------------------------------------------+
-| {"a":789,"b":123}                                                |
-+------------------------------------------------------------------+
+### Memory Management
+
+- Condition Cache uses an **LRU policy** for cache eviction.
+- When exceeding `condition_cache_limit`, the least recently used entries are automatically cleared.
+
+You can modify the memory limit in `be.conf`:
+
+```
+condition_cache_limit = 1024  # Unit: MB
 ```
 
-### Handling nested JSON arrays
+- After segment compaction, old cache entries are naturally invalidated through LRU eviction.
 
-```sql
-SELECT sort_json_object_keys(cast('[{"b":123,"b":456,"a":789},{"b":123},{"b":456},{"a":789}]' as json));
+## Cache Statistics
+
+Doris provides comprehensive metrics to help users monitor the effectiveness of Condition Cache:
+
+- **Profile-level metrics** (visible in query execution plans)
+  - `ConditionCacheSegmentHit`: Number of segments that hit the cache
+  - `ConditionCacheFilteredRows`: Number of rows skipped directly by cached results
+- **System metrics** (viewable via the monitoring system or `/metrics`)
+  - `condition_cache_search_count`: Total cache lookup count
+  - `condition_cache_hit_count`: Number of successful cache hits
+
+These metrics help evaluate the cache’s benefit and hit ratio.
+
+## Usage Example
+
+### Typical Scenario
+
+Consider the following query:
+
+```
+SELECT order_id, amount
+FROM orders
+WHERE region = 'ASIA' AND order_date >= '2023-01-01';
 ```
 
-```text
-+----------------------------------------------------------------------------------------------------+
-| sort_json_object_keys(cast('[{"b":123,"b":456,"a":789} ,{"b":123},{"b":456},{"a":789} ]' as json)) |
-+----------------------------------------------------------------------------------------------------+
-| [{"a":789,"b":123},{"b":123},{"b":456},{"a":789}]                                                  |
-+----------------------------------------------------------------------------------------------------+
-```
+- **First execution**: The query performs a full scan and evaluates the filter; the Condition Cache stores the result in the LRU cache.
+- **Subsequent identical queries**: They reuse the cached results, skipping most irrelevant row ranges and scanning only potential matches.
 
-### Handling NULL values
-
-```sql
-SELECT sort_json_object_keys(null);
-```
-
-```text
-+-----------------------------+
-| sort_json_object_keys(null) |
-+-----------------------------+
-| NULL                        |
-+-----------------------------+
-```
+When multiple queries share the same filtering condition (e.g., `region = 'ASIA' AND order_date >= '2023-01-01'`), they can reuse each other’s Condition Cache entries, reducing overall workload.
 
 ## Notes
 
-1. `SORT_JSON_OBJECT_KEYS` function has an alias `SORT_JSONB_OBJECT_KEYS`, both functions have identical functionality.
+- **Cache is not persistent**: The Condition Cache is cleared upon Doris restart.
+- **Delete operations disable caching**: Segments with delete markers require strict consistency and thus do not use the cache.
 
-2. This function only sorts the keys of objects, without modifying their associated values.
+## Summary
 
-3. The function only sorts objects but not arrays, as the standard specifies that arrays are ordered collections.
+Condition Cache is an optimization mechanism in Doris designed for **repeated conditional queries**. Its advantages include:
 
-4. Duplicate keys in JSON objects will be merged when converted to Doris JSON type, preserving only the first key-value pair.
+- Avoiding redundant computation and reducing CPU/I/O overhead
+- Automatically and transparently effective without user intervention
+- Lightweight in memory consumption and highly efficient when hit and filter rates are high
 
-5. This function is primarily used to ensure JSON object keys are presented in a consistent order for comparison or debugging purposes, as by default Doris JSON type does not guarantee key ordering.
+By leveraging the Condition Cache effectively, users can achieve significantly faster response times in high-frequency OLAP query scenarios.
