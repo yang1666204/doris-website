@@ -1,69 +1,84 @@
 ---
 {
     "title": "LINEAR_HISTOGRAM",
-    "language": "en"
+    "language": "en",
+    "description": "The LINEARHISTOGRAM function is used to describe data distribution."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
 ## Description
-### Syntax
 
-`LINEAR_HISTOGRAM(expr, DOUBLE interval[, DOUBLE offset)`
+The LINEAR_HISTOGRAM function is used to describe data distribution. It uses an "equal width" bucketing strategy and divides the data into buckets according to the value size.
 
-The linear_histogram function is used to describe the distribution of the data, It uses an "equal width" bucking strategy, and divides the data into buckets according to the value of the data.
+## Syntax
 
-Parameter description:
+```sql
+LINEAR_HISTOGRAM(<expr>, DOUBLE <interval>[, DOUBLE <offset>])
+```
 
-- `interval`: Required. The bucket width.
-- `offset`: Optional. Default is 0. It should be in `[0, interval)`.
+## Parameters
+
+| Parameter | Description |
+| -- | -- |
+| `interval` | The width of the bucket, supports types: TinyInt, SmallInt, Int, BigInt, LargeInt, Float, Double, Decimal. |
+| `offset`   | Optional. Default is 0, range is `[0, interval)`, type Double supported. |
+
+## Return Value
+
+Returns a computed value of JSON type.
 
 ## Example
 
-```
-mysql> select linear_histogram(a, 2) from histogram_test;
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| linear_histogram(a, cast(2 as DOUBLE))                                                                                                                                                                                                                                                                                                           |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| {"num_buckets":6,"buckets":[{"lower":0.0,"upper":2.0,"count":2,"acc_count":2},{"lower":2.0,"upper":4.0,"count":4,"acc_count":6},{"lower":4.0,"upper":6.0,"count":4,"acc_count":10},{"lower":6.0,"upper":8.0,"count":4,"acc_count":14},{"lower":8.0,"upper":10.0,"count":4,"acc_count":18},{"lower":10.0,"upper":12.0,"count":2,"acc_count":20}]} |
-+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-mysql> select linear_histogram(a, 2, 1) from histogram_test;
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| linear_histogram(a, cast(2 as DOUBLE), cast(1 as DOUBLE))                                                                                                                                                                                                                                   |
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| {"num_buckets":5,"buckets":[{"lower":1.0,"upper":3.0,"count":4,"acc_count":4},{"lower":3.0,"upper":5.0,"count":4,"acc_count":8},{"lower":5.0,"upper":7.0,"count":4,"acc_count":12},{"lower":7.0,"upper":9.0,"count":4,"acc_count":16},{"lower":9.0,"upper":11.0,"count":4,"acc_count":20}]} |
-+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```sql
+-- setup
+create table histogram_test(
+  a int
+) distributed by hash(a) buckets 1
+properties ("replication_num"="1");
+insert into histogram_test values
+  (0), (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (null);
 ```
 
-Field description: 
+```sql
+select linear_histogram(a, 2) from histogram_test;
+```
 
-- `num_buckets`: The number of buckets.
-- `buckets`: All buckets.
-  - `lower`: Lower bound of the bucket. (included)
-  - `upper`: Upper bound of the bucket. (not included)
-  - `count`: The number of elements contained in the bucket.
-  - `acc_count`: Accumulated count.
+```text
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, 2)                                                                                                                                                                                                                                                                                                                         |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":6,"buckets":[{"lower":0.0,"upper":2.0,"count":2,"acc_count":2},{"lower":2.0,"upper":4.0,"count":2,"acc_count":4},{"lower":4.0,"upper":6.0,"count":2,"acc_count":6},{"lower":6.0,"upper":8.0,"count":2,"acc_count":8},{"lower":8.0,"upper":10.0,"count":2,"acc_count":10},{"lower":10.0,"upper":12.0,"count":2,"acc_count":12}]} |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
 
+```sql
+select linear_histogram(a, 2, 1) from histogram_test;
+```
 
-## Keywords
+```text
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, 2, 1)                                                                                                                                                                                                                                                                                                                                                                         |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":7,"buckets":[{"lower":-1.0,"upper":1.0,"count":1,"acc_count":1},{"lower":1.0,"upper":3.0,"count":2,"acc_count":3},{"lower":3.0,"upper":5.0,"count":2,"acc_count":5},{"lower":5.0,"upper":7.0,"count":2,"acc_count":7},{"lower":7.0,"upper":9.0,"count":2,"acc_count":9},{"lower":9.0,"upper":11.0,"count":2,"acc_count":11},{"lower":11.0,"upper":13.0,"count":1,"acc_count":12}]} |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+```
 
-LINEAR_HISTOGRAM
+```sql
+select linear_histogram(a, 2, 1) from histogram_test where a is null;
+```
+
+```text
++--------------------------------+
+| linear_histogram(a, 2, 1)      |
++--------------------------------+
+| {"num_buckets":0,"buckets":[]} |
+```
+
+Field description:
+
+- `num_buckets`: Number of buckets.
+- `buckets`: Buckets in the histogram.
+  - `lower`: Lower bound (inclusive).
+  - `upper`: Upper bound (exclusive).
+  - `count`: Number of elements in the bucket.
+  - `acc_count`: Accumulated count up to this bucket.
