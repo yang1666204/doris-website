@@ -1,36 +1,36 @@
 ---
 {
-  "title": "ACOS",
+  "title": "ASIN",
   "language": "en",
-  "description": "Returns the arc cosine of x, or NULL if x is not in the range -1 to 1."
+  "description": "Returns the arc sine of x, or NULL if x is not in the range -1 to 1."
 }
 ---
 
 ## Description
 
-Returns the arc cosine of `x`, or `NULL` if `x` is not in the range `-1` to `1`.
+Returns the arc sine of `x`, or `NULL` if `x` is not in the range `-1` to `1`.
 
 ## Syntax
 
 ```sql
-ACOS(<x>)
+ASIN(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                            |
-| --------- | ------------------------------------------------------ |
-| `<x>`     | The value for which the arc cosine is to be calculated |
+| Parameter | Description                                          |
+| --------- | ---------------------------------------------------- |
+| `<x>`     | The value for which the arc sine is to be calculated |
 
 ## Return Value
 
-The arc cosine value of parameter `x`, expressed in radians.
+The arc sine value of parameter `x`, expressed in radians.
 
 ## Special Cases
 
-- When `x` equals 1, returns 0
-- When `x` equals 0, returns π/2
-- When `x` equals -1, returns π
+- When `x` equals 0, returns 0
+- When `x` equals 1, returns π/2
+- When `x` equals -1, returns -π/2
 - When `x` is not in the range [-1, 1], returns `NULL`
 - When `x` is NaN, returns NaN
 - When `x` is positive or negative infinity, returns `NULL`
@@ -39,84 +39,84 @@ The arc cosine value of parameter `x`, expressed in radians.
 ## Examples
 
 ```sql
-select acos(1);
+select asin(0.5);
 ```
 
 ```text
-+-----------+
-| acos(1.0) |
-+-----------+
-|         0 |
-+-----------+
++---------------------+
+| asin(0.5)           |
++---------------------+
+| 0.52359877559829893 |
++---------------------+
 ```
 
 ```sql
-select acos(0);
-```
-
-```text
-+--------------------+
-| acos(0.0)          |
-+--------------------+
-| 1.5707963267948966 |
-+--------------------+
-```
-
-```sql
-select acos(-1);
-```
-
-```text
-+--------------------+
-| acos(-1.0)         |
-+--------------------+
-| 3.141592653589793  |
-+--------------------+
-```
-
-```sql
-select acos(-2);
+select asin(0.0);
 ```
 
 ```text
 +------------+
-| acos(-2.0) |
+| asin(0.0)  |
++------------+
+|          0 |
++------------+
+```
+
+```sql
+select asin(1.0);
+```
+
+```text
++--------------------+
+| asin(1.0)          |
++--------------------+
+| 1.570796326794897  |
++--------------------+
+```
+
+```sql
+select asin(-1.0);
+```
+
+```text
++---------------------+
+| asin(-1.0)          |
++---------------------+
+| -1.570796326794897  |
++---------------------+
+```
+
+```sql
+select asin(2);
+```
+
+```text
++------------+
+| asin(2.0)  |
 +------------+
 |       NULL |
 +------------+
 ```
 
 ```sql
-select acos(1.0000001);
-```
-
-```text
-+-----------------+
-| acos(1.0000001) |
-+-----------------+
-|            NULL |
-+-----------------+
-```
-
-```sql
-select acos(cast('nan' as double));
+select asin(cast('nan' as double));
 ```
 
 ```text
 +---------------------------+
-| acos(cast('nan' AS DOUBLE)) |
+| asin(cast('nan' AS DOUBLE)) |
 +---------------------------+
 | NaN                       |
 +---------------------------+
 ```
 
 ```sql
-select acos(cast('inf' as double));
+select asin(cast('inf' as double));
 ```
 
 ```text
 +---------------------------+
-| acos(cast('inf' AS DOUBLE)) |
+| asin(cast('inf' AS DOUBLE)) |
 +---------------------------+
 | NULL                      |
 +---------------------------+
