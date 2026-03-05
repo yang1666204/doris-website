@@ -1,18 +1,18 @@
 ---
 {
-  "title": "INT",
+  "title": "LARGEINT",
   "language": "en",
-  "description": "INT 4-byte signed integer, range [-2147483648, 2147483647]"
+  "description": "LARGEINT 16-byte signed integer, range [-2^127 + 1 ~ 2^127 - 1]"
 }
 ---
 
-## INT
+## LARGEINT
 
 ### Description
 
-INT
-4-byte signed integer, range [-2147483648, 2147483647]
+LARGEINT
+16-byte signed integer, range [-2^127 + 1 ~ 2^127 - 1]
 
 ### keywords
 
-INT
+BIGINT
