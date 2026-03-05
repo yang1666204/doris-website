@@ -1,46 +1,33 @@
 ---
 {
-  "title": "ATAN",
+  "title": "ATAN2",
   "language": "en",
-  "description": "Return the arctangent value."
+  "description": "Returns the arc tangent of 'y' / 'x'."
 }
 ---
 
 ## Description
 
-Return the arctangent value.
-
-- When there is only one parameter: Return the arctangent of `x`, with the result range of [-π/2, π/2]
-
-- When there are two parameters: Return the arctangent of `y/x`, with the same behavior as [ATAN2(y, x)](https://doris.apache.org/docs/dev/sql-manual/sql-functions/scalar-functions/numeric-functions/atan2), with the result range of [-π, π]
+Returns the arc tangent of 'y' / 'x'.
 
 ## Syntax
 
 ```sql
-ATAN([<y>, ]<x>)
+ATAN2(<y>, <x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                                                                                                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<x>`     | When there is only one parameter, it indicates the value that needs to be calculated as the arctangent; when there are two parameters, it indicates the horizontal coordinate (or x-value), the distance along the x-axis from the origin (0,0). |
-| `<y>`     | Optional, representing the vertical coordinate (or y-value), the distance along the y-axis from the origin (0,0)                                                                                                                                                 |
+| Parameter | Description                                                                                                                                               |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<x>`     | The value representing the horizontal distance (coordinate) from the origin (0,0) along the x-axis. |
+| `<y>`     | The value representing the vertical distance (coordinate) from the origin (0,0) along the y-axis.   |
 
 ## Return Value
 
-The atan value of parameter `x`.
+The atan2 value of parameter `y` / `x`.
 
 ## Special Cases
-
-### Single-parameter version
-
-- When `x` is NaN, returns NaN
-- When `x` is positive infinity, returns π/2 (approximately 1.570796326794897)
-- When `x` is negative infinity, returns -π/2 (approximately -1.570796326794897)
-- When `x` is NULL, returns NULL
-
-### Two-parameter version
 
 - If `y` or `x` is NaN, returns NaN
 - If `x > 0` and `y = ±0.0`, returns ±0 (sign follows `y`)
@@ -59,61 +46,169 @@ The atan value of parameter `x`.
 ## Examples
 
 ```sql
-select atan(0);
+select atan2(0.1, 0.2);
 ```
 
 ```text
-+-----------+
-| atan(0.0) |
-+-----------+
-|         0 |
-+-----------+
++---------------------+
+| atan2(0.1, 0.2)     |
++---------------------+
+| 0.46364760900080609 |
++---------------------+
 ```
 
 ```sql
-select atan(2);
+select atan2(1.0, 1.0);
 ```
 
 ```text
++---------------------+
+| atan2(1.0, 1.0)     |
++---------------------+
+| 0.78539816339744828 |
++---------------------+
+```
+
+```sql
+select atan2(cast('nan' as double), 1.0);
+```
+
+```text
++----------------------------------+
+| atan2(cast('nan' AS DOUBLE), 1.0)|
++----------------------------------+
+| NaN                              |
++----------------------------------+
+```
+
+```sql
+select atan2(1.0, cast('nan' as double));
+```
+
+```text
++----------------------------------+
+| atan2(1.0, cast('nan' AS DOUBLE))|
++----------------------------------+
+| NaN                              |
++----------------------------------+
+```
+
+```sql
+select atan2(0.0, 1.0);
+```
+
+```text
++----------------+
+| atan2(0.0, 1.0)|
++----------------+
+|              0 |
++----------------+
+```
+
+```sql
+select atan2(-0.0, 1.0);
+```
+
+```text
++-----------------+
+| atan2(-0.0, 1.0)|
++-----------------+
+|              -0 |
++-----------------+
+```
+
+```sql
+select atan2(0.0, -1.0);
+```
+
+```text
++-----------------+
+| atan2(0.0, -1.0)|
++-----------------+
+| 3.141592653589793|
++------------------+
+```
+
+```sql
+select atan2(-0.0, -1.0);
+```
+
+```text
++------------------+
+| atan2(-0.0, -1.0)|
++------------------+
+| -3.141592653589793|
++-------------------+
+```
+
+```sql
+select atan2(1.0, 0.0);
+```
+
+```text
++----------------+
+| atan2(1.0, 0.0)|
++----------------+
+| 1.570796326794897 |
 +--------------------+
-| atan(2.0)          |
-+--------------------+
-| 1.1071487177940904 |
-+--------------------+
 ```
 
 ```sql
-select atan(cast('nan' as double));
+select atan2(-1.0, 0.0);
 ```
 
 ```text
-+-----------------------------+
-| atan(cast('nan' AS DOUBLE)) |
-+-----------------------------+
-| NaN                         |
-+-----------------------------+
++-----------------+
+| atan2(-1.0, 0.0)|
++-----------------+
+| -1.570796326794897 |
++---------------------+
 ```
 
 ```sql
-select atan(cast('inf' as double));
+select atan2(cast('inf' as double), cast('-inf' as double));
 ```
 
 ```text
-+-----------------------------+
-| atan(cast('inf' AS DOUBLE)) |
-+-----------------------------+
-| 1.570796326794897           |
-+-----------------------------+
++--------------------------------------------+
+| atan2(cast('inf' AS DOUBLE), cast('-inf' AS DOUBLE)) |
++--------------------------------------------+
+| 2.356194490192345                          |
++--------------------------------------------+
 ```
 
 ```sql
-select atan(cast('-inf' as double));
+select atan2(cast('-inf' as double), cast('inf' as double));
 ```
 
 ```text
-+------------------------------+
-| atan(cast('-inf' AS DOUBLE)) |
-+------------------------------+
-| -1.570796326794897           |
-+------------------------------+
++-------------------------------------------+
+| atan2(cast('-inf' AS DOUBLE), cast('inf' AS DOUBLE)) |
++-------------------------------------------+
+| -0.7853981633974483                       |
++-------------------------------------------+
+```
+
+```sql
+select atan2(1.0, cast('-inf' as double));
+```
+
+```text
++----------------------------------+
+| atan2(1.0, cast('-inf' AS DOUBLE))|
++----------------------------------+
+| 3.141592653589793                |
++----------------------------------+
+```
+
+```sql
+select atan2(-1.0, cast('inf' as double));
+```
+
+```text
++---------------------------------+
+| atan2(-1.0, cast('inf' AS DOUBLE))|
++---------------------------------+
+| -0                              |
++---------------------------------+
 ```
