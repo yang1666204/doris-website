@@ -1,53 +1,55 @@
 ---
 {
-  "title": "BITOR",
+  "title": "BIT_SHIFT_LEFT",
   "language": "en",
-  "description": "Performs a bitwise OR operation on two integers."
+  "description": "Performs a left shift operation, which moves all bits of a binary number to the left by a specified number of positions."
 }
 ---
 
 ## Description
 
-Performs a bitwise OR operation on two integers.
+Performs a left shift operation, which moves all bits of a binary number to the left by a specified number of positions. This is a form of bitwise operation, commonly used for handling binary data or efficient mathematical calculations.
 
-Supported integer types: TINYINT, SMALLINT, INT, BIGINT, LARGEINT
+For the maximum value of BIGINT type (9223372036854775807), shifting left by one position results in -2.
 
 ## Syntax
 
 ```sql
-BITOR(<lhs>, <rhs>)
+BIT_SHIFT_LEFT(<x>, <bits>)
 ```
 
 ## Parameters
 
-- `<lhs>`: The first integer for the operation.
-- `<rhs>`: The second integer for the operation.
+- `<x>`: The number to be shifted.
+- `<bits>`: The number of positions to shift left. It is an integer that determines how many positions `<x>` will be shifted.
 
 ## Return Value
 
-Returns the result of the bitwise OR operation between the two integers.
+Returns an integer representing the result after the left shift operation.
 
 ## Examples
 
 1. Example 1
+
     ```sql
-    select BITOR(3,5), BITOR(4,7);
+    select BIT_SHIFT_LEFT(5, 2), BIT_SHIFT_LEFT(-5, 2), BIT_SHIFT_LEFT(9223372036854775807, 1);
     ```
+
     ```text
-    +------------+------------+
-    | BITOR(3,5) | BITOR(4,7) |
-    +------------+------------+
-    |          7 |          7 |
-    +------------+------------+
+    +----------------------+-----------------------+----------------------------------------+
+    | BIT_SHIFT_LEFT(5, 2) | BIT_SHIFT_LEFT(-5, 2) | BIT_SHIFT_LEFT(9223372036854775807, 1) |
+    +----------------------+-----------------------+----------------------------------------+
+    |                   20 |                   -20 |                                     -2 |
+    +----------------------+-----------------------+----------------------------------------+
     ```
 2. NULL argument
     ```sql
-    select BITOR(3, NULL), BITOR(NULL, 5), BITOR(NULL, NULL);
+    select BIT_SHIFT_LEFT(5, NULL), BIT_SHIFT_LEFT(NULL, 2), BIT_SHIFT_LEFT(NULL, NULL);
     ```
     ```text
-    +----------------+----------------+-------------------+
-    | BITOR(3, NULL) | BITOR(NULL, 5) | BITOR(NULL, NULL) |
-    +----------------+----------------+-------------------+
-    |           NULL |           NULL |              NULL |
-    +----------------+----------------+-------------------+
+    +-------------------------+-------------------------+----------------------------+
+    | BIT_SHIFT_LEFT(5, NULL) | BIT_SHIFT_LEFT(NULL, 2) | BIT_SHIFT_LEFT(NULL, NULL) |
+    +-------------------------+-------------------------+----------------------------+
+    |                    NULL |                    NULL |                       NULL |
+    +-------------------------+-------------------------+----------------------------+
     ```
