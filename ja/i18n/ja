@@ -1,94 +1,92 @@
 ---
 {
-  "title": "ST_LINEFROMTEXT",
+  "title": "ST_POINT",
   "language": "en",
-  "description": "Converts a WKT (Well Known Text) string into an in-memory representation of a Line"
+  "description": "Creates a Point geometry object from the given X and Y coordinates. In geospatial contexts,"
 }
 ---
 
 ## Description
 
-Converts a WKT (Well Known Text) string into an in-memory representation of a Line
-
-## Alias
-
-- ST_LINESTRINGFROMTEXT
+Creates a Point geometry object from the given X and Y coordinates.
+In geospatial contexts, X/Y typically represent longitude and latitude respectively,
 
 ## Sytax
 
 ```sql
-ST_LINEFROMTEXT( <wkt>)
+ST_POINT( <x>, <y>)
 ```
 
 ## Parameters
 
-| Parameters                                                                                                                                                                                                            | Description                                                             |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `<wkt>`                                                                                                                                                                                                               | A WKT string conforming to the LINE type, formatted as: |
-| "LINE (x1 y1, x2 y2)"                                                                                                                                                                              |                                                                         |
-| Where (x1 y1), (x2 y2) are the vertex coordinates of the line segment. Coordinate values are numeric (integers or decimals). |                                                                         |
+| Parameter | Description                                                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<x>`     | X-coordinate (longitude) of the point, range: -180.0 to 180.0 (degrees) |
+| `<y>`     | Y-coordinate (latitude) of the point, range: -90.0 to 90.0 (degrees)）   |
 
 ## Return value
 
-Returns a geometric object of type Line, which is stored in memory in Doris's internal spatial data format. It can be directly passed as a parameter to other spatial functions (such as ST_LENGTH, ST_INTERSECTS, etc.) for calculations.
+Returns a Point geometry object representing a 2D coordinate.
 
-- Returns NULL if the input WKT string is invalid (e.g., fewer than 2 vertices, syntax errors, non-numeric coordinates, etc.).
-- Returns NULL if <wkt> is NULL or an empty string.
+- Returns NULL if <x> or <y> exceeds valid longitude/latitude ranges.
+- Returns NULL if either parameter is NULL.
 
 ## Example
 
-Normal LINE type
+Valid Coordinates
 
 ```sql
-mysql> SELECT ST_AsText(ST_LineFromText("LINESTRING (1 1, 2 2)"));
-+-----------------------------------------------------+
-| ST_AsText(ST_LineFromText("LINESTRING (1 1, 2 2)")) |
-+-----------------------------------------------------+
-| LINESTRING (1 1, 2 2)                               |
-+-----------------------------------------------------+
+SELECT ST_AsText(ST_Point(24.7, 56.7));
 ```
 
-Invalid WKT (insufficient vertices)
+```text
++---------------------------------+
+| st_astext(st_point(24.7, 56.7)) |
++---------------------------------+
+| POINT (24.7 56.7)               |
++---------------------------------+
+```
+
+Invalid Longitude (Out of Range)
 
 ```sql
-mysql> SELECT ST_LineFromText("LINESTRING (1 1)");
-+-------------------------------------+
-| ST_LineFromText("LINESTRING (1 1)") |
-+-------------------------------------+
-| NULL                                |
-+-------------------------------------+
+mysql> SELECT ST_Point(200, 50);
++-------------------+
+| ST_Point(200, 50) |
++-------------------+
+| NULL              |
++-------------------+
 ```
 
-Invalid WKT (syntax error)
+Invalid Latitude (Out of Range)
 
 ```sql
-mysql> SELECT ST_LineFromText("LINESTRING (1 1, 2 2");
-+-----------------------------------------+
-| ST_LineFromText("LINESTRING (1 1, 2 2") |
-+-----------------------------------------+
-| NULL                                    |
-+-----------------------------------------+
+mysql> SELECT ST_Point(116, -100);
++---------------------+
+| ST_Point(116, -100) |
++---------------------+
+| NULL                |
++---------------------+
 ```
 
-Invalid WKT (too many vertices)
+Any parameter NULL
 
 ```sql
-mysql> SELECT ST_LineFromText("LINESTRING (1 1,2 2,3 3)");
-+---------------------------------------------------------------------------------+
-| ST_LineFromText("LINESTRING (1 1,2 2,3 3)")                                     |
-+---------------------------------------------------------------------------------+
-|     ��_<���?'���Xޑ?݉+
-                       ߑ?�����?(Qjm�ۡ?'���Xޡ?�3|ʏ��?lW<�`ª?��H�˪?       |
-+---------------------------------------------------------------------------------+
+mysql> SELECT ST_Point(NULL, 50);
++--------------------+
+| ST_Point(NULL, 50) |
++--------------------+
+| NULL               |
++--------------------+
 ```
-
-Input NULL
 
 ```sql
-mysql> SELECT ST_LineFromText(NULL);
-+-----------------------+
-| ST_LineFromText(NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
+mysql> SELECT ST_Point(50, NULL);
++--------------------+
+| ST_Point(50, NULL) |
++--------------------+
+| NULL               |
++--------------------+
+
 ```
+
