@@ -1,82 +1,134 @@
 ---
 {
-  "title": "IPV6_STRING_TO_NUM",
+  "title": "IS_IP_ADDRESS_IN_RANGE",
   "language": "en",
-  "description": "The reverse function of IPv6NumToString, it accepts an IP address string and returns the IPv6 address in binary format."
+  "description": "Checks if a specified IP address is within a given CIDR network range. Supports both IPv4 and IPv6 addresses."
 }
 ---
 
-## ipv6_string_to_num
+## is_ip_address_in_range
 
 ## Description
 
-The reverse function of IPv6NumToString, it accepts an IP address string and returns the IPv6 address in binary format.
+Checks if a specified IP address is within a given CIDR network range. Supports both IPv4 and IPv6 addresses.
 
 ## Syntax
 
 ```sql
-IPV6_STRING_TO_NUM(<ipv6_string>)
+IS_IP_ADDRESS_IN_RANGE(<ip_address>, <cidr_range>)
 ```
 
 ### Parameters
 
-- `<ipv6_string>`: String type IPv6 address
+- `<ip_address>`: IP address to check (IPv4, IPv6 type or string)
+- `<cidr_range>`: CIDR network range (string format, such as "192.168.1.0/24")
 
 ### Return Value
 
-Return Type: VARCHAR (16-byte binary)
+Return Type: TINYINT
 
 Return Value Meaning:
 
-- Returns the 16-byte binary encoding of IPv6
-- Throws an exception when input is NULL
-- Throws an exception for invalid IP addresses or `NULL` input
-- If input is valid IPv4 text, returns equivalent IPv6 address (`::ffff:<ipv4>`)
+- Returns 1: indicates the IP address is within the specified CIDR range
+- Returns 0: indicates the IP address is not within the specified CIDR range
+- Returns NULL when input is NULL
 
 ### Usage Notes
 
-- Supports standard IPv6 text (including abbreviated and `::` omitted forms)
-- If input is valid IPv4 text, converts and returns IPv6's IPv4-Mapped representation
-- Does not support extended forms like CIDR, ports, square brackets, etc.
+- Supports checking both IPv4 and IPv6 addresses
+- CIDR range must be in valid format (such as "192.168.1.0/24" or "2001:db8::/64")
+- Supports inverted index optimization, can use index acceleration when CIDR parameter is constant
+- Returns 0 for invalid CIDR formats
+- Returns NULL when input parameter is NULL
 
 ## Examples
 
-Convert IPv6 text `1111::ffff` to 16-byte binary (displayed in hex).
+Check if IPv4 address is within specified network segment.
 
 ```sql
-select hex(ipv6_string_to_num('1111::ffff')) as v6;
-+----------------------------------+
-| v6                               |
-+----------------------------------+
-| 1111000000000000000000000000FFFF |
-+----------------------------------+
+SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_range;
++----------+
+| in_range |
++----------+
+| 1        |
++----------+
 ```
 
-IPv4 text is automatically mapped to IPv6 (`::ffff:<ipv4>`), then returned as 16-byte binary.
+Check if IPv6 address is within specified network segment.
 
 ```sql
-select hex(ipv6_string_to_num('192.168.0.1')) as mapped;
-+----------------------------------+
-| mapped                           |
-+----------------------------------+
-| 00000000000000000000FFFFC0A80001 |
-+----------------------------------+
+SELECT is_ip_address_in_range(INET6_ATON('2001:db8::100'), '2001:db8::/64') as in_range;
++----------+
+| in_range |
++----------+
+| 1        |
++----------+
 ```
 
-Input NULL throws an exception
+Check if multiple addresses are within specified network segment.
 
 ```sql
-select hex(ipv6_string_to_num(NULL));
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Null Input, you may consider convert it to a valid default IPv6 value like '::' first
+SELECT 
+  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_192_168_1,
+  is_ip_address_in_range(to_ipv4('192.168.2.100'), '192.168.1.0/24') as in_192_168_2,
+  is_ip_address_in_range(to_ipv4('10.0.0.1'), '192.168.1.0/24') as in_10_0_0;
++-------------+-------------+----------+
+| in_192_168_1| in_192_168_2| in_10_0_0|
++-------------+-------------+----------+
+| 1           | 0           | 0        |
++-------------+-------------+----------+
 ```
 
-Invalid input throws an exception.
+Check ranges with different CIDR prefix lengths.
 
 ```sql
-select hex(ipv6_string_to_num('notaaddress'));
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Invalid IPv6 value
+SELECT 
+  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.0.0/16') as in_16,
+  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.0/24') as in_24,
+  is_ip_address_in_range(to_ipv4('192.168.1.100'), '192.168.1.100/32') as in_32;
++--------+--------+--------+
+| in_16  | in_24  | in_32  |
++--------+--------+--------+
+| 1      | 1      | 1      |
++--------+--------+--------+
+```
+
+Invalid CIDR format returns 0.
+
+```sql
+SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), 'invalid-cidr') as in_range;
++----------+
+| in_range |
++----------+
+| 0        |
++----------+
+```
+
+Input parameter as NULL returns NULL.
+
+```sql
+SELECT is_ip_address_in_range(NULL, '192.168.1.0/24') as null_ip;
++---------+
+| null_ip |
++---------+
+| NULL    |
++---------+
+
+SELECT is_ip_address_in_range(to_ipv4('192.168.1.100'), NULL) as null_cidr;
++-----------+
+| null_cidr |
++-----------+
+| NULL      |
++-----------+
+
+SELECT is_ip_address_in_range(NULL, NULL) as both_null;
++-----------+
+| both_null |
++-----------+
+| NULL      |
++-----------+
 ```
 
 ### Keywords
 
-IPV6_STRING_TO_NUM
+IS_IP_ADDRESS_IN_RANGE
