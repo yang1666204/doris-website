@@ -1,174 +1,358 @@
 ---
 {
-  "title": "Best Practices for Cache Optimization in Read-Write Splitting Scenarios",
+  "title": "FluentBit",
   "language": "en",
-  "description": "When using Apache Doris's storage-compute separation architecture,"
+  "description": "Fluent Bit is a fast log processor and forwarder that supports custom output plugins to write data into storage systems,"
 }
 ---
 
-When using Apache Doris's storage-compute separation architecture, especially in scenarios where multiple Compute Groups are deployed to implement read-write splitting, query performance is highly dependent on the File Cache hit rate. When a read-only compute group experiences a cache miss, it needs to pull data from remote object storage, leading to a significant increase in query latency.
+[Fluent Bit](https://fluentbit.io/) is a fast log processor and forwarder that supports custom output plugins to write data into storage systems, with the Fluent Bit Doris output plugin being the one for outputting to Doris.
 
-This document aims to detail how to effectively reduce cache miss issues caused by common scenarios such as **Compaction**, **Data Ingestion**, and **Schema Change** through cache warm-up and related configurations, thereby ensuring the query performance stability of the read-only cluster.
+By invoking the [Doris Stream Load](../../data-operate/import/import-way/stream-load-manual) HTTP interface, the Fluent Bit Doris output plugin writes data into Doris in real-time, offering capabilities such as multi-threaded concurrency, failure retries, custom Stream Load formats and parameters, and output write speed.
 
-## Core Issue: Cache Invalidation Caused by New Data Versions (Rowsets)
+To use the Fluent Bit Doris output plugin, there are three main steps:
 
-In Doris, both background processes like Compaction / Schema Change and foreground data ingestion will generate new sets of data files (Rowsets). On the nodes of the write-only compute group responsible for writes, this data is written to the local File Cache by default, so its query performance is not affected.
+1. Download or compile the Fluent Bit binary program that includes the Doris output plugin.
+2. Configure the Fluent Bit output address and other parameters.
+3. Start Fluent Bit to write data into Doris in real-time.
 
-However, for a read-only compute group, when it synchronizes metadata and becomes aware of these new Rowsets, its local cache does not contain this new data. If a query then needs to access these new Rowsets, it will trigger a cache miss, leading to a performance degradation.
+## Installation (alpha)
 
-To solve this problem, the core idea is: **to load data into the read-only compute group's cache in advance or intelligently before it is queried.**
+### Download
 
-## I. Overview of Cache Warm-up Mechanisms
+https://download.selectdb.com/integrations/fluent-bit-doris-3.1.9
 
-Cache warm-up is the process of proactively loading data from remote storage into the File Cache of BE nodes. Doris provides the following three main warm-up methods:
+### Compile from Source Code
 
-### 1. Proactive Incremental Warm-up (Recommended)
-
-This is a more intelligent and automated mechanism. It establishes a warm-up relationship between the write compute group and the read-only compute group. When a write/Compaction event generates a new Rowset, it actively notifies and triggers the associated read-only compute group to perform an asynchronous cache warm-up.
-
-**Applicable Scenarios:**
-
-- Most scenarios.
-- Requires user permission to configure warm-up relationships.
-
-> **[Documentation Link]**: For detailed information on how to configure and use proactive incremental warm-up, please refer to the official documentation **[FileCache Proactive Incremental Warm-up](./read-write-separation.md)**.
-
-### 2. Read-Only Compute Group Automatic Warm-up
-
-This is a lightweight, automatic warm-up strategy. By enabling a configuration on the BE nodes of the **read-only compute group**, it automatically triggers an asynchronous warm-up task when it perceives a new Rowset.
-
-**Applicable Scenarios:**
-
-- Most scenarios.
-- Requires user permission to configure warm-up relationships.
-
-**Core Configuration:** In the `be.conf` of the read-only compute group, set:
+Clone the dev branch of https://github.com/joker-star-l/fluent-bit and run the following commands in the build/ directory
 
 ```
-enable_warmup_immediately_on_new_rowset = true
+cmake -DFLB_RELEASE=ON ..
+make
 ```
 
-## II. Optimizing the Impact of Compaction / Schema Change on Query Performance
+The build output is build/bin/fluent-bit.
 
-Background Compaction merges old Rowsets and generates new ones. If the new Rowsets are not warmed up, the query performance of the read-only compute group will fluctuate due to cache misses. The following are two recommended solutions.
+## Configuration
 
-### Solution 1: Proactive Incremental Warm-up + Delayed Commit (Recommended)
+The configuration for the Fluent Bit Doris output plugin is as follows:
 
-This solution can **fundamentally prevent** the read-only compute group from querying new Rowsets generated by Compaction / Schema Change that have not yet been cached.
+| Configuration           | Description                                                                                                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `host`                  | Stream Load HTTP host                                                                                                                                                                                             |
+| `port`                  | Stream Load HTTP port                                                                                                                                                                                             |
+| `user`                  | Doris username, this user needs to have import permissions for the corresponding Doris database and table                                                                                                         |
+| `password`              | Doris user's password                                                                                                                                                                                             |
+| `database`              | The Doris database name to write into                                                                                                                                                                             |
+| `table`                 | The Doris table name to write into                                                                                                                                                                                |
+| `label_prefix`          | Doris Stream Load Label prefix，the final generated Label is _{label_prefix}\_{timestamp}\_{uuid}_ ，the default value is fluentbit. If set to false, no Label will be added |
+| `time_key`              | The name of the timestamp column to add to the data. The default value is date. If set to false, the column will not be added                                                     |
+| `header`                | Doris Stream Load headers parameter, can be set more than one                                                                                                                                                     |
+| `log_request`           | Whether to output Doris Stream Load request and response metadata in logs for troubleshooting, default is true                                                                                                    |
+| `log_progress_interval` | Time interval for outputting speed in logs, unit is seconds, default is 10, setting to 0 can disable this type of logging                                                                                         |
+| `retry_limit`           | Doris Stream Load request failure retry number, default value is 1, if set to false will not limit the number of retries                                                                                          |
+| `workers`               | Number of workers to perform Doris Stream Load, default value is 2                                                                                                                                                |
 
-**How it Works:**
+## Usage Example
 
-1. First, configure the **proactive incremental warm-up** relationship between the write compute group and the read-only compute group.
-2. On the BE nodes of the **write compute group**, enable the delayed commit feature for Compaction / Schema Change.
+### TEXT Log Collection Example
 
-**Core Configuration (Write Compute Group `be.conf`):**
+This example demonstrates TEXT log collection using Doris FE logs as an example.
 
-```sql
-enable_compaction_delay_commit_for_warm_up = true
+**1. Data**
+
+FE log files are typically located at the fe/log/fe.log file under the Doris installation directory. They are typical Java program logs, including fields such as timestamp, log level, thread name, code location, and log content. Not only do they contain normal logs, but also exception logs with stacktraces, which are multiline. Log collection and storage need to combine the main log and stacktrace into a single log entry.
+
+```
+2024-07-08 21:18:01,432 INFO (Statistics Job Appender|61) [StatisticsJobAppender.runAfterCatalogReady():70] Stats table not available, skip
+2024-07-08 21:18:53,710 WARN (STATS_FETCH-0|208) [StmtExecutor.executeInternalQuery():3332] Failed to run internal SQL: OriginStatement{originStmt='SELECT * FROM __internal_schema.column_statistics WHERE part_id is NULL  ORDER BY update_time DESC LIMIT 500000', idx=0}
+org.apache.doris.common.UserException: errCode = 2, detailMessage = tablet 10031 has no queryable replicas. err: replica 10032's backend 10008 does not exist or not alive
+        at org.apache.doris.planner.OlapScanNode.addScanRangeLocations(OlapScanNode.java:931) ~[doris-fe.jar:1.2-SNAPSHOT]
+        at org.apache.doris.planner.OlapScanNode.computeTabletInfo(OlapScanNode.java:1197) ~[doris-fe.jar:1.2-SNAPSHOT]
 ```
 
-1. **Workflow:**
-   1. A Compaction / Schema Change task completes on the write compute group and generates a new Rowset.
-   2. At this point, the Rowset is **not immediately committed** (i.e., it is not visible to the read-only compute group).
-   3. The system triggers the associated read-only compute group to warm up the cache for this new Rowset.
-   4. Only after all associated read-only compute groups have completed the warm-up, the new Rowset is finally committed and becomes visible to all compute groups.
+**2. Table Creation**
 
-**Advantages:**
+The table structure includes fields such as the log's creation time, collection time, hostname, log file path, log type, log level, thread name, code location, and log content.
 
-- **Seamless Switching**: For the read-only compute group, all visible data post-Compaction is already in the cache, so query performance does not fluctuate.
-- **High Stability**: This is the most robust solution for ensuring query performance in read-write splitting scenarios.
-
-### Solution 2: Read-Only Compute Group Automatic Warm-up + Query Awareness
-
-This solution uses intelligent selection at the query layer to **try to skip** new Rowsets that have not yet been warmed up (Note: For Unique Key MoW tables, Rowsets from compaction cannot be skipped to ensure correctness).
-
-**How it Works:**
-
-1. On the BE nodes of the **read-only compute group**, enable automatic warm-up.
-
-**Core Configuration (Read-Only Compute Group `be.conf`):**
-
-```sql
-enable_warmup_immediately_on_new_rowset = true
+```
+CREATE TABLE `doris_log` (
+  `log_time` datetime NULL COMMENT 'log content time',
+  `collect_time` datetime NULL COMMENT 'log agent collect time',
+  `host` text NULL COMMENT 'hostname or ip',
+  `path` text NULL COMMENT 'log file path',
+  `type` text NULL COMMENT 'log type',
+  `level` text NULL COMMENT 'log level',
+  `thread` text NULL COMMENT 'log thread',
+  `position` text NULL COMMENT 'log code position',
+  `message` text NULL COMMENT 'log message',
+  INDEX idx_host (`host`) USING INVERTED COMMENT '',
+  INDEX idx_path (`path`) USING INVERTED COMMENT '',
+  INDEX idx_type (`type`) USING INVERTED COMMENT '',
+  INDEX idx_level (`level`) USING INVERTED COMMENT '',
+  INDEX idx_thread (`thread`) USING INVERTED COMMENT '',
+  INDEX idx_position (`position`) USING INVERTED COMMENT '',
+  INDEX idx_message (`message`) USING INVERTED PROPERTIES("parser" = "unicode", "support_phrase" = "true") COMMENT ''
+) ENGINE=OLAP
+DUPLICATE KEY(`log_time`)
+COMMENT 'OLAP'
+PARTITION BY RANGE(`log_time`) ()
+DISTRIBUTED BY RANDOM BUCKETS 10
+PROPERTIES (
+"replication_num" = "1",
+"dynamic_partition.enable" = "true",
+"dynamic_partition.time_unit" = "DAY",
+"dynamic_partition.start" = "-7",
+"dynamic_partition.end" = "1",
+"dynamic_partition.prefix" = "p",
+"dynamic_partition.buckets" = "10",
+"dynamic_partition.create_history_partition" = "true",
+"compaction_policy" = "time_series"
+);
 ```
 
-1. During a query, enable the "prefer cached" Rowset selection strategy via a session variable or user property.
+**3. Configuration**
 
-**Set in the query session:**
+The configuration file of Fluent Bit log collection is as follows, doris_log.conf is used to define various parts of ETL components, and parsers.conf is used to define different log parsers.
 
-```sql
-SET enable_prefer_cached_rowset = true;
+doris_log.conf:
+
+```
+# config for Fluent Bit service
+[SERVICE]
+    log_level info
+    # parsers file
+    parsers_file parsers.conf
+
+# use input tail
+[INPUT]
+    name tail
+    path /path/to/your/log
+    # add log file name to the record, key is 'path'
+    path_key path
+    # set multiline parser
+    multiline.parser multiline_java 
+
+# parse log
+[FILTER]
+    match *
+    name parser
+    key_name log
+    parser fe_log
+    reserve_data true
+
+# add host info
+[FILTER]
+    name sysinfo
+    match *
+    # add hostname to the record, key is 'host'
+    hostname_key host
+
+# output to doris
+[OUTPUT]
+    name doris
+    match *
+    host fehost
+    port feport
+    user your_username
+    password your_password
+    database your_db
+    table your_table
+    # add 'collect_time' to the record
+    time_key collect_time
+    # 'collect_time' is timestamp, change it to datatime
+    header columns collect_time=from_unixtime(collect_time)
+    log_request true
+    log_progress_interval 10
 ```
 
-**Or set as a user property:**
+parsers.conf:
 
-```sql
-SET property for "jack" enable_prefer_cached_rowset = true;
+```
+[MULTILINE_PARSER]
+    name          multiline_java
+    type          regex
+    flush_timeout 1000
+    # Regex rules for multiline parsing
+    # ---------------------------------
+    #
+    # configuration hints:
+    #
+    #  - first state always has the name: start_state
+    #  - every field in the rule must be inside double quotes
+    #
+    # rules   |   state name   | regex pattern | next state name
+    # --------|----------------|---------------|-----------------
+    rule         "start_state"   "/(^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})(.*)/"  "cont"
+    rule         "cont"          "/(^(?![0-9]{4}-[0-9]{2}-[0-9]{2}))(.*)/"     "cont"
+
+
+[PARSER]
+    name        fe_log
+    format      regex
+    # parse and add 'log_time', 'level', 'thread', 'position', 'message' to the record
+    regex       ^(?<log_time>[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}) (?<level>[^ ]+) \((?<thread>[^\)]+)\) \[(?<position>[^\]]+)\] (?<message>(\n|.)*)\n$
 ```
 
-1. **Workflow:**
-   1. When the read-only compute group perceives a new Rowset from Compaction, it asynchronously triggers a warm-up task.
-   2. With `enable_prefer_cached_rowset` enabled, the query planner, when selecting Rowsets to read, will prioritize those that are **already warmed up**.
-   3. It will automatically ignore new Rowsets that are still being warmed up, provided that this does not affect data consistency (i.e., the old Rowsets before the merge are still accessible).
+**4. Running Fluent Bit**
 
-**Advantages:**
+```
+fluent-bit -c doris_log.conf
 
-- Relatively simple to configure, without needing to set up cross-compute-group warm-up relationships.
-- Effectively reduces performance impact in most cases.
+# log stream load response
 
-**Note:**
+[2024/10/31 18:39:55] [ info] [output:doris:doris.1] 127.0.0.1:8040, HTTP status=200
+{
+    "TxnId": 32155,
+    "Label": "fluentbit_1730371195_91cca1aa-c15f-45d2-b503-fe7d2e839c2a",
+    "Comment": "",
+    "TwoPhaseCommit": "false",
+    "Status": "Success",
+    "Message": "OK",
+    "NumberTotalRows": 1,
+    "NumberLoadedRows": 1,
+    "NumberFilteredRows": 0,
+    "NumberUnselectedRows": 0,
+    "LoadBytes": 836,
+    "LoadTimeMs": 298,
+    "BeginTxnTimeMs": 0,
+    "StreamLoadPutTimeMs": 3,
+    "ReadDataTimeMs": 0,
+    "WriteDataTimeMs": 268,
+    "CommitAndPublishTimeMs": 25
+}
 
-> This solution is a "best-effort" strategy. If the old Rowsets corresponding to a new Rowset have already been cleaned up, or if the query must access the latest data version, the query will still have to wait for the warm-up to complete or access the cold data directly.
+# log speed info
 
-## III. Optimizing the Impact of Data Ingestion on Query Performance
+[2024/10/31 18:40:13] [ info] [output:doris:doris.1] total 0 MB 2 ROWS, total speed 0 MB/s 0 R/s, last 10 seconds speed 0 MB/s 0 R/s
+```
 
-High-frequency data ingestion (like `INSERT INTO`, `Stream Load`) continuously produces new small files (Rowsets), which also causes cache miss problems for the read-only compute group. If your business can tolerate data latency of seconds or even sub-seconds, you can adopt the following combined strategy to trade a tiny amount of "freshness" for a huge performance gain.
+### JSON Log Collection Example
 
-**How it Works:** This strategy combines **automatic warm-up** with a **query freshness tolerance** setting, allowing the query planner to intelligently skip the latest data that has not been warmed up within a specified time window.
+This example demonstrates JSON log collection using data from the GitHub events archive.
 
-**Implementation Steps:**
+**1. Data**
 
-1. **Enable a Warm-up Mechanism**:
+The GitHub events archive contains archived data of GitHub user actions, formatted as JSON. It can be downloaded from [here](https://data.gharchive.org/), for example, the data for January 1, 2024, at 3 PM.
 
-   1. Enable either **Proactive Incremental Warm-up** or **Read-Only Compute Group Automatic Warm-up**(`enable_warmup_immediately_on_new_rowset=true`) on the read-only compute group. This is the prerequisite for data to be loaded into the cache asynchronously.
+```shell
+wget https://data.gharchive.org/2024-01-01-15.json.gz
+```
 
-2. **Set Query Freshness Tolerance**:
+Below is a sample of the data. Normally, each piece of data is on a single line, but for ease of display, it has been formatted here.
 
-   1. In the query session of the read-only compute group, set the `query_freshness_tolerance_ms` variable.
+```
+{
+  "id": "37066529221",
+  "type": "PushEvent",
+  "actor": {
+    "id": 46139131,
+    "login": "Bard89",
+    "display_login": "Bard89",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/Bard89",
+    "avatar_url": "https://avatars.githubusercontent.com/u/46139131?"
+  },
+  "repo": {
+    "id": 780125623,
+    "name": "Bard89/talk-to-me",
+    "url": "https://api.github.com/repos/Bard89/talk-to-me"
+  },
+  "payload": {
+    "repository_id": 780125623,
+    "push_id": 17799451992,
+    "size": 1,
+    "distinct_size": 1,
+    "ref": "refs/heads/add_mvcs",
+    "head": "f03baa2de66f88f5f1754ce3fa30972667f87e81",
+    "before": "85e6544ede4ae3f132fe2f5f1ce0ce35a3169d21"
+  },
+  "public": true,
+  "created_at": "2024-04-01T23:00:00Z"
+}
+```
 
-   2. **Set in the query session:**
+**2. Table Creation**
 
-      ```sql
-      -- Set a tolerance for 1000 milliseconds (1 second) of data latency
-      SET query_freshness_tolerance_ms = 1000;
-      ```
+```
+CREATE DATABASE log_db;
+USE log_db;
 
-      **Or set as a user property:**
 
-      ```sql
-      SET property for "jack" query_freshness_tolerance_ms = 1000;
-      ```
+CREATE TABLE github_events
+(
+  `created_at` DATETIME,
+  `id` BIGINT,
+  `type` TEXT,
+  `public` BOOLEAN,
+  `actor` VARIANT,
+  `repo` VARIANT,
+  `payload` TEXT,
+  INDEX `idx_id` (`id`) USING INVERTED,
+  INDEX `idx_type` (`type`) USING INVERTED,
+  INDEX `idx_actor` (`actor`) USING INVERTED,
+  INDEX `idx_host` (`repo`) USING INVERTED,
+  INDEX `idx_payload` (`payload`) USING INVERTED PROPERTIES("parser" = "unicode", "support_phrase" = "true")
+)
+ENGINE = OLAP
+DUPLICATE KEY(`created_at`)
+PARTITION BY RANGE(`created_at`) ()
+DISTRIBUTED BY RANDOM BUCKETS 10
+PROPERTIES (
+"replication_num" = "1",
+"compaction_policy" = "time_series",
+"enable_single_replica_compaction" = "true",
+"dynamic_partition.enable" = "true",
+"dynamic_partition.create_history_partition" = "true",
+"dynamic_partition.time_unit" = "DAY",
+"dynamic_partition.start" = "-30",
+"dynamic_partition.end" = "1",
+"dynamic_partition.prefix" = "p",
+"dynamic_partition.buckets" = "10",
+"dynamic_partition.replication_num" = "1"
+);
+```
 
-**Workflow:**
+**3. Configuration**
 
-- When a query starts, it checks the Rowsets it needs to access.
-- If a Rowset was generated within the **last 1000ms** and is **not yet warmed up**, the query planner will automatically skip it and access older, but already cached, data instead.
-- This way, the vast majority of queries will hit the cache, avoiding the performance degradation caused by reading the latest, cold data from recent writes.
+In contrast to the previous TEXT log collection, this configuration does not use FILTER because no additional processing transformations are required.
 
-**Fallback Mechanism:**
+github_events.conf:
 
-> If the warm-up process for a Rowset is very slow and exceeds the time set by `query_freshness_tolerance_ms` (e.g., still not finished after 1000ms), the query will no longer skip it to ensure eventual data visibility. It will fall back to the default behavior: read the cold data directly.
+```
+[SERVICE]
+    log_level info
+    parsers_file github_parsers.conf
 
-**Advantages:**
+[INPUT]
+    name tail
+    parser github
+    path /path/to/your/log
 
-- **Significant Performance Improvement**: Effectively eliminates query performance spikes in high-throughput write scenarios.
-- **High Flexibility**: Users can make a flexible trade-off between data freshness and query performance based on their business needs.
+[OUTPUT]
+    name doris
+    match *
+    host fehost
+    port feport
+    user your_username
+    password your_password
+    database your_db
+    table your_table
+    time_key false
+    log_request true
+    log_progress_interval 10
+```
 
-## Summary and Recommendations
+github_parsers.conf:
 
-| Solution                                                                                                                                      | Applicable Scenarios                                                                                                                                  | Expected Effect (Impact of various write operations on cache hit rate)                                                                           |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active incremental pre-warming + delayed commit + configurable data freshness tolerance (optional)                         | Suitable for scenarios with extremely high query latency requirements; requires users to have permission to configure pre-warming relationships       | Compaction: None <br> Heavyweight schema change: None <br> Newly written data: Depends on freshness tolerance       |
-| Read-only compute group with automatic pre-warming + prefer cached data + configurable data freshness tolerance (optional) | Users have no permission to configure pre-warming relationships <br> If freshness tolerance is not configured, ineffective for MOW primary key tables | Compaction: None <br> Heavyweight schema change: Cache miss <br> Newly written data: Depends on freshness tolerance |
+```
+[PARSER]
+    name github
+    format json
+```
 
-By reasonably applying the above cache warm-up strategies and related configurations, you can effectively manage the cache behavior of Apache Doris in a read-write splitting architecture, minimize performance loss due to cache misses, and ensure the stability and efficiency of your read-only query services.
+**4. Running Fluent Bit**
+
+```
+fluent-bit -c github_events.conf
+```
