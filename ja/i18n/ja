@@ -1,64 +1,173 @@
 ---
 {
-  "title": "Release 4.0.3",
+  "title": "ALTER TABLE DISTRIBUTION",
   "language": "en",
-  "description": "Here's the Apache Doris 4.0.3 release notes:"
+  "description": "This statement is used to modify the default distribution bucket configuration of a partitioned table."
 }
 ---
 
-# Features
+## Description
 
-## AI & Search
+This statement is used to modify the default distribution bucket configuration of a partitioned table. This operation is synchronous, and the return of the command indicates the completion of the execution.
 
-- Add inverted index NORMALIZER support
-- Implement es-like boolean query [#58545](https://github.com/apache/doris/pull/58545)
-- Introduce lucene bool mode for search function [#59394](https://github.com/apache/doris/pull/59394)
+This statement only changes the default bucket count for **newly created partitions**. Existing partitions retain their original bucket count unchanged.
 
-## Lakehouse
+grammar:
 
-- Support for Loading Catalog Credentials via AwsCredentialsProviderChain [#58740](https://github.com/apache/doris/pull/58740)
-- Support Paimon DLF Catalog Using OSSHDFS Storage [#59245](https://github.com/apache/doris/pull/59245)
-- Add manifest-level cache for Iceberg tables [#59056](https://github.com/apache/doris/pull/59056)
+```sql
+ALTER TABLE [database.]table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(column1[, column2, ...]) BUCKETS { num | AUTO };
+ALTER TABLE [database.]table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS { num | AUTO };
+```
 
-## Query Engine
+Note:
 
-- Support INTERVAL function and fix EXPORT_SET [#58885](https://github.com/apache/doris/pull/58885)
-- Support function TIME_FORMAT [#58592](https://github.com/apache/doris/pull/58592)
-- Support function QUANTILE_STATE_TO/FROM_BASE64 [#59664](https://github.com/apache/doris/pull/59664)
+- `num`: A positive integer specifying a fixed number of buckets for new partitions.
+- `AUTO`: Let the system automatically determine the number of buckets for new partitions based on data volume and cluster configuration.
+- The distribution type (HASH or RANDOM) and distribution columns must remain the same as the original table definition. Only the bucket count can be changed.
+- This statement only applies to **partitioned tables** (RANGE or LIST partitioned). Unpartitioned tables are not supported.
+- This statement is not supported on **Colocate** tables.
+- You can switch freely between a fixed bucket count and `AUTO`, and perform multiple modifications in sequence.
 
-# Improvements
+### Interaction with AUTO PARTITION
 
-- Introduce load job system table [#57421](https://github.com/apache/doris/pull/57421)
-- Enables views, materialized views, generated columns, and alias functions to persist session variables [#58031](https://github.com/apache/doris/pull/58031)
-- Add sql received from table query plan action into audit log [#58739](https://github.com/apache/doris/pull/58739)
-- Enable stream load record to audit log system table [#57530](https://github.com/apache/doris/pull/57530)
-- Optimize Complex Type Column Reading with Column Purning
-- Compatible with mysql MOD syntax [#58432](https://github.com/apache/doris/pull/58432)
-- Add dynamic configuration for sql_digest generation [#59102](https://github.com/apache/doris/pull/59102)
-- Use Youngs-Cramer for REGR_SLOPE/INTERCEPT to align with PG [#55940](https://github.com/apache/doris/pull/55940)
+For tables using [AUTO PARTITION](../../../../table-design/data-partitioning/auto-partitioning), new partitions that are automatically created by data insertion after executing `ALTER TABLE MODIFY DISTRIBUTION` will use the new bucket configuration. Partitions that were already auto-created before the modification remain unchanged.
 
-# Bugfixes
+For example, if an AUTO PARTITION table originally uses `BUCKETS 5` and you modify it to `BUCKETS 8`, any subsequent INSERT that triggers the creation of a new auto partition will assign 8 buckets to that partition. If you further modify it to `BUCKETS AUTO`, newly auto-created partitions will have their bucket count determined automatically by the system.
 
-- Fix JNI global reference leak in JdbcConnector close [#58574](https://github.com/apache/doris/pull/58574)
-- Fix sync mv could not be chosen by cbo stable because stats upload from be not in time [#58720](https://github.com/apache/doris/pull/58720)
-- Replace invalid JSONB with default JSONB null value [#59007](https://github.com/apache/doris/pull/59007)
-- Fix NPE in OlapTableSink.createPaloNodesInfo due to concurrent drop backend [#58999](https://github.com/apache/doris/pull/58999)
-- Fix FROM DUAL incorrectly matching table names starting with dual [#59003](https://github.com/apache/doris/pull/59003)
-- Fix warm up cancel failure when BE is down [#58035](https://github.com/apache/doris/pull/58035)
-- Fix mv rewrite failed when mv is rewritten by LimitAggToTopNAgg but query is not [#58974](https://github.com/apache/doris/pull/58974)
-- Fix lastUpdateTime not updated on refresh and add scheduled refresh logs [#58997](https://github.com/apache/doris/pull/58997)
-- Fix core if hll_from_base64 input invalid [#59106](https://github.com/apache/doris/pull/59106)
-- Fix the sensitivity issue of load column mapping with expressions [#59149](https://github.com/apache/doris/pull/59149)
-- Fix drop table not drop constraint related info [#58958](https://github.com/apache/doris/pull/58958)
-- Fix parquet topn lazy mat complex data error result [#58785](https://github.com/apache/doris/pull/58785)
-- Always create data and index page cache to avoid null pointer [#59266](https://github.com/apache/doris/pull/59266)
-- Modify tablet cooldownConfLock to reduce memory [#59356](https://github.com/apache/doris/pull/59356)
-- Fix read parquet footer missing profile
-- Fix potential use-after-free in Exception::to_string [#59558](https://github.com/apache/doris/pull/59558)
-- Fix float field to_string
-- Fix hudi parquet read cause be core [#58532](https://github.com/apache/doris/pull/58532)
-- Fix Kerberos auth config detection [#59748](https://github.com/apache/doris/pull/59748)
-- Fix sync failure under empty tables [#59735](https://github.com/apache/doris/pull/59735)
-- Fix parquet type not handle float16 [#58528](https://github.com/apache/doris/pull/58528)
-- Fix BM25 LENGTH_TABLE norm decoding [#59713](https://github.com/apache/doris/pull/59713)
-- Avoid false alarm of some datelike functions [#59897](https://github.com/apache/doris/pull/59897)
+### Interaction with Dynamic Partition
+
+For tables using [Dynamic Partition](../../../../table-design/data-partitioning/dynamic-partitioning), new partitions that are automatically created by the dynamic partition scheduler after executing `ALTER TABLE MODIFY DISTRIBUTION` will use the new bucket configuration. Existing dynamic partitions remain unchanged.
+
+Note that Dynamic Partition tables also support the `dynamic_partition.buckets` property. If both are configured, the `dynamic_partition.buckets` property takes precedence for dynamically created partitions. To use the table-level default bucket count (set by `MODIFY DISTRIBUTION`) for dynamic partitions, ensure that `dynamic_partition.buckets` is not explicitly set, or update it accordingly via `ALTER TABLE ... SET ("dynamic_partition.buckets" = "...")`.
+
+## Example
+
+1. Modify the default bucket count of a RANGE partitioned table with HASH distribution from the original value to 10
+
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+```
+
+After this, any newly added partition will use 10 buckets:
+
+```sql
+ALTER TABLE example_db.my_table ADD PARTITION p3 VALUES LESS THAN ('30');
+-- p3 will have 10 buckets; existing partitions remain unchanged
+```
+
+2. Switch from a fixed bucket count to AUTO
+
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
+```
+
+After this, newly created partitions will have their bucket count automatically determined by the system.
+
+3. Switch from AUTO back to a fixed bucket count
+
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 3;
+```
+
+4. Modify the default bucket count of a LIST partitioned table
+
+```sql
+ALTER TABLE example_db.my_list_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 8;
+```
+
+5. Modify the default bucket count of a table with RANDOM distribution
+
+```sql
+ALTER TABLE example_db.my_random_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS 12;
+```
+
+6. Switch a RANDOM distribution table to AUTO buckets
+
+```sql
+ALTER TABLE example_db.my_random_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS AUTO;
+```
+
+7. Modify the default bucket count of an AUTO PARTITION table (RANGE)
+
+```sql
+-- Original table uses AUTO PARTITION BY RANGE with BUCKETS 5
+ALTER TABLE example_db.my_auto_range_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 8;
+
+-- New auto-created partitions from subsequent INSERT will use 8 buckets
+INSERT INTO example_db.my_auto_range_table VALUES ('2024-01-03', 3);
+```
+
+8. Modify the default bucket count of an AUTO PARTITION table (LIST)
+
+```sql
+-- Original table uses AUTO PARTITION BY LIST with BUCKETS 4
+ALTER TABLE example_db.my_auto_list_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 7;
+
+-- New auto-created partitions from subsequent INSERT will use 7 buckets
+INSERT INTO example_db.my_auto_list_table VALUES ('ccc', 3);
+```
+
+9. Switch an AUTO PARTITION table from AUTO buckets to fixed, and back
+
+```sql
+-- Table originally created with BUCKETS AUTO
+ALTER TABLE example_db.my_auto_auto_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 5;
+-- New partitions will use 5 buckets
+
+ALTER TABLE example_db.my_auto_auto_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
+-- New partitions will return to system-determined bucket count
+```
+
+10. Multiple sequential modifications
+
+```sql
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 4;
+ALTER TABLE example_db.my_table ADD PARTITION p2 VALUES LESS THAN ('20');
+-- p2 has 4 buckets
+
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS AUTO;
+ALTER TABLE example_db.my_table ADD PARTITION p3 VALUES LESS THAN ('30');
+-- p3 has system-determined bucket count
+
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 6;
+ALTER TABLE example_db.my_table ADD PARTITION p4 VALUES LESS THAN ('40');
+-- p4 has 6 buckets
+```
+
+11. Error cases
+
+Colocate tables are not supported:
+
+```sql
+-- This will fail with: "Cannot change default bucket number of colocate table"
+ALTER TABLE example_db.my_colocate_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+```
+
+Unpartitioned tables are not supported:
+
+```sql
+-- This will fail with: "Only support change partitioned table's distribution"
+ALTER TABLE example_db.my_unpartitioned_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k1) BUCKETS 10;
+```
+
+Cannot change the distribution type:
+
+```sql
+-- Original table uses HASH distribution; changing to RANDOM will fail
+-- Error: "Cannot change distribution type"
+ALTER TABLE example_db.my_hash_table MODIFY DISTRIBUTION DISTRIBUTED BY RANDOM BUCKETS 10;
+```
+
+Cannot change the distribution columns:
+
+```sql
+-- Original table uses HASH(k1); changing to HASH(k2) will fail
+-- Error: "Cannot assign hash distribution with different distribution cols"
+ALTER TABLE example_db.my_table MODIFY DISTRIBUTION DISTRIBUTED BY HASH(k2) BUCKETS 10;
+```
+
+## Keywords
+
+```text
+ALTER, TABLE, DISTRIBUTION, MODIFY DISTRIBUTION, BUCKETS, ALTER TABLE
+```
