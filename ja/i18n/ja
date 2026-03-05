@@ -1,62 +1,159 @@
 ---
 {
-  "title": "MinIO | Storages",
+  "title": "S3 | Storages",
   "language": "en",
-  "description": "This document describes the parameters required to access MinIO, which apply to the following scenarios:",
-  "sidebar_label": "MinIO"
+  "description": "This document describes the parameters required for accessing AWS S3. These parameters apply to:",
+  "sidebar_label": "S3"
 }
 ---
 
-# MinIO
+# S3
 
-This document describes the parameters required to access MinIO, which apply to the following scenarios:
+This document describes the parameters required for accessing AWS S3. These parameters apply to:
 
-- Catalog properties
-- Table Valued Function properties
-- Broker Load properties
-- Export properties
-- Outfile properties
-
-**Doris uses S3 Client to access MinIO through S3-compatible protocol.**
+- Catalog properties.
+- Table Valued Function properties.
+- Broker Load properties.
+- Export properties.
+- Outfile properties.
 
 ## Parameter Overview
 
-| Property Name                                                                    | Legacy Name                                                                 | Description                                                                                                                             | Default Value | Required |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------- |
-| minio.endpoint                                                   | s3.endpoint                                                 | MinIO endpoint, the access endpoint for MinIO                                                                                           |               | Yes      |
-| minio.access_key                            | s3.access_key                          | MinIO access key, the MinIO access key used for authentication                                                                          |               | Yes      |
-| minio.secret_key                            | s3.secret_key                          | MinIO secret key, the secret key used together with access key                                                                          |               | Yes      |
-| minio.connection.maximum                         | s3.connection.maximum                       | S3 maximum connections, specifies the maximum number of connections established with MinIO service                                      | 50            | No       |
-| minio.connection.request.timeout | s3.connection.timeout                       | S3 request timeout, in milliseconds, specifies the request timeout when connecting to MinIO service                                     | 3000          | No       |
-| minio.connection.timeout                         | s3.connection.timeout                       | S3 connection timeout, in milliseconds, specifies the timeout when establishing connection with MinIO service                           | 1000          | No       |
-| minio.use_path_style   | s3.use_path_style | Whether to use path-style access. Recommended to set to true for compatibility with MinIO and other non-AWS S3 services | FALSE         | No       |
+| Property Name                                                                 | Legacy Name | Description                                                                                                                                  | Default | Required |
+| ----------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- |
+| s3.endpoint                                                   |             | S3 service access endpoint, e.g., s3.us-east-1.amazonaws.com | None    | No       |
+| s3.access_key                            |             | AWS Access Key for authentication                                                                                                            | None    | No       |
+| s3.secret_key                            |             | AWS Secret Key for authentication                                                                                                            | None    | No       |
+| s3.region                                                     |             | S3 region, e.g., us-east-1. Strongly recommended                                             | None    | Yes      |
+| s3.use_path_style   |             | Whether to use path-style access                                                                                                             | FALSE   | No       |
+| s3.connection.maximum                         |             | Maximum number of connections for high concurrency scenarios                                                                                 | 50      | No       |
+| s3.connection.request.timeout |             | Request timeout (milliseconds), controls connection acquisition timeout                                                   | 3000    | No       |
+| s3.connection.timeout                         |             | Connection establishment timeout (milliseconds)                                                                           | 1000    | No       |
+| s3.role_arn                              |             | Role ARN specified when using Assume Role mode                                                                                               | None    | No       |
+| s3.external_id                           |             | External ID used with s3.role_arn                                                                       | None    | No       |
 
-### Using Path-style Access
+## Authentication Configuration
 
-MinIO uses Host-style access by default, but also supports Path-style access. You can switch by setting the `minio.use_path_style` parameter.
+Doris supports the following two methods to access S3:
 
-- Host-style access (default): `https://bucket.minio.example.com`
-- Path-style access (when enabled): `https://minio.example.com/bucket`
+1. Direct Access Key and Secret Key
 
-## Example Configuration
+  ```properties
+  "s3.access_key"="your-access-key",
+  "s3.secret_key"="your-secret-key",
+  "s3.endpoint"="s3.us-east-1.amazonaws.com",
+  "s3.region"="us-east-1"
+  ```
+
+2. Assume Role Mode
+
+Suitable for cross-account and temporary authorization access. Automatically obtains temporary credentials through role authorization.
+
+  ```properties
+  "s3.role_arn"="arn:aws:iam::123456789012:role/demo-role",
+  "s3.external_id"="external-identifier",
+  "s3.endpoint"="s3.us-east-1.amazonaws.com",
+  "s3.region"="us-east-1"
+  ```
+
+> If both Access Key and Role ARN are configured, Access Key mode takes precedence.
+
+For instructions on AWS authentication and authorization configuration, please refer to the document [aws-authentication-and-authorization](../../admin-manual/auth/integrations/aws-authentication-and-authorization.md)
+
+## Accessing S3 Directory Bucket
+
+> This feature is supported since version 3.1.0.
+
+Amazon S3 Express One Zone (also known as Directory Bucket) provides higher performance, but has a different endpoint format.
+
+- Regular bucket: s3.us-east-1.amazonaws.com
+- Directory Bucket: s3express-usw2-az1.us-west-2.amazonaws.com
+
+For more available regions, refer to: [AWS Official Documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
+
+Example:
 
 ```properties
-"minio.access_key" = "your-access-key",
-"minio.secret_key" = "your-secret-key",
-"minio.endpoint" = "http://minio.example.com:9000"
+"s3.access_key"="ak",
+"s3.secret_key"="sk",
+"s3.endpoint"="s3express-usw2-az1.us-west-2.amazonaws.com",
+"s3.region"="us-west-2"
 ```
 
-For versions before 3.1:
+## Permission Policies
 
-```properties
-"s3.access_key" = "your-access-key",
-"s3.secret_key" = "your-secret-key",
-"s3.endpoint" = "http://minio.example.com:9000"
+Depending on the use case, permissions can be categorized into **read-only** and **read-write** policies.
+
+### 1. Read-only Permissions
+
+Only allows reading objects from S3. Suitable for LOAD, TVF, querying EXTERNAL CATALOG, and other scenarios.
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+            ],
+            "Resource": "arn:aws:s3:::<your-bucket>/your-prefix/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::<your-bucket>"
+        }    
+    ]
+}
 ```
 
-## Usage Recommendations
+### 2. Read-write Permissions
 
-- It is recommended to use the `minio.` prefix for configuration parameters to ensure consistency and clarity with MinIO.
-- For versions before 3.1, please use the legacy name `s3.` as the prefix.
-- Connection pool parameters can be adjusted according to concurrency requirements to avoid connection
+Based on read-only permissions, additionally allows deleting, creating, and modifying objects. Suitable for EXPORT, OUTFILE, and EXTERNAL CATALOG write-back scenarios.
 
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+              "s3:PutObject",
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:DeleteObject",
+              "s3:DeleteObjectVersion",
+              "s3:AbortMultipartUpload",      
+              "s3:ListMultipartUploadParts"
+            ],
+            "Resource": "arn:aws:s3:::<your-bucket>/<your-prefix>/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketVersioning",
+                "s3:GetLifecycleConfiguration"
+            ],
+            "Resource": "arn:aws:s3:::<your-bucket>"
+        }    
+    ]
+}
+```
+
+### Notes
+
+1. Placeholder Replacement
+
+   - `<bucket>` → Your S3 Bucket name.
+   - `<account-id>` → Your AWS account ID (12-digit number).
+
+2. Principle of Least Privilege
+
+   - If only querying, do not grant write permissions.
