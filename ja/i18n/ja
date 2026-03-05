@@ -1,114 +1,88 @@
 ---
 {
-  "title": "FROM_BASE64",
+  "title": "LENGTH",
   "language": "en",
-  "description": "The FROMBASE64 function decodes a Base64-encoded string back to its original string."
+  "description": "The LENGTH function returns the byte length of a string (in bytes). This function calculates the number of bytes a string occupies in UTF-8 encoding,"
 }
 ---
 
 ## Description
 
-The FROM_BASE64 function decodes a Base64-encoded string back to its original string. This is the inverse operation of TO_BASE64 and follows RFC 4648 standards. Base64 encoding is commonly used to transmit binary data in text protocols, and this function can restore the encoded data. It supports standard Base64 character set (A-Z, a-z, 0-9, +, /) and padding character (=).
+The LENGTH function returns the byte length of a string (in bytes). This function calculates the number of bytes a string occupies in UTF-8 encoding, not the number of characters.
+
+**Note the difference from CHAR_LENGTH:**
+
+- `LENGTH()` returns the number of bytes
+- `CHAR_LENGTH()` and `CHARACTER_LENGTH()` return the number of characters
+- For ASCII characters, byte count equals character count
+- For multi-byte characters (such as Chinese, emoji), byte count is usually greater than character count
+
+## Alias
+
+- `OCTET_LENGTH()`
 
 ## Syntax
 
 ```sql
-FROM_BASE64(<str>)
+LENGTH(<str>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                        |
-| --------- | ---------------------------------------------------------------------------------- |
-| `<str>`   | The Base64-encoded string to decode. Type: VARCHAR |
+| Parameter | Description                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| `<str>`   | The string whose byte length needs to be calculated. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the original string after Base64 decoding.
-
-Decoding rules:
-
-- Accepts standard Base64 character set: A-Z, a-z, 0-9, +, /
-- Supports padding character =
-- Follows RFC 4648 standards
-- Automatically ignores whitespace characters (spaces, newlines, etc.)
-- Decoding result may contain non-printable characters
+Returns INT type, representing the byte length of the string.
 
 Special cases:
 
-- If input is NULL, returns NULL
-- If input contains illegal Base64 characters, returns NULL
-- If input is an empty string, returns an empty string
-- If padding is incorrect or format is invalid, returns NULL
+- If parameter is NULL, returns NULL
+- Empty string returns 0
+- Result is the number of bytes in UTF-8 encoding
 
 ## Examples
 
-1. Basic decoding
+1. ASCII characters (byte count = character count)
 
 ```sql
-SELECT FROM_BASE64('MQ=='), FROM_BASE64('QQ==');
+SELECT LENGTH('abc'), CHAR_LENGTH('abc');
 ```
 
 ```text
-+---------------------+---------------------+
-| FROM_BASE64('MQ==') | FROM_BASE64('QQ==') |
-+---------------------+---------------------+
-| 1                   | A                   |
-+---------------------+---------------------+
++---------------+--------------------+
+| LENGTH('abc') | CHAR_LENGTH('abc') |
++---------------+--------------------+
+|             3 |                  3 |
++---------------+--------------------+
 ```
 
-2. Multi-character decoding
+2. Chinese characters (byte count > character count)
 
 ```sql
-SELECT FROM_BASE64('MjM0'), FROM_BASE64('SGVsbG8=');
+SELECT LENGTH('中国'), CHAR_LENGTH('中国');
 ```
 
 ```text
-+---------------------+-------------------------+
-| FROM_BASE64('MjM0') | FROM_BASE64('SGVsbG8=') |
-+---------------------+-------------------------+
-| 234                 | Hello                   |
-+---------------------+-------------------------+
++------------------+---------------------+
+| LENGTH('中国')   | CHAR_LENGTH('中国') |
++------------------+---------------------+
+|                6 |                   2 |
++------------------+---------------------+
 ```
 
 3. NULL value handling
 
 ```sql
-SELECT FROM_BASE64(NULL);
+SELECT LENGTH(NULL);
 ```
 
 ```text
-+-------------------+
-| FROM_BASE64(NULL) |
-+-------------------+
-| NULL              |
-+-------------------+
-```
-
-4. Empty string handling
-
-```sql
-SELECT FROM_BASE64('');
-```
-
-```text
-+-----------------+
-| FROM_BASE64('') |
-+-----------------+
-|                 |
-+-----------------+
-```
-
-5. Illegal character handling
-
-```sql
-SELECT FROM_BASE64('!!!'), FROM_BASE64('ABC@DEF');
-```
-
-```text
-+--------------------+------------------------+
-| FROM_BASE64('!!!') | FROM_BASE64('ABC@DEF') |
-+--------------------+------------------------+
-| NULL               | NULL                   |
-+--------------------+------------------------+
++--------------+
+| LENGTH(NULL) |
++--------------+
+|         NULL |
++--------------+
 ```
