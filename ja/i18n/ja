@@ -1,6 +1,6 @@
 ---
 {
-  "title": "COVAR_SAMP",
+  "title": "COVAR",
   "language": "en",
   "description": "Calculates the sample covariance between two variables. If either input variable is NULL, that row is not included in the calculation."
 }
@@ -10,10 +10,15 @@
 
 Calculates the sample covariance between two variables. If either input variable is NULL, that row is not included in the calculation.
 
+## Alias
+
+- COVAR_POP
+
 ## Syntax
 
 ```sql
-COVAR_SAMP(<expr1>, <expr2>)
+COVAR(<expr1>, <expr2>)
+COVAR_POP(<expr1>, <expr2>)
 ```
 
 ## Parameters
@@ -48,37 +53,29 @@ insert into baseall values
 ```
 
 ```sql
-select covar_samp(x,y) from baseall;
+select covar(x,y) from baseall;
 ```
 
 ```text
-+-----------------+
-| covar_samp(x,y) |
-+-----------------+
-|               1 |
-+-----------------+
++-------------------+
+| covar(x,y)        |
++-------------------+
+| 0.666666666666667 |
++-------------------+
 ```
 
 ```sql
-select id, covar_samp(x, y) from baseall group by id;
+select id, covar(x, y) from baseall group by id;
 ```
 
 ```text
-+------+------------------+
-| id   | covar_samp(x, y) |
-+------+------------------+
-|    1 |                0 |
-|    2 |                0 |
-|    3 |                0 |
-|    4 |             NULL |
-|    5 |             NULL |
-+------+------------------+
-```
-
-\|    4 |             NULL |
-\|    5 |             NULL |
-+------+------------------+
-
-```
-
++------+-------------+
+| id   | covar(x, y) |
++------+-------------+
+|    1 |           0 |
+|    2 |           0 |
+|    3 |           0 |
+|    4 |        NULL |
+|    5 |        NULL |
++------+-------------+
 ```
