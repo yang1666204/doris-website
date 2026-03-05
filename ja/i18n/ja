@@ -1,23 +1,19 @@
 ---
 {
-  "title": "REGR_INTERCEPT",
+  "title": "REGR_SLOPE",
   "language": "en",
-  "description": "Returns the intercept of the univariate linear regression line for non-null pairs in a group."
+  "description": "Returns the slope of the linear regression line for non-null pairs in a group."
 }
 ---
 
 ## Description
 
-Returns the intercept of the univariate linear regression line for non-null pairs in a group. It is computed for non-null pairs using the following formula:
-
-`AVG(y) - REGR_SLOPE(y, x) * AVG(x)`
-
-Where `x` is the independent variable and y is the dependent variable.
+Returns the slope of the linear regression line for non-null pairs in a group.
 
 ## Syntax
 
 ```sql
-REGR_INTERCEPT(<y>, <x>)
+REGR_SLOPE(<y>, <x>)
 ```
 
 ## Parameters
@@ -29,13 +25,14 @@ REGR_INTERCEPT(<y>, <x>)
 
 ## Return Value
 
-Returns a Double value representing the intercept of the univariate linear regression line for non-null pairs in a group. If there are no rows, or only rows that contain nulls, the function returns NULL.
+Returns a Double value representing the slope of the linear regression line.
+If there are no rows in the group, or all rows contain NULLs for the expressions, the function returns `NULL`.
 
 ## Examples
 
 ```sql
--- Create sample table
-CREATE TABLE test_regr_intercept (
+-- setup
+CREATE TABLE test_regr_slope (
   `id` int,
   `x` int,
   `y` int
@@ -45,36 +42,39 @@ PROPERTIES (
   "replication_allocation" = "tag.location.default: 1"
 );
 
--- Insert sample data
-INSERT INTO test_regr_intercept VALUES
+-- Insert example data
+INSERT INTO test_regr_slope VALUES
 (1, 18, 13),
 (2, 14, 27),
 (3, 12, 2),
 (4, 5, 6),
 (5, 10, 20);
-
--- Calculate the linear regression intercept of x and y
-SELECT REGR_INTERCEPT(y, x) FROM test_regr_intercept;
-```
-
-```text
-+----------------------+
-| REGR_INTERCEPT(y, x) |
-+----------------------+
-|    5.512931034482759 |
-+----------------------+
 ```
 
 ```sql
-SELECT REGR_INTERCEPT(y, x) FROM test_regr_intercept where x>100;
+SELECT REGR_SLOPE(y, x) FROM test_regr_slope;
+```
+
+Calculate the linear regression slope of x and y.
+
+```text
++--------------------+
+| REGR_SLOPE(y, x)   |
++--------------------+
+| 0.6853448275862069 |
++--------------------+
+```
+
+```sql
+SELECT REGR_SLOPE(y, x) FROM test_regr_slope where x>100;
 ```
 
 When there are no rows in the group, the function returns `NULL`.
 
 ```text
-+----------------------+
-| REGR_INTERCEPT(y, x) |
-+----------------------+
-|                 NULL |
-+----------------------+
++------------------+
+| REGR_SLOPE(y, x) |
++------------------+
+|             NULL |
++------------------+
 ```
