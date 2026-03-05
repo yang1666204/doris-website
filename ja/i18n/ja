@@ -1,104 +1,112 @@
 ---
 {
-  "title": "NGRAM_SEARCH",
+  "title": "OVERLAY",
   "language": "en",
-  "description": "The NGRAMSEARCH function calculates the N-gram similarity between two strings. The similarity ranges from 0 to 1,"
+  "description": "The OVERLAY function is used to replace a substring at a specified position and length within a string. Starting from the specified position,"
 }
 ---
 
 ## Description
 
-The NGRAM_SEARCH function calculates the N-gram similarity between two strings. The similarity ranges from 0 to 1, where higher values indicate more similar strings.
+The OVERLAY function is used to replace a substring at a specified position and length within a string. Starting from the specified position, it replaces the specified length of characters with a new string.This function is multibyte safe.
 
-N-gram decomposes a string into a set of consecutive N characters. The similarity calculation formula is: `2 * |intersection| / (|set1| + |set2|)`
+This function behaves consistently with the [INSERT function](https://dev.mysql.com/doc/refman/8.4/en/string-functions.html#function_insert) in MySQL.
 
-Only ASCII characters are supported.
+## Alias
+
+- INSERT
 
 ## Syntax
 
 ```sql
-NGRAM_SEARCH(<text>, <pattern>, <gram_num>)
+OVERLAY(<str>, <pos>, <len>, <newstr>)
 ```
 
 ## Parameters
 
-| Parameter    | Description                                                                                             |
-| ------------ | ------------------------------------------------------------------------------------------------------- |
-| `<text>`     | The text string to compare. Type: VARCHAR                               |
-| `<pattern>`  | Pattern string (must be constant). Type: VARCHAR     |
-| `<gram_num>` | The N value for N-gram (must be constant). Type: INT |
+| Parameter  | Description                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
+| `<str>`    | The original string to be modified. Type: VARCHAR                             |
+| `<pos>`    | The starting position for replacement (1-based). Type: INT |
+| `<len>`    | The length of characters to replace. Type: INT                                |
+| `<newstr>` | The new string to use for replacement. Type: VARCHAR                          |
 
 ## Return Value
 
-Returns DOUBLE type, the N-gram similarity between the two strings (between 0 and 1).
+Returns VARCHAR type, the new string after replacement.
 
 Special cases:
 
 - If any parameter is NULL, returns NULL
-- If string length is less than `<gram_num>`, returns 0
-- `<pattern>` and `<gram_num>` must be constants
-- Similarity of 1 does not necessarily mean strings are completely identical
+- If `<pos>` is less than 1 or exceeds string length, no replacement occurs and returns the original string
+- If `<len>` is less than 0 or exceeds the remaining length, replaces from `<pos>` to the end of the string
 
 ## Examples
 
-1. Basic usage: Calculate similarity
+1. Basic usage: replace middle part
 
 ```sql
-SELECT ngram_search('123456789', '12345', 3);
+SELECT overlay('Quadratic', 3, 4, 'What');
 ```
 
 ```text
-+---------------------------------------+
-| ngram_search('123456789', '12345', 3) |
-+---------------------------------------+
-|                                   0.6 |
-+---------------------------------------+
++------------------------------------+
+| overlay('Quadratic', 3, 4, 'What') |
++------------------------------------+
+| QuWhattic                          |
++------------------------------------+
 ```
 
-2. High similarity example
+2. Negative length: replace to end
 
 ```sql
-SELECT ngram_search('abababab', 'babababa', 2);
+SELECT overlay('Quadratic', 2, -1, 'Hi');
 ```
 
 ```text
-+-----------------------------------------+
-| ngram_search('abababab', 'babababa', 2) |
-+-----------------------------------------+
-|                                       1 |
-+-----------------------------------------+
++-----------------------------------+
+| overlay('Quadratic', 2, -1, 'Hi') |
++-----------------------------------+
+| QHi                               |
++-----------------------------------+
 ```
 
-3. String too short returns 0
+3. Position out of bounds: no replacement
 
 ```sql
-SELECT ngram_search('ab', 'abc', 3);
+SELECT overlay('Hello', 10, 2, 'X');
 ```
 
 ```text
-+----------------------------------+
-| ngram_search('ab', 'abc', 3)     |
-+----------------------------------+
-|                                0 |
-+----------------------------------+
++-------------------------------+
+| overlay('Hello', 10, 2, 'X')  |
++-------------------------------+
+| Hello                         |
++-------------------------------+
 ```
 
 4. NULL value handling
 
 ```sql
-SELECT ngram_search(NULL, 'test', 2);
+SELECT overlay('Hello', NULL, 2, 'X');
 ```
 
 ```text
 +--------------------------------+
-| ngram_search(NULL, 'test', 2)  |
+| overlay('Hello', NULL, 2, 'X') |
 +--------------------------------+
 | NULL                           |
 +--------------------------------+
 ```
 
-### Keywords
+```sql
+SELECT INSERT('🎉🎊🎈', 2, 1, '🎁');
+```
 
-    ```
-    NGRAM_SEARCH,NGRAM,SEARCH
-    ```
+```text
++--------------------------------------+
+| INSERT('🎉🎊🎈', 2, 1, '🎁')                 |
++--------------------------------------+
+| 🎉🎁🎈                                     |
++--------------------------------------+
+```
