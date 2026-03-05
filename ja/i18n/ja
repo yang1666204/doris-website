@@ -1,214 +1,108 @@
 ---
 {
-  "title": "ATAN2",
+  "title": "CBRT",
   "language": "en",
-  "description": "Returns the arc tangent of 'y' / 'x'."
+  "description": "Calculate the cube root of the parameter"
 }
 ---
 
 ## Description
 
-Returns the arc tangent of 'y' / 'x'.
+Calculate the cube root of the parameter
 
 ## Syntax
 
 ```sql
-ATAN2(<y>, <x>)
+CBRT(<a>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                               |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<x>`     | The value representing the horizontal distance (coordinate) from the origin (0,0) along the x-axis. |
-| `<y>`     | The value representing the vertical distance (coordinate) from the origin (0,0) along the y-axis.   |
+| Parameter | Description              |
+| --------- | ------------------------ |
+| `<a>`     | Floating point parameter |
 
 ## Return Value
 
-The atan2 value of parameter `y` / `x`.
+Cubic root of parameter `<a>`, a floating point number.
 
 ## Special Cases
 
-- If `y` or `x` is NaN, returns NaN
-- If `x > 0` and `y = ±0.0`, returns ±0 (sign follows `y`)
-- If `x = 0.0` (either +0.0 or -0.0) and `y > 0`, returns π/2 (about 1.570796326794897)
-- If `x = 0.0` (either +0.0 or -0.0) and `y < 0`, returns -π/2 (about -1.570796326794897)
-- If `x < 0` and `y = +0.0`, returns π (about 3.141592653589793); if `x < 0` and `y = -0.0`, returns -π
-- If `y = +Infinity` and `x` is finite, returns π/2; if `y = -Infinity` and `x` is finite, returns -π/2
-- If `y = +Infinity` and `x = +Infinity`, returns π/4 (about 0.7853981633974483)
-- If `y = -Infinity` and `x = +Infinity`, returns -π/4 (about -0.7853981633974483)
-- If `y = +Infinity` and `x = -Infinity`, returns 3π/4 (about 2.356194490192345)
-- If `y = -Infinity` and `x = -Infinity`, returns -3π/4 (about -2.356194490192345)
-- If `x = +Infinity` and finite `y` > 0, returns 0; if finite `y` < 0, returns -0
-- If `x = -Infinity` and finite `y` > 0, returns π; if finite `y` < 0, returns -π
-- If `y` or `x` is NULL, returns NULL
+- When `a` is NaN, returns NaN
+- When `a` is positive infinity, returns Infinity
+- When `a` is negative infinity, returns -Infinity
+- When `a` is NULL, returns NULL
 
 ## Examples
 
 ```sql
-select atan2(0.1, 0.2);
+select cbrt(0);
 ```
 
 ```text
-+---------------------+
-| atan2(0.1, 0.2)     |
-+---------------------+
-| 0.46364760900080609 |
-+---------------------+
++-------------------------+
+| cbrt(cast(0 as DOUBLE)) |
++-------------------------+
+|                     0.0 |
++-------------------------+
 ```
 
 ```sql
-select atan2(1.0, 1.0);
+select cbrt(-111);
 ```
 
 ```text
-+---------------------+
-| atan2(1.0, 1.0)     |
-+---------------------+
-| 0.78539816339744828 |
-+---------------------+
++----------------------------+
+| cbrt(cast(-111 as DOUBLE)) |
++----------------------------+
+|         -4.805895533705333 |
++----------------------------+
 ```
 
 ```sql
-select atan2(cast('nan' as double), 1.0);
+select cbrt(1234);
 ```
 
 ```text
-+----------------------------------+
-| atan2(cast('nan' AS DOUBLE), 1.0)|
-+----------------------------------+
-| NaN                              |
-+----------------------------------+
++----------------------------+
+| cbrt(cast(1234 as DOUBLE)) |
++----------------------------+
+|         10.726014668827325 |
++----------------------------+
 ```
 
 ```sql
-select atan2(1.0, cast('nan' as double));
+select cbrt(cast('nan' as double));
 ```
 
 ```text
-+----------------------------------+
-| atan2(1.0, cast('nan' AS DOUBLE))|
-+----------------------------------+
-| NaN                              |
-+----------------------------------+
++------------------------------+
+| cbrt(cast('nan' AS DOUBLE))  |
++------------------------------+
+| NaN                          |
++------------------------------+
 ```
 
 ```sql
-select atan2(0.0, 1.0);
+select cbrt(cast('inf' as double));
 ```
 
 ```text
-+----------------+
-| atan2(0.0, 1.0)|
-+----------------+
-|              0 |
-+----------------+
++------------------------------+
+| cbrt(cast('inf' AS DOUBLE))  |
++------------------------------+
+| Infinity                     |
++------------------------------+
 ```
 
 ```sql
-select atan2(-0.0, 1.0);
+select cbrt(cast('-inf' as double));
 ```
 
 ```text
-+-----------------+
-| atan2(-0.0, 1.0)|
-+-----------------+
-|              -0 |
-+-----------------+
-```
-
-```sql
-select atan2(0.0, -1.0);
-```
-
-```text
-+-----------------+
-| atan2(0.0, -1.0)|
-+-----------------+
-| 3.141592653589793|
-+------------------+
-```
-
-```sql
-select atan2(-0.0, -1.0);
-```
-
-```text
-+------------------+
-| atan2(-0.0, -1.0)|
-+------------------+
-| -3.141592653589793|
-+-------------------+
-```
-
-```sql
-select atan2(1.0, 0.0);
-```
-
-```text
-+----------------+
-| atan2(1.0, 0.0)|
-+----------------+
-| 1.570796326794897 |
-+--------------------+
-```
-
-```sql
-select atan2(-1.0, 0.0);
-```
-
-```text
-+-----------------+
-| atan2(-1.0, 0.0)|
-+-----------------+
-| -1.570796326794897 |
-+---------------------+
-```
-
-```sql
-select atan2(cast('inf' as double), cast('-inf' as double));
-```
-
-```text
-+--------------------------------------------+
-| atan2(cast('inf' AS DOUBLE), cast('-inf' AS DOUBLE)) |
-+--------------------------------------------+
-| 2.356194490192345                          |
-+--------------------------------------------+
-```
-
-```sql
-select atan2(cast('-inf' as double), cast('inf' as double));
-```
-
-```text
-+-------------------------------------------+
-| atan2(cast('-inf' AS DOUBLE), cast('inf' AS DOUBLE)) |
-+-------------------------------------------+
-| -0.7853981633974483                       |
-+-------------------------------------------+
-```
-
-```sql
-select atan2(1.0, cast('-inf' as double));
-```
-
-```text
-+----------------------------------+
-| atan2(1.0, cast('-inf' AS DOUBLE))|
-+----------------------------------+
-| 3.141592653589793                |
-+----------------------------------+
-```
-
-```sql
-select atan2(-1.0, cast('inf' as double));
-```
-
-```text
-+---------------------------------+
-| atan2(-1.0, cast('inf' AS DOUBLE))|
-+---------------------------------+
-| -0                              |
-+---------------------------------+
++-------------------------------+
+| cbrt(cast('-inf' AS DOUBLE))  |
++-------------------------------+
+| -Infinity                     |
++-------------------------------+
 ```
