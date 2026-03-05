@@ -1,154 +1,75 @@
 ---
 {
-  "title": "TRIM",
+  "title": "UNCOMPRESS",
   "language": "en",
-  "description": "The TRIM function is used to remove consecutive spaces or specified strings from both ends of a string. If the second parameter is not specified,"
+  "description": "The UNCOMPRESS function decompresses binary data into strings or values. You must ensure the binary data is the result of the COMPRESS function."
 }
 ---
 
 ## Description
 
-The TRIM function is used to remove consecutive spaces or specified strings from both ends of a string. If the second parameter is not specified, leading and trailing spaces are removed; if specified, the function removes the specified complete string from both ends.
+The UNCOMPRESS function decompresses binary data into strings or values. You must ensure the binary data is the result of the `COMPRESS` function.
 
 ## Syntax
 
 ```sql
-TRIM(<str>[, <rhs>])
+UNCOMPRESS(<compressed_str>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                |
-| --------- | ---------------------------------------------------------------------------------------------------------- |
-| `<str>`   | The string to be processed. Type: VARCHAR                                  |
-| `<rhs>`   | Optional parameter, characters to be trimmed from both ends. Type: VARCHAR |
+| Parameter          | Description                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| `<compressed_str>` | Compressed binary data, parameter type is varchar or string |
 
 ## Return Value
 
-Returns a value of type VARCHAR.
+The return value type is the same as the input `compressed_str` type.
 
 Special cases:
 
-- If any parameter is NULL, NULL is returned
-- If rhs is not specified, removes leading and trailing spaces
-- If rhs is specified, removes the complete rhs string from both ends (not character-by-character)
+- Returns NULL if `compressed_str` is not binary data obtained from `COMPRESS`.
 
 ## Examples
 
-1. Remove leading and trailing spaces
-
 ```sql
-SELECT trim('   ab d   ') str;
+select uncompress(compress('abc'));
 ```
 
 ```text
-+------+
-| str  |
-+------+
-| ab d |
-+------+
++-----------------------------+
+| uncompress(compress('abc')) |
++-----------------------------+
+| abc                         |
++-----------------------------+
 ```
 
-2. Remove specified strings from both ends
-
 ```sql
-SELECT trim('ababccaab', 'ab') str;
+select uncompress(compress(''));
 ```
 
 ```text
-+---------+
-| str     |
-+---------+
-| ababcca |
-+---------+
++--------------------------+
+| uncompress(compress('')) |
++--------------------------+
+|                          |
++--------------------------+
 ```
 
-3. UTF-8 character support
-
 ```sql
-SELECT trim('   ṭṛì ḍḍumai   ');
+select uncompress('abc');
 ```
 
 ```text
-+------------------------------+
-| trim('   ṭṛì ḍḍumai   ')     |
-+------------------------------+
-| ṭṛì ḍḍumai                   |
-+------------------------------+
-```
-
-4. No matching prefix/suffix, return original string
-
-```sql
-SELECT trim('Hello World', 'xyz');
-```
-
-```text
-+--------------------------------+
-| trim('Hello World', 'xyz')     |
-+--------------------------------+
-| Hello World                    |
-+--------------------------------+
-```
-
-5. NULL value handling
-
-```sql
-SELECT trim(NULL), trim('Hello', NULL);
-```
-
-```text
-+------------+-----------------------+
-| trim(NULL) | trim('Hello', NULL)   |
-+------------+-----------------------+
-| NULL       | NULL                  |
-+------------+-----------------------+
-```
-
-6. Empty string handling
-
-```sql
-SELECT trim(''), trim('abc', '');
-```
-
-```text
-+----------+------------------+
-| trim('') | trim('abc', '')  |
-+----------+------------------+
-|          | abc              |
-+----------+------------------+
-```
-
-7. Repeated pattern removal from both ends
-
-```sql
-SELECT trim('abcabcabc', 'abc');
-```
-
-```text
-+------------------------------+
-| trim('abcabcabc', 'abc')     |
-+------------------------------+
-|                              |
-+------------------------------+
-```
-
-8. Asymmetric removal
-
-```sql
-SELECT trim('abcHelloabc', 'abc');
-```
-
-```text
-+--------------------------------+
-| trim('abcHelloabc', 'abc')     |
-+--------------------------------+
-| Hello                          |
-+--------------------------------+
++-------------------+
+| uncompress('abc') |
++-------------------+
+| NULL              |
++-------------------+
 ```
 
 ### Keywords
 
     ```
-    TRIM
+    UNCOMPRESS, COMPRESS
     ```
