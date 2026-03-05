@@ -1,48 +1,56 @@
 ---
 {
-  "title": "SET FRONTEND CONFIG",
+  "title": "SHOW FRONTEND CONFIG",
   "language": "en",
-  "description": "This statement is used to set the configuration items of the cluster (currently only supports setting FE configuration items)."
+  "description": "This statement is used to display the configuration of the current cluster (currently only the configuration items of FE are supported)"
 }
 ---
 
 ## Description
 
-This statement is used to set the configuration items of the cluster (currently only supports setting FE configuration items).
+This statement is used to display the configuration of the current cluster (currently only the configuration items of FE are supported)
 
-## Syntax:
+## Syntax
 
 ```sql
-ADMIN SET {ALL FRONTENDS | FRONTEND} CONFIG ("<fe_config_key>" = "<fe_config_value>")
+SHOW FRONTEND CONFIG [LIKE "<pattern>"];
 ```
-
-## Required Parameters
-
-**`{ALL FRONTENDS | FRONTEND}`**
-
-> **`ALL FRONTENDS`**: Represents all FE nodes in the Doris cluster
->
-> **`FRONTEND`**: Represents the currently connected FE node, i.e., the FE node the user is interacting with
 
 ## Optional Parameters
 
-The `<fe_config_key>` and `<fe_config_value>` that need to be modified can be viewed through the [SHOW FRONTEND CONFIG](./SHOW-FRONTEND-CONFIG) command
+**`<pattern>`**
 
-:::tip Explanation
+> A string that can contain ordinary characters and wildcards.
 
-- Starting from versions 2.0.11 and 2.1.5, the `ALL` keyword is supported. When using the `ALL` keyword, the configuration parameters will be applied to all FEs (except for the `master_only` parameter).
-- This syntax does not persistently modify the configuration. After an FE restarts, the modified configuration becomes invalid. To persist the changes, the configuration items need to be synchronously added in fe.conf.
-  :::
+## Return Values
+
+| Column name | Describe                                            |
+| ----------- | --------------------------------------------------- |
+| Value       | Configuration item value                            |
+| Type        | Configuration item type                             |
+| IsMutable   | Whether it can be set by `ADMIN SET CONFIG` command |
+| MasterOnly  | Is it only applicable to Master FE                  |
+| Comment     | Configuration item description                      |
 
 ## Example
 
-1. Set `disable_balance` to `true`
+1. View the configuration of the current FE node
 
-    ```sql
-    ADMIN SET FRONTEND CONFIG ("disable_balance" = "true");
+   ```sql
+   SHOW FRONTEND CONFIG;
+   ```
+
+2. Use the like predicate to search the configuration of the current Fe node
+
+   ```sql
+    SHOW FRONTEND CONFIG LIKE '%check_java_version%';
+   ```
+
+    ```text
+    +--------------------+-------+---------+-----------+------------+---------+
+    | Key                | Value | Type    | IsMutable | MasterOnly | Comment |
+    +--------------------+-------+---------+-----------+------------+---------+
+    | check_java_version | true  | boolean | false     | false      |         |
+    +--------------------+-------+---------+-----------+------------+---------+
     ```
 
-2. Set `disable_balance` of all FE nodes to `true`
-   ```sql
-   ADMIN SET ALL FRONTENDS CONFIG ("disable_balance" = "true");
-   ```
