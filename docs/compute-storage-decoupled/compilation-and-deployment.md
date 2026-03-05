@@ -1,28 +1,10 @@
 ---
 {
     "title": "Compilation and Deployment",
-    "language": "en"
+    "language": "en",
+    "description": "This document details the compilation and deployment process of Doris in a decoupled storage-compute model,"
 }
 ---
-
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 ## 1. Overview
 
@@ -95,8 +77,29 @@ export JAVA_HOME=${path_to_jdk_17}
 bin/start.sh --daemon
 ```
 
+```text
+LIBHDFS3_CONF=
+starts doris_cloud with args: --meta-service
+wait and check doris_cloud start successfully
+successfully started brpc listening on port=5000 time_elapsed_ms=11
+doris_cloud start successfully
+```
+
 The startup script returns a value of 0 to indicate that the startup was successful; otherwise, the startup fails.
-Upon successful startup, the last line of the standard output text will be "doris_cloud start successfully."
+
+:::info
+In 3.0.4, the startup script will output more information:
+```text
+2024-12-26 15:31:53 start with args: --meta-service
+wait and check MetaService and Recycler start successfully
+process working directory: "/mnt/disk1/doris/ms"
+pid=1666015 written to file=./bin/doris_cloud.pid
+version:{doris-3.0.4-release} code_version:{commit=fd44740fadabebfedb5da201d7ce427a5dd47c44 time=2025-01-16 18:53:00 +0800} build_info: ...
+
+MetaService has been started successfully
+successfully started service listening on port=5000 time_elapsed_ms=19
+```
+:::
 
 *Stop Command*
 
@@ -194,7 +197,7 @@ Other nodes should also modify the configuration file and start according to the
 ALTER SYSTEM ADD FOLLOWER "host:port";
 ```
 
-Replace `host:port` with the actual address and editlog port of the FE node. More information refer to [ADD FOLLOWER](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-FOLLOWER.md) and [ADD OBSERVER](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-OBSERVER.md).
+Replace `host:port` with the actual address and editlog port of the FE node. More information refer to [ADD FOLLOWER](../sql-manual/sql-statements/cluster-management/instance-management/ADD-FOLLOWER) and [ADD OBSERVER](../sql-manual/sql-statements/cluster-management/instance-management/ADD-OBSERVER).
 
 For production environment, please ensure that the total number of Frontend (FE) nodes in the FOLLOWER role, including the first FE, remains an odd number. In general, three FOLLOWERS are sufficient. Frontend nodes in the OBSERVER role can be any number.
 
@@ -239,7 +242,7 @@ In the `be.conf` file, the following key parameters need to be configured:
 
    You can set the computing group for the BE using PROPERTIES.
 
-   For more detailed usage, please refer to [ADD BACKEND](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-ADD-BACKEND.md) and [REMOVE BACKEND](../sql-manual/sql-statements/Cluster-Management-Statements/ALTER-SYSTEM-DROP-BACKEND.md).
+   For more detailed usage, please refer to [ADD BACKEND](../sql-manual/sql-statements/cluster-management/instance-management/ADD-BACKEND) and [REMOVE BACKEND](../sql-manual/sql-statements/cluster-management/instance-management/DROP-BACKEND).
 
 3. Verify Backend Status:
 
@@ -291,7 +294,7 @@ CREATE STORAGE VAULT IF NOT EXISTS s3_vault
     );
 ```
 
-To create a Storage Vault on other object storage, please refer to [Create Storage Vault](../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-STORAGE-VAULT.md).
+To create a Storage Vault on other object storage, please refer to [Create Storage Vault](../sql-manual/sql-statements/cluster-management/storage-management/CREATE-STORAGE-VAULT).
 
 ### 6.3 Set Default Storage Vault 
 
