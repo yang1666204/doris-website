@@ -1,68 +1,106 @@
 ---
 {
-  "title": "FROM_SECOND",
+  "title": "CONVERT_TZ",
   "language": "en",
-  "description": "The FROMSECOND function is used to convert a Unix timestamp (in seconds) to a DATETIME type date-time value."
+  "description": "Convert a datetime value from the given time zone fromtz to the given time zone totz and return the result. For time zone settings,"
 }
 ---
 
 ## Description
 
-The FROM_SECOND function is used to convert a Unix timestamp (in seconds) to a DATETIME type date-time value. The reference time for Unix timestamps is 1970-01-01 00:00:00 UTC, and this function converts the input seconds to the corresponding specific date and time after that reference time (accurate to seconds).
+Convert a datetime value from the given time zone from_tz to the given time zone to_tz and return the result. For time zone settings, please refer to the [Time Zone Management](../../../../admin-manual/cluster-management/time-zone) documentation.
+
+This function is consistent with the [convert_tz function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_convert_tz) in MySQL.
 
 ## Syntax
 
 ```sql
-FROM_SECOND(<unix_timestamp>)
+CONVERT_TZ(<dt>, <from_tz>, <to_tz>)
 ```
 
 ## Parameters
 
-| Parameter          | Description                                                                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<unix_timestamp>` | Input Unix timestamp, of integer type (BIGINT), representing the number of seconds from 1970-01-01 00:00:00 UTC. |
+| Parameter   | Description                                                                                                                                                                                                                                                                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<dt>`      | The value to be converted, which is of datetime or date type. For specific datetime and date formats, please refer to [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| `<from_tz>` | The original time zone of dt, this parameter is of `varchar` type                                                                                                                                                                                                                                                                                     |
+| `<to_tz>`   | The target time zone to convert to, this parameter is of `varchar` type                                                                                                                                                                                                                                                                               |
 
 ## Return Value
 
-- Returns a DATETIME type value representing the result of converting the input UTC timezone unix timestamp to the current timezone time
-- If <unix_timestamp> is NULL, the function returns NULL.
-- If <unix_timestamp> exceeds the valid range (result datetime exceeds 9999-12-31 23:59:59), the function returns an error.
-- Input negative seconds, the function returns an error
+- The converted value type of datetime
+- The returned scale is the same as the input scale
+  - For datetime input without scale, the returned result also has no scale
+  - For input with scale, the returned result has the same scale
+
+Special cases:
+
+- If any parameter is NULL, returns NULL.
+- When the input time zone is invalid, returns error. For time zone settings, refer to [Time Zone Management](../../../../admin-manual/cluster-management/time-zone).
+- For date type input, the time part is automatically converted to 00:00:00
 
 ## Examples
 
 ```sql
+-- Convert time from Shanghai, China to Los Angeles, USA
+mysql> select CONVERT_TZ(CAST('2019-08-01 13:21:03' AS DATETIME), 'Asia/Shanghai', 'America/Los_Angeles');
++---------------------------------------------------------------------------+
+| CONVERT_TZ('2019-08-01 13:21:03', 'Asia/Shanghai', 'America/Los_Angeles') |
++---------------------------------------------------------------------------+
+| 2019-07-31 22:21:03                                                       |
++---------------------------------------------------------------------------+
 
-----Since the current machine is in East 8th timezone, the returned time is 8 hours ahead of UTC
- SELECT FROM_SECOND(0);
-+---------------------+
-| FROM_SECOND(0)      |
-+---------------------+
-| 1970-01-01 08:00:00 |
-+---------------------+
+-- Convert the time '2019-08-01 13:21:03' in UTC+8 (+08:00) to Los Angeles, USA
+mysql> select CONVERT_TZ(CAST('2019-08-01 13:21:03' AS DATETIME), '+08:00', 'America/Los_Angeles');
 
----Convert 1700000000 seconds to datetime
-SELECT FROM_SECOND(1700000000);
++--------------------------------------------------------------------+
+| convert_tz('2019-08-01 13:21:03', '+08:00', 'America/Los_Angeles') |
++--------------------------------------------------------------------+
+| 2019-07-31 22:21:03                                                |
++--------------------------------------------------------------------+
 
-+-------------------------+
-| from_second(1700000000) |
-+-------------------------+
-| 2023-11-15 06:13:20     |
-+-------------------------+
+-- For date type input,return datetime type value, the time part is automatically converted to 00:00:00
+mysql> select CONVERT_TZ(CAST('2019-08-01 13:21:03' AS DATE), 'Asia/Shanghai', 'America/Los_Angeles');
++-------------------------------------------------------------------------------------------+
+| CONVERT_TZ(CAST('2019-08-01 13:21:03' AS DATEV2), 'Asia/Shanghai', 'America/Los_Angeles') |
++-------------------------------------------------------------------------------------------+
+| 2019-07-31 09:00:00                                                                       |
++-------------------------------------------------------------------------------------------+
 
----Result exceeds maximum date range, returns error
-select from_second(999999999999999);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INTERNAL_ERROR]The function from_second Argument value is out of DateTime range
+-- When conversion time is NULL, output NULL
+mysql> select CONVERT_TZ(NULL, 'Asia/Shanghai', 'America/New_York');
++-------------------------------------------------------+
+| CONVERT_TZ(NULL, 'Asia/Shanghai', 'America/New_York') |
++-------------------------------------------------------+
+| NULL                                                  |
++-------------------------------------------------------+
 
----Input parameter is NULL, returns NULL
-select from_second(NULL);
-+-------------------+
-| from_second(NULL) |
-+-------------------+
-| NULL              |
-+-------------------+
+-- When any time zone is NULL, return NULL
+mysql> select CONVERT_TZ('2019-08-01 13:21:03', NULL, 'America/Los_Angeles');
++----------------------------------------------------------------+
+| CONVERT_TZ('2019-08-01 13:21:03', NULL, 'America/Los_Angeles') |
++----------------------------------------------------------------+
+| NULL                                                           |
++----------------------------------------------------------------+
 
---Input parameter is negative, result returns error
- select from_second(-1);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation from_second of -1 out of range
+mysql> select CONVERT_TZ('2019-08-01 13:21:03', '+08:00', NULL);
++---------------------------------------------------+
+| CONVERT_TZ('2019-08-01 13:21:03', '+08:00', NULL) |
++---------------------------------------------------+
+| NULL                                              |
++---------------------------------------------------+
+
+-- Time with scale
+mysql> select CONVERT_TZ('2019-08-01 13:21:03.636', '+08:00', 'America/Los_Angeles');
++------------------------------------------------------------------------+
+| CONVERT_TZ('2019-08-01 13:21:03.636', '+08:00', 'America/Los_Angeles') |
++------------------------------------------------------------------------+
+| 2019-07-31 22:21:03.636                                                |
++------------------------------------------------------------------------+
+
+-- When the input time zone is invalid, an error is returned.
+select CONVERT_TZ(CAST('2019-08-01 13:21:03' AS DATETIME), '+08:00', 'America/Los_Anges');
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[INVALID_ARGUMENT][E33] Operation convert_tz invalid timezone: America/Los_Anges
 ```
+
+
