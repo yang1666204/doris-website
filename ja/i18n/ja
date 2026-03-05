@@ -1,148 +1,145 @@
 ---
 {
-  "title": "ST_ANGLE_SPHERE",
+  "title": "ST_ANGLE",
   "language": "en",
-  "description": "Calculates the central angle (in degrees) between two points on the Earth's surface. The input parameters are, in order, the longitude of point X,"
+  "description": "Input three points. The first line is the straight line connecting point1 (first endpoint) and point2 (second endpoint)."
 }
 ---
 
 ## Description
 
-Calculates the central angle (in degrees) between two points on the Earth's surface. The input parameters are, in order, the longitude of point X, latitude of point X, longitude of point Y, and latitude of point Y.
-
-The central angle refers to the angle at the center of the Earth subtended by the arc connecting the two points.
+Input three points. The first line is the straight line connecting point1 (first endpoint) and point2 (second endpoint). The second line is the straight line connecting point2 (first endpoint) and point3 (second endpoint). These two lines intersect at point2. The function returns the angle from the first line to the second line in the clockwise direction. For each endpoint coordinate, the x value (longitude) must be in the range [-180, 180], and the y value (latitude) must be in the range [-90, 90].
 
 ## Sytax
 
 ```sql
-ST_ANGLE_SPHERE( <x_lng>, <x_lat>, <y_lng>, <y_lat>)
+ST_ANGLE( <point1>, <point2>, <point3>)
 ```
 
-## 参数
+## Parameters
 
-| parameters | description                                                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `<x_lng>`  | Longitude of point X, of type `DOUBLE`, with a valid range of [-180, 180] |
-| `<y_lng>`  | Longitude of point Y, of type `DOUBLE`, with a valid range of [-180, 180] |
-| `<x_lat>`  | Latitude of point X, of type `DOUBLE`, with a valid range of [-90, 90]    |
-| `<y_lat>`  | Latitude of point Y, of type `DOUBLE`, with a valid range of [-90, 90]    |
+| parameters | descriptions                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| `<point1>` | The first endpoint of the first line, of type `GeoPoint`                                            |
+| `<point2>` | The second endpoint of the first line and the first endpoint of the second line, of type `GeoPoint` |
+| `<point3>` | The second endpoint of the second line, of type  `GeoPoint`                                         |
 
 ## Retuen Value
 
-Returns the central angle between the two points in degrees, of type DOUBLE, with a range of [0, 180].
+Returns the angle between the two lines in radians, as a double-precision floating-point number, with a range of [0, 2π). The angle is measured clockwise from the first line to the second line.
 
-Edge cases for ST_ANGLE_SPHERE:
+ST_ANGLE has the following edge cases:
 
-- If any input parameter is NULL, returns NULL.
-- If any coordinate is out of range (e.g., longitude > 180, latitude < -90), returns NULL.
-- If the two points are identical (same longitude and latitude), returns 0.
-- If the two points are antipodal (diametrically opposite on the Earth), returns 180.
+- Returns NULL if point2 and point3 are the same.
+- Returns NULL if point2 and point1 are the same.
+- Returns NULL if point2 and point3 are exact antipodal points.
+- Returns NULL if point2 and point1 are exact antipodal points.
+- Returns NULL if any point's coordinates exceed the specified ranges for x (longitude) or y (latitude).
+- Returns NULL if any input point is NULL.
 
 ## Example
 
-Calculation of central angle between two adjacent points
+```sql
+SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(0, 1));
+```
+
+The clockwise angle from the first line to the second line is 4.7 radians.
+
+```text
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(0.0, 1.0)) |
++----------------------------------------------------------------------+
+|                                                     4.71238898038469 |
++----------------------------------------------------------------------+
+```
 
 ```sql
-select ST_Angle_Sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219);
+SELECT ST_Angle(ST_Point(0, 0),ST_Point(1, 0),ST_Point(0, 1));
+```
+
+The clockwise angle from the first line to the second line is 0.78 radians.
+
+```text
++----------------------------------------------------------------------+
+| st_angle(st_point(0.0, 0.0), st_point(1.0, 0.0), st_point(0.0, 1.0)) |
++----------------------------------------------------------------------+
+|                                                  0.78547432161873854 |
++----------------------------------------------------------------------+
+```
+
+```sql
+SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(1, 0));
+```
+
+The two lines overlap, so the clockwise angle is 0.
+
+```text
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(1.0, 0.0)) |
++----------------------------------------------------------------------+
+|                                                                    0 |
++----------------------------------------------------------------------+
+```
+
+point2 and point3 are the same, returns NULL.
+
+```sql
+SELECT ST_Angle(ST_Point(1, 0),ST_Point(0, 0),ST_Point(0, 0));
 ```
 
 ```text
-+---------------------------------------------------------------------------+
-| st_angle_sphere(116.35620117, 39.939093, 116.4274406433, 39.9020987219) |
-+---------------------------------------------------------------------------+
-|                                                        0.0659823452409903 |
-+---------------------------------------------------------------------------+
++----------------------------------------------------------------------+
+| st_angle(st_point(1.0, 0.0), st_point(0.0, 0.0), st_point(0.0, 0.0)) |
++----------------------------------------------------------------------+
+|                                                                 NULL |
++----------------------------------------------------------------------+
 ```
 
-Two points on the equator with a 45° longitude difference
+The two lines are antipodal in direction, returns NULL.
 
 ```sql
-select ST_Angle_Sphere(0, 0, 45, 0);
+SELECT ST_Angle(ST_Point(0, 0),ST_Point(-30, 0),ST_Point(150, 0));
 ```
 
 ```text
-+----------------------------------------+
-| st_angle_sphere(0.0, 0.0, 45.0, 0.0) |
-+----------------------------------------+
-|                                     45 |
-+----------------------------------------+
++--------------------------------------------------------------------------+
+| st_angle(st_point(0.0, 0.0), st_point(-30.0, 0.0), st_point(150.0, 0.0)) |
++--------------------------------------------------------------------------+
+|                                                                     NULL |
++--------------------------------------------------------------------------+
 ```
 
-Two points with identical coordinates
+If any point is NULL, returns NULL.
+
+```sql
+mysql> SELECT ST_Angle(NULL,ST_Point(-30, 0),ST_Point(-150, 0)) ;
++---------------------------------------------------+
+| ST_Angle(NULL,ST_Point(-30, 0),ST_Point(-150, 0)) |
++---------------------------------------------------+
+|                                              NULL |
++---------------------------------------------------+
+```
+
+If any coordinate exceeds the specified range, returns NULL.
 
 ```sql
 
-mysql> SELECT ST_ANGLE_SPHERE(30, 60, 30, 60);
-+---------------------------------+
-| ST_ANGLE_SPHERE(30, 60, 30, 60) |
-+---------------------------------+
-|                               0 |
-+---------------------------------+
+mysql> SELECT ST_Angle(ST_Point(0, 0),ST_Point(-30, 0),ST_Point(180, 91));
++-------------------------------------------------------------+
+| ST_Angle(ST_Point(0, 0),ST_Point(-30, 0),ST_Point(180, 91)) |
++-------------------------------------------------------------+
+|                                                        NULL |
++-------------------------------------------------------------+
 
 ```
 
-Antipodal points (diametrically opposite)
+If any coordinate is NULL, returns NULL.
 
 ```sql
-mysql> SELECT ST_ANGLE_SPHERE(0, 0, 180, 0);
-+-------------------------------+
-| ST_ANGLE_SPHERE(0, 0, 180, 0) |
-+-------------------------------+
-|                           180 |
-+-------------------------------+
-```
-
-Two points across east-west longitudes (e.g., 170°E and -170°W)
-
-```sql
-mysql> SELECT ST_ANGLE_SPHERE(170, 30, -170, 30);
-+------------------------------------+
-| ST_ANGLE_SPHERE(170, 30, -170, 30) |
-+------------------------------------+
-|                 17.298330210575152 |
-+------------------------------------+
-```
-
-Two points across the equator (north and south latitudes)
-
-```sql
-mysql> SELECT ST_ANGLE_SPHERE(0, 45, 0, -45);
-+--------------------------------+
-| ST_ANGLE_SPHERE(0, 45, 0, -45) |
-+--------------------------------+
-|              89.99999999999999 |
-+--------------------------------+
-```
-
-Invalid longitude (out of range)
-
-```sql
-mysql> SELECT ST_ANGLE_SPHERE(190, 30, 10, 30);
-+----------------------------------+
-| ST_ANGLE_SPHERE(190, 30, 10, 30) |
-+----------------------------------+
-|                             NULL |
-+----------------------------------+
-```
-
-Any parameter is NULL
-
-```sql
-mysql> SELECT ST_ANGLE_SPHERE(NULL, 30, 10, 30);
-+-----------------------------------+
-| ST_ANGLE_SPHERE(NULL, 30, 10, 30) |
-+-----------------------------------+
-|                              NULL |
-+-----------------------------------+
-```
-
-Latitude out of range (e.g., 91°N)
-
-```sql
-mysql> SELECT ST_ANGLE_SPHERE(0, 0, 180, 91);
-+--------------------------------+
-| ST_ANGLE_SPHERE(0, 0, 180, 91) |
-+--------------------------------+
-|                           NULL |
-+--------------------------------+
+mysql> SELECT ST_Angle(NULL,ST_Point(-30, 0),ST_Point(150, 90));
++---------------------------------------------------+
+| ST_Angle(NULL,ST_Point(-30, 0),ST_Point(150, 90)) |
++---------------------------------------------------+
+|                                              NULL |
++---------------------------------------------------+
 ```
