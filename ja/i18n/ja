@@ -1,75 +1,87 @@
 ---
 {
-  "title": "MILLISECONDS_ADD",
+  "title": "MILLISECONDS_DIFF",
   "language": "en",
-  "description": "The MILLISECONDSADD function adds a specified number of milliseconds to the input datetime value and returns the resulting new datetime value."
+  "description": "The MILLISECONDSDIFF function calculates the difference in milliseconds between two datetime values."
 }
 ---
 
 ## Description
 
-The `MILLISECONDS_ADD` function adds a specified number of milliseconds to the input datetime value and returns the resulting new datetime value. This function supports processing `DATETIME` types with millisecond precision.
+The `MILLISECONDS_DIFF` function calculates the difference in milliseconds between two datetime values. The result is the number of milliseconds obtained by subtracting the start time from the end time. This function supports processing `DATETIME` types.
 
 ## Syntax
 
 ```sql
-MILLISECONDS_ADD(`<datetime>`, `<delta>`)
+MILLISECONDS_DIFF(`<date_or_time_expr1>`, `<date_or_time_expr2>`)
 ```
 
 ## Parameters
 
-| Parameter    | Description                                                                                                                                                                                                                                           |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<datetime>` | The input datetime value. Supports the `DATETIME` type. For specific datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion). |
-| `<delta>`    | The number of milliseconds to add, of type `BIGINT`. 1 second = 1,000 milliseconds = 1,000,000 microseconds.                                                                                                          |
+| Parameter              | Description                                                                                                                                                                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr1>` | The end time, of type `DATETIME`. For specific datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion). |
+| `<date_or_time_expr2>` | The start time, of type `DATETIME`. For specific datetime formats, see [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion)                |
 
 ## Return Value
 
-Returns a value of type `DATETIME`, representing the result of adding the specified milliseconds to the base time.
+Returns an `INT` type value, representing the difference in milliseconds between the two times.
 
-- If `<delta>` is negative, the function behaves the same as subtracting the corresponding milliseconds from the base time (i.e., `MILLISECONDS_ADD(basetime, -n)` is equivalent to `MILLISECONDS_SUB(basetime, n)`).
+- If `<date_or_time_expr1>` is later than `<date_or_time_expr2>`, the result is positive.
+- If `<date_or_time_expr1>` is earlier than `<date_or_time_expr2>`, the result is negative.
+- If the two times are identical (including the millisecond part), the result is 0.
 - If the input is of `DATE` type (only includes year, month, and day), the default time part is set to `00:00:00.000`.
-- If the calculation result exceeds the valid range of the `DATETIME` type (`0000-01-01 00:00:00` to `9999-12-31 23:59:59.999999`), an exception is thrown.
+- If the input time includes microseconds (e.g., `'2023-01-01 00:00:00.123456'`), it is automatically truncated to millisecond precision for calculation (e.g., `123 milliseconds`).
 - If any parameter is `NULL`, the function returns `NULL`.
 
 ## Examples
 
 ```sql
--- Add one millisecond
-SELECT MILLISECONDS_ADD('2023-09-08 16:02:08.435123', 1);
+-- Calculate millisecond difference
+SELECT MILLISECONDS_DIFF('2020-12-25 21:00:00.623000', '2020-12-25 21:00:00.123000');
++-------------------------------------------------------------------------------+
+| MILLISECONDS_DIFF('2020-12-25 21:00:00.623000', '2020-12-25 21:00:00.123000') |
++-------------------------------------------------------------------------------+
+|                                                                           500 |
++-------------------------------------------------------------------------------+
 
-+---------------------------------------------------+
-| MILLISECONDS_ADD('2023-09-08 16:02:08.435123', 1) |
-+---------------------------------------------------+
-| 2023-09-08 16:02:08.436123                        |
-+---------------------------------------------------+
+-- End time is earlier than start time, returns negative value
+SELECT MILLISECONDS_DIFF('2023-10-01 12:00:00.500', '2023-10-01 12:00:00.800');
++-------------------------------------------------------------------------+
+| MILLISECONDS_DIFF('2023-10-01 12:00:00.500', '2023-10-01 12:00:00.800') |
++-------------------------------------------------------------------------+
+|                                                                    -300 |
++-------------------------------------------------------------------------+
 
--- Negative milliseconds, subtracts the corresponding milliseconds from the datetime
-SELECT MILLISECONDS_ADD('2023-05-01 10:00:00.800', -300);
-+---------------------------------------------------+
-| MILLISECONDS_ADD('2023-05-01 10:00:00.800', -300) |
-+---------------------------------------------------+
-| 2023-05-01 10:00:00.500000                        |
-+---------------------------------------------------+
+-- Input includes microseconds (automatically truncated to milliseconds)
+SELECT MILLISECONDS_DIFF('2023-01-01 00:00:00.123456', '2023-01-01 00:00:00.000123');
++-------------------------------------------------------------------------------+
+| MILLISECONDS_DIFF('2023-01-01 00:00:00.123456', '2023-01-01 00:00:00.000123') |
++-------------------------------------------------------------------------------+
+|                                                                           123 |
++-------------------------------------------------------------------------------+
 
 -- Input is of DATE type (default time is 00:00:00.000)
-SELECT MILLISECONDS_ADD('2023-01-01', 1500);
-+--------------------------------------+
-| MILLISECONDS_ADD('2023-01-01', 1500) |
-+--------------------------------------+
-| 2023-01-01 00:00:01.500000           |
-+--------------------------------------+
-
--- Calculation result exceeds the datetime range, throws an exception
-SELECT MILLISECONDS_ADD('9999-12-31 23:59:59.999', 2000) AS after_add;
-ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation milliseconds_add of 9999-12-31 23:59:59.999000, 2000 out of range
+SELECT MILLISECONDS_DIFF('2023-10-02', '2023-10-01');
++-----------------------------------------------+
+| MILLISECONDS_DIFF('2023-10-02', '2023-10-01') |
++-----------------------------------------------+
+|                                      86400000 |
++-----------------------------------------------+
 
 -- Any parameter is NULL, returns NULL
-SELECT MILLISECONDS_ADD('2023-10-01 12:00:00.500', NULL) AS after_add;
-+-----------+
-| after_add |
-+-----------+
-| NULL      |
-+-----------+
+SELECT MILLISECONDS_DIFF('2023-01-01 00:00:00', NULL), MILLISECONDS_DIFF(NULL, '2023-01-01 00:00:00');
++------------------------------------------------+------------------------------------------------+
+| milliseconds_diff('2023-01-01 00:00:00', NULL) | milliseconds_diff(NULL, '2023-01-01 00:00:00') |
++------------------------------------------------+------------------------------------------------+
+| NULL                                           | NULL                                           |
++------------------------------------------------+------------------------------------------------+
 
+-- Times are identical, returns 0
+SELECT MILLISECONDS_DIFF('2025-08-11 15:30:00.123', '2025-08-11 15:30:00.123');
++-------------------------------------------------------------------------+
+| MILLISECONDS_DIFF('2025-08-11 15:30:00.123', '2025-08-11 15:30:00.123') |
++-------------------------------------------------------------------------+
+|                                                                       0 |
++-------------------------------------------------------------------------+
 ```
