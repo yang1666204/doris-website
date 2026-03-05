@@ -1,49 +1,60 @@
 ---
 {
-  "title": "TIME | Date Time",
+  "title": "IPV4",
   "language": "en",
-  "description": "The TIME(p) type stores time, where p is the precision, with the range of values for p being [0, 6], and the default value is 0. That is,",
-  "sidebar_label": "TIME"
+  "description": "IPv4 type, stored in the form of UInt32 in 4 bytes, used to represent IPv4 addresses. The range of values is ['0.0.0.0', '255.255.255.255']."
 }
 ---
 
-# TIME
+## IPV4
 
-## Description
+### description
 
-The TIME(p) type stores time, where p is the precision, with the range of values for p being `[0, 6]`, and the default value is 0. That is, TIME is equivalent to TIME(0).
+IPv4 type, stored in the form of UInt32 in 4 bytes, used to represent IPv4 addresses.
+The range of values is ['0.0.0.0', '255.255.255.255'].
 
-The range is `[-838:59:59.999..., 838:59:59.999...]`, and the default output format is 'HH:mm:ss.SSS...' There are a total of p digits after the decimal point. For example, the range of TIME(6) is `[-838:59:59.999999, 838:59:59.999999]`。
+`Inputs that exceed the value range or have invalid format will return NULL`
 
-The TIME type only appears as an intermediate calculation value, can be input and output, but **does not** support being stored as a column in OLAP tables.
+### example
 
-How to convert other types to TIME, and the input accepted during conversion, see [Cast to TIME](../conversion/time-conversion.md).
+Create table example:
 
-Date and time types do not support direct use of mathematical operators for arithmetic operations. The essence of performing mathematical operations is to first implicitly convert the date and time types to numeric types, and then perform the operation.
-
-## Examples
-
-```sql
-select cast('-123:00:02.9' as time);
+```
+CREATE TABLE ipv4_test (
+  `id` int,
+  `ip_v4` ipv4
+) ENGINE=OLAP
+DISTRIBUTED BY HASH(`id`) BUCKETS 4
+PROPERTIES (
+"replication_allocation" = "tag.location.default: 1"
+);
 ```
 
-```text
-+------------------------------+
-| cast('-123:00:02.9' as time) |
-+------------------------------+
-| -123:00:03                   |
-+------------------------------+
+Insert data example:
+
+```
+insert into ipv4_test values(1, '0.0.0.0');
+insert into ipv4_test values(2, '127.0.0.1');
+insert into ipv4_test values(3, '59.50.185.152');
+insert into ipv4_test values(4, '255.255.255.255');
+insert into ipv4_test values(5, '255.255.255.256'); // invalid data
 ```
 
-```sql
-select cast('838:59:59.999999' as time(6));
+Select data example:
+
+```
+mysql> select * from ipv4_test order by id;
++------+-----------------+
+| id   | ip_v4           |
++------+-----------------+
+|    1 | 0.0.0.0         |
+|    2 | 127.0.0.1       |
+|    3 | 59.50.185.152   |
+|    4 | 255.255.255.255 |
+|    5 | NULL            |
++------+-----------------+
 ```
 
-```text
-+-------------------------------------+
-| cast('838:59:59.999999' as time(6)) |
-+-------------------------------------+
-| 838:59:59.999999                    |
-+-------------------------------------+
-```
+### keywords
 
+IPV4
