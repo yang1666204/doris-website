@@ -1,21 +1,21 @@
 ---
 {
-  "title": "TO_IPV6_OR_NULL",
+  "title": "TO_IPV6",
   "language": "en",
-  "description": "Takes the string form of an IPv6 address and returns a value of IPv6 type. For invalid input or NULL input, returns NULL."
+  "description": "Takes the string form of an IPv6 address and returns a value of IPv6 type."
 }
 ---
 
-## to_ipv6_or_null
+## to_ipv6
 
 ## Description
 
-Takes the string form of an IPv6 address and returns a value of IPv6 type. For invalid input or NULL input, returns NULL.
+Takes the string form of an IPv6 address and returns a value of IPv6 type. The binary form of this value equals the binary form of the return value of the `ipv6_string_to_num` function.
 
 ## Syntax
 
 ```sql
-TO_IPV6_OR_NULL(<ipv6_str>)
+TO_IPV6(<ipv6_str>)
 ```
 
 ### Parameters
@@ -24,24 +24,24 @@ TO_IPV6_OR_NULL(<ipv6_str>)
 
 ### Return Value
 
-Return Type: IPv6 (Nullable)
+Return Type: IPv6
 
 Return Value Meaning:
 
-- Returns IPv6 type value, whose binary form equals the binary form of the return value of the `ipv6_string_to_num` function
-- Returns NULL when input is NULL or invalid IPv6 address
+- Returns IPv6 type value
+- Throws an exception when input is NULL
+- Throws an exception for invalid IPv6 addresses or `NULL` input
 
 ### Usage Notes
 
-- Equivalent to `to_ipv6_or_null` → `IPv6` type, suitable for scenarios where tables are created with `IPv6` columns
-- Does not throw exceptions for invalid input, instead returns NULL
+- Equivalent to `to_ipv6` → `IPv6` type, suitable for scenarios where tables are created with `IPv6` columns
 
 ## Examples
 
 Convert IPv6 text `2001:1b70:a1:610::b102:2` to `IPv6` type.
 
 ```sql
-SELECT to_ipv6_or_null('2001:1b70:a1:610::b102:2') as v6;
+SELECT to_ipv6('2001:1b70:a1:610::b102:2') as v6;
 +-------------------------------+
 | v6                            |
 +-------------------------------+
@@ -49,28 +49,20 @@ SELECT to_ipv6_or_null('2001:1b70:a1:610::b102:2') as v6;
 +-------------------------------+
 ```
 
-Input NULL returns NULL.
+Input NULL throws an exception
 
 ```sql
-SELECT to_ipv6_or_null(NULL) as v6;
-+------+
-| v6   |
-+------+
-| NULL |
-+------+
+SELECT to_ipv6(NULL);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]The arguments of function to_ipv6 must be String, not NULL
 ```
 
-Invalid IPv6 text returns NULL.
+Invalid IPv6 text throws an exception.
 
 ```sql
-SELECT to_ipv6_or_null('not-an-ip') as v6;
-+------+
-| v6   |
-+------+
-| NULL |
-+------+
+SELECT to_ipv6('not-an-ip');
+ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Invalid IPv6 value
 ```
 
 ### Keywords
 
-TO_IPV6_OR_NULL
+TO_IPV6
