@@ -1,22 +1,20 @@
 ---
 {
-  "title": "Hardware Info Action",
+  "title": "Health Action",
   "language": "en",
-  "description": "Hardware Info Action is used to obtain the hardware information of the current FE."
+  "description": "Returns the number of BE nodes currently surviving in the cluster and the number of BE nodes that are down."
 }
 ---
 
-# Hardware Info Action
+# Health Action
 
 ## Request
 
-```
-GET /rest/v1/hardware_info/fe/
-```
+`GET /api/health`
 
 ## Description
 
-Hardware Info Action is used to obtain the hardware information of the current FE.
+Returns the number of BE nodes currently surviving in the cluster and the number of BE nodes that are down.
 
 ## Path parameters
 
@@ -37,25 +35,9 @@ None
 	"msg": "success",
 	"code": 0,
 	"data": {
-		"VersionInfo": {
-			"Git": "git://host/core@5bc28f4c36c20c7b424792df662fc988436e679e",
-			"Version": "trunk",
-			"BuildInfo": "cmy@192.168.1",
-			"BuildTime": "Tuesday, 05 September 2019 11:07:42 CST"
-		},
-		"HardwareInfo": {
-			"NetworkParameter": "...",
-			"Processor": "...",
-			"OS": "...",
-			"Memory": "...",
-			"FileSystem": "...",
-			"NetworkInterface": "...",
-			"Processes": "...",
-			"Disk": "..."
-		}
+		"online_backend_num": 10,
+		"total_backend_num": 10
 	},
 	"count": 0
 }
 ```
-
-- The contents of each value in the `HardwareInfo` field are all hardware information text displayed in html format.
