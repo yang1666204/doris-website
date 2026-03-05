@@ -1,33 +1,54 @@
 ---
 {
-  "title": "Security Overview",
+  "title": "MAP_CONTAINS_KEY",
   "language": "en",
-  "description": "Doris provides the following mechanisms to manage data security:"
+  "description": "Determines whether a given map contains a specific key key"
 }
 ---
 
-Doris provides the following mechanisms to manage data security:
+## Description
 
-**Authentication:** Doris supports both username/password and LDAP authentication methods.
+Determines whether a given `map` contains a specific key `key`
 
-- **Built-in Authentication:** Doris includes a built-in username/password authentication method, allowing customization of password policies.
+## Syntax
 
-- **LDAP Authentication:** Doris can centrally manage user credentials through LDAP services, simplifying access control and enhancing system security.
+```sql
+MAP_CONTAINS_KEY(<map>, <key>)
+```
 
-**Permission Management:** Doris supports role-based access control (RBAC) or can inherit Ranger to achieve centralized permission management.
+## Parameters
 
-- **Role-Based Access Control (RBAC):** Doris can restrict users' access to and operations on database resources based on their roles and permissions.
+- `<map>` [`MAP`](../../../basic-element/sql-data-types/semi-structured/MAP.md) type, the input map content.
+- `<key>` Key type supported by [`MAP`](../../../basic-element/sql-data-types/semi-structured/MAP.md), the key to be searched.
 
-- **Ranger Permission Management:** By integrating with Ranger, Doris enables centralized permission management, allowing administrators to set fine-grained access control policies for different users and groups.
+## Return Value
 
-**Audit and Logging:** Doris can enable audit logs to record all user actions, including logins, queries, data modifications, and more, facilitating post-audit and issue tracking.
+Determines whether a given `map` contains a specific key `key`, returns 1 if it exists, returns 0 if it does not exist.
 
-**Data Encryption and Masking:** Doris supports encryption and masking of data within tables to prevent unauthorized access and data leakage.
+## Examples
 
-**Data Transmission Encryption:** Doris supports SSL encryption protocols to ensure secure data transmission between clients and Doris servers, preventing data from being intercepted or tampered with during transfer.
+```sql
+select map_contains_key(map(null, 1, 2, null), null),map_contains_key(map(1, "100", 0.1, 2), 0.11);
+```
 
-**Fine-Grained Access Control:** Doris allows configuring data row and column access permissions based on rules to control user access at a granular level.
+```text
++-----------------------------------------------+-----------------------------------------------+
+| map_contains_key(map(null, 1, 2, null), null) | map_contains_key(map(1, "100", 0.1, 2), 0.11) |
++-----------------------------------------------+-----------------------------------------------+
+|                                             1 |                                             0 |
++-----------------------------------------------+-----------------------------------------------+
+```
 
-**JAVA-UDF Security:** Doris supports user-defined function functionality, so root administrators need to review the implementation of user UDFs to ensure the operations in the logic are safe and prevent high-risk actions in UDFs, such as data deletion and system disruption.
+> Key comparison in Map uses "null-safe equal" (null and null are considered equal), which is different from
 
-**Third-Party Packages:** When using Doris features like JDBC Catalog or UDFs, administrators must ensure that any third-party packages are from trusted and secure sources. To reduce security risks, it is recommended to use dependencies only from official or reputable community sources.
+```sql
+select map_contains_key(map(null,1), null);
+```
+
+```text
++-------------------------------------+
+| map_contains_key(map(null,1), null) |
++-------------------------------------+
+|                                   1 |
++-------------------------------------+
+```
