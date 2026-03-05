@@ -1,27 +1,10 @@
 ---
 {
     "title": "Using Doris and Iceberg",
-    "language": "en"
+    "language": "en",
+    "description": "As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of a data warehouse with "
 }
-
 ---
-
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-  http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of a data warehouse with the low cost and flexibility of a data lake, helping users more conveniently meet various data processing and analysis needs. It has been increasingly applied in enterprise big data systems.
 
@@ -53,7 +36,7 @@ Users can quickly build an efficient Data Lakehouse solution based on Apache Dor
 
 In the future, Apache Iceberg will serve as one of the native table engines for Apache Doris, providing more comprehensive analysis and management functions for lake-formatted data. Apache Doris will also gradually support more advanced features of Apache Iceberg, including Update/Delete/Merge, sorting during write-back, incremental data reading, metadata management, etc., to jointly build a unified, high-performance, real-time data lake platform.
 
-For more information, please refer to [Iceberg Catalog](../../../lakehouse/datalake-analytics/iceberg)
+For more information, please refer to [Iceberg Catalog](../catalogs/iceberg-catalog.mdx)
 
 ## User Guide
 
