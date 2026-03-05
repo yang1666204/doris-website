@@ -1,22 +1,20 @@
 ---
 {
-  "title": "Meta Replay State Action",
+  "title": "Metrics Action",
   "language": "en",
-  "description": "(Not Implemented)"
+  "description": "Used to obtain doris metrics infomation."
 }
 ---
 
-# Meta Replay State Action
-
-(Not Implemented)
+# Metrics Action
 
 ## Request
 
-`GET /api/_meta_replay_state`
+`GET /api/metrics`
 
 ## Description
 
-Get the status of FE node metadata replay.
+Used to obtain doris metrics infomation.
 
 ## Path parameters
 
@@ -24,7 +22,12 @@ None
 
 ## Query parameters
 
-None
+- `type`
+
+  Optional parameter. Display all metrics by default, and with following values:
+
+  - `core` Output core metrics
+  - `json` Output metrics in json format
 
 ## Request body
 
@@ -32,12 +35,4 @@ None
 
 ## Response
 
-TODO
-
-## Examples
-
-TODO
-
-
-
-
+TO DO
