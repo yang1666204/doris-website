@@ -1,8 +1,8 @@
 ---
 {
-  "title": "EVEN",
+  "title": "GCD",
   "language": "en",
-  "description": "Round to next even number by rounding away from zero."
+  "description": "Calculates the greatest common divisor (GCD) of two integers."
 }
 ---
 
@@ -27,75 +27,72 @@ under the License.
 
 ## Description
 
-Round to next even number by rounding away from zero.
+Calculates the greatest common divisor (GCD) of two integers.
 
 ## Syntax
 
 ```sql
-EVEN(<a>)
+GCD(<a>, <b>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                            |
-| --------- | ------------------------------------------------------ |
-| `<a>`     | A numeric expression to round to the next even integer |
+| Parameter | Description        |
+| --------- | ------------------ |
+| `<a>`     | The first integer  |
+| `<b>`     | The second integer |
 
 ## Return Value
 
-Returns an even integer based on the following rules:
-
-- If x > 0, round up to the closest even number.
-- If x < 0, round down to the closest even number.
-- If x is already an even number, return it directly.
-- If x is NULL, returns NULL.
+Returns the greatest common divisor of `<a>` and `<b>`.
+If any input is NULL, returns NULL.
 
 ## Examples
 
 ```sql
-select even(2.9);
-```
-
-```text
-+----------+
-| even(2.9) |
-+----------+
-|        4 |
-+----------+
-```
-
-```sql
-select even(-2.9);
-```
-
-```text
-+-----------+
-| even(-2.9) |
-+-----------+
-|       -4  |
-+-----------+
-```
-
-```sql
-select even(4);
-```
-
-```text
-+--------+
-| even(4) |
-+--------+
-|      4 |
-+--------+
-```
-
-```sql
-select even(NULL);
+select gcd(54, 24);
 ```
 
 ```text
 +------------+
-| even(NULL) |
+| gcd(54,24) |
 +------------+
-|       NULL |
+|          6 |
 +------------+
+```
+
+```sql
+select gcd(-17, 31);
+```
+
+```text
++-------------+
+| gcd(17,31)  |
++-------------+
+|           1 |
++-------------+
+```
+
+```sql
+select gcd(0, 10);
+```
+
+```text
++-----------+
+| gcd(0,10) |
++-----------+
+|        10 |
++-----------+
+```
+
+```sql
+select gcd(54, NULL);
+```
+
+```text
++---------------+
+| gcd(54, NULL) |
++---------------+
+|          NULL |
++---------------+
 ```
