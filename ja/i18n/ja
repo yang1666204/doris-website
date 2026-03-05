@@ -1,19 +1,19 @@
 ---
 {
-  "title": "GROUP_BIT_OR",
+  "title": "GROUP_BIT_XOR",
   "language": "en",
-  "description": "Performs a bitwise OR operation on all values in a single integer column or expression."
+  "description": "Performs a bitwise XOR operation on all values in a single integer column or expression."
 }
 ---
 
 ## Description
 
-Performs a bitwise OR operation on all values in a single integer column or expression.
+Performs a bitwise XOR operation on all values in a single integer column or expression.
 
 ## Syntax
 
 ```sql
-GROUP_BIT_OR(<expr>)
+GROUP_BIT_XOR(<expr>)
 ```
 
 ## Parameters
@@ -44,25 +44,25 @@ insert into group_bit values
 ```
 
 ```sql
-select group_bit_or(value) from group_bit;
+select group_bit_xor(value) from group_bit;
 ```
 
 ```text
-+---------------------+
-| group_bit_or(value) |
-+---------------------+
-|                   7 |
-+---------------------+
++----------------------+
+| group_bit_xor(value) |
++----------------------+
+|                    4 |
++----------------------+
 ```
 
 ```sql
-select group_bit_or(value) from group_bit where value is null;
+select group_bit_xor(value) from group_bit where value is null;
 ```
 
 ```text
-+---------------------+
-| group_bit_or(value) |
-+---------------------+
-|                NULL |
-+---------------------+
++----------------------+
+| group_bit_xor(value) |
++----------------------+
+|                 NULL |
++----------------------+
 ```
