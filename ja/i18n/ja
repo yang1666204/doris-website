@@ -1,89 +1,90 @@
 ---
 {
-  "title": "IPV6_CIDR_TO_RANGE",
+  "title": "IPV6_STRING_TO_NUM_OR_DEFAULT",
   "language": "en",
-  "description": "Calculates the minimum and maximum IPv6 addresses for a network segment based on an IPv6 address and CIDR prefix length,"
+  "description": "The reverse function of IPv6NumToString, it accepts an IP address string and returns the IPv6 address in binary format."
 }
 ---
 
-## ipv6_cidr_to_range
+## ipv6_string_to_num_or_default
 
 ## Description
 
-Calculates the minimum and maximum IPv6 addresses for a network segment based on an IPv6 address and CIDR prefix length, returning a struct containing two IPv6 addresses.
+The reverse function of IPv6NumToString, it accepts an IP address string and returns the IPv6 address in binary format.
 
 ## Syntax
 
 ```sql
-IPV6_CIDR_TO_RANGE(<ipv6_address>, <cidr_prefix>)
+IPV6_STRING_TO_NUM_OR_DEFAULT(<ipv6_string>)
 ```
 
 ### Parameters
 
-- `<ipv6_address>`: IPv6 type address or IPv6 string
-- `<cidr_prefix>`: CIDR prefix length (SMALLINT type, range 0-128)
+- `<ipv6_string>`: String type IPv6 address
 
 ### Return Value
 
-Return Type: STRUCT<min: IPv6, max: IPv6>
+Return Type: VARCHAR (16-byte binary)
 
 Return Value Meaning:
 
-- Returns a struct containing two fields:
-  - `min`: Minimum IPv6 address of the network segment
-  - `max`: Maximum IPv6 address of the network segment
+- Returns the 16-byte binary encoding of IPv6
+- Returns 16-byte binary of all zeros when input is NULL
+- Returns 16-byte binary of all zeros for invalid IP addresses (no exception thrown)
+- If input is valid IPv4 text, returns equivalent IPv6 address (`::ffff:<ipv4>`)
 
 ### Usage Notes
 
-- CIDR prefix length must be within the range 0-128
-- Supports both IPv6 type and string type input
-- Calculation is based on network mask, setting all host bits to zero for minimum address and all host bits to one for maximum address
-- Supports various combinations of constant parameters and column parameters
+- This function does not throw exceptions, invalid input uniformly returns 16-byte binary of all zeros
+- Supports IPv6 text abbreviation; IPv4 text will be mapped to IPv6 representation
+- Suitable for fault-tolerant batch conversion
 
 ## Examples
 
-Calculate address range for /64 network segment.
+Convert IPv6 text `1111::ffff` to 16-byte binary (displayed in hex).
 
 ```sql
-SELECT ipv6_cidr_to_range(INET6_ATON('2001:db8::1'), 64) as range;
-+----------------------------------------+
-| range                                  |
-+----------------------------------------+
-| {"min": "2001:db8::", "max": "2001:db8::ffff:ffff:ffff:ffff"} |
-+----------------------------------------+
+select hex(ipv6_string_to_num_or_default('1111::ffff')) as v6;
++----------------------------------+
+| v6                               |
++----------------------------------+
+| 1111000000000000000000000000FFFF |
++----------------------------------+
 ```
 
-Calculate address range for /48 network segment.
+IPv4 text is automatically mapped to IPv6 (`::ffff:<ipv4>`), then returned as 16-byte binary.
 
 ```sql
-SELECT ipv6_cidr_to_range(INET6_ATON('2001:db8:1::1'), 48) as range;
-+----------------------------------------+
-| range                                  |
-+----------------------------------------+
-| {"min": "2001:db8:1::", "max": "2001:db8:1:ffff:ffff:ffff:ffff"} |
-+----------------------------------------+
+select hex(ipv6_string_to_num_or_default('192.168.0.1')) as mapped;
++----------------------------------+
+| mapped                           |
++----------------------------------+
+| 00000000000000000000FFFFC0A80001 |
++----------------------------------+
 ```
 
-Access specific fields in the struct.
+Parameter as NULL returns 16-byte binary of all zeros
 
 ```sql
-SELECT 
-  ipv6_cidr_to_range(INET6_ATON('2001:db8::1'), 64).min as min_ip,
-  ipv6_cidr_to_range(INET6_ATON('2001:db8::1'), 64).max as max_ip;
-+-------------+----------------------------------+
-| min_ip      | max_ip                           |
-+-------------+----------------------------------+
-| 2001:db8::  | 2001:db8::ffff:ffff:ffff:ffff   |
-+-------------+----------------------------------+
+select hex(ipv6_string_to_num_or_default(NULL)) as null_result;
++----------------------------------+
+| null_result                      |
++----------------------------------+
+| 00000000000000000000000000000000 |
++----------------------------------+
 ```
 
-CIDR prefix out of range throws an exception.
+Invalid input returns 16-byte binary of all zeros (no exception thrown).
 
 ```sql
-SELECT ipv6_cidr_to_range(INET6_ATON('2001:db8::1'), 129);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Illegal cidr value '129'
+select hex(ipv6_string_to_num_or_default('notaaddress')) as invalid;
++----------------------------------+
+| invalid                          |
++----------------------------------+
+| 00000000000000000000000000000000 |
++----------------------------------+
 ```
 
 ### Keywords
 
-IPV6_CIDR_TO_RANGE
+IPV6_STRING_TO_NUM_OR_DEFAULT
