@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_MAP",
+  "title": "ARRAY_MAX",
   "language": "en",
-  "description": "Applies a lambda expression to elements in an array and returns a new array."
+  "description": "Calculates the maximum value in an array. The function iterates through all elements in the array, finds the maximum value and returns it."
 }
 ---
 
-## array_map
+## array_max
 
 <version since="2.0.0">
 
@@ -14,18 +14,17 @@
 
 ## Description
 
-Applies a lambda expression to elements in an array and returns a new array. The function applies the lambda expression to each element in the array and returns the corresponding result.
+Calculates the maximum value in an array. The function iterates through all elements in the array, finds the maximum value and returns it.
 
 ## Syntax
 
 ```sql
-array_map(lambda, ARRAY<T> arr1, [ARRAY<T> arr2, ...])
+array_max(ARRAY<T> arr)
 ```
 
 ### Parameters
 
-- `lambda`：lambda expression used to define transformation rules
-- `arr1, arr2, ...`：ARRAY<T> type, arrays to be transformed. Supports one or more array parameters.
+- `arr`：ARRAY<T> type, the array for which to calculate the maximum value.
 
 **Supported types for T:**
 
@@ -34,132 +33,145 @@ array_map(lambda, ARRAY<T> arr1, [ARRAY<T> arr2, ...])
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
-- Complex types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
-Return type: ARRAY<R>
+Return type: T
 
 Return value meaning:
 
-- Returns a new array with the same length as the input array, where each position contains the result of applying the lambda expression to the corresponding element
+- Returns the maximum value in the array
+- NULL: if the array is empty, or if all elements are null
 
 Usage notes:
 
-- The number of parameters in the lambda expression must match the number of array parameters
-- Does not support NULL for input array parameters
-- When there are multiple array parameters, all arrays must have the same length
-- Lambda can use any scalar expression, but cannot use aggregate functions
-- Lambda expressions can call other higher-order functions, but the return types must be compatible
-- For null values in array elements: null elements will be passed to the lambda expression for processing, and lambda can check for null values
+- Determines the element to return by comparing elements in the array, supports comparing elements of the same data type
+- If the array is NULL, it will return a type conversion error
+- For null values in array elements: null elements are not included in comparison
 
 **Query Examples:**
 
-Square each element in the array:
+Calculate the maximum value of a floating-point array:
 
 ```sql
-SELECT array_map(x -> x * x, [1, 2, 3, 4, 5]);
-+------------------------------------------+
-| array_map(x -> x * x, [1, 2, 3, 4, 5]) |
-+------------------------------------------+
-| [1, 4, 9, 16, 25]                       |
-+------------------------------------------+
+SELECT array_max([5.5, 2.2, 8.8, 1.1, 9.9, 3.3]);
++-------------------------------------------+
+| array_max([5.5, 2.2, 8.8, 1.1, 9.9, 3.3]) |
++-------------------------------------------+
+|                                       9.9 |
++-------------------------------------------+
 ```
 
-Round each element in a floating-point array:
+Calculate the maximum value of a string array (lexicographically):
 
 ```sql
-SELECT array_map(x -> round(x), [1.1, 2.7, 3.3, 4.9, 5.5]);
-+--------------------------------------------------+
-| array_map(x -> round(x), [1.1, 2.7, 3.3, 4.9, 5.5]) |
-+--------------------------------------------------+
-| [1, 3, 3, 5, 6]                                 |
-+--------------------------------------------------+
+SELECT array_max(['zebra', 'appleeee', 'banana', 'cherry']);
++------------------------------------------------------+
+| array_max(['zebra', 'appleeee', 'banana', 'cherry']) |
++------------------------------------------------------+
+| zebra                                                |
++------------------------------------------------------+
 ```
 
-Calculate the length of each element in a string array:
+Calculate the maximum value of an array containing null values:
 
 ```sql
-SELECT array_map(x -> length(x), ['a', 'bb', 'ccc', 'dddd', 'eeeee']);
-+--------------------------------------------------+
-| array_map(x -> length(x), ['a', 'bb', 'ccc', 'dddd', 'eeeee']) |
-+--------------------------------------------------+
-| [1, 2, 3, 4, 5]                                 |
-+--------------------------------------------------+
+SELECT array_max([5, null, 2, null, 8, 1]);
++-------------------------------------+
+| array_max([5, null, 2, null, 8, 1]) |
++-------------------------------------+
+|                                   8 |
++-------------------------------------+
 ```
 
-Process an array containing null values:
+Empty array returns NULL:
 
 ```sql
-SELECT array_map(x -> x is not null, [1, null, 3, null, 5]);
-+--------------------------------------------------+
-| array_map(x -> x is not null, [1, null, 3, null, 5]) |
-+--------------------------------------------------+
-| [1, 0, 1, 0, 1]                                 |
-+--------------------------------------------------+
+SELECT array_max([]);
++------------------+
+| array_max([])    |
++------------------+
+| NULL             |
++------------------+
 ```
 
-NULL can not apply to array_map, will meet error:
-
-```
-mysql> SELECT array_map(x->x>2, NULL);
-ERROR 1105 (HY000): errCode = 2, detailMessage = lambda argument must be array but is NULL
-```
-
-Multiple array parameters example, adding corresponding elements from two arrays:
+Array with all null elements returns NULL:
 
 ```sql
-SELECT array_map((x, y) -> x + y, [1, 2, 3, 4, 5], [10, 20, 30, 40, 50]);
-+--------------------------------------------------+
-| array_map((x, y) -> x + y, [1, 2, 3, 4, 5], [10, 20, 30, 40, 50]) |
-+--------------------------------------------------+
-| [11, 22, 33, 44, 55]                             |
-+--------------------------------------------------+
+SELECT array_max([null, null, null]);
++----------------------------------+
+| array_max([null, null, null])    |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
 
-Nested array processing, calculating the length of each sub-array:
+Maximum value of a date array:
 
 ```sql
-SELECT array_map(x -> size(x), [[1,2],[3,4,5],[6],[7,8,9,10]]);
-+--------------------------------------------------+
-| array_map(x -> size(x), [[1,2],[3,4,5],[6],[7,8,9,10]]) |
-+--------------------------------------------------+
-| [2, 3, 1, 4]                                     |
-+--------------------------------------------------+
+SELECT array_max(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>));
++--------------------------------------------------------------------------------+
+| array_max(cast(['2023-01-01', '2022-12-31', '2023-06-15'] as array<datetime>)) |
++--------------------------------------------------------------------------------+
+| 2023-06-15 00:00:00                                                            |
++--------------------------------------------------------------------------------+
 ```
 
-Map type processing, extracting the value with key 'a' from each map:
+Maximum value of an IP address array:
 
 ```sql
-SELECT array_map(x -> x['a'], [{'a':1,'b':2}, {'a':3,'b':4}, {'a':5,'b':6}]);
-+--------------------------------------------------+
-| array_map(x -> x['a'], [{'a':1,'b':2}, {'a':3,'b':4}, {'a':5,'b':6}]) |
-+--------------------------------------------------+
-| [1, 3, 5]                                        |
-+--------------------------------------------------+
+SELECT array_max(CAST(['192.168.1.100', '192.168.1.1', '192.168.1.50'] AS ARRAY<IPV4>));
++----------------------------------------------------------------------------------+
+| array_max(CAST(['192.168.1.100', '192.168.1.1', '192.168.1.50'] AS ARRAY<IPV4>)) |
++----------------------------------------------------------------------------------+
+| 192.168.1.100                                                                    |
++----------------------------------------------------------------------------------+
+
+SELECT array_max(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>));
++-------------------------------------------------------------------------------+
+| array_max(CAST(['2001:db8::1', '2001:db8::2', '2001:db8::0'] AS ARRAY<IPV6>)) |
++-------------------------------------------------------------------------------+
+| 2001:db8::2                                                                   |
++-------------------------------------------------------------------------------+
+```
+
+Complex type examples:
+
+Nested array types are not supported, will error:
+
+```sql
+SELECT array_max([[1,2],[3,4],[5,6]]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = array_max does not support complex types: array_max([[1, 2], [3, 4], [5, 6]])
+```
+
+Map types are not supported, will error:
+
+```sql
+SELECT array_max([{'k':1},{'k':2},{'k':3}]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = array_max does not support complex types: array_max([map('k', 1), map('k', 2), map('k', 3)])
 ```
 
 Error when parameter count is wrong:
 
 ```sql
-SELECT array_map();
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_map' which has 0 arity. Candidate functions are: [array_map(Expression, Expression...)]
-```
-
-Error when the number of parameters in lambda expression doesn't match the number of array parameters:
-
-```sql
-SELECT array_map(x -> x > 0, [1,2,3], [4,5,6], [7,8,9]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = lambda x -> (x > 0) arguments' size is not equal parameters' size
+SELECT array_max([1,2,3], [4,5,6]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_max' which has 2 arity. Candidate functions are: [array_max(Expression)]
 ```
 
 Error when passing non-array type:
 
 ```sql
-SELECT array_map(x -> x * 2, 'not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_map(Expression, VARCHAR(12))
+SELECT array_max('not_an_array');
+ERROR 1105 (HY000): errCode = 2, detailMessage = class org.apache.doris.nereids.types.VarcharType cannot be cast to class org.apache.doris.nereids.types.ArrayType (org.apache.doris.nereids.types.VarcharType and org.apache.doris.nereids.types.ArrayType are in unnamed module of loader 'app')
+```
+
+Array is NULL, will return type conversion error:
+
+```sql
+mysql> SELECT array_max(NULL);
+ERROR 1105 (HY000): errCode = 2, detailMessage = class org.apache.doris.nereids.types.NullType cannot be cast to class org.apache.doris.nereids.types.ArrayType (org.apache.doris.nereids.types.NullType and org.apache.doris.nereids.types.ArrayType are in unnamed module of loader 'app')
 ```
 
 ### Keywords
 
-ARRAY, MAP, ARRAY_MAP
+ARRAY, MAX, ARRAY_MAX
