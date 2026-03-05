@@ -1,28 +1,10 @@
 ---
 {
     "title": "Insert Into Select",
-    "language": "en"
+    "language": "en",
+    "description": "The INSERT INTO statement supports importing the results of a Doris query into another table. INSERT INTO is a synchronous import method,"
 }
 ---
-
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 The INSERT INTO statement supports importing the results of a Doris query into another table. INSERT INTO is a synchronous import method, where the import result is returned after the import is executed. Whether the import is successful can be determined based on the returned result. INSERT INTO ensures the atomicity of the import task, meaning that either all the data is imported successfully or none of it is imported.
 
@@ -100,9 +82,9 @@ MySQL> SELECT * FROM testdb.test_table2 ORDER BY age;
 3 rows in set (0.02 sec)
 ```
 
-6. You can use [JOB](../../scheduler/job-scheduler.md) make the INSERT operation execute asynchronously.
+6. You can use [JOB](../../../admin-manual/workload-management/job-scheduler) make the INSERT operation execute asynchronously.
 
-7. Sources can be [tvf](../../../lakehouse/file.md) or tables in a [catalog](../../../lakehouse/database).
+7. Sources can be [tvf](../../../lakehouse/file-analysis) or tables in a [catalog](../../../lakehouse/catalog-overview).
 
 ### View INSERT INTO jobs
 
@@ -140,31 +122,19 @@ The SELECT statement above is similar to a regular SELECT query, allowing operat
 
 ### Parameter configuration
 
-**FE** **configuration**
+**FE Config**
 
-insert_load_default_timeout_second
+| Name | Default Value | Description |
+| --- | --- | --- |
+| insert_load_default_timeout_second | 14400s (4 hours) | Timeout for import tasks, in seconds. If the import task does not complete within this timeout period, it will be canceled by the system and marked as `CANCELLED`. |
 
-- Default value: 14400s (4 hours)
-- Description: Timeout for import tasks, measured in seconds. If the import task does not complete within this timeout period, it will be canceled by the system and marked as CANCELLED.
+**Session Variable**
 
-**Environment parameters**
-
-insert_timeout
-
-- Default value: 14400s (4 hours)
-- Description: Timeout for INSERT INTO as an SQL statement, measured in seconds. 
-
-enable_insert_strict
-
-- Default value: true
-- Description: If this is set to true, INSERT INTO will fail when the task involves invalid data. If set to false, INSERT INTO will ignore invalid rows, and the import will be considered successful as long as at least one row is imported successfully.
-- Explanation: Until version 2.1.4. INSERT INTO cannot control the error rate, so this parameter is used to either strictly check data quality or completely ignore invalid data. Common reasons for data invalidity include: source data column length exceeding destination column length, column type mismatch, partition mismatch, and column order mismatch.
-
-insert_max_filter_ratio
-
-- Default value: 1.0
-
-- Description: Since version 2.1.5. Only effective when `enable_insert_strict` is false. Used to control the error tolerance when using `INSERT INTO FROM S3/HDFS/LOCAL()`. The default value is 1.0, which means all errors are tolerated. It can be a decimal between 0 and 1. It means that when the number of error rows exceeds this ratio, the INSERT task will fail.
+| Name | Default Value | Description |
+| --- | --- | --- |
+| insert_timeout | 14400s (4 hours) | Timeout for INSERT INTO as an SQL statement, in seconds. |
+| enable_insert_strict | true | If this is set to true, INSERT INTO will fail when the task involves invalid data. If set to false, INSERT INTO will ignore invalid rows, and the import will be considered successful as long as at least one row is imported successfully. Until version 2.1.4. INSERT INTO cannot control the error rate, so this parameter is used to either strictly check data quality or completely ignore invalid data. Common reasons for data invalidity include: source data column length exceeding destination column length, column type mismatch, partition mismatch, and column order mismatch. |
+| insert_max_filter_ratio | 1.0 | Since version 2.1.5. Only effective when `enable_insert_strict` is false. Used to control the error tolerance when using `INSERT INTO FROM S3/HDFS/LOCAL()`. The default value is 1.0, which means all errors are tolerated. It can be a decimal between 0 and 1. It means that when the number of error rows exceeds this ratio, the INSERT task will fail. |
 
 ### Return values
 
@@ -220,7 +190,7 @@ Parameter description:
 | Status    | Visibility of the imported data: If it is visible, it will be displayed as "visible." If not, it will be displayed as "committed." In the "committed" state, the import is completed, but the data may be delayed in becoming visible. There is no need to retry in this case.`visible`: The import is successful and the data is visible.`committed`: The import is completed, but the data may be delayed in becoming visible. There is no need to retry in this case.Label Already Exists: The specified label already exists and needs to be changed to a different one.Fail: The import fails. |
 | Err       | Error message                                                |
 
-You can use the [SHOW LOAD](../../../sql-manual/sql-statements/Show-Statements/SHOW-LOAD/) statement to view the filtered rows.
+You can use the [SHOW LOAD](../../../sql-manual/sql-statements/data-modification/load-and-export/SHOW-LOAD) statement to view the filtered rows.
 
 ```SQL
 SHOW LOAD WHERE label="xxx";
@@ -230,7 +200,7 @@ The result of this statement will include a URL that can be used to query the er
 
 The invisible state of data is temporary, and the data will eventually become visible. 
 
-You can check the visibility status of a batch of data using the [SHOW TRANSACTION](../../../sql-manual/sql-statements/Show-Statements/SHOW-TRANSACTION/) statement.
+You can check the visibility status of a batch of data using the [SHOW TRANSACTION](../../../sql-manual/sql-statements/transaction/SHOW-TRANSACTION) statement.
 
 ```SQL
 SHOW TRANSACTION WHERE id=4005;
@@ -288,7 +258,7 @@ Doris supports the creation of external tables. Once created, data from external
 
 With its Multi-Catalog feature, Doris supports connections to various mainstream data lakes and databases including Apache Hive, Apache Iceberg, Apache Hudi, Apache Paimon (Incubating), Elasticsearch, MySQL, Oracle, and SQL Server.
 
-For more information on Multi-Catalog, please refer to [Lakehouse overview](../../../lakehouse/lakehouse-overview/#multi-catalog).
+For more information on Multi-Catalog, please refer to [Lakehouse overview](../../../lakehouse/lakehouse-overview).
 
 The followings illustrate importing data from a Hive external table into a Doris internal table.
 
@@ -326,7 +296,7 @@ PROPERTIES (
 );
 ```
 
-2. For detailed instructions on creating Doris tables, please refer to [CREATE TABLE](../../../sql-manual/sql-statements/Data-Definition-Statements/Create/CREATE-TABLE/).
+2. For detailed instructions on creating Doris tables, please refer to [CREATE TABLE](../../../sql-manual/sql-statements/table-and-view/table/CREATE-TABLE).
 
 3. Importing data (from the `hive.db1.source_tbl` table into the `target_tbl` table).
 
@@ -342,7 +312,9 @@ The INSERT command is a synchronous command. If it returns a result, that indica
 
 ## Ingest data by TVF
 
-Doris can directly query and analyze files stored in object storage or HDFS as tables through the Table Value Functions (TVFs), which supports automatic column type inference. For detailed information, please refer to the Lakehouse/TVF documentation.
+Doris can directly query and analyze files stored in object storage or HDFS as tables through the Table Value Functions (TVFs), which supports automatic column type inference. For detailed information, please refer to the [Lakehouse/TVF documentation](../../../lakehouse/file-analysis).
+
+TVF supports wildcards (`*`, `?`, `[...]`) and range patterns (`{1..10}`) in file paths. For complete syntax, see [File Path Pattern](../../../sql-manual/basic-element/file-path-pattern).
 
 ### Automatic column type inference
 
@@ -408,4 +380,4 @@ FROM s3(
 
 ## More help
 
-For more detailed syntax on INSERT INTO, refer to the [INSERT INTO](../../../sql-manual/sql-statements/Data-Manipulation-Statements/Manipulation/INSERT/) command manual. You can also type `HELP INSERT` at the MySQL client command line for further information.
+For more detailed syntax on INSERT INTO, refer to the [INSERT INTO](../../../sql-manual/sql-statements/data-modification/DML/INSERT) command manual. You can also type `HELP INSERT` at the MySQL client command line for further information.
