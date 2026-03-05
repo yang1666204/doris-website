@@ -1,78 +1,78 @@
 ---
 {
-  "title": "ABS",
+  "title": "BIN",
   "language": "en",
-  "description": "Returns the absolute value of x"
+  "description": "Converts decimal numbers to binary text."
 }
 ---
 
 ## Description
 
-Returns the absolute value of `x`
+Converts decimal numbers to binary text.
 
 ## Syntax
 
 ```sql
-ABS(<x>) 
+BIN(<a>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                |
-| --------- | ---------------------------------------------------------- |
-| `<x>`     | The value for which the absolute value is to be calculated |
+| Parameter | Description                                                                     |
+| --------- | ------------------------------------------------------------------------------- |
+| `<a>`     | Decimal value to be converted (type: BigInt) |
 
 ## Return Value
 
-The absolute value of parameter `x`.
-When `x` is NULL, returns NULL.
+The binary representation of the parameter `<a>`. When `<a>` is negative, the result is its 64-bit complement.
+When `a` is NULL, returns NULL.
 
-## Example
+## Examples
 
 ```sql
-select abs(-2);
+select bin(0);
 ```
 
 ```text
-+---------+
-| abs(-2) |
-+---------+
-|       2 |
-+---------+
++--------+
+| bin(0) |
++--------+
+| 0      |
++--------+
 ```
 
 ```sql
-select abs(3.254655654);
+select bin(-1);
 ```
 
 ```text
-+------------------+
-| abs(3.254655654) |
-+------------------+
-|      3.254655654 |
-+------------------+
++------------------------------------------------------------------+
+| bin(-1)                                                          |
++------------------------------------------------------------------+
+| 1111111111111111111111111111111111111111111111111111111111111111 |
++------------------------------------------------------------------+
 ```
 
 ```sql
-select abs(-3254654236547654354654767);
+select bin(123);
 ```
 
 ```text
-+---------------------------------+
-| abs(-3254654236547654354654767) |
-+---------------------------------+
-| 3254654236547654354654767       |
-+---------------------------------+
++----------+
+| bin(123) |
++----------+
+| 1111011  |
++----------+
 ```
 
 ```sql
-select abs(NULL);
+select bin(NULL);
 ```
 
 ```text
 +-----------+
-| abs(NULL) |
+| bin(NULL) |
 +-----------+
-|      NULL |
+| NULL      |
 +-----------+
 ```
