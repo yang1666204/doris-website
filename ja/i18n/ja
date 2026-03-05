@@ -1,78 +1,121 @@
 ---
 {
-  "title": "BIN",
+  "title": "CEIL",
   "language": "en",
-  "description": "Converts decimal numbers to binary text."
+  "description": "Round up floating-point and fixed-point decimals to a specific number of places and return the rounded floating-point or fixed-point number."
 }
 ---
 
 ## Description
 
-Converts decimal numbers to binary text.
+Round up floating-point and fixed-point decimals to a specific number of places and return the rounded floating-point or fixed-point number.
 
 ## Syntax
 
 ```sql
-BIN(<a>)
+CEIL(<a>[, <d>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                     |
-| --------- | ------------------------------------------------------------------------------- |
-| `<a>`     | Decimal value to be converted (type: BigInt) |
+| Parameter | Description                                                                                                                                                                                                                                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<a>`     | Floating-point (Double) or fixed-point (Decimal) parameter indicating the parameter to be rounded                                                                                                                                                                                 |
+| `<d>`     | Optional, integer, indicates rounding to the target number of digits, a positive number means rounding to the next decimal point, a negative number means rounding to the next decimal point, and `0` indicates rounding to an integer. When not filled, it is equivalent to `<d> = 0`. |
 
 ## Return Value
 
-The binary representation of the parameter `<a>`. When `<a>` is negative, the result is its 64-bit complement.
-When `a` is NULL, returns NULL.
+Returns the smallest rounded number greater than or equal to `<a>` according to the following rules.
+
+Round to `1/(10^d)` digit, i.e., make the result divisible by `1/(10^d)`. If `1/(10^d)` is not exact, the rounding digit is the nearest number of the corresponding data type.
+
+For an entry `<a>` of type Decimal, assuming it is of type `Decimal(p, s)`, the return value is:
+
+- `Decimal(p, 0)`，if `<d> <= 0`
+- `Decimal(p, <d>)`，if `0 < <d> <= s`
+- `Decimal(p, s)`，if `<d> > s`
+
+When any input parameter is NULL, returns NULL.
+
+## Alias
+
+- DCEIL
+- CEILING
 
 ## Examples
 
 ```sql
-select bin(0);
+select ceil(123.456);
 ```
 
 ```text
-+--------+
-| bin(0) |
-+--------+
-| 0      |
-+--------+
++---------------+
+| ceil(123.456) |
++---------------+
+|           124 |
++---------------+
 ```
 
 ```sql
-select bin(-1);
+select ceil(123.456, 2);
 ```
 
 ```text
-+------------------------------------------------------------------+
-| bin(-1)                                                          |
-+------------------------------------------------------------------+
-| 1111111111111111111111111111111111111111111111111111111111111111 |
-+------------------------------------------------------------------+
++------------------+
+| ceil(123.456, 2) |
++------------------+
+|           123.46 |
++------------------+
 ```
 
 ```sql
-select bin(123);
+select ceil(123.456, -2);
 ```
 
 ```text
-+----------+
-| bin(123) |
-+----------+
-| 1111011  |
-+----------+
++-------------------+
+| ceil(123.456, -2) |
++-------------------+
+|               200 |
++-------------------+
 ```
 
 ```sql
-select bin(NULL);
+select ceil(123.45, 1), ceil(123.45), ceil(123.45, 0), ceil(123.45, -1);
 ```
 
 ```text
-+-----------+
-| bin(NULL) |
-+-----------+
-| NULL      |
-+-----------+
++-----------------+--------------+-----------------+------------------+
+| ceil(123.45, 1) | ceil(123.45) | ceil(123.45, 0) | ceil(123.45, -1) |
++-----------------+--------------+-----------------+------------------+
+|           123.5 |          124 |             124 |              130 |
++-----------------+--------------+-----------------+------------------+
+```
+
+```sql
+select ceil(x, 2) from ( select cast(123.456 as decimal(6,3)) as x from numbers("number"="5") )t;
+```
+
+```text
++------------+
+| ceil(x, 2) |
++------------+
+|     123.46 |
+|     123.46 |
+|     123.46 |
+|     123.46 |
+|     123.46 |
++------------+
+```
+
+```sql
+select ceil(NULL);
+```
+
+```text
++------------+
+| ceil(NULL) |
++------------+
+|       NULL |
++------------+
 ```
