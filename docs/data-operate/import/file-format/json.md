@@ -1,28 +1,11 @@
 ---
 {
-    "title": "JSON",
-    "language": "en"
+    "title": "JSON | File Format",
+    "language": "en",
+    "description": "This document explains how to load JSON format data files into Doris.",
+    "sidebar_label": "JSON"
 }
 ---
-
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 This document explains how to load JSON format data files into Doris. Doris supports loading standard JSON format data and can flexibly handle different JSON data structures through parameter configuration, supporting field extraction from JSON data and handling nested structures.
 
@@ -33,8 +16,8 @@ The following loading methods support JSON format data:
 - [Stream Load](../import-way/stream-load-manual.md)
 - [Broker Load](../import-way/broker-load-manual.md)
 - [Routine Load](../import-way/routine-load-manual.md)
-- [INSERT INTO FROM S3 TVF](../../sql-manual/sql-functions/table-valued-functions/s3)
-- [INSERT INTO FROM HDFS TVF](../../sql-manual/sql-functions/table-valued-functions/hdfs)
+- [INSERT INTO FROM S3 TVF](../../../sql-manual/sql-functions/table-valued-functions/s3)
+- [INSERT INTO FROM HDFS TVF](../../../sql-manual/sql-functions/table-valued-functions/hdfs)
 
 ## Supported JSON Formats
 
@@ -100,18 +83,22 @@ The following table lists the JSON format parameters supported by various loadin
 
 | Parameter | Default Value | Stream Load | Broker Load | Routine Load | TVF |
 |-----------|--------------|-------------|--------------|--------------|-----|
-| json paths | None | jsonpaths | properties.jsonpaths | properties.jsonpaths | jsonpaths |
-| json root | None | json_root | properties.json_root | properties.json_root | json_root |
-| strip outer array | false | strip_outer_array | properties.strip_outer_array | properties.strip_outer_array | strip_outer_array |
-| read json by line | false | read_json_by_line | Always true | Not supported | read_json_by_line, default true |
-| fuzzy parse | false | fuzzy_parse | properties.fuzzy_parse | Not supported | fuzzy_parse |
-| num as string | false | num_as_string | properties.num_as_string | properties.num_as_string | num_as_string |
+| json paths | None | supported | supported | supported | supported |
+| json root | None | supported | supported | supported | supported |
+| strip outer array | false | supported | supported | supported | supported |
+| read json by line | true | supported | not supported | not supported | supported |
+| fuzzy parse | false | supported | supported | not supported | supported |
+| num as string | false | supported | supported | supported | supported |
+| compression format | plain | supported | supported | not supported | supported |
 
 :::tip Note
 1. Stream Load: Parameters are specified directly through HTTP Headers, e.g., `-H "jsonpaths: $.data"`
 2. Broker Load: Parameters are specified through `PROPERTIES`, e.g., `PROPERTIES("jsonpaths"="$.data")`
 3. Routine Load: Parameters are specified through `PROPERTIES`, e.g., `PROPERTIES("jsonpaths"="$.data")`
 4. TVF: Parameters are specified in TVF statements, e.g., `S3("jsonpaths"="$.data")`
+5. If you need to load the JSON object at the root node of a JSON file, the jsonpaths should be specified as $., e.g., `PROPERTIES("jsonpaths"="$.")`
+6. The default value of read_json_by_line is true, which means if neither strip_outer_array nor read_json_by_line is specified during import, read_json_by_line will be set to true.
+7. "read_json_by_line not configurable" means it is forcibly set to true to enable streaming reading and reduce BE memory usage.
 :::
 
 ### Parameter Description
@@ -451,3 +438,4 @@ FROM S3
     "json_root" = "$.events",
     ...
 );
+
