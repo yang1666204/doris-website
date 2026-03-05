@@ -1,64 +1,101 @@
 ---
 {
-  "title": "WARM UP",
+  "title": "ST_Y",
   "language": "en",
-  "description": "The WARM UP COMPUTE GROUP statement is used to warm up data in a compute group to improve query performance."
+  "description": "Returns the Y coordinate of a valid POINT geometry. In geospatial contexts, the Y coordinate typically corresponds to Latitude, ranging from [-90.0,"
 }
 ---
 
 ## Description
 
-The `WARM UP COMPUTE GROUP` statement is used to warm up data in a compute group to improve query performance. The warm-up operation can fetch resources from another compute group or specify particular tables and partitions for warming up. The warm-up operation returns a job ID that can be used to track the status of the warm-up job.
+Returns the Y coordinate of a valid POINT geometry. In geospatial contexts, the Y coordinate typically corresponds to Latitude, ranging from [-90.0, 90.0] (in degrees).
 
-> For information on how to warmup the cache for Catalog query scenarios, please refer to the [Data Cache documentation](../../../../lakehouse/data-cache.md).
-
-## Syntax
+## Sytax
 
 ```sql
-WARM UP COMPUTE GROUP <destination_compute_group_name> WITH COMPUTE GROUP <source_compute_group_name> FORCE;
-```
-
-```sql
-WARM UP COMPUTE GROUP <destination_compute_group_name> WITH <warm_up_list>;
-```
-
-```sql
-warm_up_list ::= warm_up_item [AND warm_up_item...];
-```
-
-```sql
-warm_up_item ::= TABLE <table_name> [PARTITION <partition_name>];
-
+ST_Y( <point>)
 ```
 
 ## Parameters
 
-| Parameter Name                                                                                | Description                                                                                        |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| destination_compute_group_name | The name of the target compute group to be warmed up.                              |
-| source_compute_group_name      | The name of the source compute group from which resources are obtained.            |
-| warm_up_list                                        | A list of specific items to be warmed up, which can include tables and partitions. |
-| table_name                                                               | The name of the table used for warming up.                                         |
-| partition_name                                                           | The name of the partition used for warming up.                                     |
+| Parameters | Description                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<point>`  | A valid 2D POINT geometry from which to extract the Y coordinate. The Y value (latitude) must be within [-90.0, 90.0], and the X value (longitude) must be within [-180.0, 180.0]. |
 
-## Return Value
+## Retuen value
 
-- JobId:  The ID of the warm-up job.
+The Y coordinate of the input POINT, returned as a DOUBLE PRECISION FLOAT.
+
+Returns the Y coordinate (latitude) for valid POINT inputs.
+Returns NULL for NULL inputs, empty points (POINT EMPTY), 3D points, or invalid points (e.g., latitude outside [-90.0, 90.0]).
 
 ## Examples
 
-1. Warm up the compute group named destination_group_name using the compute group named source_group_name
+Valid  Point
 
 ```sql
-   WARM UP COMPUTE GROUP destination_group_name WITH COMPUTE GROUP source_group_name;
+SELECT ST_Y(ST_Point(24.7, 56.7));
 ```
 
-2. Warm up the tables sales_data and customer_info, and the partition q1_2024 of the table orders using the compute group named destination_group.
+```text
++----------------------------+
+| ST_Y(ST_Point(24.7, 56.7)) |
++----------------------------+
+| 56.7                       |
++----------------------------+
+```
+
+Empty Point (POINT EMPTY)
 
 ```sql
-    WARM UP COMPUTE GROUP destination_group WITH 
-        TABLE sales_data 
-        AND TABLE customer_info 
-        AND TABLE orders PARTITION q1_2024;
+mysql> SELECT ST_Y(ST_GeometryFromText("POINT EMPTY"));
++------------------------------------------+
+| ST_Y(ST_GeometryFromText("POINT EMPTY")) |
++------------------------------------------+
+|                                     NULL |
++------------------------------------------+
+```
 
+3D Point (Not Supported)
+
+```sql
+mysql> SELECT ST_Y(ST_GeometryFromText("POINT (10 20 30)"));
++-----------------------------------------------+
+| ST_Y(ST_GeometryFromText("POINT (10 20 30)")) |
++-----------------------------------------------+
+|                                          NULL |
++-----------------------------------------------+
+```
+
+NULL Input
+
+```sql
+mysql> SELECT ST_Y(NULL);
++------------+
+| ST_Y(NULL) |
++------------+
+|       NULL |
++------------+
+```
+
+Invalid Latitude (Out of Range)
+
+```sql
+mysql> SELECT ST_Y(ST_Point(116.4, 91));
++---------------------------+
+| ST_Y(ST_Point(116.4, 91)) |
++---------------------------+
+|                      NULL |
++---------------------------+
+```
+
+Invalid Longitude (Out of Range)
+
+```sql
+mysql> SELECT ST_Y(ST_Point(190, 39.9));
++---------------------------+
+| ST_Y(ST_Point(190, 39.9)) |
++---------------------------+
+|                      NULL |
++---------------------------+
 ```
