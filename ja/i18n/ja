@@ -1,67 +1,47 @@
 ---
 {
-  "title": "UUID",
+  "title": "MURMUR_HASH3_64_V2",
   "language": "en",
-  "description": "The UUID function generates a random Universally Unique Identifier (UUID). The generated UUID conforms to RFC 4122 standard,"
+  "description": "Computes a 64-bit MurmurHash3 hash value."
 }
 ---
 
 ## Description
 
-The UUID function generates a random Universally Unique Identifier (UUID). The generated UUID conforms to RFC 4122 standard, with a format of 8-4-4-4-12 (36 characters including hyphens).
+Computes a 64-bit MurmurHash3 hash value.
+
+The difference from `MURMUR_HASH3_64` is: this version reuses the 128-bit processing function of MurmurHash3, outputting only the first 64-bit hash value, which is consistent with the [standard library](https://mmh3.readthedocs.io/en/latest/api.html#mmh3.hash64) implementation.
+
+Note: According to testing, the performance of `xxhash_64` is approximately 2 times that of `murmur_hash3_64`. Therefore, when calculating hash values, it is recommended to use `xxhash_64` instead of `murmur_hash3_64`.
 
 ## Syntax
 
 ```sql
-UUID()
+MURMUR_HASH3_64_V2( <str> [ , <str> ... ] )
 ```
 
 ## Parameters
 
-No parameters.
+| Parameter | Description                                           |
+| --------- | ----------------------------------------------------- |
+| `<str>`   | The value to be computed as a 64-bit MurmurHash3 hash |
 
 ## Return Value
 
-Returns VARCHAR type, a randomly generated UUID string.
+Returns the 64-bit MurmurHash3 hash value of the input string.
 
-Special cases:
-
-- Each call generates a different UUID
-- UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-- Generated UUID is globally unique
+Returns NULL if any parameter is NULL.
 
 ## Examples
 
-1. Basic usage: generate single UUID
-
 ```sql
-SELECT UUID();
+select murmur_hash3_64_v2(null), murmur_hash3_64_v2("hello"), murmur_hash3_64_v2("hello", "world");
 ```
 
 ```text
-+--------------------------------------+
-| UUID()                               |
-+--------------------------------------+
-| 29077778-fc5e-4603-8368-6b5f8fd55c24 |
-+--------------------------------------+
++--------------------------+-----------------------------+--------------------------------------+
+| murmur_hash3_64_v2(null) | murmur_hash3_64_v2("hello") | murmur_hash3_64_v2("hello", "world") |
++--------------------------+-----------------------------+--------------------------------------+
+|                     NULL |        -3758069500696749310 |                  -662943091231200135 |
++--------------------------+-----------------------------+--------------------------------------+
 ```
-
-2. Multiple calls generate different UUIDs
-
-```sql
-SELECT UUID(), UUID();
-```
-
-```text
-+--------------------------------------+--------------------------------------+
-| UUID()                               | UUID()                               |
-+--------------------------------------+--------------------------------------+
-| a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6 | f7e8d9c0-b1a2-4938-8756-c4d3e2f1a0b9 |
-+--------------------------------------+--------------------------------------+
-```
-
-### Keywords
-
-    ```
-    UUID
-    ```
