@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 2.0.10", "language": "en" }
+{ "title": "Release 2.0.11", "language": "en" }
 ---
 
 <!--
@@ -21,34 +21,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Thanks to our community users and developers, about 83 improvements and bug fixes have been made in Doris 2.0.10 version.
+Thanks to our community users and developers, about 123 improvements and bug fixes have been made in Doris 2.0.11 version.
 
 **Quick Download:** [https://doris.apache.org/download/](https://doris.apache.org/download/)
 
 **GitHub：** [https://github.com/apache/doris/releases](https://github.com/apache/doris/releases)
 
-## Improvement and Optimizations
+## 1 Behavior change
 
-- This enhancement introduces the `read_only` and `super_read_only` variables to the database system, ensuring compatibility with MySQL's read-only modes.
+Since the inverted index is now mature and stable, it can replace the old BITMAP INDEX. Therefore, any newly created `BITMAP INDEX` will automatically switch to an `INVERTED INDEX`, while existing `BITMAP INDEX` will remain unchanged. This entire switching process is transparent to the user, with no changes to writing or querying. Additionally, users can disable this automatic switch by setting the FE configuration `enable_create_bitmap_index_as_inverted_index` to false. [#35528](https://github.com/apache/doris/pull/35528)
 
-- When the check status is not IO_ERROR, the disk path should not be added to the broken list. This ensures that only disks with actual I/O errors are marked as broken.
+## 2 Improvement and optimizations
 
-- When performing a Create Table As Select (CTAS) operation from an external table, convert the `VARCHAR` column to `STRING` type.
+- Add Trino JDBC Catalog type mapping for JSON and TIME
 
-- Support mapping Paimon column type "ROW" to Doris type "STRUCT"
+- FE exit when failed to transfer to (non) master to prevent unknown state and too many logs
 
-- Choose disk tolerate with little skew when creating tablet
+- Write audit log while doing drop stats table.
 
-- Write editlog to `set replica drop` to avoid confusing status on follower FE
+- Ignore min/max column stats if table is partially analyzed to avoid inefficient query plan
 
-- Make the schema change memory space adaptive to avoid memory over limit
+- Support minus operation for set like `set1 - set2`
 
-- Inverted index 'unicode' tokenizer supports configuration to exclude stop words
+- Improve perfmance of LIKE and REGEXP clause with concat (col, pattern_str), eg. `col1 LIKE concat('%', col2, '%')`
 
-See the complete list of improvements and bug fixes on [GitHub](https://github.com/apache/doris/compare/2.0.9...2.0.10) .
+- Add query options for short circuit queries for upgrade compatibility
+
+See the complete list of improvements and bug fixes on [github](https://github.com/apache/doris/compare/2.0.10...2.0.11) .
 
 ## Credits
 
-Thanks to all who contributed to this release:
+Thanks all who contribute to this release:
 
-@airborne12, @BePPPower, @ByteYue, @CalvinKirs, @cambyzju, @csun5285, @dataroaring, @deardeng, @DongLiang-0, @eldenmoon, @felixwluo, @HappenLee, @hubgeter, @jackwener, @kaijchen, @kaka11chen, @Lchangliang, @liaoxin01, @LiBinfeng-01, @luennng, @morningman, @morrySnow, @Mryange, @nextdreamblue, @qidaye, @starocean999, @suxiaogang223, @SWJTU-ZhangLei, @w41ter, @xiaokang, @xy720, @yujun777, @Yukang-Lian, @zhangstar333, @zxealous, @zy-kkk, @zzzxl1993
+@AshinGau, @BePPPower, @BiteTheDDDDt, @ByteYue, @CalvinKirs, @cambyzju, @csun5285, @dataroaring, @eldenmoon, @englefly, @feiniaofeiafei, @Gabriel39, @GoGoWen, @HHoflittlefish777, @hubgeter, @jacktengg, @jackwener, @jeffreys-cat, @Jibing-Li, @kaka11chen, @kobe6th, @LiBinfeng-01, @mongo360, @morningman, @morrySnow, @mrhhsg, @Mryange, @nextdreamblue, @qidaye, @sjyango, @starocean999, @SWJTU-ZhangLei, @w41ter, @wangbo, @wsjz, @wuwenchi, @xiaokang, @XieJiann, @xy720, @yujun777, @Yukang-Lian, @Yulei-Yang, @zclllyybb, @zddr, @zhangstar333, @zhiqiang-hhhh, @zy-kkk, @zzzxl1993
