@@ -1,30 +1,30 @@
 ---
 {
-  "title": "CSC",
+  "title": "SEC",
   "language": "en",
-  "description": "Returns the cosecant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
+  "description": "Returns the secant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value."
 }
 ---
 
 ## Description
 
-Returns the cosecant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
+Returns the secant of x, where x is the value in radians, only input and output are supported as double. Input null value will return null value.
 
 ## Syntax
 
 ```sql
-CSC(<x>)
+SEC(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                          |
-| --------- | ---------------------------------------------------- |
-| `<x>`     | The value for which the cosecant is to be calculated |
+| Parameter | Description                                        |
+| --------- | -------------------------------------------------- |
+| `<x>`     | The value for which the secant is to be calculated |
 
 ## Return Value
 
-Returns a Double type value means the cosecant of x.
+Returns a Double type value means the secant of x.
 
 ## Special Cases
 
@@ -35,62 +35,62 @@ Returns a Double type value means the cosecant of x.
 ## Example
 
 ```sql
-select csc(1),csc(2),csc(1000);
+select sec(1),sec(2),sec(1000);
 ```
 
 ```text
-+--------------------+--------------------+------------------+
-| csc(1)             | csc(2)             | csc(1000)        |
-+--------------------+--------------------+------------------+
-| 1.1883951057781212 | 1.0997501702946164 | 1.20936599707935 |
-+--------------------+--------------------+------------------+
++--------------------+--------------------+--------------------+
+| sec(1)             | sec(2)             | sec(1000)          |
++--------------------+--------------------+--------------------+
+| 1.8508157176809255 | -2.402997961722381 | 1.7781600385912715 |
++--------------------+--------------------+--------------------+
 ```
 
 Input null value.
 
 ```sql
-select csc(null);
+select sec(null);
 ```
 
 ```text
 +--------------------+
-| csc(null)          |
+| sec(null)          |
 +--------------------+
 |      NULL          |
 +--------------------+
 ```
 
 ```sql
-select csc(cast('nan' as double));
+select sec(cast('nan' as double));
 ```
 
 ```text
 +---------------------------+
-| csc(cast('nan' AS DOUBLE))|
+| sec(cast('nan' AS DOUBLE))|
 +---------------------------+
 | NaN                       |
 +---------------------------+
 ```
 
 ```sql
-select csc(cast('inf' as double));
+select sec(cast('inf' as double));
 ```
 
 ```text
 +---------------------------+
-| csc(cast('inf' AS DOUBLE))|
+| sec(cast('inf' AS DOUBLE))|
 +---------------------------+
 | NaN                       |
 +---------------------------+
 ```
 
 ```sql
-select csc(cast('-inf' as double));
+select sec(cast('-inf' as double));
 ```
 
 ```text
 +----------------------------+
-| csc(cast('-inf' AS DOUBLE))|
+| sec(cast('-inf' AS DOUBLE))|
 +----------------------------+
 | NaN                        |
 +----------------------------+
