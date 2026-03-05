@@ -1,269 +1,360 @@
 ---
 {
-  "title": "LDAP",
+  "title": "Kafka Catalog",
   "language": "en",
-  "description": "Detailed guide on Apache Doris federated authentication: unified identity verification and group authorization through LDAP integration, covering configuration steps, login methods, permission mapping rules, and common troubleshooting."
+  "description": "Apache Doris Kafka Catalog guide: Connect to Kafka data streams through Trino Connector framework to query and integrate Kafka Topic data. Supports Schema Registry, multiple data formats for quick Kafka and Doris data integration."
 }
 ---
 
-Doris supports integration with third-party LDAP services, providing two core functionalities:
+## Overview
 
-- **Authentication**: Use LDAP passwords instead of Doris passwords for identity verification.
-- **Group Authorization**: Map LDAP `groups` to Doris `roles` for unified permission management.
+Kafka Catalog uses the Trino Kafka Connector through the [Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/) compatibility framework to access Kafka Topic data.
 
-## LDAP Basic Concepts
+:::note
 
-In LDAP, data is organized in a tree structure. Here's an example of a typical LDAP directory tree:
+- This is an experimental feature, supported since version 3.0.1.
+- This feature does not depend on a Trino cluster environment; it only uses Trino-compatible plugins.
+  :::
 
-```text
-- dc=example,dc=com
- - ou = ou1
-   - cn = group1
-   - cn = user1
- - ou = ou2
-   - cn = group2
-     - cn = user2
- - cn = user3
-```
+### Use Cases
 
-### Terminology
+| Scenario         | Support Status                                           |
+| ---------------- | -------------------------------------------------------- |
+| Data Integration | Read Kafka Topic data and write to Doris internal tables |
+| Data Write-back  | Not supported                                            |
 
-| Term          | Full Name                   | Description                                                                                                                                                                                                                                             |
-| ------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dc`          | Domain Component            | Organization's domain name, serving as the root node of the tree                                                                                                                                                                                        |
-| `dn`          | Distinguished Name          | Unique name. For example, user1's `dn` is `cn=user1,ou=ou1,dc=example,dc=com`, user2's `dn` is `cn=user2,cn=group2,ou=ou2,dc=example,dc=com`                                                                                            |
-| `rdn`         | Relative Distinguished Name | Part of the `dn`. user1's four `rdns` are `cn=user1`, `ou=ou1`, `dc=example`, and `dc=com`                                                                                                                                              |
-| `ou`          | Organization Unit           | Sub-organization. `users` can be placed in `ou` or directly under the example.com domain                                                                                                                                |
-| `cn`          | Common Name                 | Name                                                                                                                                                                                                                                                    |
-| `group`       | -                           | Group, corresponding to Doris roles                                                                                                                                                                                                                     |
-| `user`        | -                           | User, equivalent to Doris users                                                                                                                                                                                                                         |
-| `objectClass` | -                           | Data type. Used to distinguish whether a node is a `group` or `user`. `group` requires `cn` and `member` (list of `users`) attributes, `user` requires `cn`, `password`, `uid`, etc. |
+### Version Compatibility
+
+- **Doris Version**: 3.0.1 and above
+- **Trino Connector Version**: 435
+- **Kafka Version**: For supported versions, please refer to [Trino Documentation](https://trino.io/docs/435/connector/kafka.html)
 
 ## Quick Start
 
-### Step 1: Configure Doris
+### Step 1: Prepare Connector Plugin
 
-1. Set the authentication method in `fe/conf/fe.conf`: `authentication_type=ldap`.
+You can obtain the Kafka Connector plugin using one of the following methods:
 
-2. Configure LDAP service connection information in `fe/conf/ldap.conf`:
+**Method 1: Use Pre-compiled Package (Recommended)**
 
-    ```
-    ldap_authentication_enabled = true
-    ldap_host = ladp-host
-    ldap_port = 389
-    ldap_admin_name = uid=admin,o=emr
-    ldap_user_basedn = ou=people,o=emr
-    ldap_user_filter = (&(uid={login}))
-    ldap_group_basedn = ou=group,o=emr
-    ```
+Download and extract the pre-compiled plugin package from [here](https://github.com/apache/doris-thirdparty/releases/tag/trino-435-20240724).
 
-3. After starting `fe`, log in to Doris with `root` or `admin` account and set the LDAP admin password:
+**Method 2: Manual Compilation**
 
-    ```sql
-    set ldap_admin_password = password('<ldap_admin_password>');
-    ```
+If you need custom compilation, follow these steps (requires JDK 17):
 
-### Step 2: Client Connection
+```shell
+git clone https://github.com/apache/doris-thirdparty.git
+cd doris-thirdparty
+git checkout trino-435
+cd plugin/trino-kafka
+mvn clean package -Dmaven.test.skip=true
+```
 
-LDAP authentication requires clients to send passwords in plaintext, so cleartext authentication plugins must be enabled.
+After compilation, you will get the `trino-kafka-435/` directory under `trino/plugin/trino-kafka/target/`.
 
-**MySQL Client**
+### Step 2: Deploy Plugin
 
-You can enable the cleartext authentication plugin using either method:
+1. Place the `trino-kafka-435/` directory in the `connectors/` directory of all FE and BE deployment paths (create the directory manually if it doesn't exist):
 
-- **Method 1**: Set environment variable (permanent)
+   ```text
+   ├── bin
+   ├── conf
+   ├── plugins
+   │   ├── connectors
+   │       ├── trino-kafka-435
+   ...
+   ```
 
-    ```shell
-    echo "export LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1" >> ~/.bash_profile && source ~/.bash_profile
-    ```
+   > You can also customize the plugin path by modifying the `trino_connector_plugin_dir` configuration in `fe.conf`. For example: `trino_connector_plugin_dir=/path/to/connectors/`
 
-- **Method 2**: Add parameter when logging in (one-time)
+2. Restart all FE and BE nodes to ensure the connector is properly loaded.
 
-    ```shell
-    mysql -hDORIS_HOST -PDORIS_PORT -u user -p --enable-cleartext-plugin
-    ```
+### Step 3: Create Catalog
 
-**JDBC Client**
-
-1. Doris SSL Not Enabled
-
-   When Doris SSL is not enabled, you need to create a custom authentication plugin to bypass SSL restrictions when using JDBC connections:
-
-   1. Create a custom plugin class that extends `MysqlClearPasswordPlugin` and overrides the `requiresConfidentiality()` method:
-
-        ```java
-        public class MysqlClearPasswordPluginWithoutSSL extends MysqlClearPasswordPlugin {
-          @Override
-          public boolean requiresConfidentiality() {
-            return false;
-          }
-        }
-        ```
-
-   2. Configure the custom plugin in the JDBC connection URL (replace `xxx` with your actual package name):
-
-        ```sql
-        jdbcUrl = "jdbc:mysql://localhost:9030/mydatabase?authenticationPlugins=xxx.xxx.xxx.MysqlClearPasswordPluginWithoutSSL&defaultAuthenticationPlugin=xxx.xxx.xxx.MysqlClearPasswordPluginWithoutSSL&disabledAuthenticationPlugins=com.mysql.jdbc.authentication.MysqlClearPasswordPlugin";
-        ```
-
-      Description of the three required properties:
-
-      | Property                        | Description                                                                                  |
-      | ------------------------------- | -------------------------------------------------------------------------------------------- |
-      | `authenticationPlugins`         | Register the custom cleartext authentication plugin                                          |
-      | `defaultAuthenticationPlugin`   | Set the custom plugin as the default authentication plugin                                   |
-      | `disabledAuthenticationPlugins` | Disable the original cleartext authentication plugin (which mandates SSL) |
-
-   > You can refer to the examples in [this code repository](https://github.com/morningman/doris-debug-tools/tree/main/jdbc-test). Or execute `build-auth-plugin.sh` to directly generate the plugin JAR file, then place it in the client's specified location.
-
-2. Doris SSL Enabled
-
-   When Doris SSL is enabled (`enable_ssl=true` added in `fe.conf`):
-
-    ```sql
-    jdbcUrl = "jdbc:mysql://localhost:9030/mydatabase?useSSL=true&sslMode=REQUIRED
-    ```
-
-## Authentication
-
-LDAP authentication means password verification through LDAP service to supplement Doris's native authentication mechanism. Password verification priority is as follows:
-
-1. Doris first uses LDAP to verify user passwords.
-2. If the user doesn't exist in LDAP, it falls back to Doris local password verification.
-3. If the LDAP password is correct but there's no corresponding account in Doris, a temporary user is created for login.
-
-### Login Behavior Overview
-
-After enabling LDAP, login behaviors under different user states are as follows:
-
-| LDAP User  | Doris User | Password Used  | Login Result | Login Identity      |
-| ---------- | ---------- | -------------- | ------------ | ------------------- |
-| Exists     | Exists     | LDAP password  | Success      | Doris user          |
-| Exists     | Exists     | Doris password | Failed       | -                   |
-| Not exists | Exists     | Doris password | Success      | Doris user          |
-| Exists     | Not exists | LDAP password  | Success      | LDAP temporary user |
-
-> **About Temporary Users:**
->
-> - Temporary accounts are only valid for the current connection and are automatically destroyed when disconnected.
-> - Doris doesn't create persistent user metadata for temporary users.
-> - Temporary user permissions are determined by LDAP group authorization (see "Group Authorization" section below).
-> - If temporary users have no corresponding group permissions, they default to `select_priv` on `information_schema`.
-
-### Login Examples
-
-The following examples assume LDAP authentication is enabled, configured with `ldap_user_filter = (&(uid={login}))`, and the client has set `LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN=1`.
-
-**Scenario 1: Account exists in both Doris and LDAP**
-
-- Doris account: `jack@'172.10.1.10'`, password: `123456`
-- LDAP user attributes: `uid: jack`, password: `abcdef`
-
-Login with LDAP password, success:
+**Basic Configuration**
 
 ```sql
-mysql -hDoris_HOST -PDoris_PORT -ujack -p abcdef
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>,<broker2>:<port2>',
+    'trino.kafka.table-names' = 'test_db.topic_name',
+    'trino.kafka.hide-internal-columns' = 'false'
+);
 ```
 
-Login with Doris password, failed (after enabling LDAP, LDAP users must use LDAP passwords):
+**Using Configuration File**
 
 ```sql
-mysql -hDoris_HOST -PDoris_PORT -ujack -p 123456
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>,<broker2>:<port2>',
+    'trino.kafka.config.resources' = '/path/to/kafka-client.properties',
+    'trino.kafka.hide-internal-columns' = 'false'
+);
 ```
 
-**Scenario 2: User exists only in LDAP**
-
-- LDAP user attributes: `uid: jack`, password: `abcdef`
-
-Login with LDAP password, Doris automatically creates temporary user `jack@'%'` and logs in. Temporary user has basic permission `DatabasePrivs`: `Select_priv`, automatically destroyed after disconnection:
+**Configure Default Schema**
 
 ```sql
-mysql -hDoris_HOST -PDoris_PORT -ujack -p abcdef
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>,<broker2>:<port2>',
+    'trino.kafka.default-schema' = 'default_db',
+    'trino.kafka.hide-internal-columns' = 'false'
+);
 ```
 
-**Scenario 3: Account exists only in Doris**
+### Step 4: Query Data
 
-- Doris account: `jack@'172.10.1.10'`, password: `123456`
-
-User doesn't exist in LDAP, falls back to Doris local authentication, login succeeds with Doris password:
+After creating the catalog, you can query Kafka Topic data using one of three methods:
 
 ```sql
-mysql -hDoris_HOST -PDoris_PORT -ujack -p 123456
+-- Method 1: Switch to catalog and query
+SWITCH kafka;
+USE kafka_schema;
+SELECT * FROM topic_name LIMIT 10;
+
+-- Method 2: Use two-level path
+USE kafka.kafka_schema;
+SELECT * FROM topic_name LIMIT 10;
+
+-- Method 3: Use fully qualified name
+SELECT * FROM kafka.kafka_schema.topic_name LIMIT 10;
 ```
 
-## Group Authorization
+## Schema Registry Integration
 
-LDAP group authorization maps LDAP `groups` to Doris `roles` to achieve centralized permission management. The core mechanism is:
+Kafka Catalog supports automatic schema retrieval through Confluent Schema Registry, eliminating the need to manually define table structures.
 
-- If an LDAP user's `dn` appears in the `member` attribute of an LDAP group node, Doris considers the user belongs to that group.
-- When users log in, Doris automatically grants them the `role` permissions corresponding to their LDAP groups.
-- After users log out, Doris automatically revokes these `role` permissions.
+### Configure Schema Registry
 
-> **Prerequisite:** Before using LDAP group authorization, you need to create `roles` in Doris with the same names as LDAP `groups` and grant permissions to these `roles`.
+**Basic Authentication**
 
-### Permission Merging Rules
-
-The final permissions of a logged-in user depend on their status in both LDAP and Doris:
-
-| LDAP User  | Doris User | Final Permissions                               |
-| ---------- | ---------- | ----------------------------------------------- |
-| Exists     | Exists     | LDAP group permissions + Doris user permissions |
-| Not exists | Exists     | Doris user permissions                          |
-| Exists     | Not exists | LDAP group permissions                          |
-
-### Group Name Mapping Rules
-
-Doris extracts the first `Rdn` of the LDAP group `dn` as the group name and maps it to a `role` with the same name in Doris.
-
-For example, if user `dn` is `uid=jack,ou=aidp,dc=domain,dc=com`, and the group information is:
-
-```text
-dn: cn=doris_rd,ou=group,dc=domain,dc=com  
-objectClass: groupOfNames  
-member: uid=jack,ou=aidp,dc=domain,dc=com  
+```sql
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>',
+    'trino.kafka.table-description-supplier' = 'CONFLUENT',
+    'trino.kafka.confluent-schema-registry-url' = 'http://<schema-registry-host>:<schema-registry-port>',
+    'trino.kafka.confluent-schema-registry-auth-type' = 'BASIC_AUTH',
+    'trino.kafka.confluent-schema-registry.basic-auth.username' = 'admin',
+    'trino.kafka.confluent-schema-registry.basic-auth.password' = 'admin123',
+    'trino.kafka.hide-internal-columns' = 'false'
+);
 ```
 
-The first `Rdn` of this group `dn` is `cn=doris_rd`, so the group name is `doris_rd`, corresponding to the `role` `doris_rd` in Doris.
+**Complete Configuration Example**
 
-### Group Authorization Example
+```sql
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>',
+    'trino.kafka.default-schema' = 'nrdp',
+    'trino.kafka.table-description-supplier' = 'CONFLUENT',
+    'trino.kafka.confluent-schema-registry-url' = 'http://<schema-registry-host>:<schema-registry-port>',
+    'trino.kafka.confluent-schema-registry-auth-type' = 'BASIC_AUTH',
+    'trino.kafka.confluent-schema-registry.basic-auth.username' = 'admin',
+    'trino.kafka.confluent-schema-registry.basic-auth.password' = 'admin123',
+    'trino.kafka.config.resources' = '/path/to/kafka-client.properties',
+    'trino.kafka.confluent-schema-registry-subject-mapping' = 'nrdp.topic1:NRDP.topic1',
+    'trino.kafka.hide-internal-columns' = 'false'
+);
+```
 
-If user jack belongs to LDAP groups `doris_rd`, `doris_qa`, `doris_pm`, and Doris has `roles` with the same names: `doris_rd`, `doris_qa`, `doris_pm`. After jack logs in, in addition to the original permissions of their Doris account, they will also receive the permissions of these three `roles`.
+### Schema Registry Parameters
 
-> **Note:**
->
-> - Which `group` a `user` belongs to is independent of the LDAP tree's organizational structure. `user2` in the example above doesn't necessarily belong to `group2`.
-> - To make `user2` belong to `group2`, you need to explicitly add `user2` to the `member` attribute of `group2`.
+| Parameter Name                                              | Required | Default | Description                                                                                           |
+| ----------------------------------------------------------- | -------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| `trino.kafka.table-description-supplier`                    | No       | -       | Set to `CONFLUENT` to enable Schema Registry support                                                  |
+| `trino.kafka.confluent-schema-registry-url`                 | Yes\*    | -       | Schema Registry service address                                                                       |
+| `trino.kafka.confluent-schema-registry-auth-type`           | No       | NONE    | Authentication type: NONE, BASIC_AUTH, BEARER                    |
+| `trino.kafka.confluent-schema-registry.basic-auth.username` | No       | -       | Basic Auth username                                                                                   |
+| `trino.kafka.confluent-schema-registry.basic-auth.password` | No       | -       | Basic Auth password                                                                                   |
+| `trino.kafka.confluent-schema-registry-subject-mapping`     | No       | -       | Subject name mapping, format: `<db1>.<tbl1>:<topic_name1>,<db2>.<tbl2>:<topic_name2>` |
 
-## Cache Management
+:::tip
+When using Schema Registry, Doris will automatically retrieve Topic schema information from Schema Registry, eliminating the need to manually create table structures.
+:::
 
-To avoid frequent access to LDAP services, Doris caches LDAP information in memory.
+### Subject Mapping
 
-| Configuration               | Description                                                       | Default Value                       |
-| --------------------------- | ----------------------------------------------------------------- | ----------------------------------- |
-| `ldap_user_cache_timeout_s` | Cache time for LDAP user information (seconds) | 43200 (12 hours) |
+In some cases, the Subject name registered in Schema Registry may not match the Topic name in Kafka, preventing data queries. In such cases, you need to manually specify the mapping relationship through `confluent-schema-registry-subject-mapping`.
 
-In the following scenarios, you may need to manually refresh the cache to make changes take effect immediately:
+```sql
+-- Map schema.topic to SCHEMA.topic Subject in Schema Registry
+'trino.kafka.confluent-schema-registry-subject-mapping' = '<db1>.<tbl1>:<topic_name1>'
+```
 
-- Modified user or group information in the LDAP service.
-- Modified the `Role` permissions corresponding to LDAP user groups in Doris.
+Where `db1` and `tbl1` are the actual Database and Table names seen in Doris, and `topic_name1` is the actual Topic name in Kafka (case-sensitive).
 
-You can refresh the cache with the `refresh ldap` statement. See [REFRESH-LDAP](../../../sql-manual/sql-statements/account-management/REFRESH-LDAP) for details.
+Multiple mappings can be separated by commas:
 
-## Known Limitations
+```sql
+'trino.kafka.confluent-schema-registry-subject-mapping' = '<db1>.<tbl1>:<topic_name1>,<db2>.<tbl2>:<topic_name2>'
+```
 
-- Currently, Doris's LDAP functionality only supports cleartext password verification, meaning that when users log in, passwords are transmitted in plaintext between `client` and `fe`, and between `fe` and LDAP service.
+## Configuration
 
-## FAQ
+### Catalog Configuration Parameters
 
-**Q: How to check which roles an LDAP user has in Doris?**
+The basic syntax for creating a Kafka Catalog is as follows:
 
-After logging into Doris with an LDAP user, execute `show grants;` to view all roles of the current user. `ldapDefaultRole` is the default role that every LDAP user has.
+```sql
+CREATE CATALOG [IF NOT EXISTS] catalog_name PROPERTIES (
+    'type' = 'trino-connector',          -- Required, fixed value
+    'trino.connector.name' = 'kafka',    -- Required, fixed value
+    {TrinoProperties},                   -- Trino Connector related properties
+    {CommonProperties}                   -- Common properties
+);
+```
 
-**Q: An LDAP user has fewer roles in Doris than expected, how to troubleshoot?**
+#### TrinoProperties Parameters
 
-Check the following items step by step:
+TrinoProperties are used to configure Trino Kafka Connector-specific properties, which are prefixed with `trino.`. Common parameters include:
 
-1. Execute `show roles;` to confirm whether the expected roles exist in Doris. If not, create them with `CREATE ROLE role_name;`.
-2. Check whether the expected `group` is located under the organizational structure corresponding to `ldap_group_basedn`.
-3. Check whether the expected `group` contains the `member` attribute.
-4. Check whether the `member` attribute of the expected `group` contains the current user's `dn`.
+| Parameter Name                              | Required | Default | Description                                                                                                                    |
+| ------------------------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `trino.kafka.nodes`                         | Yes      | -       | Kafka Broker node address list, format: `host1:port1,host2:port2`                                              |
+| `trino.kafka.table-names`                   | No       | -       | List of Topics to map, format: `schema.topic1,schema.topic2`                                                   |
+| `trino.kafka.default-schema`                | No       | default | Default schema name                                                                                                            |
+| `trino.kafka.hide-internal-columns`         | No       | true    | Whether to hide Kafka internal columns (such as `_partition_id`, `_partition_offset`, etc.) |
+| `trino.kafka.config.resources`              | No       | -       | Kafka client configuration file path                                                                                           |
+| `trino.kafka.table-description-supplier`    | No       | -       | Table structure provider, set to `CONFLUENT` to use Schema Registry                                                            |
+| `trino.kafka.confluent-schema-registry-url` | No       | -       | Schema Registry service address                                                                                                |
+
+For more Kafka Connector configuration parameters, please refer to [Trino Official Documentation](https://trino.io/docs/435/connector/kafka.html).
+
+#### CommonProperties Parameters
+
+CommonProperties are used to configure general catalog properties, such as metadata refresh policies and permission control. For detailed information, please refer to the "Common Properties" section in [Catalog Overview](../catalog-overview.md).
+
+### Kafka Client Configuration
+
+When you need to configure advanced Kafka client parameters (such as security authentication, SSL, etc.), you can specify them through a configuration file. Create a configuration file (e.g., `kafka-client.properties`):
+
+```properties
+# ============================================
+# Kerberos/SASL Authentication Configuration
+# ============================================
+sasl.mechanism=GSSAPI
+sasl.kerberos.service.name=kafka
+
+# JAAS Configuration - Using keytab method
+sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required \
+    useKeyTab=true \
+    storeKey=true \
+    useTicketCache=false \
+    serviceName="kafka" \
+    keyTab="/opt/trino/security/keytabs/kafka.keytab" \
+    principal="kafka@EXAMPLE.COM";
+
+# ============================================
+# Avro Deserializer Configuration
+# ============================================
+key.deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer
+value.deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer
+```
+
+Then specify the configuration file when creating the catalog:
+
+```sql
+CREATE CATALOG kafka PROPERTIES (
+    'type' = 'trino-connector',
+    'trino.connector.name' = 'kafka',
+    'trino.kafka.nodes' = '<broker1>:<port1>',
+    'trino.kafka.config.resources' = '/path/to/kafka-client.properties'
+);
+```
+
+## Data Type Mapping
+
+When using Kafka Catalog, data types are mapped according to the following rules:
+
+| Kafka/Avro Type | Trino Type | Doris Type | Notes                            |
+| --------------- | ---------- | ---------- | -------------------------------- |
+| boolean         | boolean    | boolean    |                                  |
+| int             | integer    | int        |                                  |
+| long            | bigint     | bigint     |                                  |
+| float           | real       | float      |                                  |
+| double          | double     | double     |                                  |
+| bytes           | varbinary  | string     | Use `HEX(col)` function to query |
+| string          | varchar    | string     |                                  |
+| array           | array      | array      |                                  |
+| map             | map        | map        |                                  |
+| record          | row        | struct     | Complex nested structure         |
+| enum            | varchar    | string     |                                  |
+| fixed           | varbinary  | string     |                                  |
+| null            | -          | -          |                                  |
+
+:::tip
+
+- For `bytes` type, use the `HEX()` function to display in hexadecimal format.
+- The data types supported by Kafka Catalog depend on the serialization format used (JSON, Avro, Protobuf, etc.) and Schema Registry configuration.
+  :::
+
+## Kafka Internal Columns
+
+Kafka Connector provides some internal columns to access metadata information of Kafka messages:
+
+| Column Name          | Type      | Description                               |
+| -------------------- | --------- | ----------------------------------------- |
+| `_partition_id`      | bigint    | Partition ID where the message is located |
+| `_partition_offset`  | bigint    | Message offset within the partition       |
+| `_message_timestamp` | timestamp | Message timestamp                         |
+| `_key`               | varchar   | Message key                               |
+| `_key_corrupt`       | boolean   | Whether the key is corrupted              |
+| `_key_length`        | bigint    | Key byte length                           |
+| `_message`           | varchar   | Raw message content                       |
+| `_message_corrupt`   | boolean   | Whether the message is corrupted          |
+| `_message_length`    | bigint    | Message byte length                       |
+| `_headers`           | map       | Message header information                |
+
+By default, these internal columns are hidden. If you need to query these columns, set when creating the catalog:
+
+```sql
+'trino.kafka.hide-internal-columns' = 'false'
+```
+
+Query example:
+
+```sql
+SELECT 
+    _partition_id,
+    _partition_offset,
+    _message_timestamp,
+    *
+FROM kafka.schema.topic_name
+LIMIT 10;
+```
+
+## Limitations
+
+1. **Read-only Access**: Kafka Catalog only supports reading data; write operations (INSERT, UPDATE, DELETE) are not supported.
+
+2. **Table Names Configuration**: When not using Schema Registry, you need to explicitly specify the list of Topics to access through the `trino.kafka.table-names` parameter.
+
+3. **Schema Definition**:
+   - When using Schema Registry, schema information is automatically retrieved from Schema Registry.
+   - When not using Schema Registry, you need to manually create table definitions or use Trino's Topic description files.
+
+4. **Data Format**: Supported data formats depend on the serialization method used by the Topic (JSON, Avro, Protobuf, etc.). For details, please refer to [Trino Official Documentation](https://trino.io/docs/435/connector/kafka.html).
+
+5. **Performance Considerations**:
+   - Kafka Catalog reads Kafka data in real-time; querying large amounts of data may affect performance.
+   - It is recommended to use the `LIMIT` clause or time filter conditions to limit the amount of data scanned.
+
+## Feature Debugging
+
+You can refer to [here](https://github.com/morningman/demo-env/tree/main/kafka) to quickly build a Kafka environment for feature verification.
+
+## References
+
+- [Trino Kafka Connector Official Documentation](https://trino.io/docs/435/connector/kafka.html)
+- [Trino Connector Development Guide](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/)
+- [Confluent Schema Registry Documentation](https://docs.confluent.io/platform/current/schema-registry/index.html)
