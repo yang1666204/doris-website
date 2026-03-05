@@ -1,106 +1,88 @@
 ---
 {
-  "title": "COSH",
+  "title": "DEGREES",
   "language": "en",
-  "description": "Returns the hyperbolic cosine of x."
+  "description": "Input a double-precision floating-point number and convert it from radians to degrees."
 }
 ---
 
 ## Description
 
-Returns the hyperbolic cosine of `x`.
+Input a double-precision floating-point number and convert it from radians to degrees.
+
+- When the parameter is NULL, return NULL.
 
 ## Syntax
 
-`COSH(<x>)`
+```sql
+DEGREES(<a>)
+```
 
 ## Parameters
 
-| Parameter | Description                                                   |
-| --------- | ------------------------------------------------------------- |
-| `<x>`     | The value for which the hyperbolic cosine is to be calculated |
+| parameter | explain                                                                       |
+| --------- | ----------------------------------------------------------------------------- |
+| `<a>`     | The value that needs to be converted from radians to degrees. |
 
 ## Return Value
 
-The hyperbolic cosine of parameter `x`
+The angle of parameter a.
+
+- When the parameter is NULL, return NULL.
 
 ## Special Cases
 
-- When `x` is NaN, returns NaN
-- When `x` is positive infinity, returns Infinity
-- When `x` is negative infinity, returns Infinity
-- When `x` is NULL, returns NULL
+- When `a` is NaN, returns NaN
+- When `a` is positive infinity, returns Infinity
+- When `a` is negative infinity, returns -Infinity
+- When `a` is NULL, returns NULL
 
 ## Examples
 
 ```sql
-select cosh(0);
+select degrees(3.14),degrees(1),degrees(-1),degrees(NULL)
 ```
 
 ```text
-+-------------------------+
-| cosh(cast(0 as DOUBLE)) |
-+-------------------------+
-|                     1.0 |
-+-------------------------+
++-------------------------------+----------------------------+-----------------------------+---------------+
+| degrees(cast(3.14 as DOUBLE)) | degrees(cast(1 as DOUBLE)) | degrees(cast(-1 as DOUBLE)) | degrees(NULL) |
++-------------------------------+----------------------------+-----------------------------+---------------+
+|             179.9087476710785 |          57.29577951308232 |          -57.29577951308232 |          NULL |
++-------------------------------+----------------------------+-----------------------------+---------------+
 ```
 
 ```sql
-select cosh(1);
+select degrees(cast('nan' as double));
 ```
 
 ```text
-+-------------------------+
-| cosh(cast(1 as DOUBLE)) |
-+-------------------------+
-|       1.543080634815244 |
-+-------------------------+
++-------------------------------+
+| degrees(cast('nan' AS DOUBLE))|
++-------------------------------+
+| NaN                           |
++-------------------------------+
 ```
 
 ```sql
-select cosh(-1);
+select degrees(cast('inf' as double));
 ```
 
 ```text
-+--------------------------+
-| cosh(cast(-1 as DOUBLE)) |
-+--------------------------+
-|        1.543080634815244 |
-+--------------------------+
++-------------------------------+
+| degrees(cast('inf' AS DOUBLE))|
++-------------------------------+
+| Infinity                      |
++-------------------------------+
 ```
 
 ```sql
-select cosh(cast('nan' as double));
+select degrees(cast('-inf' as double));
 ```
 
 ```text
-+-----------------------------+
-| cosh(cast('nan' AS DOUBLE)) |
-+-----------------------------+
-| NaN                         |
-+-----------------------------+
-```
-
-```sql
-select cosh(cast('inf' as double));
-```
-
-```text
-+-----------------------------+
-| cosh(cast('inf' AS DOUBLE)) |
-+-----------------------------+
-| Infinity                    |
-+-----------------------------+
-```
-
-```sql
-select cosh(cast('-inf' as double));
-```
-
-```text
-+------------------------------+
-| cosh(cast('-inf' AS DOUBLE)) |
-+------------------------------+
-| Infinity                     |
-+------------------------------+
++--------------------------------+
+| degrees(cast('-inf' AS DOUBLE))|
++--------------------------------+
+| -Infinity                      |
++--------------------------------+
 ```
