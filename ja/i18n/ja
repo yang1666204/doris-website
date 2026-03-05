@@ -1,139 +1,173 @@
 ---
 {
-  "title": "Tableau Back | Bi",
+  "title": "Integration with Databricks Unity Catalog",
   "language": "en",
-  "description": "VeloDB provides an official Tableau Doris connector. This connector accesses data based on the MySQL JDBC Driver.",
-  "sidebar_label": "Tableau Back"
+  "description": "As enterprises increasingly manage growing data assets under the Lakehouse architecture, the demand for cross-platform, high-performance,"
 }
 ---
 
-# Tableau Back
+As enterprises increasingly manage growing data assets under the Lakehouse architecture, the demand for cross-platform, high-performance, and governed data access capabilities becomes more urgent. Apache Doris, as a next-generation real-time analytical database, has now achieved deep integration with [Databricks Unity Catalog](https://www.databricks.com/product/unity-catalog), enabling enterprises to directly access and efficiently query data lakes managed by Databricks under a unified governance framework, achieving seamless data connectivity.
 
-VeloDB provides an official Tableau Doris connector. This connector accesses data based on the MySQL JDBC Driver.
+**Through this documentation, you will gain in-depth understanding of:**
 
-The connector has been tested by the [TDVT framework](https://tableau.github.io/connector-plugin-sdk/docs/tdvt) with a 100% pass rate.
+- Databricks Environment Setup: How to create External Locations, Catalogs, and Iceberg tables in Databricks, along with related permission configurations
 
-With this connector, Tableau can integrate Apache Doris databases and tables as data sources. To enable this, follow the setup guide below:
+- Doris Connection to Unity Catalog: How to connect Doris to Databricks Unity Catalog and access Iceberg tables
 
-- Install Tableau and the Doris connector
-- Configure an Apache Doris data source in Tableau
-- Build visualizations in Tableau
-- Connection and usage tips
-- Summary
+> Note: This functionality requires Doris version 3.1.3 or higher.
 
-## Install Tableau and Doris connector
+## Databricks Environment Setup
 
-1. Download and install [Tableau desktop](https://www.tableau.com/products/desktop/download).
-2. Get the [tableau-doris](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Tableau/latest/doris_jdbc-latest.taco) custom connector connector (doris_jdbc-\*\*\*.taco).
-3. Get [MySQL JDBC](https://velodb-bi-connector-1316291683.cos.ap-hongkong.myqcloud.com/Tableau/latest/mysql-connector-j-8.3.0.jar) (version 8.3.0).
-4. Locations to place the Connector and JDBC driver
-   MacOS:
-   - Refer to this path: `~/Documents/My Tableau Repository/Connectors`, place the `doris_jdbc-latest.taco` custom connector file (if the path does not exist, create it manually as needed).
-   - JDBC driver jar placement path: `~/Library/Tableau/Drivers`
-     Windows:
-     Assume `tableau_path` is the Tableau installation directory on Windows,
-     typically defaults to: `tableau_path = C:\Program Files\Tableau`
-   - Refer to this path: `%tableau_path%``\Connectors\`, place the `doris_jdbc-latest.taco` custom connector file (if the path does not exist, create it manually as needed).
-   - JDBC driver jar placement path: `%tableau_path%\Drivers\`
+### Creating an External Location
 
-Next, you can configure a Doris data source in Tableau and start building data visualizations!
+In Unity Catalog, an [External Location](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-external-locations) is a secure object that associates paths in cloud object storage with Storage Credentials. External Locations support external access, and Unity Catalog can issue short-term credentials to external systems through the Credential Vending feature, allowing external systems to access these paths.
 
-## Configure a Doris data source in Tableau
+![unity1](/images/integrations/lakehouse/unity/unity-1.png)
 
-Now that you have installed and set up the **JDBC and Connector** drivers, let's look at how to define a data source in Tableau that connects to the tpch database in Doris.
+This document uses AWS Quickstart to create an External Location in AWS S3.
 
-1. Gather your connection details
+![unity2](/images/integrations/lakehouse/unity/unity-2.png)
 
-To connect to Apache Doris via JDBC, you need the following information:
+After creation, you can see the External Catalog and its corresponding Credential:
 
-| Parameter          | Meaning                                                                                 | Example                                                    |
-| ------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Server             | Database host                                                                           | 127.0.1.28 |
-| Port               | Database MySQL port                                                                     | 9030                                                       |
-| Catalog            | Doris Catalog, used when querying external tables and data lakes, set in Advanced       | internal                                                   |
-| Database           | Database name                                                                           | tpch                                                       |
-| Authentication     | Choose database authentication method: Username / Username and Password | Username and Password                                      |
-| Username           | Username                                                                                | testuser                                                   |
-| Password           | Password                                                                                | Leave blank                                                |
-| Init SQL Statement | Initial SQL statement                                                                   | `select * from database.table`                             |
+![unity3](/images/integrations/lakehouse/unity/unity-3.png)
 
-2. Launch Tableau. (If you were already running it before placing the connector, please restart.)
-3. From the left menu, click **More** under the **To a Server** section. In the list of available connectors, search for **Doris JDBC by VeloDB**:
+### Creating a Catalog
 
-![](/images/ecomsystem/tableau/p01.png)
+Click the Create Catalog option in the interface.
 
-4. Click **Doris by VeloDB ，the following dialog will pop up:**
+![unity4](/images/integrations/lakehouse/unity/unity-4.png)
 
-![](/images/ecomsystem/tableau/p02.png)
+Fill in the Catalog name. Uncheck `Use default storage` and select the External Location created earlier.
 
-5. Enter the corresponding connection information as prompted in the dialog.
-6. Optional advanced configuration:
+![unity5](/images/integrations/lakehouse/unity/unity-5.png)
 
-   - You can enter preset SQL in Initial SQL to define the data source
-     ![](/images/ecomsystem/tableau/p03.png)
-   - In Advanced, you can use Catalog to access data lake data sources; the default value is internal,
-     ![](/images/ecomsystem/tableau/p04.png)
-7. After completing the above input fields, click the **Sign In** button, and you should see a new Tableau workbook:
-   ![](/images/ecomsystem/tableau/p05.png)
+### Enabling External Use Schema Permissions
 
-Next, you can build some visualizations in Tableau!
+Click on the newly created `Catalog` → `Permissions` → `Grant`:
 
-## Build visualizations in Tableau
+![unity6](/images/integrations/lakehouse/unity/unity-6.png)
 
-We choose TPC-H data as the data source, refer to [this document](../../benchmark/tpch.md) for the construction method of the Doris TPC-H data source
+Select `All account users` and check the `EXTERNAL USE SCHEMA` option.
 
-Now that we have configured the Doris data source in Tableau, let's visualize the data
+![unity7](/images/integrations/lakehouse/unity/unity-7.png)
 
-1. Drag the customer table and orders table to the workbook. And select the table join field Custkey for them below
+### Creating Iceberg Tables and Inserting Data
 
-![](/images/ecomsystem/tableau/p06.png)
+Execute the following SQL in Databricks SQL Editor to create an Iceberg table and insert data:
 
-2. Drag the nation table to the workbook and select the table join field Nationkey with the customer table
-   ![](/images/ecomsystem/tableau/p07.png)
-3. Now that you have associated the customer table, orders table and nation table as a data source, you can use this relationship to handle questions about the data. Select the `Sheet 1` tab at the bottom of the workbook to enter the workspace.
-   ![](/images/ecomsystem/tableau/p08.png)
-4. Suppose you want to know the summary of the number of users per year. Drag OrderDate from orders to the `Columns` area (horizontal field), and then drag customer(count) from customer to `Rows`. Tableau will generate the following line chart:
-   ![](/images/ecomsystem/tableau/p09.png)
+```sql
+CREATE TABLE `my-unity-catalog`.default.iceberg_table (
+  id int,
+  name string
+) USING iceberg;
 
-A simple line chart is completed, but this dataset is automatically generated by the tpch script and default rules and is not actual data. It is not for reference and is intended to test availability.
+INSERT INTO `my-unity-catalog`.default.iceberg_table VALUES(1, "jack");
+```
 
-5. Suppose you want to know the average order amount (USD) by region (country) and year:
-   - Click the `New Worksheet` tab to create a new sheet
-   - Drag Name from the nation table to `Rows`
-   - Drag OrderDate from the orders table to `Columns`
+### Obtaining Access Token
 
-You should see the following:
-![](/images/ecomsystem/tableau/p10.png)
+Click the user avatar in the top right corner, go to the `Settings` page, and select `Access tokens` under `User` → `Developer`. Create a new Token for subsequent use when connecting Doris to Unity Catalog. The Token is a string in the format: `dapi4f...`
 
-6. Note: The `Abc` value is just a placeholder value, because you have not defined aggregation logic for that mark, so you need to drag a measure onto the table. Drag Totalprice from the orders table to the middle of the table. Note that the default calculation is to perform a SUM on Totalprices:
-   ![](/images/ecomsystem/tableau/p11.png)
-7. Click `SUM` and change `Measure` to `Average`.
-   ![](/images/ecomsystem/tableau/p12.png)
-8. From the same dropdown menu, select `Format ` and change `Numbers` to `Currency (Standard)`:
-   ![](/images/ecomsystem/tableau/p13.png)
-9. Get a table that meets expectations:
-   ![](/images/ecomsystem/tableau/p14.png)
+## Doris Connection to Unity Catalog
 
-So far, Tableau has been successfully connected to Apache Doris, and data analysis and visualization dashboard production has been achieved.
+### Creating a Catalog
 
-## Connection and usage tips
+```sql
+-- Use oauth2 credential and vended credentials
+CREATE CATALOG dbx_unity_catalog PROPERTIES (
+  "uri" = "https://dbc-xx.cloud.databricks.com:443/api/2.1/unity-catalog/iceberg-rest/",
+  "type" = "iceberg",
+  "warehouse" = "my-unity-catalog",
+  "iceberg.catalog.type" = "rest",
+  "iceberg.rest.security.type" = "oauth2",
+  "iceberg.rest.oauth2.credential" = "clientid:clientsecret",
+  "iceberg.rest.oauth2.server-uri" = "https://dbc-xx.cloud.databricks.com:443/oidc/v1/token",
+  "iceberg.rest.oauth2.scope" = "all-apis",
+  "iceberg.rest.vended-credentials-enabled" = "true"
+);
 
-**Performance optimization**
+-- Use PAT and vended credentials
+CREATE CATALOG dbx_unity_catalog PROPERTIES (
+  "uri" = "https://<dbc-account>.cloud.databricks.com/api/2.1/unity-catalog/iceberg-rest/",
+  "type" = "iceberg",
+  "warehouse" = "my-unity-catalog",
+  "iceberg.catalog.type" = "rest",
+  "iceberg.rest.security.type" = "oauth2",
+  "iceberg.rest.oauth2.token" = "<token>",
+  "iceberg.rest.vended-credentials-enabled" = "true"
+);
 
-- According to actual needs, reasonably create doris databases and tables, partition and bucket by time, which can effectively reduce predicate filtering and most data transmission
-- Appropriate data pre-aggregation can be done by creating materialized views on the Doris side.
-- Set a reasonable refresh plan to balance the computing resource consumption of refresh and the timeliness of dashboard data
+-- Use oauth2 credential and static ak/sk for accessing aws s3
+CREATE CATALOG dbx_unity_catalog PROPERTIES (
+  "uri" = "https://dbc-xx.cloud.databricks.com:443/api/2.1/unity-catalog/iceberg-rest/",
+  "type" = "iceberg",
+  "warehouse" = "my-unity-catalog",
+  "iceberg.catalog.type" = "rest",
+  "iceberg.rest.security.type" = "oauth2",
+  "iceberg.rest.oauth2.credential" = "clientid:clientsecret",
+  "iceberg.rest.oauth2.server-uri" = "https://dbc-xx.cloud.databricks.com:443/oidc/v1/token",
+  "iceberg.rest.oauth2.scope" = "all-apis",
+  "s3.endpoint" = "https://s3.<region>.amazonaws.com",
+  "s3.access_key" = "<ak>",
+  "s3.secret_key" = "<sk>",
+  "s3.region" = "<region>"
+);
+```
 
-**Security configuration**
+### Accessing the Catalog
 
-- It is recommended to use VPC private connections to avoid security risks introduced by public network access.
-- Configure security groups to restrict access.
-- Enable access methods such as SSL/TLS connections.
-- Refine Doris user account roles and access permissions to avoid excessive delegation of permissions.
+Once created, you can start accessing Iceberg tables stored in Unity Catalog:
+
+```sql
+mysql> USE dbx_unity_catalog.`default`;
+Database changed
+
+mysql> SELECT * FROM iceberg_table;
++------+------+
+| id   | name |
++------+------+
+|    1 | jack |
++------+------+
+1 row in set (3.32 sec)
+```
+
+### Managing Iceberg Tables
+
+You can also directly create, manage, and write to Iceberg tables in Unity Catalog through Doris:
+
+```sql
+-- Write to existing table in Unity Catalog
+INSERT INTO iceberg_table VALUES(2, "mary");
+
+-- Create a partitioned table
+CREATE TABLE partition_table (
+  `ts` DATETIME COMMENT 'ts',
+  `col1` BOOLEAN COMMENT 'col1',
+  `pt1` STRING COMMENT 'pt1',
+  `pt2` STRING COMMENT 'pt2'
+)
+PARTITION BY LIST (day(ts), pt1, pt2) ();
+
+-- Insert data
+INSERT INTO partition_table VALUES("2025-11-12", true, "foo", "bar");
+
+-- View table partition information
+SELECT * FROM partition_table$partitions\G
+*************************** 1. row ***************************
+                    partition: {"ts_day":"2025-11-12", "pt1":"foo", "pt2":"bar"}
+                      spec_id: 0
+                 record_count: 1
+                   file_count: 1
+total_data_file_size_in_bytes: 2552
+ position_delete_record_count: 0
+   position_delete_file_count: 0
+ equality_delete_record_count: 0
+   equality_delete_file_count: 0
+              last_updated_at: 2025-11-18 15:20:45.964000
+     last_updated_snapshot_id: 9024874735105617773
+```
 
 ## Summary
 
-This connector simplifies the connection setup process of generic ODBC/JDBC driver-based connectors and provides a better compatible connector for Apache Doris. If you encounter any problems when using the connector, please feel free to contact us on [GitHub](https://github.com/apache/doris/issues).
-
-
-
+Through deep integration with Databricks Unity Catalog, Apache Doris enables enterprises to access and analyze core assets in data lakes with higher performance and lower costs under a unified governance framework. This capability not only enhances the overall consistency of the Lakehouse architecture but also brings new possibilities for real-time analytics, interactive queries, and AI scenarios. Whether data teams, analytics engineers, or platform architects, they can all leverage Doris to build more agile and intelligent data applications on top of existing data lake foundations.
