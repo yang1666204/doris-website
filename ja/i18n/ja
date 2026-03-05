@@ -1,105 +1,149 @@
 ---
 {
-  "title": "DIGITAL_MASKING",
+  "title": "ELT",
   "language": "en",
-  "description": "The DIGITALMASKING function performs masking on numeric strings by replacing the middle part with in a fixed format,"
+  "description": "The ELT function returns the string at the specified index position. Index counting starts from 1."
 }
 ---
 
 ## Description
 
-The DIGITAL_MASKING function performs masking on numeric strings by replacing the middle part with `****` in a fixed format, keeping the first 3 digits and last 4 digits. Equivalent to `CONCAT(LEFT(id, 3), '****', RIGHT(id, 4))`.
+The ELT function returns the string at the specified index position. Index counting starts from 1.
 
 ## Syntax
 
 ```sql
-DIGITAL_MASKING(<digital_number>)
+ELT(<pos>, <str>[, <str> ...])
 ```
 
 ## Parameters
 
-| Parameter          | Description                                                                    |
-| ------------------ | ------------------------------------------------------------------------------ |
-| `<digital_number>` | The numeric string to be masked. Type: VARCHAR |
+| Parameter | Description                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| `<pos>`   | Index position (starting from 1). Type: INT |
+| `<str>`   | String list. Type: VARCHAR                                     |
 
 ## Return Value
 
-Returns VARCHAR type, representing the masked numeric string.
+Returns VARCHAR type, representing the string at the specified index position.
 
 Special cases:
 
-- If the parameter is NULL, returns NULL
-- Masking format: first 3 digits + `****` + last 4 digits
-- When string length is less than 7 digits, the result may overlap
+- If `<pos>` is less than 1 or greater than the number of strings, returns NULL
+- If `<pos>` is NULL, returns NULL
+- Index starts from 1, the first string has index 1
 
 ## Examples
 
-1. Basic usage: Mask an 11-digit phone number
+1. Basic usage: Get the 1st string
 
 ```sql
-SELECT digital_masking('13812345678');
+SELECT ELT(1, 'aaa', 'bbb', 'ccc');
 ```
 
 ```text
-+--------------------------------+
-| digital_masking('13812345678') |
-+--------------------------------+
-| 138****5678                    |
-+--------------------------------+
++-----------------------------+
+| elt(1, 'aaa', 'bbb', 'ccc') |
++-----------------------------+
+| aaa                         |
++-----------------------------+
 ```
 
-2. Numbers of different lengths
+2. Get the 2nd string
 
 ```sql
-SELECT digital_masking('1234567890');
+SELECT ELT(2, 'aaa', 'bbb', 'ccc');
 ```
 
 ```text
-+-------------------------------+
-| digital_masking('1234567890') |
-+-------------------------------+
-| 123****7890                   |
-+-------------------------------+
++-----------------------------+
+| elt(2, 'aaa', 'bbb', 'ccc') |
++-----------------------------+
+| bbb                         |
++-----------------------------+
 ```
 
-3. Short number (less than 7 digits)
+3. Index out of bounds returns NULL
 
 ```sql
-SELECT digital_masking('123');
+SELECT ELT(0, 'aaa', 'bbb'), ELT(5, 'aaa', 'bbb');
 ```
 
 ```text
-+------------------------+
-| digital_masking('123') |
-+------------------------+
-| 123****123             |
-+------------------------+
++----------------------+----------------------+
+| elt(0, 'aaa', 'bbb') | elt(5, 'aaa', 'bbb') |
++----------------------+----------------------+
+| NULL                 | NULL                 |
++----------------------+----------------------+
 ```
 
 4. NULL value handling
 
 ```sql
-SELECT digital_masking(NULL);
+SELECT ELT(NULL, 'aaa', 'bbb');
 ```
 
 ```text
-+-----------------------+
-| digital_masking(NULL) |
-+-----------------------+
-| NULL                  |
-+-----------------------+
++-------------------------+
+| elt(NULL, 'aaa', 'bbb') |
++-------------------------+
+| NULL                    |
++-------------------------+
 ```
 
-5. String with UTF-8 characters
+5. Index exceeds range returns NULL
 
 ```sql
-SELECT digital_masking('13812ṭṛ34678');
+SELECT ELT(5, 'aaa', 'bbb', 'ccc');
 ```
 
 ```text
-+-------------------------------------+
-| digital_masking('13812ṭṛ34678')     |
-+-------------------------------------+
-| 138****4678                         |
-+-------------------------------------+
++-----------------------------+
+| elt(5, 'aaa', 'bbb', 'ccc') |
++-----------------------------+
+| NULL                        |
++-----------------------------+
+```
+
+6. Negative index returns NULL
+
+```sql
+SELECT ELT(-1, 'first', 'second');
+```
+
+```text
++----------------------------+
+| elt(-1, 'first', 'second') |
++----------------------------+
+| NULL                       |
++----------------------------+
+```
+
+7. UTF-8 string
+
+```sql
+SELECT 
+    ELT(2, 'Hello', 'ṭṛ', 'Hola');
+```
+
+```text
++-----------------------------------+
+| ELT(2, 'Hello', 'ṭṛ', 'Hola')     |
++-----------------------------------+
+| ṭṛ                                |
++-----------------------------------+
+```
+
+8. Handling empty strings
+
+```sql
+SELECT ELT(2, 'first', '', 'third');
+```
+
+```text
++------------------------------+
+| elt(2, 'first', '', 'third') |
++------------------------------+
+|                              |
++------------------------------+
 ```
