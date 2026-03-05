@@ -1,45 +1,72 @@
 ---
 {
-  "title": "DESC FUNCTION",
+  "title": "PLAN REPLAYER DUMP",
   "language": "en",
-  "description": "Use the desc function tablevaluedfunction to obtain the schema information for the corresponding table-valued function."
+  "description": "PLAN REPLAYER DUMP is a tool for Doris users to generate execution plan diagnostic files. It captures the state and input data of the query optimizer,"
 }
 ---
 
 ## Description
 
-Use the desc function table_valued_function to obtain the schema information for the corresponding table-valued function.
+PLAN REPLAYER DUMP is a tool for Doris users to generate execution plan diagnostic files. It captures the state and input data of the query optimizer, facilitating debugging and analysis of query optimization issues. The output is the http address of the corresponding diagnostic file.
 
 ## Syntax
 
 ```sql
-DESC FUNCTION <table_valued_function>
+PLAN REPLAYER DUMP <query>
 ```
 
 ## Required Parameters
 
-**<table_valued_function>**
+`<query>`
 
-> table_valued_function, the name of the table-valued function, such as CATALOGS. For a list of supported table-valued functions, please refer to the "[Table-Valued Functions](https://doris.apache.org/docs/dev/lakehouse/file-analysis)" section
+- Refers to the query statement inside the corresponding DML.
+- If it is not a query statement, a parse error will be reported.
+- For more details, please refer to the [SELECT](https://doris.apache.org/docs/dev/sql-manual/sql-statements/data-query/SELECT) syntax.
+
+## Permission Control
+
+Users executing this SQL command must have at least the following permissions:
+
+|             Privilege            |    Object   |                                                                                                                    Notes                                                                                                                    |
+| :------------------------------: | :---------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| SELECT_PRIV | Table, View | When executing the <query_sql_statement>, the SELECT_PRIV permission for the queried table, view, or materialized view is required. |
 
 ## Examples
 
-Query the information of the table-valued function CATALOGS:
+### Basic Example
 
 ```sql
-DESC FUNCTION catalogs();
+create database test_replayer;
+use database test_replayer;
+create table t1 (c1 int, c11 int) distributed by hash(c1) buckets 3 properties('replication_num' = '1');
+plan replayer dump select * from t1;
 ```
 
-The result is as follows:
+Execution result example:
 
 ```sql
-+-------------+--------+------+-------+---------+-------+
-| Field       | Type   | Null | Key   | Default | Extra |
-+-------------+--------+------+-------+---------+-------+
-| CatalogId   | bigint | No   | false | NULL    | NONE  |
-| CatalogName | text   | No   | false | NULL    | NONE  |
-| CatalogType | text   | No   | false | NULL    | NONE  |
-| Property    | text   | No   | false | NULL    | NONE  |
-| Value       | text   | No   | false | NULL    | NONE  |
-+-------------+--------+------+-------+---------+-------+
++-------------------------------------------------------------------------------+
+| Plan Replayer dump url                                                        |
+| Plan Replayer dump url |
++-------------------------------------------------------------------------------+
+| http://127.0.0.1:8030/api/minidump?query_id=6e7441f741e94afd-ad3ba69429ad18ec |
++-------------------------------------------------------------------------------+
 ```
+
+You can use curl or wget to obtain the corresponding file, for example:
+
+```sql
+wget http://127.0.0.1:8030/api/minidump?query_id=6e7441f741e94afd-ad3ba69429ad18ec
+```
+
+When permissions are required, you can include the username and password in:
+
+```sql
+wget --header="Authorization: Basic $(echo -n 'root:' | base64)" http://127.0.0.1:8030/api/minidump?query_id=6e7441f741e94afd-ad3ba69429ad18ec
+```
+
+```
+
+```
+
