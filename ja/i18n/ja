@@ -1,8 +1,8 @@
 ---
-{ "title": "BloomFilter Index", "language": "en" }
+{ "title": "Index Overview", "language": "en" }
 ---
 
-<!--
+<!-- 
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -21,108 +21,55 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Indexing Principles
+Database indexes are used to accelerate queries. To speed up different query scenarios, Doris supports various rich indexes.
 
-The BloomFilter index is a type of skip index based on BloomFilter. Its principle is to use BloomFilter to skip data blocks that do not meet the specified conditions for equality queries, thereby reducing IO and accelerating queries.
+## Index Types and Principles
 
-BloomFilter is a fast lookup algorithm proposed by Bloom in 1970, which uses multiple hash functions. It is commonly used in scenarios where quick determination of whether an element belongs to a set is needed without requiring 100% accuracy. BloomFilter has the following characteristics:
+From the perspective of accelerating queries and their principles, Doris indexes are categorized into two main types: point query indexes and skip indexes.
 
-- A space-efficient probabilistic data structure used to check if an element is in a set.
-- For a membership check, BloomFilter returns one of two results: possibly in the set or definitely not in the set.
+- **Point Query Indexes:** Commonly used to speed up point queries, the principle is to locate which rows satisfy the WHERE conditions through the index and directly read those rows. Point query indexes are very effective when the number of rows meeting the conditions is small. Doris's point query indexes include Prefix Index and Inverted Index.
+  - **Prefix Index:** Doris stores data in an ordered manner according to the sort key and creates a sparse prefix index every 1024 rows. The key in the index is the value of the sorted column in the first row of the current 1024 rows. If the query involves a sorted column, the system will find the first row of the relevant 1024-row group and start scanning from there.
+  - **Inverted Index:** For columns with an inverted index, an posting list is created mapping each value to a set of row ids. For equality queries, it first finds the set of row ids from the posting list, then directly reads the data of those rows, avoiding row-by-row scanning. Inverted indexes can also accelerate range filtering and fulltext search. The algorithms are more complex, but the basic principles are similar. (Note: the previous BITMAP index has been replaced by the more powerful inverted index.)
+- **Skip Indexes:** Commonly used to accelerate analysis, the principle is to determine data blocks that do not satisfy the WHERE conditions through the index and skip these blocks, only reading the data blocks that may satisfy the conditions and then performing a row-by-row filter to finally get the rows that meet the conditions. Skip indexes are more effective when the number of rows meeting the conditions is large. Doris's skip indexes include ZoneMap indexes, BloomFilter indexes, and NGram BloomFilter indexes.
+  - **ZoneMap Index:** Automatically maintains statistics for each column, recording the maximum, minimum, and whether there are NULL values for each data file (Segment) and data block (Page). For equality queries, range queries, and IS NULL, it can determine whether the data file and data block can contain the data that meets the conditions based on the maximum value, minimum value, and whether there are NULL values. If not, Doris skips reading the corresponding file or data block, reducing IO and accelerating queries.
+  - **BloomFilter Index:** Stores values of the indexed column in a BloomFilter data structure, which can quickly determine whether a value is in the BloomFilter with very low storage space. For equality queries, if the value is not in the BloomFilter, the corresponding data file or data block can be skipped, reducing IO and accelerating queries.
+  - **NGram BloomFilter Index:** Used to accelerate text LIKE queries. The principle is similar to the BloomFilter index, but instead of storing the original text values, it performs NGram tokenization of the text and stores each token in the BloomFilter. For LIKE queries, the LIKE pattern is also tokenized using NGram. If any token is not in the BloomFilter, the corresponding data file or data block does not meet the LIKE condition and can be skipped.
 
-A BloomFilter consists of a very long binary bit array and a series of hash functions. The bit array is initially all set to 0. When an element is to be checked, it is hashed by a series of hash functions to generate a series of values, and the bits at these positions in the array are set to 1.
+Among the above indexes, the prefix index and ZoneMap index are built-in indexes automatically maintained by Doris, requiring no user management. Inverted indexes, BloomFilter indexes, and NGram BloomFilter indexes need to be manually created and managed by the user based on the scenario.
 
-The figure below shows an example of a BloomFilter with m=18 and k=3 (where m is the size of the bit array and k is the number of hash functions). Elements x, y, and z in the set are hashed by 3 different hash functions into the bit array. When querying element w, if any bit calculated by the hash functions is 0, then w is not in the set. Conversely, if all bits are 1, it only indicates that w may be in the set, but not definitely, due to possible hash collisions.
+- Comparison of characteristics of different types of indexes
 
-![Bloom_filter.svg](/images/Bloom_filter.svg.png)
+| Type        | Index             | Advantages                                                                                                                                                                                       | Limitations                                                                                                                                                        |
+| ----------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Point Query | Prefix Index      | Built-in index, best performance.<br />Only one prefix index per table.                                                                                          | Only one prefix index per table.                                                                                                                   |
+| Point Query | Inverted Index    | Supports tokenization and keyword matching.<br />Building index on any column.<br />Multi-condition combination and accelerating more functions. | Large index storage space, similar to raw data.                                                                                                    |
+| Skip        | ZoneMap Index     | Built-in index, small index storage space.<br />Only one prefix index per table.                                                                                 | Only one prefix index per table.                                                                                                                   |
+| Skip        | BloomFilter Index | More precise than ZoneMap, medium index space.                                                                                                                                   | Supports few query types.<br />Only supports equal (not others: not equal, range, LIKE, MATCH). |
+| Skip        | NGram BloomFilter | Supports LIKE acceleration, medium index space.                                                                                                                                  | Supports few query types.<br />Only supports LIKE acceleration.                                                                    |
 
-Thus, if all bits at the calculated positions are 1, it only indicates that the element may be in the set, not definitely, due to possible hash collisions. This is the "false positive" nature of BloomFilter. Therefore, a BloomFilter-based index can only skip data that does not meet the conditions but cannot precisely locate data that does.
+- List of operators and functions for index acceleration
 
-The Doris BloomFilter index is built on a per-page basis, with each data block storing a BloomFilter. During writing, each value in the data block is hashed into the corresponding BloomFilter. During querying, for equality conditions, it is checked if the BloomFilter of each data block contains the value. If not, the data block is skipped, reducing IO and speeding up the query.
+| Operator or Function                                                                                       | Prefix Index | Inverted Index | ZoneMap Index | BloomFilter Index | NGram BloomFilter Index |
+| ---------------------------------------------------------------------------------------------------------- | ------------ | -------------- | ------------- | ----------------- | ----------------------- |
+| =                                                                                                          | YES          | YES            | YES           | YES               | NO                      |
+| !=                                                                                                         | YES          | YES            | NO            | NO                | NO                      |
+| IN                                                                                                         | YES          | YES            | YES           | YES               | NO                      |
+| NOT IN                                                                                                     | YES          | YES            | NO            | NO                | NO                      |
+| > , >=, <, <=, BETWEEN                                   | YES          | YES            | YES           | NO                | NO                      |
+| IS NULL                                                                                                    | YES          | YES            | YES           | NO                | NO                      |
+| IS NOT NULL                                                                                                | YES          | YES            | NO            | NO                | NO                      |
+| LIKE                                                                                                       | NO           | NO             | NO            | NO                | YES                     |
+| MATCH, MATCH_\*                                                                       | NO           | YES            | NO            | NO                | NO                      |
+| array_contains                                                                        | NO           | YES            | NO            | NO                | NO                      |
+| array_overlaps                                                                        | NO           | YES            | NO            | NO                | NO                      |
+| is_ip_address_in_range | NO           | YES            | NO            | NO                | NO                      |
 
-## Use Cases
+## Index Design Guidelines
 
-BloomFilter indexes can accelerate equality queries (including = and IN) and are effective for high cardinality fields, such as unique id fields like userid.
+The design and optimization of database table indexes are closely related to data distribution and queries, requiring testing and optimization based on the actual scenario. Although there is no "silver bullet," Doris continuously strives to reduce the difficulty of using indexes. Users can follow these simple guidelines for index selection and testing.
 
-:::tip
-
-BloomFilter has the following limitations:
-
-1. It has no effect on queries other than in and =, such as !=, NOT IN, >, <, etc.
-2. It does not support BloomFilter indexing on columns of type Tinyint, Float, Double.
-3. It has limited acceleration effect on low cardinality fields. For example, a "gender" field with only two values will likely be included in almost every data block, making the BloomFilter index meaningless.
-
-To check the effect of a BloomFilter index on a query, you can analyze relevant metrics in the Query Profile.
-
-- BlockConditionsFilteredBloomFilterTime is the time consumed by the BloomFilter index.
-- RowsBloomFilterFiltered is the number of rows filtered out by the BloomFilter. You can compare it with other Rows values to analyze the filtering effect of the BloomFilter index.
-
-:::
-
-## Managing Indexes
-
-### Creating a BloomFilter Index When Creating a Table
-
-Due to historical reasons, the syntax for defining BloomFilter indexes differs from the general INDEX syntax used for inverted indexes. BloomFilter indexes are specified in the table's PROPERTIES using "bloom_filter_columns", which can specify one or more fields.
-
-```sql
-PROPERTIES (
-"bloom_filter_columns" = "column_name1,column_name2"
-);
-```
-
-### Viewing BloomFilter Indexes
-
-```sql
-SHOW CREATE TABLE table_name;
-```
-
-### Adding or Removing BloomFilter Indexes on an Existing Table
-
-Modify the table's bloom_filter_columns property via ALTER TABLE to add or remove BloomFilter indexes.
-
-**Add a BloomFilter index for column_name3**
-
-```sql
-ALTER TABLE table_name SET ("bloom_filter_columns" = "column_name1,column_name2,column_name3");
-```
-
-**Remove the BloomFilter index for column_name1**
-
-```sql
-ALTER TABLE table_name SET ("bloom_filter_columns" = "column_name2,column_name3");
-```
-
-## Using Indexes
-
-BloomFilter index is used to accelerate equality queries in the WHERE clause. It automatically takes effect when applicable, and there is no special syntax required.
-
-The acceleration effect of the BloomFilter index can be analyzed using the following metrics in the Query Profile:
-
-- RowsBloomFilterFiltered: The number of rows filtered by the BloomFilter index, which can be compared with other Rows values to analyze the filtering effect of the index.
-- BlockConditionsFilteredBloomFilterTime: The time consumed by the BloomFilter inverted index.
-
-## Usage Example
-
-Here is an example of how to create a BloomFilter index in Doris.
-
-The BloomFilter index in Doris is created by adding the "bloom_filter_columns" property in the CREATE TABLE statement, with k1, k2, k3 being the key columns for the BloomFilter index. For example, the following creates BloomFilter indexes on saler_id and category_id.
-
-```sql
-CREATE TABLE IF NOT EXISTS sale_detail_bloom  (
-    sale_date date NOT NULL COMMENT "Sale date",
-    customer_id int NOT NULL COMMENT "Customer ID",
-    saler_id int NOT NULL COMMENT "Salesperson",
-    sku_id int NOT NULL COMMENT "Product ID",
-    category_id int NOT NULL COMMENT "Product category",
-    sale_count int NOT NULL COMMENT "Sales quantity",
-    sale_price DECIMAL(12,2) NOT NULL COMMENT "Unit price",
-    sale_amt DECIMAL(20,2)  COMMENT "Total sales amount"
-)
-DUPLICATE KEY(sale_date, customer_id, saler_id, sku_id, category_id)
-DISTRIBUTED BY HASH(saler_id) BUCKETS 10
-PROPERTIES (
-"replication_num" = "1",
-"bloom_filter_columns"="saler_id,category_id"
-);
-```
+1. Specify the most frequently used filter condition as the KEY to automatically create a prefix index, as it has the best filtering effect. However, only one prefix index can be created per table, so it should be used for the most frequent filter condition.
+2. For non-key fields that require filter acceleration, the first choice is to create an inverted index due to its broad applicability and multi-condition combination. The second choice includes the following two indexes:
+   - If there is a need for string LIKE matching, add an NGram BloomFilter index.
+   - If index storage space is critical, replace the inverted index with a BloomFilter index.
+3. If performance is not as expected, analyze the amount of data filtered by the index and the time consumed through QueryProfile. Refer to the detailed documentation of each index for specifics.
