@@ -1,142 +1,275 @@
 ---
 {
-  "title": "Cast to BOOLEAN Type",
+  "title": "Cast to DECIMAL Type",
   "language": "en",
-  "description": "The BOOLEAN type represents true or false values, with only two possible states: true value and false value."
+  "description": "If the source type is nullable, returns nullable type;"
 }
 ---
 
-The BOOLEAN type represents true or false values, with only two possible states: true value and false value.
+## From string
 
-## FROM String
+### Strict mode
 
-:::caution Behavior Change
-Previously, strings like '1.11' could be cast to boolean type 'true', starting from 4.0, they will be converted to null (in non-strict mode) or report an error (in strict mode).
-Previously, values like 'on', 'off', 'yes', 'no' would be converted to null, starting from 4.0, they can be converted to their corresponding boolean values.
-:::
+If the source type is nullable, returns nullable type;
 
-### Strict Mode
+If the source type is non-nullable, returns non-nullable type;
 
-#### BNF Definition
+#### BNF definition
 
 ```xml
-<boolean> ::= <whitespace>* <bool_like> <whitespace>*
+<decimal>     ::= <whitespace>* <value> <whitespace>*
 
-<bool_like> ::= "0" | "1" | "t" | "T" | "f" | "F" | <yes> | <no> | <on> | <off> | <true> | <false>
+<whitespace>  ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
 
-<yes> ::= ("y" | "Y") ("e" | "E") ("s" | "S")
+<value>       ::= <sign>? <significand> <exponent>?
 
-<no> ::= ("n" | "N") ("o" | "O")
+<sign>        ::= "+" | "-"
 
-<on> ::= ("o" | "O") ("n" | "N")
+<significand> ::= <digits> "." <digits> | <digits> | <digits> "." | "." <digits>
 
-<off> ::= ("o" | "O") ("f" | "F") ("f" | "F")
+<digits>      ::= <digit>+
 
-<true> ::= ("t" | "T") ("r" | "R") ("u" | "U") ("e" | "E")
+<digit>       ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-<false> ::= ("f" | "F") ("a" | "A") ("l" | "L") ("s" | "S") ("e" | "E")
+<exponent>    ::= <e_marker> <sign>? <digits>
 
-<whitespace> ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
+<e_marker>    ::= "e" | "E"
 ```
 
-#### Rule Description
+#### Rule description
 
-Boolean values can be in the following forms: 0, 1, yes, no, on, off, true, false, and are case insensitive. Additionally, boolean values can contain any number of whitespace characters before and after (including spaces, tabs, newlines, etc.).
+- Only supports decimal digits;
 
-For formats that do not conform, an error is reported.
+- Supports scientific notation;
+
+- Supports rounding;
+
+- Strings allow arbitrary prefix and suffix whitespace characters, including: " ", "\t", "\n", "\r", "\f", "\v".
+
+- Return error when integer part overflows;
+
+- Return error for invalid format.
 
 #### Examples
 
-| String                        | Cast as bool Result | Comment                              |
-| ----------------------------- | ------------------- | ------------------------------------ |
-| "true"                        | true                |                                      |
-| "false"                       | false               |                                      |
-| " \t\r\n\f\v true \t\r\n\f\v" | true                | With leading and trailing whitespace |
-| "1.1"         | Error               | Invalid format                       |
-| "YeS"                         | true                | Case insensitive                     |
-| '+0'                          | Error               | Invalid format                       |
+| String                                            | Decimal(18, 6) | Comment                                          |
+| ------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| "123.1234567"                     | 123.123457        | Rounding                                         |
+| "12345."                          | 12345.000000      |                                                  |
+| "12345"                                           | 12345.000000      |                                                  |
+| ".123456"                         | 0.123456          |                                                  |
+| " \t\r\n\f\v123.456 \t\r\n\f\v"   | 123.456000        | With prefix and suffix whitespace                |
+| " \t\r\n\f\v+123.456 \t\r\n\f\v"  | 123.456000        | With prefix and suffix whitespace, positive sign |
+| " \t\r\n\f\v-123.456 \t\r\n\f\v"  | -123.456000       | With prefix and suffix whitespace, negative sign |
+| " \t\r\n\f\v+1.234e5 \t\r\n\f\v"  | 123400.000000     | Scientific notation                              |
+| " \t\r\n\f\v+1.234e+5 \t\r\n\f\v" | 123400.000000     | Scientific notation with positive exponent       |
+| " \t\r\n\f\v+1.234e-1 \t\r\n\f\v" | 0.123400          | Scientific notation with negative exponent       |
+| "123.456a"                        | Error                             | Invalid format                                   |
+| "1234567890123.123456"            | Error                             | Overflow                                         |
 
-### Non-Strict Mode
+### Non-strict mode
 
-#### BNF Definition
+Always returns nullable type;
+
+#### BNF definition
 
 ```xml
-<boolean> ::= <whitespace>* <bool_like> <whitespace>*
+<decimal>     ::= <whitespace>* <value> <whitespace>*
 
-<bool_like> ::= "0" | "1" | "t" | "T" | "f" | "F" | <yes> | <no> | <on> | <off> | <true> | <false>
+<whitespace>  ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
 
-<yes> ::= ("y" | "Y") ("e" | "E") ("s" | "S")
+<value>       ::= <sign>? <significand> <exponent>
 
-<no> ::= ("n" | "N") ("o" | "O")
+<sign>        ::= "+" | "-"
 
-<on> ::= ("o" | "O") ("n" | "N")
+<significand> ::= <digits> | <digits> "." <digits> | <digits> "." | "." <digits>
 
-<off> ::= ("o" | "O") ("f" | "F") ("f" | "F")
+<digits>      ::= <digit>+
 
-<true> ::= ("t" | "T") ("r" | "R") ("u" | "U") ("e" | "E")
+<digit>       ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-<false> ::= ("f" | "F") ("a" | "A") ("l" | "L") ("s" | "S") ("e" | "E")
+<exponent>    ::= <e_marker> <sign>? <digits>
 
-<whitespace> ::= " " | "\t" | "\n" | "\r" | "\f" | "\v"
+<e_marker>    ::= "e" | "E"
 ```
 
-#### Rule Description
+#### Rule description
 
-Boolean values can be in the following forms: 0, 1, yes, no, on, off, true, false, and are case insensitive. Additionally, boolean values can contain any number of whitespace characters before and after (including spaces, tabs, newlines, etc.).
+- Supports all valid formats from strict mode;
 
-For formats that do not conform, null is returned.
+- Converts to NULL when overflow occurs;
 
-#### Examples
-
-| String                        | Cast as bool Result | Comment                              |
-| ----------------------------- | ------------------- | ------------------------------------ |
-| "true"                        | true                |                                      |
-| "false"                       | false               |                                      |
-| " \t\r\n\f\v true \t\r\n\f\v" | true                | With leading and trailing whitespace |
-| "1.1"         | null                | Invalid format                       |
-| "YeS"                         | true                | Case insensitive                     |
-| '+0'                          | null                | Invalid format                       |
-
-## FROM Numeric
-
-:::caution Behavior Change
-Previously, non-numeric types like date/datetime were allowed to be converted to boolean type, starting from 4.0, this is not supported.
-:::
-
-### Strict Mode
-
-#### Rule Description
-
-For numeric types (int/double/decimal), non-zero values are considered true.
-
-Positive and negative zeros in floating point numbers are converted to false.
+- Converts to NULL for invalid format.
 
 #### Examples
 
-| Numeric Type         | Cast as bool Result | Comment                         |
-| -------------------- | ------------------- | ------------------------------- |
-| 121231               | true                |                                 |
-| 0                    | false               |                                 |
-| +0.0 | false               | Positive zero in floating point |
-| -0.0 | false               | Negative zero in floating point |
-| -1                   | true                |                                 |
-| 1                    | true                |                                 |
+| String                                            | Decimal(18, 6) | Comment                                          |
+| ------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| "123.1234567"                     | 123.123457        | Rounding                                         |
+| "12345."                          | 12345.000000      |                                                  |
+| "12345"                                           | 12345.000000      |                                                  |
+| ".123456"                         | 0.123456          |                                                  |
+| " \t\r\n\f\v123.456 \t\r\n\f\v"   | 123.456000        | With prefix and suffix whitespace                |
+| " \t\r\n\f\v+123.456 \t\r\n\f\v"  | 123.456000        | With prefix and suffix whitespace, positive sign |
+| " \t\r\n\f\v-123.456 \t\r\n\f\v"  | -123.456000       | With prefix and suffix whitespace, negative sign |
+| " \t\r\n\f\v+1.234e5 \t\r\n\f\v"  | 123400.000000     | Scientific notation                              |
+| " \t\r\n\f\v+1.234e+5 \t\r\n\f\v" | 123400.000000     | Scientific notation with positive exponent       |
+| " \t\r\n\f\v+1.234e-1 \t\r\n\f\v" | 0.123400          | Scientific notation with negative exponent       |
+| "123.456a"                        | NULL                              | Invalid format                                   |
+| "1234567890123.123456"            | NULL                              | Overflow                                         |
 
-### Non-Strict Mode
+## From bool
 
-#### Rule Description
+true converts to 1, false converts to 0.
 
-For numeric types (int/double/decimal), non-zero values are considered true.
+### Strict mode
 
-Positive and negative zeros in floating point numbers are converted to false.
+Error when overflow occurs (e.g., `cast bool as decimal(1, 1)`).
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
+
+### Non-strict mode
+
+Converts to NULL when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast bool as decimal(1, 1)`), returns nullable type;
+
+- Otherwise returns non-nullable type.
+
+## From integer
+
+### Strict mode
+
+Error when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
 
 #### Examples
 
-| Numeric Type         | Cast as bool Result | Comment                         |
-| -------------------- | ------------------- | ------------------------------- |
-| 121231               | true                |                                 |
-| 0                    | false               |                                 |
-| +0.0 | false               | Positive zero in floating point |
-| -0.0 | false               | Negative zero in floating point |
-| -1                   | true                |                                 |
-| 1                    | true                |                                 |
+| int        | Decimal(18, 9) | Comment  |
+| ---------- | --------------------------------- | -------- |
+| 123        | 123.00000000      |          |
+| 2147483647 | Error                             | Overflow |
+
+### Non-strict mode
+
+Converts to NULL when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast int as decimal(1, 0)`), returns nullable type;
+
+- Otherwise returns non-nullable type (e.g., `cast int as decimal(18, 0)`).
+
+#### Examples
+
+| int        | Decimal(18, 9) | Comment  |
+| ---------- | --------------------------------- | -------- |
+| 123        | 123.00000000      |          |
+| 2147483647 | NULL                              | Overflow |
+
+## From float/double
+
+Supports rounding.
+
+### Strict mode
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
+
+- Infinity and NaN cause errors.
+
+- Error when overflow occurs.
+
+#### Examples
+
+| float/double                | Decimal(18, 3) | Comment  |
+| --------------------------- | --------------------------------- | -------- |
+| 1.1239      | 1.124             | Rounding |
+| 3.40282e+38 | Error                             | Overflow |
+| Infinity                    | Error                             |          |
+| NaN                         | Error                             |          |
+
+### Non-strict mode
+
+Always returns nullable type.
+
+- +/-Inf converts to NULL;
+
+- NaN converts to NULL;
+
+- Converts to NULL when overflow occurs.
+
+#### Examples
+
+| float/double                | Decimal(18, 6) | Comment  |
+| --------------------------- | --------------------------------- | -------- |
+| 1.123456    | 1.123456          |          |
+| 3.40282e+38 | NULL                              | Overflow |
+| Infinity                    | NULL                              |          |
+| NaN                         | NULL                              |          |
+
+## Cast between decimals
+
+Supports rounding.
+
+### Strict mode
+
+Error when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable, returns non-nullable type.
+
+#### Examples
+
+| Decimal(18, 8) | Decimal(10, 6) | Comment               |
+| --------------------------------- | --------------------------------- | --------------------- |
+| 1234.12345678     | 1234.123457       | Rounding              |
+| 12345.12345678    | Error                             | Integer part overflow |
+
+### Non-strict mode
+
+Converts to NULL when overflow occurs.
+
+If the source type is nullable, returns nullable type.
+
+If the source type is non-nullable:
+
+- If overflow is possible (e.g., `cast decimal(18, 0) as decimal(9, 0)`), returns nullable type;
+
+- Otherwise returns non-nullable type (e.g., `cast decimal(9, 0) as decimal(18, 0)`).
+
+#### Examples
+
+| Decimal(18, 8) | Decimal(10, 6) | Comment               |
+| --------------------------------- | --------------------------------- | --------------------- |
+| 1234.12345678     | 1234.123457       | Rounding              |
+| 12345.12345678    | NULL                              | Integer part overflow |
+
+## From date
+
+Not supported.
+
+## From datetime
+
+Not supported.
+
+## From time
+
+Not supported.
+
+## From other types
+
+Not supported
