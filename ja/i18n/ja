@@ -1,12 +1,16 @@
 ---
 {
-  "title": "Cast to DATE Type",
+  "title": "Cast to DATETIME Type",
   "language": "en",
-  "description": "Valid range for DATE type: [0000-01-01, 9999-12-31]"
+  "description": "Valid range for DATETIME type:"
 }
 ---
 
-Valid range for DATE type: `[0000-01-01, 9999-12-31]`
+Valid range for DATETIME type:
+
+`[0000-01-01 00:00:00.0000000, 9999-12-31 23:59:59.999999]`
+
+The DATETIME type includes a type parameter `p`, which represents the number of decimal places. The complete representation is `DATETIME(p)` type. For example, DATETIME(6) indicates a DATETIME type that supports microsecond precision.
 
 ## FROM String
 
@@ -69,6 +73,8 @@ Valid range for DATE type: `[0000-01-01, 9999-12-31]`
 
 #### Rule Description
 
+Assuming the target type for conversion is `DATETIME(<scale>)`, where `<scale>` ranges from `[0, 6]`.
+
 ##### Overall Structure
 
 - Date part is required; time part and timezone part are optional.
@@ -93,15 +99,15 @@ Valid range for DATE type: `[0000-01-01, 9999-12-31]`
 
   - Four-digit years are used directly.
 
-- Only '-' is supported as a separator.
+- Separator only supports `-`
 
-- `<year>`, `<month>`, and `<day>` support different lengths in the separated format; in the concatenated format, `<year>` supports 2 or 4 digits, and others are fixed at 2 digits.
+- `<year>`, `<month>`, `<day>` support different lengths in formats with separators; in concatenated formats, `<year>` supports 2 or 4 digits, while other fields are fixed at 2 digits.
 
 ##### Time Part `<time>`
 
 - Two formats are allowed:
 
-  - With separator: `HH[:MM[:SS[.fraction]]]`, etc.
+  - With separators: `HH[:MM[:SS[.fraction]]]`, etc.
 
   - Concatenated: `HH[MM[SS[.fraction]]]`, etc.
 
@@ -111,21 +117,21 @@ Valid range for DATE type: `[0000-01-01, 9999-12-31]`
 
 - `<second>`: 0–59.
 
-- `<fraction>`: any number of digits after the decimal point, representing the fractional part of seconds. The highest digit corresponds to 0.1 second (hundred milliseconds).
+- `<fraction>`: Any number of digits after the decimal point. Represents the decimal part of seconds. The highest digit corresponds to the 0.1 second position (hundred milliseconds).
 
-- `<hour>`, `<minute>`, and `<second>` allow 1-2 digits in separated format; in concatenated format, the length is fixed at 2 digits.
+- `<hour>`, `<minute>`, `<second>` allow 1-2 digits in formats with separators, while in concatenated formats, the length is fixed at 2 digits.
 
-- Only a few consecutive fields from the left can appear, omitting the rest; for example, `<hour>` + `<minute>` is valid, but `<hour>` + `<fraction>` is not.
+- Only consecutive fields from the left can appear while omitting the remaining parts. For example, `<hour>` + `<minute>` is valid, while `<hour>` + `<fraction>` is invalid.
 
-##### Continuous Digit Format `<digit>{14}`
+##### Consecutive Digit Format `<digit>{14}`
 
-- Interpreted as 4 digits-2 digits-2 digits-2 digits-2 digits-2 digits for year, month, day, hour, minute, second.
+- Interpreted as year, month, day, hour, minute, second in the format of 4 digits-2 digits-2 digits-2 digits-2 digits-2 digits.
 
-- Then, parse any possible decimal and timezone parts according to the rules.
+- Then parse any decimal and timezone parts according to the normal rules
 
 ##### Timezone Part `<offset>`
 
-- Any whitespace characters are allowed between the date and the timezone
+- Any whitespace is allowed between the date and timezone
 
 - Case-insensitive
 
@@ -137,7 +143,7 @@ Valid range for DATE type: `[0000-01-01, 9999-12-31]`
 
      - `<minute-offset>`：00, 30 or 45, the ":" can be omitted.
 
-     - The maximum range of numeric offset is `[-14:00, +14:00]`.
+     - The maximum range for numeric offset is `[-14:00, +14:00]`.
 
   2. Special UTC identifiers: `Z`/`UTC`/`GMT`/`CST`/`ZULU`. The timezone offset represented by each symbol is:
 
@@ -161,76 +167,82 @@ Valid range for DATE type: `[0000-01-01, 9999-12-31]`
 
 ##### Parsing Logic
 
-For input strings where all input fields of `<datetime>` are valid, Doris only reads the `<date>` part and uses its result as the target value after conversion. The input is assigned to the corresponding parts of the result according to the fields, for example, the matching result of `<year>` sets the year part of the result, and the matching result of `<month>` sets the month part of the result, and the matching result of `<day>` sets the day part of the result.
+For input strings where all input fields of `<datetime>` are valid, Doris fills each field's value into the Result Datetime according to its semantics. The input is assigned to the corresponding parts of the result according to the fields, for example, the matching result of `<year>` sets the year part of the Result, and the matching result of `<fraction>` sets the microsecond part of the Result. All fields not present in the input are set to 0 in their corresponding parts of the Result.
 
 Specifically, if the input date result is 0000 year 00 month 00 day, and if BE CONFIG `allow_zero_date` is `true`, it is not considered a domain error, and the result produced is 0000 year 01 month 01 day.
 
 ##### Carry
 
-No carry occurs.
+- If `<fraction>` has more than `<scale>` digits after the decimal point, it will be rounded to `<scale>` digits. If this process produces a carry, the carry will occur normally and ultimately affect any part of the Result.
+
+- If the input contains an `<offset>` part, a carry may occur. `<offset>` normally changes the time value. If the hour or minute produces a carry, the carry will occur normally and ultimately affect the Date part of the Result.
+
+- Since the carries produced by `<offset>` and `<fraction>` do not conflict, both can occur simultaneously and have a combined effect.
 
 ##### Error Handling
 
 - **Format error**: If the input does not match any of the above BNF branches, an error is reported immediately.
 
-- **Domain error**: If the `<date>` part is invalid (i.e., does not result in a valid Gregorian calendar date), an error is reported.
+- **Domain error**: If any part has an invalid value (result is not a valid Gregorian calendar time), an error is reported.
 
 #### Examples
 
-Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time zones on time type parsing, see the [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation.
+Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time zones on time type parsing, see the [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation. The result is taken as an example of DATETIME(6), which is a DATETIME that can accommodate 6 decimal places.
 
-| String                               | Cast as DATE Result                                                | Comment                                                                                                                                 |
-| ------------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `2023-07-16T19:20:30.123+08:00`      | `2023-07-16`                                                       | Date with separator + 'T' + seconds and milliseconds + numeric offset                                                                   |
-| `2023-07-16T19+08:00`                | `2023-07-16`                                                       | Concatenated time format, omitting minutes and seconds. Result unchanged when converted to UTC+8.       |
-| `2023-07-16T1920+08:00`              | `2023-07-16`                                                       | Concatenated time format, omitting seconds. Result unchanged when converted to UTC+8.                   |
-| `70-1-1T00:00:00-0000`               | `1970-01-01`                                                       | Two-digit year + single/double digit month/day + separator + concatenated offset                                                        |
-| `19991231T235960.5UTC`               | `1999-12-31`                                                       | Concatenated date + 'T' + concatenated time + fraction + UTC                                                                            |
-| `2024-02-29 12:00:00 Europe/Paris`   | `2024-02-29`                                                       | Valid leap year date + space + complete time + space + timezone name                                                                    |
-| `2024-05-01T00:00Asia/Shanghai`      | `2024-05-01`                                                       | Incomplete time + timezone name                                                                                                         |
-| `20231005T081530Europe/London`       | `2023-10-05`                                                       | Concatenated date + timezone name                                                                                                       |
-| `85-12-25T0000gMt`                   | `1985-12-25`                                                       | Mixed case timezone                                                                                                                     |
-| `2024-05-01`                         | `2024-05-01`                                                       | Date only                                                                                                                               |
-| `24-5-1`                             | `2024-05-01`                                                       | 2-digit year + 1-digit month + 1-digit day                                                                                              |
-| `2024-05-01 0:1:2.333`               | `2024-05-01`                                                       | Concatenated date + 'T' + single-digit hour/minute/second + milliseconds                                                                |
-| `2024-05-01 0:1:2.`                  | `2024-05-01`                                                       | Concatenated date + 'T' + single-digit hour/minute/second + standalone decimal point                                                    |
-| `20240501 01`                        | `2024-05-01`                                                       | Concatenated date + ' ' + omitted minutes and seconds                                                                                   |
-| `20230716 1920Z`                     | `2023-07-16`                                                       | Concatenated date + space + concatenated hour/minute + UTC 'Z'                                                                          |
-| `20240501T0000`                      | `2024-05-01`                                                       | Concatenated date + 'T' + concatenated time omitting seconds                                                                            |
-| `2024-12-31 23:59:59.9999999`        | `2024-12-31`                                                       | Date with separator + space + time with milliseconds, time part is ignored                                                              |
-| `2025/06/15T00:00:00.99999999999999` | `2025-06-15`                                                       | Any number of decimal places allowed                                                                                                    |
-| `2020-12-12 13:12:12-03:00`          | `2020-12-12`                                                       | No carry                                                                                                                                |
-| `0023-01-01T00:00Z`                  | `0023-01-01`                                                       | Valid four-digit year                                                                                                                   |
-| `69-12-31`                           | `1969-12-31`                                                       | Two-digit year 69 → 1969-12-31                                                                                                          |
-| `70-01-01`                           | `1970-01-01`                                                       | Two-digit year 70 → 1970-01-01                                                                                                          |
-| `230102`                             | `2023-01-02`                                                       | Concatenated DATE format with short year                                                                                                |
-| `19230101`                           | `1923-01-01`                                                       | Concatenated DATE format with long year                                                                                                 |
-| `120102030405`                       | Error (format error)                            | Missing DATE - TIME separator                                                                                                           |
-| `20120102030405.123   +08`           | `2012-01-02`                                                       | 14-digit concatenated date + decimal + short timezone offset                                                                            |
-| `120102030405.999`                   | Error (format error)                            | Missing DATE - TIME separator                                                                                                           |
-| `2020-05-05 12:30:60`                | `2020-05-05`                                                       | Invalid seconds, but not part of DATE interpretation                                                                                    |
-| `2023-07-16T19.123+08:00`            | Error (format error)                            | Date contains non-contiguous fields (hour + milliseconds skip minute, second)                                        |
-| `2024/05/01`                         | `2024-05-01`                                                       | Date separator uses '/'                                                                                                                 |
-| `24012`                              | Error (format error)                            | Invalid date digit count                                                                                                                |
-| `2411 123`                           | Error (format error)                            | Invalid digit count for both date and time parts                                                                                        |
-| `2024-05-01 01:030:02`               | Error (format error)                            | Invalid minute digit count                                                                                                              |
-| `10000-01-01 00:00:00`               | Error (format error)                            | Invalid year digit count                                                                                                                |
-| `2024-0131T12:00`                    | Error (format error)                            | Mixed separators in concatenated month format                                                                                           |
-| `2024-05-01@00:00`                   | Error (format error)                            | Incorrect separator                                                                                                                     |
-| `20120212051`                        | Error (format error)                            | Digit count error                                                                                                                       |
-| `2024-05-01T00:00XYZ`                | Generally: Error (format error) | Unknown timezone abbreviation (see [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation) |
-| `2024-5-1T24:00`                     | Error (domain error)                            | Hour 24 out of range                                                                                                                    |
-| `2024-02-30`                         | Error (domain error)                            | February 30 does not exist                                                                                                              |
-| `2024-05-01T12:60`                   | Error (domain error)                            | Minute 60 out of range                                                                                                                  |
-| `2012-06-30T23:59:60`                | Error (domain error)                            | Leap seconds not allowed                                                                                                                |
-| `2024-05-01T00:00+14:30`             | Error (domain error)                            | Timezone offset exceeds maximum range                                                                                                   |
-| `2024-05-01T00:00+08:25`             | Error (domain error)                            | Timezone offset minute 25 is invalid                                                                                                    |
+| String                               | Cast as DATETIME(6) Result                      | Comment                                                                                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `2023-07-16T19:20:30.123+08:00`      | `2023-07-16 19:20:30.123000`                                       | Date with separator + "T" + seconds and milliseconds + numeric offset. Converting to UTC+8, result remains unchanged.   |
+| `2023-07-16T19+08:00`                | `2023-07-16 19:00:00.000000`                                       | Concatenated time format, minutes and seconds omitted. Converting to UTC+8, result remains unchanged.                   |
+| `2023-07-16T1920+08:00`              | `2023-07-16 19:20:00.000000`                                       | Concatenated time format, seconds omitted. Converting to UTC+8, result remains unchanged.                               |
+| `70-1-1T00:00:00-0000`               | `1970-01-01 08:00:00.000000`                                       | Two-digit year + single/double-digit month and day + separator + concatenated offset. Converting to UTC+8 adds 8 hours. |
+| `19991231T235959.5UTC`               | `2000-01-01 07:59:59.500000`                                       | Concatenated date + "T" + concatenated hours, minutes, seconds + fraction + UTC. Converting to UTC+8 adds 8 hours.      |
+| `2024-05-01T00:00Asia/Shanghai`      | `2024-05-01 00:00:00.000000`                                       | Incomplete time + timezone name. Converting to UTC+8, result remains unchanged.                                         |
+| `20231005T081530Europe/London`       | `2023-10-05 15:15:30.000000`                                       | Concatenated date + timezone name. During daylight saving time, GMT+1, converted to UTC+8 by adding 7 hours.            |
+| `20230105T081530 Europe/London`      | `2023-10-05 16:15:30.000000`                                       | Concatenated date + timezone name. Outside daylight saving time, GMT+0, converted to UTC+8 by adding 8 hours.           |
+| `85-12-25T000000gMt`                 | `1985-12-25 08:00:00.000000`                                       | Mixed case timezone. Converting to UTC+8 adds 8 hours.                                                                  |
+| `2024-05-01`                         | `2024-05-01 00:00:00.000000`                                       | Only date                                                                                                                                               |
+| `24-5-1`                             | `2024-05-01 00:00:00.000000`                                       | Two-digit year + single-digit month and day                                                                                                             |
+| `2024-05-01 0:1:2.333`               | `2024-05-01 00:01:02.333000`                                       | Date with separator + "T" + single-digit hour, minute, second + milliseconds                                                                            |
+| `2024-05-01 0:1:2.`                  | `2024-05-01 00:01:02.000000`                                       | Date with separator + "T" + single-digit hour, minute, second + single decimal point                                                                    |
+| `20240501 01`                        | `2024-05-01 01:00:00.000000`                                       | Concatenated date + "T" + single-digit hour, omitting minutes and seconds                                                                               |
+| `20230716 1920Z`                     | `2023-07-16 19:20:20.000000`                                       | Concatenated date + space + concatenated hour and minute + UTC "Z"                                                                                      |
+| `2024-05-01T0000`                    | `2024-05-01 00:00:00.000000`                                       | Date with separator + "T" + concatenated hour and minute, omitting seconds                                                                              |
+| `2024-12-31 23:59:59.9999999`        | `2025-01-01 00:00:00.000000`                                       | Carry to year                                                                                                                                           |
+| `2025/06/15T00:00:00.99999999999999` | `2025-06-15 00:00:01.000000`                                       | Any number of decimal places allowed, normal carry                                                                                                      |
+| `2025/06/15T00:00:00.9999987`        | `2025-06-15 00:00:00.999999`                                       | Generates carry to microseconds                                                                                                                         |
+| `2025/06/15T00:00:00.99999849`       | `2025-06-15 00:00:00.999998`                                       | Rounding only considers the adjacent digit, no carry to microseconds generated.                                                         |
+| `2020-12-12 13:12:12-03:00`          | `2020-12-13 00:12:12.000000`                                       | No carry                                                                                                                                                |
+| `0023-01-01T00:00Z`                  | `0023-01-01 08:00:00.000000`                                       | Four-digit year is valid                                                                                                                                |
+| `69-12-31`                           | `2069-12-31 00:00:00.000000`                                       | Two-digit year 69 → 2069-12-31                                                                                                                          |
+| `70-01-01`                           | `1970-01-01 00:00:00.000000`                                       | Two-digit year 70 → 1970-01-01                                                                                                                          |
+| `230102`                             | `2023-01-02 00:00:00.000000`                                       | Short year DATE concatenated format                                                                                                                     |
+| `19230101`                           | `1923-01-01 00:00:00.000000`                                       | Long year DATE concatenated format                                                                                                                      |
+| `120102030405`                       | Error (format error)                            | Missing DATE - TIME separator                                                                                                                           |
+| `20120102030405.123   +08`           | `2012-01-02 03:05:05.123000`                                       | 14-digit concatenated date format + decimal + short timezone offset                                                                                     |
+| `120102030405.999`                   | Error (format error)                            | Missing DATE - TIME separator                                                                                                                           |
+| `2023-07-16T19.123+08:00`            | Error (format error)                            | Date has non-consecutive fields (hour+milliseconds skipping minutes and seconds)                                                     |
+| `2024/05/01`                         | `2024-05-01`                                                       | Date separator uses '/'                                                                                                                                 |
+| `24012`                              | Error (format error)                            | Invalid number of digits for date                                                                                                                       |
+| `2411 123`                           | Error (format error)                            | Invalid number of digits for both date and time parts                                                                                                   |
+| `2024-05-01 01:030:02`               | Error (format error)                            | Invalid number of digits for minutes                                                                                                                    |
+| `10000-01-01 00:00:00`               | Error (format error)                            | Invalid number of digits for year                                                                                                                       |
+| `2024-0131T12:00`                    | Error (format error)                            | Mixed use of separators in month concatenated format                                                                                                    |
+| `2024-05-01@00:00`                   | Error (format error)                            | Invalid separator                                                                                                                                       |
+| `20120212051`                        | Error (format error)                            | Incorrect number of digits                                                                                                                              |
+| `2024-05-01T00:00XYZ`                | Generally: Error (format error) | Unknown timezone abbreviation (see [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation)                 |
+| `2024-5-1T24:00`                     | Error (domain error)                            | Hour 24 out of range                                                                                                                                    |
+| `2024-02-30`                         | Error (domain error)                            | February 30 does not exist                                                                                                                              |
+| `2024-05-01T12:60`                   | Error (domain error)                            | Minute 60 out of range                                                                                                                                  |
+| `2012-06-30T23:59:60`                | Error (domain error)                            | Leap seconds not allowed                                                                                                                                |
+| `2024-05-01T00:00+14:30`             | Error (domain error)                            | Timezone offset exceeds maximum range                                                                                                                   |
+| `2024-05-01T00:00+08:25`             | Error (domain error)                            | Timezone offset minute 25 is invalid                                                                                                                    |
+| `9999-12-31 23:59:59.9999999`        | Error (domain error)                            | Carry from reducing decimal places causes result to exceed the domain upper limit                                                                       |
 
 ### Non-strict Mode
 
-#### BNF definition
+#### BNF Definition
 
-**In addition to the formats supported in strict mode, the following are also supported:**
+**In addition to the formats supported in strict mode**, the following are also supported:
 
 ```xml
 <datetime> ::= <whitespace>* <date> (<delimiter> <time> <whitespace>* <timezone>?)? <whitespace>*
@@ -245,7 +257,7 @@ Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time z
 <minute> ::= <digit>{1,2}
 <second> ::= <digit>{1,2}
 
-<separator> ::= any symbol except digits or letters
+<separator> ::= ^(<digit> | <alpha>)
 <delimiter> ::= " " | "T" | ":"
 
 <fraction> ::= "." <digit>*
@@ -272,28 +284,30 @@ Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time z
 ```
 
 :::caution Behavior Change
-Since version 4.0, the \<year> part only supports 2 or 4 digit numeric input. For date or time input without separators, stricter rules apply: only the 14-digit continuous integer format is supported—this is enforced in strict mode and inherited by non-strict mode.
+Since version 4.0, the \<year> part only supports 2 or 4-digit input. Support for dates or times without separators is more strict, only supporting the 14-digit consecutive integer format, which is supported in strict mode and inherited by non-strict mode.
 
-Parsing of each field no longer allows exceeding the length due to extra leading zeros. For example, `00012` for `<day> ::= <digit>{1,2}` is invalid.
+In parsing each field, extra leading zeros that would exceed the length are no longer allowed. For example, `00012` is invalid for `<day> ::= <digit>{1,2}`.
 
-If an unexpected whitespace is encountered, parsing will fail just as it would with any other unexpected character, rather than using already parsed fields to fill the result.
+When encountering unexpected spaces, parsing will fail just like with other unexpected characters, rather than filling the result with already parsed fields.
 :::
 
 #### Rule Description
+
+Assume the target type for conversion is `DATETIME(<scale>)`, where `<scale>` has a value range of `[0, 6]`.
 
 In non-strict mode, all formats supported in strict mode can be parsed, and in addition, parsing according to the above BNF definition is supported.
 
 ##### Overall Structure
 
-- The date part is required; the time part and the time zone part are optional.
+- Date part is required; time part and timezone part are optional.
 
-- Any ASCII whitespace characters may appear at the beginning or end of the string; date and time are separated by a space or uppercase 'T'; any symbol other than digits and letters can be used as a separator between input fields; timezone is optional.
+- The string can have any whitespace characters before and after; date and time are separated by a space or uppercase "T"; each input field can be separated by any symbol that is not a digit or letter; timezone is optional.
 
 - Only ASCII characters are accepted. If non-ASCII characters appear in the input string, it will not satisfy the BNF definition above and will be considered a format error.
 
-##### Date part `<date>` and time part `<time>`
+##### Date Part `<date>` and Time Part `<time>`
 
-- `<separator>`: any symbol except digits and letters;
+- `<separator>`: Any symbol that is not a digit or letter;
 
 - `<year>`: 2 or 4 digits.
 
@@ -301,25 +315,25 @@ In non-strict mode, all formats supported in strict mode can be parsed, and in a
 
   - Four-digit years are used directly.
 
-- `<fraction>` (optional): any number of digits after the decimal point.
+- `<fraction>` (optional): Any number of digits after the decimal point.
 
 - Other numeric fields: 1 or 2 digits.
 
-##### Timezone part `<timezone>` (same as strict mode)
+##### Timezone Part `<timezone>` (same as strict mode)
 
-- Any whitespace characters are allowed between the date and the time zone.
+- Any whitespace is allowed between the date and timezone
 
-- Case is not distinguished.
+- Case-insensitive
 
 - Three types are allowed:
 
   1. Numeric offset: `(+|-)HH[:MM]` or `(+|-)HHMM`
 
-     - `<hour-offset>`: 0–14, leading 0 can be omitted for single-digit values.
+     - `<hour-offset>`: 0-14, leading 0 can be omitted for single-digit values.
 
-     - `<minute-offset>`：00, 30 or 45, the ":" can be omitted.
+     - `<minute-offset>`: 00, 30 or 45, the colon ":" can be omitted.
 
-     - The maximum range of numeric offset is `[-14:00, +14:00]`.
+     - The maximum range for numeric offset is `[-14:00, +14:00]`.
 
   2. Special UTC identifiers: `Z`/`UTC`/`GMT`/`CST`/`ZULU`. The timezone offset represented by each symbol is:
 
@@ -333,9 +347,9 @@ In non-strict mode, all formats supported in strict mode can be parsed, and in a
 
      - `ZULU`: +00:00
 
-  3. Long format timezone name: All valid timezone names contained in the IANA-managed [Timezone Database](https://www.iana.org/time-zones), such as `Europe/Paris`, `Etc/GMT+2`, etc., case insensitive.
+  3. Long timezone name: Any valid timezone name in the IANA Timezone Database, such as `Europe/Paris`, `Etc/GMT+2`, etc. (case-insensitive).
 
-     - For timezone name availability, see the [Timezone](../../../../admin-manual/cluster-management/time-zone) documentation.
+     - For the availability of timezone names, see the [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation.
 
 ##### Whitespace
 
@@ -343,52 +357,50 @@ In non-strict mode, all formats supported in strict mode can be parsed, and in a
 
 ##### Parsing Logic
 
-For any input string that satisfies the above BNF definition, Doris will fill in the corresponding parts of the result Date. For example, the year part of the result is set to the matched `<year>` value, and the microsecond part of the result is set to the matched `<fraction>` value. Any parts that do not appear in the input are set to 0 in the result.
+For any input string that satisfies the above BNF definition, Doris will fill in the corresponding parts of the result Datetime. For example, the year part of the result is set to the matched `<year>` value, and the microsecond part of the result is set to the matched `<fraction>` value. Any parts that do not appear in the input are set to 0 in the result.
+
+In particular, if the input date result is 0000-00-00, and the BE CONFIG `allow_zero_date` is `true`, it is not considered a domain error, and the result is set to 0000-01-01.
 
 ##### Carry
 
-:::caution Behavior Change
-Since version 4.0, when parsing DATE type, the part other than \<date> does not produce any carry or numeric impact.
-:::
+- If the number of decimal places in `<fraction>` exceeds `<scale>`, it will be rounded to `<scale>` decimal places. If this process produces a carry, the carry will occur normally and affect any part of the result.
 
-No carry occurs.
+- If the input contains an `<offset>` part, a carry may occur. The `<offset>` normally changes the time value, and if the hour or minute produces a carry, the carry will occur normally and affect the Date part of the result.
+
+- Since the carries produced by `<offset>` and `<fraction>` do not conflict, they can occur simultaneously and affect the result together.
 
 ##### Error Handling
 
 - **Format error**: If the input does not match any of the above BNF branches, the return value is NULL.
 
-- **Domain error**: If the `<date>` part is invalid (i.e., does not result in a valid Gregorian calendar date), the return value is NULL.
-
-:::caution Behavior Change
-Since version 4.0, when parsing DATE type, if parts other than \<date> have domain errors, they do not affect the result.
-:::
+- **Domain error**: If any part has an invalid value (result is not a valid Gregorian calendar time), NULL is returned.
 
 #### Examples
 
-Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time zones on time type parsing, see the [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation.
+Assume the current Doris time zone is UTC+8 (`+08:00`). For the effect of time zones on time type parsing, see the [Time Zone](../../../../admin-manual/cluster-management/time-zone) documentation. Results are shown using DATETIME(6), which is a DATETIME type that accommodates 6 decimal places.
 
-| String                                      | Cast as DATE Result                    | Comment                                                                                                                                           |
-| ------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `2023-7-4T9-5-3.1Z`                         | `2023-07-04`                           | Leading and trailing whitespace; date `2023-7-4` (`-` separator, supports single-digit month/day); time and timezone are valid |
-| `99.12.31 23.59.59+05:30`                   | `1999-12-31`                           | `.` separates date and time; timezone `+05:30` (minute `30` is valid); no 'T'                                                  |
-| `2000/01/01T00/00/00-230`                   | `2000-01-01`                           | `/` separator; timezone without colon and single-digit hour \`-230'                                                                               |
-| `85 1 1T0 0 0. CST`                         | `1985-01-01`                           | All fields separated by spaces; two-digit year maps to `1985`; zero digits after decimal point; short timezone name is case-insensitive           |
-| `2024-02-29T23:59:59.999999 UTC`            | `2024-02-29`                           | Valid leap year; high-precision decimal does not carry; specific timezone name                                                                    |
-| `70-01-01T00:00:00+14`                      | `1970-01-01`                           | Two-digit year `1970`; maximum legal offset `+14`; no minute part                                                                                 |
-| `0023-1-1T1:2:3. -00:00`                    | `0023-01-01`                           | Four-digit year `0023`; mixed one/two-digit time fields; zero digits after decimal; offset with no sign for minutes                               |
-| `2025/06/15T00:00:00.0-0`                   | `2025-06-15`                           | `/` separator; one digit after decimal; offset `-0` (equivalent to `-00:00`)                                                   |
-| `2025/06/15T00:00:00.99999999999`           | `2025-06-15`                           | Any number of decimal places, ignored                                                                                                             |
-| `2024-02-29T23-59-60ZULU`                   | NULL (format error) | Second out of range                                                                                                                               |
-| `2024 12 31T121212.123456 America/New_York` | NULL (format error) | Pure numeric time without separator                                                                                                               |
-| `123.123`                                   | NULL (format error) | Behavior change: previously represented 2012-03-12. Now not supported.                            |
-| `12121`                                     | NULL (format error) | Behavior change: previously represented 2012-12-12. Now not supported.                            |
+| String                                      | Cast as DATETIME(6) Result | Comment                                                                                                                                                                                  |
+| ------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `  2023-7-4T9-5-3.1Z  `                     | `2023-07-04 17:05:03.100000`                  | Leading and trailing spaces; date and time parts separated by `-`, with `T` separating the two parts, and the time zone is Z time zone (0 time zone). |
+| `99.12.31 23.59.59+05:30`                   | `2000-01-01 02:29:59.000000`                  | date and time parts separated by `.`. timezone `+05:30` (minute `30` is valid); no "T"                                                                |
+| `2000/01/01T00/00/00-230`                   | `2000-01-01 10:30:00.000000`                  | `/` separator; timezone without colon and with 1-digit hour `-230`                                                                                                                       |
+| `85 1 1T0 0 0. cst`                         | `1985-01-01 00:00:00.000000`                  | Space separates all fields; two-digit year maps to `1985`; zero digits after decimal point; short timezone name is case-insensitive                                                      |
+| `2024-02-29T23:59:59.999999 UTC`            | `2024-03-01 07:59:59.999999`                  | Leap year is valid; high-precision decimal without carry; specific timezone name                                                                                                         |
+| `70-01-01T00:00:00+14`                      | `1969-12-31 18:00:00.000000`                  | Two-digit year `1970`; maximum valid offset `+14`; no minutes part                                                                                                                       |
+| `0023-1-1T1:2:3. -00:00`                    | `0023-01-01 09:07:46.000000`                  | Four-digit year `0023`; mixed one-digit/two-digit time fields; zero digits after decimal point; offset without sign for minutes                                                          |
+| `2025/06/15T00:00:00.0-0`                   | `2025-06-15 08:00:00.000000`                  | `/` separator; 1 digit after decimal point; offset `-0` (equivalent to `-00:00`)                                                                                      |
+| `2025/06/15T00:00:00.99999999999`           | `2025-06-15 00:00:01.000000`                  | Any decimal place, carry forward to 6 decimal places                                                                                                                                     |
+| `2024-02-29T23-59-60ZULU`                   | NULL (format error)        | Seconds out of range                                                                                                                                                                     |
+| `2024 12 31T121212.123456 America/New_York` | NULL (format error)        | Pure numeric time without separators                                                                                                                                                     |
+| `123.123`                                   | NULL (format error)        | Behavior Change: Previously represented 2012-03-12 03:00:00.000000. Now not supported.   |
+| `12121`                                     | NULL (format error)        | Behavior Change: Previously represented 2012-12-12 00:00:00.000000. Now not supported.   |
 
 ## From Numeric
 
-Supports conversion from all numeric types to DATE type.
+All numeric types can be converted to DATETIME type.
 
 :::caution Behavior Change
-Since 4.0, DECIMAL type is converted according to its literal numeric value. Conversion from Boolean to time types is not supported. Parsing of fractional parts in numeric input is supported.
+Since version 4.0, DECIMAL types are converted according to their literal numeric representation. Boolean type conversion to time types is not supported. Parsing of the decimal part of numeric type inputs is supported.
 :::
 
 ### Strict Mode
@@ -406,27 +418,35 @@ For integer digits, numbers are filled from the lowest to the highest digit, fro
 6-digit number (abcdef, where ab >= 70) => 19ab Year cd Month ef Day
 6-digit number (abcdef, where ab < 70) => 20ab Year cd Month ef Day
 8-digit number (abcdefgh) => abcd Year ef Month gh Day
-14-digit number (abcdefghijklmn) => abcd Year ef Month gh Day
+14-digit number (abcdefghijklmn) => abcd Year ef Month gh Day ij Hour kl Minute mn Second
 ```
+
+For the decimal part, the number is filled from high to low, from the leftmost end of the date after the decimal point (hundred milliseconds place). If the decimal is an imprecise representation type (float, double), we will use the actual value it represents before the Cast.
+
+##### Carry
+
+If the number of decimal places exceeds `<scale>` places, it will be rounded to `<scale>` decimal places. If this process produces a carry, the carry will occur normally and affect any part of the result.
 
 ##### Error Handling
 
-If the input cannot produce a valid DATE value after parsing according to the rules, an error is reported.
+When the input cannot be parsed into a valid DATETIME value according to the rules, an error is reported.
 
 #### Examples
 
-| Number                       | Cast as DATE Result | Comment                                   |
-| ---------------------------- | ------------------- | ----------------------------------------- |
-| `123.123`                    | `2000-01-23`        | 3-digit number                            |
-| `20150102030405`             | `2015-01-02`        | 14-digit number                           |
-| `20150102030405.123456`      | `2015-01-02`        | 14-digit number, valid decimal            |
-| `20151231235959.99999999999` | `2015-12-31`        | 14-digit number, valid decimal            |
-| `1000`                       | Error               | Invalid day in 2000-10-00                 |
-| `-123.123`                   | Error               | Negative time cannot produce a valid date |
+Results are shown using DATETIME(3), which is a DATETIME type that accommodates 3 decimal places.
+
+| Number                       | Cast as DATETIME(6) Result | Comment                                     |
+| ---------------------------- | --------------------------------------------- | ------------------------------------------- |
+| `123.123`                    | `2000-01-23 00:00:00.123000`                  | 3-digit number + decimal                    |
+| `20150102030405`             | `2015-01-02 03:04:05.000000`                  | 14-digit number                             |
+| `20150102030405.123456`      | `2015-01-02 03:04:05.123456`                  | 14-digit number + decimal                   |
+| `20151231235959.99999999999` | `2016-01-01 00:00:00.000000`                  | 14-digit number，decimal valid，carry to year |
+| `1000`                       | Error                                         | Day in 2000-10-00 is invalid                |
+| `-123.123`                   | Error                                         | Negative time cannot produce a valid date   |
 
 ### Non-strict Mode
 
-Except for error handling, the behavior of non-strict mode is exactly the same as strict mode.
+Except for error handling, the behavior in non-strict mode is entirely consistent with strict mode.
 
 #### Rule Description
 
@@ -441,52 +461,158 @@ For integer digits, numbers are filled from the lowest to the highest digit, fro
 6-digit number (abcdef, where ab >= 70) => 19ab Year cd Month ef Day
 6-digit number (abcdef, where ab < 70) => 20ab Year cd Month ef Day
 8-digit number (abcdefgh) => abcd Year ef Month gh Day
-14-digit number (abcdefghijklmn) => abcd Year ef Month gh Day
+14-digit number (abcdefghijklmn) => abcd Year ef Month gh Day ij Hour kl Minute mn Second
 ```
+
+For the decimal part, the number is filled from high to low, from the leftmost end of the date after the decimal point (hundred milliseconds place). If the decimal is an imprecise representation type (float, double), we will use the actual value it represents before the Cast.
+
+##### Carry
+
+If the number of decimal places exceeds `<scale>` places, it will be rounded to `<scale>` decimal places. If this process produces a carry, the carry will occur normally and affect any part of the result.
 
 ##### Error Handling
 
-If the input cannot produce a valid DATE value after parsing according to the rules, NULL is returned.
+When the input cannot be parsed into a valid DATETIME value according to the rules, NULL is returned.
 
 #### Examples
 
-| Number                       | Cast as DATE Result | Comment                                   |
-| ---------------------------- | ------------------- | ----------------------------------------- |
-| `123.123`                    | `2000-01-23`        | 3-digit number                            |
-| `20150102030405`             | `2015-01-02`        | 14-digit number                           |
-| `20150102030405.123456`      | `2015-01-02`        | 14-digit number, valid decimal            |
-| `20151231235959.99999999999` | `2015-12-31`        | 14-digit number, valid decimal            |
-| `1000`                       | NULL                | Invalid day in 2000-10-00                 |
-| `-123.123`                   | NULL                | Negative time cannot produce a valid date |
+Results are shown using DATETIME(6), which is a DATETIME type that accommodates 6 decimal places.
+
+| Number                       | Cast as DATETIME(6) Result | Comment                                     |
+| ---------------------------- | --------------------------------------------- | ------------------------------------------- |
+| `123.123`                    | `2000-01-23 00:00:00.123000`                  | 3-digit number + decimal                    |
+| `20150102030405`             | `2015-01-02 03:04:05.000000`                  | 14-digit number                             |
+| `20150102030405.123456`      | `2015-01-02 03:04:05.123456`                  | 14-digit number + decimal                   |
+| `20151231235959.99999999999` | `2016-01-01 00:00:00.000000`                  | 14-digit number，decimal valid，carry to year |
+| `1000`                       | NULL                                          | Day in 2000-10-00 is invalid                |
+| `-123.123`                   | NULL                                          | Negative time cannot produce a valid date   |
 
 ## From Datelike Types
 
-Supports conversion from Datetime and Time types to Date type.
+Date, Time, and Timestamptz types can be converted to Datetime type. Since Datetime has different precision values, there are also conversions between Datetime types of different precisions.
 
-### Datetime
+When converting Timestamptz to Datetime, the conversion is performed based on the current session's time zone.
+
+### Date
 
 #### Rule Description
 
-When converting from Datetime, the result is the date part of the input. This conversion is always valid.
+When converting from Date, the result is the input date part plus a time part that is all 0. This conversion is always valid.
 
 #### Examples
 
-| Input Datetime               | Cast as Date Result |
-| ---------------------------- | ------------------- |
-| `2012-02-05 12:35:24.123456` | `2012-02-05`        |
+| Input DATE | Target Type                    | Cast as Datetime Result                                                    |
+| ---------- | ------------------------------ | -------------------------------------------------------------------------- |
+| 2012-02-05 | Datetime(0) | 2012-02-05 00:00:00                        |
+| 2012-02-05 | Datetime(6) | 2012-02-05 00:00:00.000000 |
 
 ### Time
 
 #### Rule Description
 
-When converting from Time, the result is the sum of the current date and the Time input. Since this conversion is valid in the foreseeable future (before December 9999), Doris considers it always valid.
+When converting from Time, the result is the addition of the current date's 00:00:00 time and the Time input. Since this conversion is valid in the foreseeable future (before December 9999), Doris considers it always valid.
 
 #### Examples
 
 Assume the current date is 2025-04-29, then:
 
-| Input Time   | Cast as Date Result |
-| ------------ | ------------------- |
-| `500:00:00`  | `2025-05-19`        |
-| `23:59:59`   | `2025-04-29`        |
-| `-128:00:00` | `2025-04-23`        |
+| Input TIME  | Cast as DATETIME(0) Result |
+| ----------- | --------------------------------------------- |
+| `500:00:00` | `2025-05-19 20:00:00`                         |
+| `23:59:59`  | `2025-04-29 23:59:59`                         |
+
+### Datetime
+
+#### Strict Mode
+
+##### Rule Description
+
+When converting from lower precision to higher precision, the newly appearing decimal places are filled with 0, and this conversion is always valid.
+
+When converting from higher precision to lower precision, there will be a carry forward, which can continue to propagate forward. If an overflow occurs, the converted value is invalid.
+
+##### Error Handling
+
+If an overflow occurs, an error is reported.
+
+##### Examples
+
+Assume the current date is 2025-04-29, then:
+
+| Input DATETIME               | Source Type                    | Target Type                    | Result DATETIME              | Comment                                                |
+| ---------------------------- | ------------------------------ | ------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `2020-12-12 00:00:00.123`    | Datetime(3) | Datetime(6) | `2020-12-12 00:00:00.123000` | Increase precision                                     |
+| `2020-12-12 00:00:00.123456` | Datetime(6) | Datetime(3) | `2020-12-12 00:00:00.123`    | Decrease precision, no carry                           |
+| `2020-12-12 00:00:00.99666`  | Datetime(6) | Datetime(2) | `2020-12-12 00:00:01.00`     | Decrease precision, carry to second                    |
+| `9999-12-31 23:59:59.999999` | Datetime(6) | Datetime(5) | Error                        | Carry overflow, produces an invalid date of year 10000 |
+
+#### Non-Strict Mode
+
+Except for error handling, the behavior of non-strict mode is exactly the same as strict mode.
+
+##### Rule Description
+
+When converting from lower precision to higher precision, the newly appearing decimal places are filled with 0, and this conversion is always valid.
+
+When converting from higher precision to lower precision, there will be a carry forward, which can continue to propagate forward. If an overflow occurs, the converted value is invalid.
+
+##### Error Handling
+
+If an overflow occurs, NULL is returned.
+
+##### Examples
+
+Assume the current date is 2025-04-29, then:
+
+| Input DATETIME               | Source Type                    | Target Type                    | Result DATETIME              | Comment                                                |
+| ---------------------------- | ------------------------------ | ------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `2020-12-12 00:00:00.123`    | Datetime(3) | Datetime(6) | `2020-12-12 00:00:00.123000` | Increase precision                                     |
+| `2020-12-12 00:00:00.123456` | Datetime(6) | Datetime(3) | `2020-12-12 00:00:00.123`    | Decrease precision, no carry                           |
+| `2020-12-12 00:00:00.99666`  | Datetime(6) | Datetime(2) | `2020-12-12 00:00:01.00`     | Decrease precision, carry to second                    |
+| `9999-12-31 23:59:59.999999` | Datetime(6) | Datetime(5) | NULL                         | Carry overflow, produces an invalid date of year 10000 |
+
+### Timestamptz
+
+#### Strict Mode
+
+##### Rule Description
+
+When converting from lower precision to higher precision, the newly appearing decimal places are filled with 0, and this conversion is always valid.
+
+When converting from higher precision to lower precision, there will be a carry forward, which can continue to propagate forward. If an overflow occurs, the converted value is invalid.
+
+##### Error Handling
+
+If an overflow occurs, an error is reported.
+
+##### Examples
+
+| Input TIMESTAMPTZ                  | Source Type                       | Target Type                    | Result DATETIME              | Comment                                                |
+| ---------------------------------- | --------------------------------- | ------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `2020-12-12 00:00:00.123+08:00`    | Timestamptz(3) | Datetime(6) | `2020-12-12 00:00:00.123000` | Increase precision                                     |
+| `2020-12-12 00:00:00.123456+08:00` | Timestamptz(6) | Datetime(3) | `2020-12-12 00:00:00.123`    | Decrease precision, no carry                           |
+| `2020-12-12 00:00:00.99666+08:00`  | Timestamptz(6) | Datetime(2) | `2020-12-12 00:00:01.00`     | Decrease precision, carry to second                    |
+| `9999-12-31 23:59:59.999999+08:00` | Timestamptz(6) | Datetime(5) | Error                        | Carry overflow, produces an invalid date of year 10000 |
+
+#### Non-Strict Mode
+
+Except for error handling, the behavior of non-strict mode is exactly the same as strict mode.
+
+##### Rule Description
+
+When converting from lower precision to higher precision, the newly appearing decimal places are filled with 0, and this conversion is always valid.
+
+When converting from higher precision to lower precision, there will be a carry forward, which can continue to propagate forward. If an overflow occurs, the converted value is invalid.
+
+##### Error Handling
+
+If an overflow occurs, NULL is returned.
+
+##### Examples
+
+| Input TIMESTAMPTZ                  | Source Type                       | Target Type                    | Result DATETIME              | Comment                                                |
+| ---------------------------------- | --------------------------------- | ------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `2020-12-12 00:00:00.123+08:00`    | Timestamptz(3) | Datetime(6) | `2020-12-12 00:00:00.123000` | Increase precision                                     |
+| `2020-12-12 00:00:00.123456+08:00` | Timestamptz(6) | Datetime(3) | `2020-12-12 00:00:00.123`    | Decrease precision, no carr                            |
+| `2020-12-12 00:00:00.99666+08:00`  | Timestamptz(6) | Datetime(2) | `2020-12-12 00:00:01.00`     | Decrease precision, carry to second                    |
+| `9999-12-31 23:59:59.999999+08:00` | Timestamptz(6) | Datetime(5) | NULL                         | Carry overflow, produces an invalid date of year 10000 |
