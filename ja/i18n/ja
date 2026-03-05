@@ -1,12 +1,12 @@
 ---
 {
-  "title": "ARRAY_COMPACT",
+  "title": "ARRAY_CONCAT",
   "language": "en",
-  "description": "Removes consecutive duplicate elements from an array, keeping only the first occurrence of each different value."
+  "description": "Concatenates all input arrays into a single array. The function accepts one or more arrays as parameters and connects them into a new array in the "
 }
 ---
 
-## array_compact
+## array_concat
 
 <version since="2.0.0">
 
@@ -14,17 +14,17 @@
 
 ## Description
 
-Removes consecutive duplicate elements from an array, keeping only the first occurrence of each different value. The function traverses the array from left to right, skipping elements that are the same as the previous element, and only retains the first occurrence of each value.
+Concatenates all input arrays into a single array. The function accepts one or more arrays as parameters and connects them into a new array in the order of the parameters.
 
 ## Syntax
 
 ```sql
-array_compact(ARRAY<T> arr)
+array_concat(ARRAY<T> arr1, [ARRAY<T> arr2, ...])
 ```
 
 ### Parameters
 
-- `arr`：ARRAY<T> type, the array to deduplicate. Supports column names or constant values.
+- `arr1, arr2, ...`：ARRAY\<T> type, the arrays to concatenate. Supports column names or constant values.
 
 **T supported types:**
 
@@ -33,7 +33,7 @@ array_compact(ARRAY<T> arr)
 - Date and time types: DATE, DATETIME, DATEV2, DATETIMEV2
 - Boolean type: BOOLEAN
 - IP types: IPV4, IPV6
-- Complex data types: ARRAY
+- Complex data types: ARRAY, MAP, STRUCT
 
 ### Return Value
 
@@ -41,35 +41,25 @@ Return type: ARRAY\<T>
 
 Return value meaning:
 
-- The deduplicated array, keeping only the first occurrence of consecutive duplicate elements
-- NULL: if the input array is NULL
-
-Return value behavior description:
-
-1. Normal deduplication behavior:
-   - Traverses the array from left to right, keeping the first occurrence of each element, skipping consecutive elements that are the same as the previous element
-   - Only removes consecutive duplicate elements, non-consecutive duplicate elements will be retained
-   - Retains null values (null and null are considered the same)
-
-2. Boundary condition behavior:
-   - When the input array is empty, returns an empty array
-   - When the input array is NULL, returns NULL
-   - When the array has only one element, returns the original array
+- The concatenated new array containing all elements from the input arrays, maintaining the original order
+- NULL: if any input array is NULL
 
 Usage notes:
 
-- The function maintains the original order of array elements
-- Only removes consecutive duplicate elements, does not perform global deduplication
-- map, struct do not support deduplication logic
-- For null values in array elements: null elements will be processed normally, multiple consecutive null elements will be merged into one
+- Empty arrays will be ignored and will not add any elements
+- When there is only one array and it is empty, returns an empty array; when there is only one array and it is NULL, returns NULL
+- Complex types (nested arrays, MAP, STRUCT) require completely consistent structure when concatenating, otherwise an error will be thrown
+- For null values in array elements: null elements will be normally retained in the concatenation result
 
 ### Examples
 
 ```sql
-CREATE TABLE array_compact_test (
+CREATE TABLE array_concat_test (
     id INT,
-    int_array ARRAY<INT>,
-    string_array ARRAY<STRING>
+    int_array1 ARRAY<INT>,
+    int_array2 ARRAY<INT>,
+    string_array1 ARRAY<STRING>,
+    string_array2 ARRAY<STRING>
 )
 DUPLICATE KEY(id)
 DISTRIBUTED BY HASH(id) BUCKETS 3
@@ -77,109 +67,149 @@ PROPERTIES (
     "replication_num" = "1"
 );
 
-INSERT INTO array_compact_test VALUES
-(1, [1, 1, 2, 2, 2, 3, 1, 4], ['a', 'a', 'b', 'b', 'c']),
-(2, [1, 2, 3, 1, 2, 3], ['a', 'b', 'a', 'b']),
-(3, [1, null, null, 2, null, null, 3], ['a', null, null, 'b']),
-(4, [], []),
-(5, NULL, NULL);
+INSERT INTO array_concat_test VALUES
+(1, [1, 2, 3], [4, 5, 6], ['a', 'b'], ['c', 'd']),
+(2, [10, 20], [30, 40], [], ['x', 'y']),
+(3, NULL, [100, 200], NULL, ['z']),
+(4, [], [], [], []),
+(5, [1, null, 3], [null, 5, 6], ['a', null, 'c'], ['d', 'e']);
 ```
 
 **Query examples:**
 
-Consecutive duplicate removal in string_array: Only adjacent 'a' or 'b' will be removed, 'c' is retained.
+Concatenating multiple array literals:
 
 ```sql
-SELECT array_compact(string_array) FROM array_compact_test WHERE id = 1;
-+-----------------------------+
-| array_compact(string_array) |
-+-----------------------------+
-| ["a", "b", "c"]             |
-+-----------------------------+
+SELECT array_concat([1, 2], [7, 8], [5, 6]);
++--------------------------------------+
+| array_concat([1, 2], [7, 8], [5, 6]) |
++--------------------------------------+
+| [1, 2, 7, 8, 5, 6]                   |
++--------------------------------------+
 ```
 
-Non-consecutive duplicate elements will not be removed, original order and content are preserved.
+String array concatenation:
 
 ```sql
-SELECT array_compact(int_array) FROM array_compact_test WHERE id = 2;
-+-------------------------------+
-| array_compact(int_array)      |
-+-------------------------------+
-| [1, 2, 3, 1, 2, 3]            |
-+-------------------------------+
+SELECT array_concat(string_array1, string_array2) FROM array_concat_test WHERE id = 1;
++--------------------------------------------+
+| array_concat(string_array1, string_array2) |
++--------------------------------------------+
+| ["a", "b", "c", "d"]                       |
++--------------------------------------------+
 ```
 
-Array containing null values, consecutive nulls only keep one: null is treated as a normal value, consecutive nulls only keep one, non-consecutive nulls will not be merged.
+Empty array concatenation:
 
 ```sql
-SELECT array_compact(int_array) FROM array_compact_test WHERE id = 3;
-+------------------------------------------+
-| array_compact(int_array)                 |
-+------------------------------------------+
-| [1, null, 2, null, 3]                    |
-+------------------------------------------+
-```
-
-Complex type examples:
-
-Consecutive duplicate removal for nested array types. Only adjacent completely identical sub-arrays will be removed, non-consecutive ones will not.
-
-```sql
-SELECT array_compact([[1,2],[1,2],[3,4],[3,4]]);
-+------------------------------------------+
-| array_compact([[1,2],[1,2],[3,4],[3,4]]) |
-+------------------------------------------+
-| [[1,2],[3,4]]                            |
-+------------------------------------------+
-```
-
-Empty array returns empty array:
-
-```sql
-SELECT array_compact(int_array) FROM array_compact_test WHERE id = 4;
+SELECT array_concat([], []);
 +----------------------+
-| array_compact(int_array) |
+| array_concat([], []) |
 +----------------------+
 | []                   |
 +----------------------+
 ```
 
-NULL array returns NULL:
+NULL array concatenation:
 
 ```sql
-SELECT array_compact(int_array) FROM array_compact_test WHERE id = 5;
-+----------------------+
-| array_compact(int_array) |
-+----------------------+
-| NULL                 |
-+----------------------+
+SELECT array_concat(int_array1, int_array2) FROM array_concat_test WHERE id = 3;
++--------------------------------------+
+| array_concat(int_array1, int_array2) |
++--------------------------------------+
+| NULL                                 |
++--------------------------------------+
 ```
 
-Array with only one element returns the original array:
+Array concatenation containing null elements: null elements will be normally retained in the concatenation result.
 
 ```sql
-SELECT array_compact([42]);
-+----------------------+
-| array_compact([42])  |
-+----------------------+
-| [42]                 |
-+----------------------+
+SELECT array_concat(int_array1, int_array2) FROM array_concat_test WHERE id = 5;
++--------------------------------------+
+| array_concat(int_array1, int_array2) |
++--------------------------------------+
+| [1, null, 3, null, 5, 6]             |
++--------------------------------------+
 ```
 
-Passing multiple parameters will cause an error.
+Type compatibility example: concatenating int_array1 and string_array1, string elements cannot be converted to int, resulting in null.
 
 ```sql
-SELECT array_compact([1,2,3],[4,5,6]);
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_compact' which has 2 arity. Candidate functions are: [array_compact(Expression)]
+SELECT array_concat(int_array1, string_array1) FROM array_concat_test WHERE id = 1;
++-----------------------------------------+
+| array_concat(int_array1, string_array1) |
++-----------------------------------------+
+| [1, 2, 3, null, null]                   |
++-----------------------------------------+
+```
+
+Complex type examples:
+
+Nested array concatenation, can be concatenated when structures are consistent.
+
+```sql
+SELECT array_concat([[1,2],[3,4]], [[5,6],[7,8]]);
++--------------------------------------------+
+| array_concat([[1,2],[3,4]], [[5,6],[7,8]]) |
++--------------------------------------------+
+| [[1, 2], [3, 4], [5, 6], [7, 8]]           |
++--------------------------------------------+
+```
+
+When nested array structures are inconsistent, an error is thrown.
+
+```sql
+SELECT array_concat([[1,2]], [{'k':1}]);
+ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<ARRAY<INT>> to target type=ARRAY<DOUBLE>
+```
+
+Map type concatenation, can be concatenated when structures are consistent.
+
+```sql
+SELECT array_concat([{'k':1}], [{'k':2}]);
++------------------------------------+
+| array_concat([{'k':1}], [{'k':2}]) |
++------------------------------------+
+| [{"k":1}, {"k":2}]                 |
++------------------------------------+
+```
+
+Struct type concatenation, can be concatenated when structures are consistent.
+
+```sql
+SELECT array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('name','Bob','age',30)));
++--------------------------------------------------------------------------------------------------------+
+| array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('name','Bob','age',30))) |
++--------------------------------------------------------------------------------------------------------+
+| [{"name":"Alice", "age":20}, {"name":"Bob", "age":30}]                                                 |
++--------------------------------------------------------------------------------------------------------+
+```
+
+When struct structures are inconsistent, an error is thrown.
+
+```sql
+SELECT array_concat(array(named_struct('name','Alice','age',20)), array(named_struct('id',1,'score',95.5,'age',10)));
+ERROR 1105 (HY000): errCode = 2, detailMessage = can not cast from origin type ARRAY<STRUCT<name:VARCHAR(5),age:TINYINT>> to target type=ARRAY<DOUBLE>
+```
+
+Incorrect number of parameters will cause an error.
+
+```sql
+SELECT array_concat();
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not found function 'array_concat' which has 0 arity. Candidate functions are: [array_concat(Expression, Expression, ...)]
 ```
 
 Passing non-array type will cause an error.
 
 ```sql
-SELECT array_compact('not_an_array');
-ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_compact(VARCHAR(12))
+SELECT array_concat('not_an_array');
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: array_concat(VARCHAR(12))
 ```
+
+### Notes
+
+Ensure that all input array element types are compatible, especially for nested complex types where the structure should be consistent to avoid type conversion errors at runtime.
 
 ### Keywords
 
-ARRAY, COMPACT, ARRAY_COMPACT
+ARRAY, CONCAT, ARRAY_CONCAT
