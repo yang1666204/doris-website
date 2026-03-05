@@ -1,96 +1,152 @@
 ---
 {
-  "title": "YEARWEEK",
+  "title": "DAY_FLOOR",
   "language": "en",
-  "description": "The YEARWEEK function is used to return the \"year + week number\" combination for a specified date (format YYYYWW, e.g.,"
+  "description": "The DAYFLOOR function is used to round down a specified date or time value to the start of the nearest specified day period."
 }
 ---
 
 ## Description
 
-The YEARWEEK function is used to return the "year + week number" combination for a specified date (format YYYYWW, e.g., 202301 represents week 1 of 2023). This function flexibly defines the start day of the week and the criteria for determining the "first week" through the optional parameter mode, defaulting to mode=0.
+The DAY_FLOOR function is used to round down a specified date or time value to the start of the nearest specified day period. It returns the largest period moment that is not greater than the input date and time. The period rule is defined jointly by period (number of days in the period) and origin (starting reference time). If no starting reference time is specified, it defaults to 0001-01-01 00:00:00 as the calculation basis.
 
-Week numbers range from 1-53, depending on the mode configuration.
+Date calculation formula:
 
-The effect of parameter mode is shown in the table below:
+$$
+\text{DAY\_FLOOR}(\langle\text{date\_or\_time\_expr}\rangle, \langle\text{period}\rangle, \langle\text{origin}\rangle) = \max\{\langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{day} \mid k \in \mathbb{Z} \land \langle\text{origin}\rangle + k \times \langle\text{period}\rangle \times \text{day} \leq \langle\text{date\_or\_time\_expr}\rangle\}
+$$
 
-| Mode | First day of week | Week number range | Definition of first week                         |
-| :--- | :---------------- | :---------------- | :----------------------------------------------- |
-| 0    | Sunday            | 1-53              | The week containing the first Sunday of the year |
-| 1    | Monday            | 1-53              | The first week with 4 or more days in the year   |
-| 2    | Sunday            | 1-53              | The week containing the first Sunday of the year |
-| 3    | Monday            | 1-53              | The first week with 4 or more days in the year   |
-| 4    | Sunday            | 1-53              | The first week with 4 or more days in the year   |
-| 5    | Monday            | 1-53              | The week containing the first Monday of the year |
-| 6    | Sunday            | 1-53              | The first week with 4 or more days in the year   |
-| 7    | Monday            | 1-53              | The week containing the first Monday of the year |
-
-This function is consistent with the [yearweek function](https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html#function_yearweek) in MySQL.
+$k$ represents the number of periods from the reference time to the target time.
 
 ## Syntax
 
 ```sql
-YEARWEEK(`<date_or_time_expr>`[, mode])
+DAY_FLOOR(<date_or_time_expr>)
+DAY_FLOOR(<date_or_time_expr>, <origin>)
+DAY_FLOOR(<date_or_time_expr>, <period>)
+DAY_FLOOR(<date_or_time_expr>, <period>, <origin>)
 ```
+
+## Parameters
+
+| Parameter             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<date_or_time_expr>` | A valid date expression that supports date/datetime/timestamptz types. Date type will be converted to the start time 00:00:00 of the corresponding date. For specific formats please see [timestamptz conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/timestamptz-conversion), [datetime conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/datetime-conversion) and [date conversion](../../../../sql-manual/basic-element/sql-data-types/conversion/date-conversion) |
+| `<period>`            | Specifies the number of days in each period, of type INT. If negative or 0, returns NULL; if not specified, the default period is 1 day.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `<origin>`            | The starting reference time for period calculation, supports date/datetime types                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## Return Value
 
-Returns an INT type integer in YYYYWW format (first 4 digits are the year, last 2 digits are the week number), e.g., 202305 represents week 5 of 2023, 202052 represents week 52 of 2020.
+Returns TIMESTAMPTZ, DATETIME or DATE, representing the result of rounding down the input value to the specified day period.
 
-- If the week containing the date belongs to the previous year, returns the previous year's year and week number (e.g., January 1, 2021 might return 202052).
-- If the week containing the date belongs to the next year, returns the next year's year and week 1 (e.g., December 30, 2024 might return 202501).
-- If input is NULL, returns NULL.
+If the input is valid, returns a rounding result consistent with the datetime type:
+
+- If input is TIMESTAMPTZ, it will first be converted to local_time (for example: `2025-12-31 23:59:59+05:00` represents local_time `2026-01-01 02:59:59` when session variable is `+08:00`), and then perform DAY_FLOOR.
+- If `<date_or_time_expr>` and `<period>` contain both TIMESTAMPTZ and DATETIME, output is DATETIME.
+
+Special cases:
+
+- When any parameter is NULL, returns NULL;
+- If period is negative or 0, returns error;
+- For datetime input with scale, the output will have scale with all decimals as 0
+- If the `<origin>` date and time is after the `<period>`, it will still be calculated according to the above formula, but the period k will be negative.
 
 ## Examples
 
 ```sql
--- Default mode=0 (Sunday start, first week contains first Sunday)
--- 2021-01-01 is Friday, the first Sunday of the week is 2020-12-27, so it belongs to week 52 of 2020
-SELECT YEARWEEK('2021-01-01') AS yearweek_mode0;
-+----------------+
-| yearweek_mode0 |
-+----------------+
-|         202052 |
-+----------------+
+-- Round down with a period of five days
+select day_floor("2023-07-13 22:28:18", 5);
 
--- mode=1 (Monday start, 4-day rule, consistent with WEEKOFYEAR)
-SELECT YEARWEEK('2020-07-01', 1) AS yearweek_mode1;
-+----------------+
-| yearweek_mode1 |
-+----------------+
-|         202027 |
-+----------------+
++-------------------------------------+
+| day_floor("2023-07-13 22:28:18", 5) |
++-------------------------------------+
+| 2023-07-10 00:00:00                 |
++-------------------------------------+
 
--- mode=1, cross-year week (2024-12-30 is Monday, the week has ≥4 days in 2025, belongs to week 1 of 2025)
-SELECT YEARWEEK('2024-12-30', 1) AS cross_year_mode1;
-+------------------+
-| cross_year_mode1 |
-+------------------+
-|           202501 |
-+------------------+
 
--- mode=5 (Monday start, first week contains first Monday)
--- 2023-01-02 is Monday (first Monday of the year), the week is week 1 of 2023
-SELECT YEARWEEK('2023-01-02', 5) AS yearweek_mode5;
-+----------------+
-| yearweek_mode5 |
-+----------------+
-|         202301 |
-+----------------+
+-- Datetime input with scale, return value has scale with all decimals as 0
+mysql> select day_floor("2023-07-13 22:28:18.123", 5);
++-----------------------------------------+
+| day_floor("2023-07-13 22:28:18.123", 5) |
++-----------------------------------------+
+| 2023-07-10 00:00:00.000                 |
++-----------------------------------------+
 
--- Input DATE type
-SELECT YEARWEEK('2023-12-25', 1) AS date_type_mode1;
-+------------------+
-| date_type_mode1  |
-+------------------+
-|           202352 |
-+------------------+
 
--- Input NULL (returns NULL)
-SELECT YEARWEEK(NULL) AS null_input;
-+------------+
-| null_input |
-+------------+
-|       NULL |
-+------------+
+-- Input parameter without period, default to one day as period
+select day_floor("2023-07-13 22:28:18");
++----------------------------------+
+| day_floor("2023-07-13 22:28:18") |
++----------------------------------+
+| 2023-07-13 00:00:00              |
++----------------------------------+
+
+-- Only with origin date and specified date
+select day_floor("2023-07-13 22:28:18", "2023-01-01 12:00:00");
++---------------------------------------------------------+
+| day_floor("2023-07-13 22:28:18", "2023-01-01 12:00:00") |
++---------------------------------------------------------+
+| 2023-07-13 12:00:00                                     |
++---------------------------------------------------------+
+
+-- Specify period as 7 days (1 week), custom reference time as 2023-01-01 00:00:00
+select day_floor("2023-07-13 22:28:18", 7, "2023-01-01 00:00:00");
++------------------------------------------------------------+
+| day_floor("2023-07-13 22:28:18", 7, "2023-01-01 00:00:00") |
++------------------------------------------------------------+
+| 2023-07-09 00:00:00                                        |
++------------------------------------------------------------+
+
+-- Start time is exactly at the beginning of a period, returns input date time
+select day_floor("2023-07-09 00:00:00", 7, "2023-01-01 00:00:00");
++------------------------------------------------------------+
+| day_floor("2023-07-09 00:00:00", 7, "2023-01-01 00:00:00") |
++------------------------------------------------------------+
+| 2023-07-09 00:00:00                                        |
++------------------------------------------------------------+
+
+-- Input is DATE type, period is 3 days
+select day_floor(cast("2023-07-13" as date), 3);
++------------------------------------------+
+| day_floor(cast("2023-07-13" as date), 3) |
++------------------------------------------+
+| 2023-07-11                               |
++------------------------------------------+
+
+-- TimeStampTz sample, SET time_zone = '+08:00'
+-- Convert to local_time (2026-01-01 02:59:59) and then perform DAY_FLOOR
+SELECT DAY_FLOOR('2025-12-31 23:59:59+05:00');
++----------------------------------------+
+| DAY_FLOOR('2025-12-31 23:59:59+05:00') |
++----------------------------------------+
+| 2026-01-01 00:00:00+08:00              |
++----------------------------------------+
+
+-- If parameters contain both TimeStampTz and Datetime types, output DateTime type
+SELECT DAY_FLOOR('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123');
++-------------------------------------------------------------------+
+| DAY_FLOOR('2025-12-31 23:59:59+05:00', '2025-12-15 00:00:00.123') |
++-------------------------------------------------------------------+
+| 2026-01-01 00:00:00.123                                           |
++-------------------------------------------------------------------+
+
+-- Period is negative, returns error
+select day_floor("2023-07-13 22:28:18", -2);
+ERROR 1105 (HY000): errCode = 2, detailMessage = (10.16.10.3)[E-218]Operation day_floor of 2023-07-13 22:28:18, -2 out of range
+
+--- If the <origin> date and time is after the <period>, it will still be calculated according to the above formula, but the period k will be negative.
+select day_floor('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00');
++----------------------------------------------------------------+
+| day_floor('2023-07-13 19:30:00.123', 4, '2028-07-14 08:00:00') |
++----------------------------------------------------------------+
+| 2023-07-13 08:00:00.000                                        |
++----------------------------------------------------------------+
+
+-- Any parameter is NULL, returns NULL
+select day_floor(NULL, 5, "2023-01-01");
++----------------------------------+
+| day_floor(NULL, 5, "2023-01-01") |
++----------------------------------+
+| NULL                             |
++----------------------------------+
 ```
