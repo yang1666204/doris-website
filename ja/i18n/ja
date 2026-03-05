@@ -1,164 +1,84 @@
 ---
 {
-  "title": "SOUNDEX",
+  "title": "JSON_REMOVE",
   "language": "en",
-  "description": "The SOUNDEX function computes the Soundex encoding of a string."
+  "description": "The JSONREMOVE function is used to remove data from a JSON document and return the result."
 }
 ---
 
 ## Description
 
-The SOUNDEX function computes the [Soundex encoding](https://en.wikipedia.org/wiki/Soundex) of a string. Soundex is a phonetic algorithm that encodes English words into codes representing their pronunciation, so words with similar pronunciation will have the same encoding.
-
-Encoding rule: Returns a 4-character code consisting of one uppercase letter followed by three digits (e.g., S530).
+The `JSON_REMOVE` function is used to remove data from a JSON document and return the result.
 
 ## Syntax
 
 ```sql
-SOUNDEX(<expr>)
+JSON_REMOVE (<json_object>, path[, path] ...)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                   |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<expr>`  | The string to compute Soundex encoding for (only supports ASCII characters). Type: VARCHAR |
+- `<json_object>` JSON type expression, the target to be deleted.
+- `<path>` String type expression, path parameters are evaluated in left-to-right order. The JSON document produced by evaluating a path becomes the new value for the next path evaluation.
 
 ## Return Value
 
-Returns VARCHAR(4) type, representing the Soundex encoding of the string.
-
-Special cases:
-
-- If the argument is NULL, returns NULL
-- If the string is empty or contains no letters, returns an empty string
-- Only processes ASCII letters, ignoring other characters
-- Non-ASCII characters will cause the function to throw an error
+- `Nullable(JSON)` returns the JSON object after deletion.
 
 ## Examples
 
-1. Basic usage: word encoding
+1. Path does not exist
 
 ```sql
-SELECT soundex('Doris');
+SELECT JSON_REMOVE('{"a": 1, "b": 2, "c": 3}', '$.d');
 ```
 
 ```text
-+------------------+
-| soundex('Doris') |
-+------------------+
-| D620             |
-+------------------+
++------------------------------------------------+
+| JSON_REMOVE('{"a": 1, "b": 2, "c": 3}', '$.d') |
++------------------------------------------------+
+| {"a":1,"b":2,"c":3}                            |
++------------------------------------------------+
 ```
 
-2. Words with similar pronunciation have the same encoding
+2. Remove the value pointed to by `<path>` from the JSON object
 
 ```sql
-SELECT soundex('Smith'), soundex('Smyth');
+SELECT JSON_REMOVE('{"Name": "Jack", "Gender": "Male", "Age": 20}', '$.Age');
 ```
 
 ```text
-+------------------+------------------+
-| soundex('Smith') | soundex('Smyth') |
-+------------------+------------------+
-| S530             | S530             |
-+------------------+------------------+
++-----------------------------------------------------------------------+
+| JSON_REMOVE('{"Name": "Jack", "Gender": "Male", "Age": 20}', '$.Age') |
++-----------------------------------------------------------------------+
+| {"Name":"Jack","Gender":"Male"}                                       |
++-----------------------------------------------------------------------+
 ```
 
-3. Empty string processing
+3. Specify multiple paths to delete data from multiple locations in a JSON object
 
 ```sql
-SELECT soundex('');
+SELECT JSON_REMOVE('[1, 2, 3, 4, 5]', '$[3]'), JSON_REMOVE('[1, 2, 3, 4, 5]', '$[1]', '$[3]');
 ```
 
 ```text
-+-------------+
-| soundex('') |
-+-------------+
-|             |
-+-------------+
++----------------------------------------+------------------------------------------------+
+| JSON_REMOVE('[1, 2, 3, 4, 5]', '$[3]') | JSON_REMOVE('[1, 2, 3, 4, 5]', '$[1]', '$[3]') |
++----------------------------------------+------------------------------------------------+
+| [1,2,3,5]                              | [1,3,4]                                        |
++----------------------------------------+------------------------------------------------+
 ```
 
-4. NULL value handling
+4. Larger JSON object
 
 ```sql
-SELECT soundex(NULL);
+SELECT JSON_REMOVE('{"Person": {"Name": "Jack","Age": 20,"Hobbies": ["Eating", "Sleeping", "Base Jumping"]}}', '$.Person.Age', '$.Person.Hobbies[2]');
 ```
 
 ```text
-+---------------+
-| soundex(NULL) |
-+---------------+
-| NULL          |
-+---------------+
++------------------------------------------------------------------------------------------------------------------------------------------------+
+| JSON_REMOVE('{"Person": {"Name": "Jack","Age": 20,"Hobbies": ["Eating", "Sleeping", "Base Jumping"]}}', '$.Person.Age', '$.Person.Hobbies[2]') |
++------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"Person":{"Name":"Jack","Hobbies":["Eating","Sleeping"]}}                                                                                     |
++------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
-
-5. Empty string returns empty string
-
-```sql
-SELECT soundex('');
-```
-
-```text
-+-------------+
-| soundex('') |
-+-------------+
-|             |
-+-------------+
-```
-
-6. Non-letter characters only return empty string
-
-```sql
-SELECT soundex('123@*%');
-```
-
-```text
-+-------------------+
-| soundex('123@*%') |
-+-------------------+
-|                   |
-+-------------------+
-```
-
-7. Ignoring non-letter characters
-
-```sql
-SELECT soundex('R@b-e123rt'), soundex('Robert');
-```
-
-```text
-+-----------------------+-------------------+
-| soundex('R@b-e123rt') | soundex('Robert') |
-+-----------------------+-------------------+
-| R163                  | R163              |
-+-----------------------+-------------------+
-```
-
-9. Non-ASCII characters only error example
-
-```sql
-SELECT soundex('你好');  
-```
-
-```text
-ERROR 1105 (HY000): errCode = 2, detailMessage = Not Supported: Not Supported: soundex only supports ASCII, but got: 你
-```
-
-```sql
-SELECT soundex('Apache Doris 你好');
-```
-
-```text
-+--------------------------------+
-| soundex('Apache Doris 你好')   |
-+--------------------------------+
-| A123                           |
-+--------------------------------+
-```
-
-### Keywords
-
-    ```
-    SOUNDEX
-    ```
