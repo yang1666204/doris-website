@@ -1,68 +1,76 @@
 ---
 {
-  "title": "TO_IPV4",
+  "title": "TO_IPV6_OR_DEFAULT",
   "language": "en",
-  "description": "Takes the string form of an IPv4 address and returns a value of IPv4 type."
+  "description": "Takes the string form of an IPv6 address and returns a value of IPv6 type. For invalid input or NULL input, returns the default value ::."
 }
 ---
 
-## to_ipv4
+## to_ipv6_or_default
 
 ## Description
 
-Takes the string form of an IPv4 address and returns a value of IPv4 type.
+Takes the string form of an IPv6 address and returns a value of IPv6 type. For invalid input or NULL input, returns the default value `::`.
 
 ## Syntax
 
 ```sql
-TO_IPV4(<ipv4_str>)
+TO_IPV6_OR_DEFAULT(<ipv6_str>)
 ```
 
 ### Parameters
 
-- `<ipv4_str>`: String type IPv4 address
+- `<ipv6_str>`: String type IPv6 address
 
 ### Return Value
 
-Return Type: IPv4
+Return Type: IPv6
 
 Return Value Meaning:
 
-- Returns IPv4 type value, whose binary form is equivalent to the return value of `ipv4_string_to_num`
-- Throws an exception when input is NULL
-- Throws an exception for invalid IPv4 addresses or `NULL` input
+- Returns IPv6 type value, whose binary form equals the binary form of the return value of the `ipv6_string_to_num` function
+- Returns `::` when input is NULL or invalid IPv6 address
 
 ### Usage Notes
 
-- Equivalent to `to_ipv4` → `IPv4` type, suitable for scenarios where tables are created with `IPv4` columns
+- Equivalent to `to_ipv6_or_default` → `IPv6` type, suitable for scenarios where tables are created with `IPv6` columns
+- Does not throw exceptions for invalid input, instead returns the default value `::`
 
 ## Examples
 
-Convert IPv4 text `255.255.255.255` to `IPv4` type.
+Convert IPv6 text `2001:1b70:a1:610::b102:2` to `IPv6` type.
 
 ```sql
-SELECT to_ipv4('255.255.255.255') as v4;
-+-----------------+
-| v4              |
-+-----------------+
-| 255.255.255.255 |
-+-----------------+
+SELECT to_ipv6_or_default('2001:1b70:a1:610::b102:2') as v6;
++-------------------------------+
+| v6                            |
++-------------------------------+
+| 2001:1b70:a1:610::b102:2      |
++-------------------------------+
 ```
 
-Input NULL throws an exception
+Input NULL returns default value `::`.
 
 ```sql
-SELECT to_ipv4(NULL);
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]The arguments of function to_ipv4 must be String, not NULL
+SELECT to_ipv6_or_default(NULL) as v6;
++----+
+| v6 |
++----+
+| :: |
++----+
 ```
 
-Invalid IPv4 text throws an exception.
+Invalid IPv6 text returns default value `::`.
 
 ```sql
-SELECT to_ipv4('256.1.1.1');
-ERROR 1105 (HY000): errCode = 2, detailMessage = (...)[INVALID_ARGUMENT]Invalid IPv4 value '256.1.1.1'
+SELECT to_ipv6_or_default('not-an-ip') as v6;
++----+
+| v6 |
++----+
+| :: |
++----+
 ```
 
 ### Keywords
 
-TO_IPV4
+TO_IPV6_OR_DEFAULT
