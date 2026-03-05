@@ -1,5 +1,5 @@
 ---
-{ "title": "Release 1.2.3", "language": "en" }
+{ "title": "Release 1.2.4", "language": "en" }
 ---
 
 <!--
@@ -21,85 +21,57 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# Behavior Changed
+
+- For `DateV2`/`DatetimeV2` and `DecimalV3` type, in the results of `DESCRIBLE` and `SHOW CREATE TABLE` statements, they will no longer be displayed as `DateV2`/`DatetimeV2` or `DecimalV3`, but directly displayed as `Date`/`Datetime` or `Decimal`.
+
+  - This change is for compatibility with some BI tools. If you want to see the actual type of the column, you can check it with the `DESCRIBE ALL` statement.
+
+- When querying tables in the `information_schema` database, the meta information(database, table, column, etc.) in the external catalog is no longer returned by default.
+
+  - This change avoids the problem that the `information_schema` database cannot be queried due to the connection problem of some external catalog, so as to solve the problem of using some BI tools with Doris. It can be controlled by the FE configuration  `infodb_support_ext_catalog`, and the default value is `false`, that is, the meta information of external catalog will not be returned.
+
 # Improvement
 
 ### JDBC Catalog
 
-- Support connecting to Doris clusters through JDBC Catalog.
+- Supports connecting to Trino/Presto via JDBC Catalog
 
-Currently, Jdbc Catalog only support to use 5.x version of JDBC jar package to connect another Doris database. If you use 8.x version of JDBC jar package, the data type of column may not be matched.
+​        Refer to: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#trino](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#trino)
 
-Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc/#doris](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc/#doris)
+- JDBC Catalog connects to Clickhouse data source and supports Array type mapping
 
-- Support to synchronize only the specified database through the `only_specified_database` attribute.
+​        Refer to: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#clickhouse](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc#clickhouse)
 
-- Support synchronizing table names in the form of lowercase through `lower_case_table_names` to solve the problem of case sensitivity of table names.
+### Spark Load
 
-Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/jdbc)
+- Spark Load supports Resource Manager HA related configuration
 
-- Optimize the read performance of JDBC Catalog.
+​        Refer to: https://github.com/apache/doris/pull/15000
 
-### Elasticsearch Catalog
+## Bug Fixes
 
-- Support Array type mapping.
+- Fixed several connectivity issues with Hive Catalog.
 
-- Support whether to push down the like expression through the `like_push_down` attribute to control the CPU overhead of the ES cluster.
+- Fixed ClassNotFound issues with Hudi Catalog.
 
-Reference: [https://doris.apache.org/docs/dev/lakehouse/multi-catalog/es](https://doris.apache.org/docs/dev/lakehouse/multi-catalog/es)
+- Optimize the connection pool of JDBC Catalog to avoid too many connections.
 
-### Hive Catalog
+- Fix the problem that OOM will occur when importing data from another Doris cluster through JDBC Catalog.
 
-- Support Hive table default partition `_HIVE_DEFAULT_PARTITION_`.
+- Fixed serveral queries and imports planning issues.
 
-- Hive Metastore metadata automatic synchronization supports notification event in compressed format.
+- Fixed several issues with Unique Key Merge-On-Write data model.
 
-### Dynamic Partition Improvement
+- Fix several BDBJE issues and solve the problem of abnormal FE metadata in some cases.
 
-- Dynamic partition supports specifying the `storage_medium` parameter to control the storage medium of the newly added partition.
+- Fix the problem that the `CREATE VIEW` statement does not support Table Valued Function.
 
-Reference: [https://doris.apache.org/docs/dev/advanced/partition/dynamic-partition](https://doris.apache.org/docs/dev/advanced/partition/dynamic-partition)
+- Fixed several memory statistics issues.
 
-### Optimize BE's Threading Model
+- Fixed several issues reading Parquet/ORC format.
 
-- Optimize BE's threading model to avoid stability problems caused by frequent thread creation and destroy.
+- Fixed several issues with DecimalV3.
 
-# Bugfix
-
-- Fixed issues with Merge-On-Write Unique Key tables.
-
-- Fixed compaction related issues.
-
-- Fixed some delete statement issues causing data errors.
-
-- Fixed several query execution errors.
-
-- Fixed the problem of using JDBC catalog to cause BE crash on some operating system.
-
-- Fixed Multi-Catalog issues.
-
-- Fixed memory statistics and optimization issues.
-
-- Fixed decimalV3 and date/datetimev2 related issues.
-
-- Fixed load transaction stability issues.
-
-- Fixed light-weight schema change issues.
-
-- Fixed the issue of using `datetime` type for batch partition creation.
-
-- Fixed the problem that a large number of failed broker loads would cause the FE memory usage to be too high.
-
-- Fixed the problem that stream load cannot be canceled after dropping the table.
-
-- Fixed querying `information_schema` timeout in some cases.
-
-- Fixed the problem of BE crash caused by concurrent data export using `select outfile`.
-
-- Fixed transactional insert operation memory leak.
-
-- Fixed several query/load profile issues, and supports direct download of profiles through FE web ui.
-
-- Fixed the problem that the BE tablet GC thread caused the IO util to be too high.
-
-- Fixed the problem that the commit offset is inaccurate in Kafka routine load.
+- Fixed several issues with SHOW QUERY/LOAD PROFILE.
 
