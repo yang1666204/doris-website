@@ -1,58 +1,56 @@
 ---
 {
-  "title": "Using Doris and Iceberg",
+  "title": "Using Doris and Paimon",
   "language": "en",
-  "description": "As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of a data warehouse with "
+  "description": "As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of data warehouses with the "
 }
 ---
 
-As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of a data warehouse with the low cost and flexibility of a data lake, helping users more conveniently meet various data processing and analysis needs. It has been increasingly applied in enterprise big data systems.
+As a new open data management architecture, the Data Lakehouse integrates the high performance and real-time capabilities of data warehouses with the low cost and flexibility of data lakes, helping users more conveniently meet various data processing and analysis needs. It has been increasingly applied in enterprise big data systems.
 
-In recent versions, Apache Doris has deepened its integration with data lakes and now offers a mature Data Lakehouse solution.
+In recent versions, Apache Doris has deepened its integration with data lakes and has evolved a mature Data Lakehouse solution.
 
 - Since version 0.15, Apache Doris has introduced Hive and Iceberg external tables, exploring the capabilities of combining with Apache Iceberg for data lakes.
-- Starting from version 1.2, Apache Doris officially introduced the Multi-Catalog feature, enabling automatic metadata mapping and data access for various data sources, along with numerous performance optimizations for external data reading and query execution. It now fully supports building a high-speed and user-friendly Lakehouse architecture.
-- In version 2.1, Apache Doris further strengthened its Data Lakehouse architecture, enhancing the reading and writing capabilities of mainstream data lake formats (Hudi, Iceberg, Paimon, etc.), introducing compatibility with multiple SQL dialects, and seamless migration from existing systems to Apache Doris. For data science and large-scale data reading scenarios, Doris integrated the Arrow Flight high-speed reading interface, achieving a 100x improvement in data transfer efficiency.
+- Starting from version 1.2, Apache Doris officially introduced the Multi-Catalog feature, achieving automatic metadata mapping and data access for various data sources, along with many performance optimizations for external data reading and query execution. It now fully possesses the ability to build a high-speed and user-friendly Lakehouse architecture.
+- In version 2.1, Apache Doris' Data Lakehouse architecture was significantly enhanced, strengthening the reading and writing capabilities of mainstream data lake formats (Hudi, Iceberg, Paimon, etc.), introducing compatibility with multiple SQL dialects, and seamless migration from existing systems to Apache Doris. For data science and large-scale data reading scenarios, Doris integrated the Arrow Flight high-speed reading interface, achieving a 100-fold improvement in data transfer efficiency.
 
-![Building Lakehouse using Doris and Iceberg](/images/lakehouse-architecture-for-doris-and-iceberg.png)
+![Building lakehouse using Doris and Paimon](/images/lakehouse-architecture-for-doris-and-paimon.png)
 
-## Apache Doris & Iceberg
+## Apache Doris & Paimon
 
-Apache Iceberg is an open-source, high-performance, and highly reliable data lake table format that enables the analysis and management of massive-scale data. It supports various mainstream query engines, including Apache Doris, is compatible with HDFS and various object cloud storage, and features ACID compliance, schema evolution, advanced filtering, hidden partitioning, and partition layout evolution to ensure high-performance queries, data reliability, consistency, and flexibility with features like time travel and version rollback.
+Apache Paimon is a data lake format that innovatively combines the advantages of data lake formats and LSM structures, successfully introducing efficient real-time streaming update capabilities into data lake architecture. This enables Paimon to efficiently manage data and perform real-time analysis, providing strong support for building real-time Data Lakehouse architecture.
 
-Apache Doris provides native support for several core features of Iceberg:
+To fully leverage Paimon's capabilities and improve query efficiency for Paimon data, Apache Doris provides native support for several of Paimon's latest features:
 
-- Supports multiple Iceberg Catalog types such as Hive Metastore, Hadoop, REST, Glue, Google Dataproc Metastore, DLF, etc.
-- Native support for Iceberg V1/V2 table formats and reading of Position Delete, Equality Delete files.
-- Supports querying Iceberg table snapshot history through table functions.
-- Supports Time Travel functionality.
-- Native support for the Iceberg table engine. It allows Apache Doris to directly create, manage, and write data to Iceberg tables. It supports comprehensive partition Transform functions, providing capabilities like hidden partitioning and partition layout evolution.
+- Supports various types of Paimon Catalogs such as Hive Metastore and FileSystem.
+- Native support for Paimon 0.6's Primary Key Table Read Optimized feature.
+- Native support for Paimon 0.8's Primary Key Table Deletion Vector feature.
 
-Users can quickly build an efficient Data Lakehouse solution based on Apache Doris + Apache Iceberg to flexibly address various real-time data analysis and processing needs.
+With Apache Doris' high-performance query engine and Apache Paimon's efficient real-time streaming update capabilities, users can achieve:
 
-- Use the high-performance query engine of Doris to perform data analysis by associating Iceberg table data and other data sources, building a **unified federated data analysis platform**.
-- Manage and build Iceberg tables directly through Doris, complete data cleaning, processing, and writing to Iceberg tables in Doris, building a **unified data processing platform for data lakes**.
-- Share Doris data with other upstream and downstream systems for further processing through the Iceberg table engine, building a **unified open data storage platform**.
+- Real-time data ingestion into the lake: Leveraging Paimon's LSM-Tree model, data ingestion into the lake can be reduced to a minute-level timeliness. Additionally, Paimon supports various data update capabilities including aggregation, deduplication, and partial column updates, making data flow more flexible and efficient.
+- High-performance data processing and analysis: Paimon's technologies such as Append Only Table, Read Optimized, and Deletion Vector can be seamlessly integrated with Doris' powerful query engine, enabling fast querying and analysis responses for lake data.
 
-In the future, Apache Iceberg will serve as one of the native table engines for Apache Doris, providing more comprehensive analysis and management functions for lake-formatted data. Apache Doris will also gradually support more advanced features of Apache Iceberg, including Update/Delete/Merge, sorting during write-back, incremental data reading, metadata management, etc., to jointly build a unified, high-performance, real-time data lake platform.
+In the future, Apache Doris will gradually support more advanced features of Apache Paimon, including Time Travel and incremental data reading, to jointly build a unified, high-performance, real-time lakehouse platform.
 
-For more information, please refer to [Iceberg Catalog](../catalogs/iceberg-catalog.mdx)
+This article will explain how to quickly set up an Apache Doris + Apache Paimon testing & demonstration environment in a Docker environment and demonstrate the usage of various features.
+
+For more information, please refer to [Paimon Catalog](../catalogs/paimon-catalog.mdx)
 
 ## User Guide
 
-This document mainly explains how to quickly set up an Apache Doris + Apache Iceberg testing & demonstration environment in a Docker environment and demonstrate the usage of various functions.
-
-All scripts and code mentioned in this document can be obtained from this address: [https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon](https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon)
+All scripts and code mentioned in this article can be obtained from the following address: [https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon](https://github.com/apache/doris/tree/master/samples/datalake/iceberg_and_paimon)
 
 ### 01 Environment Preparation
 
-This document uses Docker Compose for deployment, with the following components and versions:
+This article uses Docker Compose for deployment, with the following components and versions:
 
-| Component      | Version                                                        |
-| -------------- | -------------------------------------------------------------- |
-| Apache Doris   | Default 2.1.5, can be modified |
-| Apache Iceberg | 1.4.3                          |
-| MinIO          | RELEASE.2024-04-29T09-56-05Z                   |
+| Component     | Version                                                        |
+| ------------- | -------------------------------------------------------------- |
+| Apache Doris  | Default 2.1.5, can be modified |
+| Apache Paimon | 0.8                                            |
+| Apache Flink  | 1.18                                           |
+| MinIO         | RELEASE.2024-04-29T09-56-05Z                   |
 
 ### 02 Environment Deployment
 
@@ -60,394 +58,194 @@ This document uses Docker Compose for deployment, with the following components 
 
    `bash ./start_all.sh`
 
-2. After starting, you can use the following script to log in to the Doris command line:
+2. After starting, you can use the following scripts to log in to the Flink command line or Doris command line:
 
    ```
+   -- login flink
+   bash ./start_flink_client.sh
+
    -- login doris
    bash ./start_doris_client.sh
    ```
 
-### 03 Create Iceberg Table
+### 03 Data Preparation
 
-After logging into the Doris command line, an Iceberg Catalog named Iceberg has already been created in the Doris cluster (can be viewed by `SHOW CATALOGS`/`SHOW CREATE CATALOG iceberg`). The following is the creation statement for this Catalog:
+After logging into the Flink command line, you can see a pre-built table. The table already contains some data that can be viewed using Flink SQL.
 
 ```
--- Already created
-CREATE CATALOG `iceberg` PROPERTIES (
-    "type" = "iceberg",
-    "iceberg.catalog.type" = "rest",
-    "warehouse" = "s3://warehouse/",
-    "uri" = "http://rest:8181",
-    "s3.access_key" = "admin",
-    "s3.secret_key" = "password",
-    "s3.endpoint" = "http://minio:9000"
+Flink SQL> use paimon.db_paimon;
+[INFO] Execute statement succeed.
+
+Flink SQL> show tables;
++------------+
+| table name |
++------------+
+|   customer |
++------------+
+1 row in set
+
+Flink SQL> show create table customer;
++------------------------------------------------------------------------+
+|                                                                 result |
++------------------------------------------------------------------------+
+| CREATE TABLE `paimon`.`db_paimon`.`customer` (
+  `c_custkey` INT NOT NULL,
+  `c_name` VARCHAR(25),
+  `c_address` VARCHAR(40),
+  `c_nationkey` INT NOT NULL,
+  `c_phone` CHAR(15),
+  `c_acctbal` DECIMAL(12, 2),
+  `c_mktsegment` CHAR(10),
+  `c_comment` VARCHAR(117),
+  CONSTRAINT `PK_c_custkey_c_nationkey` PRIMARY KEY (`c_custkey`, `c_nationkey`) NOT ENFORCED
+) PARTITIONED BY (`c_nationkey`)
+WITH (
+  'bucket' = '1',
+  'path' = 's3://warehouse/wh/db_paimon.db/customer',
+  'deletion-vectors.enabled' = 'true'
+)
+ |
++-------------------------------------------------------------------------+
+1 row in set
+
+Flink SQL> desc customer;
++--------------+----------------+-------+-----------------------------+--------+-----------+
+|         name |           type |  null |                         key | extras | watermark |
++--------------+----------------+-------+-----------------------------+--------+-----------+
+|    c_custkey |            INT | FALSE | PRI(c_custkey, c_nationkey) |        |           |
+|       c_name |    VARCHAR(25) |  TRUE |                             |        |           |
+|    c_address |    VARCHAR(40) |  TRUE |                             |        |           |
+|  c_nationkey |            INT | FALSE | PRI(c_custkey, c_nationkey) |        |           |
+|      c_phone |       CHAR(15) |  TRUE |                             |        |           |
+|    c_acctbal | DECIMAL(12, 2) |  TRUE |                             |        |           |
+| c_mktsegment |       CHAR(10) |  TRUE |                             |        |           |
+|    c_comment |   VARCHAR(117) |  TRUE |                             |        |           |
++--------------+----------------+-------+-----------------------------+--------+-----------+
+8 rows in set
+
+Flink SQL> select * from customer order by c_custkey limit 4;
++-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
+| c_custkey |             c_name |                      c_address | c_nationkey |         c_phone | c_acctbal | c_mktsegment |                      c_comment |
++-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
+|         1 | Customer#000000001 |              IVhzIApeRb ot,c,E |          15 | 25-989-741-2988 |    711.56 |     BUILDING | to the even, regular platel... |
+|         2 | Customer#000000002 | XSTf4,NCwDVaWNe6tEgvwfmRchLXak |          13 | 23-768-687-3665 |    121.65 |   AUTOMOBILE | l accounts. blithely ironic... |
+|         3 | Customer#000000003 |                   MG9kdTD2WBHm |           1 | 11-719-748-3364 |   7498.12 |   AUTOMOBILE |  deposits eat slyly ironic,... |
+|        32 | Customer#000000032 | jD2xZzi UmId,DCtNBLXKj9q0Tl... |          15 | 25-430-914-2194 |   3471.53 |     BUILDING | cial ideas. final, furious ... |
++-----------+--------------------+--------------------------------+-------------+-----------------+-----------+--------------+--------------------------------+
+4 rows in set
+```
+
+### 04 Data Query
+
+As shown below, a Catalog named `paimon` has been created in the Doris cluster (can be viewed using SHOW CATALOGS). The following is the statement for creating this Catalog:
+
+```
+-- 已创建，无需执行
+CREATE CATALOG `paimon` PROPERTIES (
+    "type" = "paimon",
+    "warehouse" = "s3://warehouse/wh/",
+    "s3.endpoint"="http://minio:9000",
+    "s3.access_key"="admin",
+    "s3.secret_key"="password",
+    "s3.region"="us-east-1"
 );
 ```
 
-Create a database and an Iceberg table in the Iceberg Catalog:
+You can query Paimon's data in Doris:
 
 ```
-mysql> SWITCH iceberg;
-Query OK, 0 rows affected (0.00 sec)
+mysql> use paimon.db_paimon;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
 
-mysql> CREATE DATABASE nyc;
-Query OK, 0 rows affected (0.12 sec)
+Database changed
+mysql> show tables;
++---------------------+
+| Tables_in_db_paimon |
++---------------------+
+| customer            |
++---------------------+
+1 row in set (0.00 sec)
 
-mysql> CREATE TABLE iceberg.nyc.taxis
-       (
-           vendor_id BIGINT,
-           trip_id BIGINT,
-           trip_distance FLOAT,
-           fare_amount DOUBLE,
-           store_and_fwd_flag STRING,
-           ts DATETIME
-       )
-       PARTITION BY LIST (vendor_id, DAY(ts)) ()
-       PROPERTIES (
-           "compression-codec" = "zstd",
-           "write-format" = "parquet"
-       );
-Query OK, 0 rows affected (0.15 sec)
+mysql> select * from customer order by c_custkey limit 4;
++-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+| c_custkey | c_name             | c_address                             | c_nationkey | c_phone         | c_acctbal | c_mktsegment | c_comment                                                                                              |
++-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+|         1 | Customer#000000001 | IVhzIApeRb ot,c,E                     |          15 | 25-989-741-2988 |    711.56 | BUILDING     | to the even, regular platelets. regular, ironic epitaphs nag e                                         |
+|         2 | Customer#000000002 | XSTf4,NCwDVaWNe6tEgvwfmRchLXak        |          13 | 23-768-687-3665 |    121.65 | AUTOMOBILE   | l accounts. blithely ironic theodolites integrate boldly: caref                                        |
+|         3 | Customer#000000003 | MG9kdTD2WBHm                          |           1 | 11-719-748-3364 |   7498.12 | AUTOMOBILE   |  deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov |
+|        32 | Customer#000000032 | jD2xZzi UmId,DCtNBLXKj9q0Tlp2iQ6ZcO3J |          15 | 25-430-914-2194 |   3471.53 | BUILDING     | cial ideas. final, furious requests across the e                                                       |
++-----------+--------------------+---------------------------------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+4 rows in set (1.89 sec)
 ```
 
-### 04 Data Insertion
+### 05 Read Incremental Data
 
-Insert data into the Iceberg table:
-
-```
-mysql> INSERT INTO iceberg.nyc.taxis
-       VALUES
-        (1, 1000371, 1.8, 15.32, 'N', '2024-01-01 9:15:23'),
-        (2, 1000372, 2.5, 22.15, 'N', '2024-01-02 12:10:11'),
-        (2, 1000373, 0.9, 9.01, 'N', '2024-01-01 3:25:15'),
-        (1, 1000374, 8.4, 42.13, 'Y', '2024-01-03 7:12:33');
-Query OK, 4 rows affected (1.61 sec)
-{'status':'COMMITTED', 'txnId':'10085'}
-```
-
-Create an Iceberg table using `CREATE TABLE AS SELECT`:
+You can update the data in the Paimon table using Flink SQL:
 
 ```
-mysql> CREATE TABLE iceberg.nyc.taxis2 AS SELECT * FROM iceberg.nyc.taxis;
-Query OK, 6 rows affected (0.25 sec)
-{'status':'COMMITTED', 'txnId':'10088'}
+Flink SQL> update customer set c_address='c_address_update' where c_nationkey = 1;
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+Job ID: ff838b7b778a94396b332b0d93c8f7ac
 ```
 
-### 05 Data Query
-
-- Simple query
-
-  ```
-  mysql> SELECT * FROM iceberg.nyc.taxis;
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  | vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  |         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-  |         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-  |         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-  |         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  4 rows in set (0.37 sec)
-
-  mysql> SELECT * FROM iceberg.nyc.taxis2;
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  | vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  |         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-  |         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-  |         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-  |         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  4 rows in set (0.35 sec)
-  ```
-
-- Partition pruning
-
-  ```
-  mysql> SELECT * FROM iceberg.nyc.taxis where vendor_id = 2 and ts >= '2024-01-01' and ts < '2024-01-02';
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  | vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  |         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-  +-----------+---------+---------------+-------------+--------------------+----------------------------+
-  1 row in set (0.06 sec)
-
-  mysql> EXPLAIN VERBOSE SELECT * FROM iceberg.nyc.taxis where vendor_id = 2 and ts >= '2024-01-01' and ts < '2024-01-02';
-                                                                                                                                                               
-  ....                                                                                                                                                                                  
-  |   0:VICEBERG_SCAN_NODE(71)                                                                                                                                                          
-  |      table: taxis                                                                                                                                                                   
-  |      predicates: (ts[#5] < '2024-01-02 00:00:00'), (vendor_id[#0] = 2), (ts[#5] >= '2024-01-01 00:00:00')                                                                           
-  |      inputSplitNum=1, totalFileSize=3539, scanRanges=1                                                                                                                              
-  |      partition=1/0                                                                                                                                                                  
-  |      backends:                                                                                                                                                                      
-  |        10002                                                                                                                                                                        
-  |          s3://warehouse/wh/nyc/taxis/data/vendor_id=2/ts_day=2024-01-01/40e6ca404efa4a44-b888f23546d3a69c_5708e229-2f3d-4b68-a66b-44298a9d9815-0.zstd.parquet start: 0 length: 3539 
-  |      cardinality=6, numNodes=1                                                                                                                                                      
-  |      pushdown agg=NONE                                                                                                                                                              
-  |      icebergPredicatePushdown=                                                                                                                                                      
-  |           ref(name="ts") < 1704153600000000                                                                                                                                         
-  |           ref(name="vendor_id") == 2                                                                                                                                                
-  |           ref(name="ts") >= 1704067200000000                                                                                                                                        
-  ....
-  ```
-
-  By examining the result of the `EXPLAIN VERBOSE` statement, it can be seen that the predicate condition `vendor_id = 2 and ts >= '2024-01-01' and ts < '2024-01-02'` ultimately only hits one partition (`partition=1/0`).
-
-  It can also be observed that because a partition Transform function `DAY(ts)` was specified when creating the table, the original value in the data `2024-01-01 03:25:15.000000` will be transformed into the partition information in the file directory `ts_day=2024-01-01`.
-
-### 06 Time Travel
-
-Let's insert a few more rows of data:
+After the Flink SQL execution is complete, you can directly view the latest data in Doris:
 
 ```
-INSERT INTO iceberg.nyc.taxis VALUES (1, 1000375, 8.8, 55.55, 'Y', '2024-01-01 8:10:22'), (3, 1000376, 7.4, 32.35, 'N', '2024-01-02  1:14:45');
-Query OK, 2 rows affected (0.17 sec)
-{'status':'COMMITTED', 'txnId':'10086'}
-
-mysql> SELECT * FROM iceberg.nyc.taxis;
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-| vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-|         3 | 1000376 |           7.4 |       32.35 | N                  | 2024-01-02 01:14:45.000000 |
-|         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-|         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-|         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-|         1 | 1000375 |           8.8 |       55.55 | Y                  | 2024-01-01 08:10:22.000000 |
-|         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-6 rows in set (0.11 sec)
+mysql> select * from customer where c_nationkey=1 limit 2;
++-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+| c_custkey | c_name             | c_address       | c_nationkey | c_phone         | c_acctbal | c_mktsegment | c_comment                                                                                              |
++-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+|         3 | Customer#000000003 | c_address_update |           1 | 11-719-748-3364 |   7498.12 | AUTOMOBILE   |  deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov |
+|       513 | Customer#000000513 | c_address_update |           1 | 11-861-303-6887 |    955.37 | HOUSEHOLD    | press along the quickly regular instructions. regular requests against the carefully ironic s          |
++-----------+--------------------+-----------------+-------------+-----------------+-----------+--------------+--------------------------------------------------------------------------------------------------------+
+2 rows in set (0.19 sec)
 ```
 
-Use the `iceberg_meta` table function to query the snapshot information of the table:
+### Benchmark
+
+We conducted a simple test on the TPCDS 1000 dataset in Paimon (0.8) version, using Apache Doris 2.1.5 version and Trino 422 version, both with the Primary Key Table Read Optimized feature enabled.
+
+![](/images/quick-start/lakehouse-paimon-benchmark.PNG)
+
+From the test results, it can be seen that Doris' average query performance on the standard static test set is 3-5 times that of Trino. In the future, we will optimize the Deletion Vector to further improve query efficiency in real business scenarios.
+
+## Query Optimization
+
+For baseline data, after introducing the Primary Key Table Read Optimized feature in Apache Paimon version 0.6, the query engine can directly access the underlying Parquet/ORC files, significantly improving the reading efficiency of baseline data. For unmerged incremental data (data increments generated by INSERT, UPDATE, or DELETE), they can be read through Merge-on-Read. In addition, Paimon introduced the Deletion Vector feature in version 0.8, which further enhances the query engine's efficiency in reading incremental data.
+Apache Doris supports reading Deletion Vector through native Reader and performing Merge on Read. We demonstrate the query methods for baseline data and incremental data in a query using Doris' EXPLAIN statement.
 
 ```
-mysql> select * from iceberg_meta("table" = "iceberg.nyc.taxis", "query_type" = "snapshots");
-+---------------------+---------------------+---------------------+-----------+-----------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| committed_at        | snapshot_id         | parent_id           | operation | manifest_list                                                                                             | summary                                                                                                                                                                                                                                                        |
-+---------------------+---------------------+---------------------+-----------+-----------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| 2024-07-29 03:38:22 | 8483933166442433486 |                  -1 | append    | s3://warehouse/wh/nyc/taxis/metadata/snap-8483933166442433486-1-5f7b7736-8022-4ba1-9db2-51ae7553be4d.avro | {"added-data-files":"4","added-records":"4","added-files-size":"14156","changed-partition-count":"4","total-records":"4","total-files-size":"14156","total-data-files":"4","total-delete-files":"0","total-position-deletes":"0","total-equality-deletes":"0"} |
-| 2024-07-29 03:40:23 | 4726331391239920914 | 8483933166442433486 | append    | s3://warehouse/wh/nyc/taxis/metadata/snap-4726331391239920914-1-6aa3d142-6c9c-4553-9c04-08ad4d49a4ea.avro | {"added-data-files":"2","added-records":"2","added-files-size":"7078","changed-partition-count":"2","total-records":"6","total-files-size":"21234","total-data-files":"6","total-delete-files":"0","total-position-deletes":"0","total-equality-deletes":"0"}  |
-+---------------------+---------------------+---------------------+-----------+-----------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-2 rows in set (0.07 sec)
+mysql> explain verbose select * from customer where c_nationkey < 3;
++------------------------------------------------------------------------------------------------------------------------------------------------+
+| Explain String(Nereids Planner)                                                                                                                |
++------------------------------------------------------------------------------------------------------------------------------------------------+
+| ...............                                                                                                                                |
+|                                                                                                                                                |
+|   0:VPAIMON_SCAN_NODE(68)                                                                                                                      |
+|      table: customer                                                                                                                           |
+|      predicates: (c_nationkey[#3] < 3)                                                                                                         |
+|      inputSplitNum=4, totalFileSize=238324, scanRanges=4                                                                                       |
+|      partition=3/0                                                                                                                             |
+|      backends:                                                                                                                                 |
+|        10002                                                                                                                                   |
+|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=1/bucket-0/data-15cee5b7-1bd7-42ca-9314-56d92c62c03b-0.orc start: 0 length: 66600 |
+|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=1/bucket-0/data-5d50255a-2215-4010-b976-d5dc656f3444-0.orc start: 0 length: 44501 |
+|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=2/bucket-0/data-e98fb7ef-ec2b-4ad5-a496-713cb9481d56-0.orc start: 0 length: 64059 |
+|          s3://warehouse/wh/db_paimon.db/customer/c_nationkey=0/bucket-0/data-431be05d-50fa-401f-9680-d646757d0f95-0.orc start: 0 length: 63164 |
+|      cardinality=18751, numNodes=1                                                                                                             |
+|      pushdown agg=NONE                                                                                                                         |
+|      paimonNativeReadSplits=4/4                                                                                                                |
+|      PaimonSplitStats:                                                                                                                         |
+|        SplitStat [type=NATIVE, rowCount=1542, rawFileConvertable=true, hasDeletionVector=true]                                                 |
+|        SplitStat [type=NATIVE, rowCount=750, rawFileConvertable=true, hasDeletionVector=false]                                                 |
+|        SplitStat [type=NATIVE, rowCount=750, rawFileConvertable=true, hasDeletionVector=false]                                                 |
+|      tuple ids: 0
+| ...............                                                                                                           |                                                                                                  |
++------------------------------------------------------------------------------------------------------------------------------------------------+
+67 rows in set (0.23 sec)
 ```
 
-Query a specified snapshot using the `FOR VERSION AS OF` statement:
+It can be seen that the table just updated by Flink SQL contains 4 shards, and all shards can be accessed through Native Reader (paimonNativeReadSplits=4/4). In addition, the hasDeletionVector property of the first shard is true, indicating that the shard has a corresponding Deletion Vector, and data will be filtered according to the Deletion Vector when reading.
 
-```
-mysql> SELECT * FROM iceberg.nyc.taxis FOR VERSION AS OF 8483933166442433486;
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-| vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-|         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-|         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-|         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-|         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-4 rows in set (0.05 sec)
-
-mysql> SELECT * FROM iceberg.nyc.taxis FOR VERSION AS OF 4726331391239920914;
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-| vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-|         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-|         1 | 1000375 |           8.8 |       55.55 | Y                  | 2024-01-01 08:10:22.000000 |
-|         3 | 1000376 |           7.4 |       32.35 | N                  | 2024-01-02 01:14:45.000000 |
-|         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-|         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-|         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-6 rows in set (0.04 sec)
-```
-
-Query a specified snapshot using the `FOR TIME AS OF` statement:
-
-```
-mysql> SELECT * FROM iceberg.nyc.taxis FOR TIME AS OF "2024-07-29 03:38:23";
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-| vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-|         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-|         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-|         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-|         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-4 rows in set (0.04 sec)
-
-mysql> SELECT * FROM iceberg.nyc.taxis FOR TIME AS OF "2024-07-29 03:40:22";
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-| vendor_id | trip_id | trip_distance | fare_amount | store_and_fwd_flag | ts                         |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-|         2 | 1000373 |           0.9 |        9.01 | N                  | 2024-01-01 03:25:15.000000 |
-|         1 | 1000374 |           8.4 |       42.13 | Y                  | 2024-01-03 07:12:33.000000 |
-|         2 | 1000372 |           2.5 |       22.15 | N                  | 2024-01-02 12:10:11.000000 |
-|         1 | 1000371 |           1.8 |       15.32 | N                  | 2024-01-01 09:15:23.000000 |
-+-----------+---------+---------------+-------------+--------------------+----------------------------+
-4 rows in set (0.05 sec)
-```
-
-### 07 Interacting with PyIceberg
-
-> Please use Doris 2.1.8/3.0.4 or above.
-
-Load an iceberg table:
-
-```python
-from pyiceberg.catalog import load_catalog
-
-catalog = load_catalog(
-	"iceberg",
-	**{
-		"warehouse" = "warehouse",
-		"uri" = "http://rest:8181",
-		"s3.access-key-id" = "admin",
-		"s3.secret-access-key" = "password",
-		"s3.endpoint" = "http://minio:9000"
-	},
-)
-table = catalog.load_table("nyc.taxis")
-```
-
-Read table as `Arrow Table`:
-
-```python
-print(table.scan().to_arrow())
-
-pyarrow.Table
-vendor_id: int64
-trip_id: int64
-trip_distance: float
-fare_amount: double
-store_and_fwd_flag: large_string
-ts: timestamp[us]
-----
-vendor_id: [[1],[1],[2],[2]]
-trip_id: [[1000371],[1000374],[1000373],[1000372]]
-trip_distance: [[1.8],[8.4],[0.9],[2.5]]
-fare_amount: [[15.32],[42.13],[9.01],[22.15]]
-store_and_fwd_flag: [["N"],["Y"],["N"],["N"]]
-ts: [[2024-01-01 09:15:23.000000],[2024-01-03 07:12:33.000000],[2024-01-01 03:25:15.000000],[2024-01-02 12:10:11.000000]]
-```
-
-Read table as `Pandas DataFrame`：
-
-```python
-print(table.scan().to_pandas())
-
-vendor_id  trip_id  trip_distance  fare_amount store_and_fwd_flag                    ts
-0          1  1000371            1.8        15.32                  N   2024-01-01 09:15:23
-1          1  1000374            8.4        42.13                  Y   2024-01-03 07:12:33
-2          2  1000373            0.9         9.01                  N   2024-01-01 03:25:15
-3          2  1000372            2.5        22.15                  N   2024-01-02 12:10:11
-```
-
-Read table as `Polars DataFrame`:
-
-```python
-import polars as pl
-
-print(pl.scan_iceberg(table).collect())
-
-shape: (4, 6)
-┌───────────┬─────────┬───────────────┬─────────────┬────────────────────┬─────────────────────┐
-│ vendor_id ┆ trip_id ┆ trip_distance ┆ fare_amount ┆ store_and_fwd_flag ┆ ts                  │
-│ ---       ┆ ---     ┆ ---           ┆ ---         ┆ ---                ┆ ---                 │
-│ i64       ┆ i64     ┆ f32           ┆ f64         ┆ str                ┆ datetime[μs]        │
-╞═══════════╪═════════╪═══════════════╪═════════════╪════════════════════╪═════════════════════╡
-│ 1         ┆ 1000371 ┆ 1.8           ┆ 15.32       ┆ N                  ┆ 2024-01-01 09:15:23 │
-│ 1         ┆ 1000374 ┆ 8.4           ┆ 42.13       ┆ Y                  ┆ 2024-01-03 07:12:33 │
-│ 2         ┆ 1000373 ┆ 0.9           ┆ 9.01        ┆ N                  ┆ 2024-01-01 03:25:15 │
-│ 2         ┆ 1000372 ┆ 2.5           ┆ 22.15       ┆ N                  ┆ 2024-01-02 12:10:11 │
-└───────────┴─────────┴───────────────┴─────────────┴────────────────────┴─────────────────────┘
-```
-
-> Write iceberg table by PyIceberg, please see [step](#write-iceberg-table-by-pyiceberg)
-
-### 08 Appendix
-
-#### Write iceberg table by PyIceberg
-
-Load an iceberg table:
-
-```python
-from pyiceberg.catalog import load_catalog
-
-catalog = load_catalog(
-	"iceberg",
-	**{
-		"warehouse" = "warehouse",
-		"uri" = "http://rest:8181",
-		"s3.access-key-id" = "admin",
-		"s3.secret-access-key" = "password",
-		"s3.endpoint" = "http://minio:9000"
-	},
-)
-table = catalog.load_table("nyc.taxis")
-```
-
-Write table with `Arrow Table` :
-
-```python
-import pyarrow as pa
-
-df = pa.Table.from_pydict(
-	{
-		"vendor_id": pa.array([1, 2, 2, 1], pa.int64()),
-		"trip_id": pa.array([1000371, 1000372, 1000373, 1000374], pa.int64()),
-		"trip_distance": pa.array([1.8, 2.5, 0.9, 8.4], pa.float32()),
-		"fare_amount": pa.array([15.32, 22.15, 9.01, 42.13], pa.float64()),
-		"store_and_fwd_flag": pa.array(["N", "N", "N", "Y"], pa.string()),
-		"ts": pa.compute.strptime(
-			["2024-01-01 9:15:23", "2024-01-02 12:10:11", "2024-01-01 3:25:15", "2024-01-03 7:12:33"],
-			"%Y-%m-%d %H:%M:%S",
-			"us",
-		),
-	}
-)
-table.append(df)
-```
-
-Write table with `Pandas DataFrame` :
-
-```python
-import pyarrow as pa
-import pandas as pd
-
-df = pd.DataFrame(
-	{
-		"vendor_id": pd.Series([1, 2, 2, 1]).astype("int64[pyarrow]"),
-		"trip_id": pd.Series([1000371, 1000372, 1000373, 1000374]).astype("int64[pyarrow]"),
-		"trip_distance": pd.Series([1.8, 2.5, 0.9, 8.4]).astype("float32[pyarrow]"),
-		"fare_amount": pd.Series([15.32, 22.15, 9.01, 42.13]).astype("float64[pyarrow]"),
-		"store_and_fwd_flag": pd.Series(["N", "N", "N", "Y"]).astype("string[pyarrow]"),
-		"ts": pd.Series(["2024-01-01 9:15:23", "2024-01-02 12:10:11", "2024-01-01 3:25:15", "2024-01-03 7:12:33"]).astype("timestamp[us][pyarrow]"),
-	}
-)
-table.append(pa.Table.from_pandas(df))
-```
-
-Write table with `Polars DataFrame` :
-
-```python
-import polars as pl
-
-df = pl.DataFrame(
-	{
-		"vendor_id": [1, 2, 2, 1],
-		"trip_id": [1000371, 1000372, 1000373, 1000374],
-		"trip_distance": [1.8, 2.5, 0.9, 8.4],
-		"fare_amount": [15.32, 22.15, 9.01, 42.13],
-		"store_and_fwd_flag": ["N", "N", "N", "Y"],
-		"ts": ["2024-01-01 9:15:23", "2024-01-02 12:10:11", "2024-01-01 3:25:15", "2024-01-03 7:12:33"],
-	},
-	{
-		"vendor_id": pl.Int64,
-		"trip_id": pl.Int64,
-		"trip_distance": pl.Float32,
-		"fare_amount": pl.Float64,
-		"store_and_fwd_flag": pl.String,
-		"ts": pl.String,
-	},
-).with_columns(pl.col("ts").str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S"))
-table.append(df.to_arrow())
-```
