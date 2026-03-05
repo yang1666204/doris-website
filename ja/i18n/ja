@@ -1,19 +1,19 @@
 ---
 {
-  "title": "BITMAP_MAX",
+  "title": "BITMAP_MIN",
   "language": "en",
-  "description": "Computes and returns the maximum value in a Bitmap."
+  "description": "Computes and returns the minimum value in a Bitmap."
 }
 ---
 
 ## Description
 
-Computes and returns the maximum value in a Bitmap.
+Computes and returns the minimum value in a Bitmap.
 
 ## Syntax
 
 ```sql
-BITMAP_MAX(<bitmap>)
+BITMAP_MIN(<bitmap>)
 ```
 
 ## Parameters
@@ -24,15 +24,15 @@ BITMAP_MAX(<bitmap>)
 
 ## Return Value
 
-The maximum value in the Bitmap.  
-Returns `NULL` if the Bitmap is empty or NULL value.
+The minimum value in the Bitmap.  
+Returns `NULL` if the Bitmap is empty or is NULL value.
 
 ## Examples
 
-To compute the maximum value in an empty Bitmap:
+To compute the minimum value in an empty Bitmap:
 
 ```sql
-select bitmap_max(bitmap_from_string('')) value;
+select bitmap_min(bitmap_from_string('')) value;
 ```
 
 The result will be:
@@ -45,24 +45,24 @@ The result will be:
 +-------+
 ```
 
-To compute the maximum value in a Bitmap with multiple elements:
+To compute the minimum value in a Bitmap with multiple elements:
 
 ```sql
-select bitmap_max(bitmap_from_string('1,9999999999')) value;
+select bitmap_min(bitmap_from_string('1,9999999999')) value;
 ```
 
 The result will be:
 
 ```text
-+------------+
-| value      |
-+------------+
-| 9999999999 |
-+------------+
++-------+
+| value |
++-------+
+|     1 |
++-------+
 ```
 
 ```sql
-select bitmap_max(bitmap_empty()) res1, bitmap_max(NULL) res2;
+select bitmap_min(bitmap_empty()) res1,bitmap_min(NULL) res2;
 ```
 
 The result will be:
