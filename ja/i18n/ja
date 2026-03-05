@@ -1,123 +1,106 @@
 ---
 {
-  "title": "MIN",
+  "title": "PERCENTILE_APPROX",
   "language": "en",
-  "description": "The MIN function returns the minimum non-NULL value of the expression."
+  "description": "The PERCENTILEAPPROX function is used to calculate approximate percentiles, primarily for large datasets. Compared to the PERCENTILE function,"
 }
 ---
 
 ## Description
 
-The MIN function returns the minimum non-NULL value of the expression.
+The `PERCENTILE_APPROX` function is used to calculate approximate percentiles, primarily for large datasets. Compared to the `PERCENTILE` function, it has the following features:
+
+1. Memory Efficiency: Uses fixed-size memory, maintaining low memory consumption even when processing low-cardinality columns (large data volumes but the number of different elements is small)
+2. Performance Advantage: Suitable for processing low-cardinality large-scale datasets with faster computation
+3. Adjustable Precision: Balance between precision and performance through the compression parameter
 
 ## Syntax
 
 ```sql
-MIN(<expr>)
+PERCENTILE_APPROX(<col>, <p> [, <compression>])
 ```
 
 ## Parameters
 
-| Parameters | Description                                                                                                                                                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `<expr>`   | The expression to get the value. Supported types are String, Time, Date, DateTime, Timestamptz, IPv4, IPv6, TinyInt, SmallInt, Integer, BigInt, LargeInt, Float, Double, Decimal, Array. |
+| Parameter       | Description                                                                                                                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<col>`         | The column to calculate percentiles for, supported type: Double.                                                                                                                                  |
+| `<p>`           | Percentile value, constant, type Double, range `[0.0, 1.0]`, e.g., `0.99` means 99th percentile. Must be a constant.                                              |
+| `<compression>` | Optional, compression level, type Double, range `[2048, 10000]`. Higher values increase precision but consume more memory. If not specified or out of range, defaults to `10000`. |
 
 ## Return Value
 
-Returns the same data type as the input expression.
-If all records in the group are NULL, the function returns NULL.
+Returns the approximate percentile of the specified column, type Double.
+If there is no valid data in the group, returns NULL.
 
-## Example
+## Examples
 
 ```sql
 -- setup
-create table t1(
-        k1 int,
-        k_string varchar(100),
-        k_decimal decimal(10, 2),
-        k_array array<int>
-) distributed by hash (k1) buckets 1
-properties ("replication_num"="1");
-insert into t1 values 
-    (1, 'apple', 10.01, [10, 20, 30]),
-    (1, 'banana', 20.02, [10, 20]),
-    (2, 'orange', 30.03, [10, 20, 40]),
-    (2, null, null, [10, 20, null]),
-    (3, null, null, null);
+CREATE TABLE response_times (
+    request_id INT,
+    response_time DECIMAL(10, 2)
+) DUPLICATE KEY(`request_id`)
+DISTRIBUTED BY HASH(`request_id`) BUCKETS AUTO
+PROPERTIES (
+    "replication_allocation" = "tag.location.default: 1"
+);
+INSERT INTO response_times VALUES
+(1, 10.5),
+(2, 15.2),
+(3, 20.1),
+(4, 25.8),
+(5, 30.3),
+(6, 35.7),
+(7, 40.2),
+(8, 45.9),
+(9, 50.4),
+(10, 100.6);
 ```
 
 ```sql
-select k1, min(k_string) from t1 group by k1;
+-- Calculate 99th percentile using different compression levels
+SELECT 
+    percentile_approx(response_time, 0.99) as p99_default,          -- Default compression
+    percentile_approx(response_time, 0.99, 2048) as p99_fast,       -- Lower compression, faster
+    percentile_approx(response_time, 0.99, 10000) as p99_accurate   -- Higher compression, more accurate
+FROM response_times;
 ```
 
-String type: For each group, returns the minimum string value.
-
 ```text
-+------+---------------+
-| k1   | min(k_string) |
-+------+---------------+
-|    1 | apple         |
-|    2 | orange        |
-|    3 | NULL          |
-+------+---------------+
++-------------------+-------------------+-------------------+
+| p99_default       | p99_fast          | p99_accurate      |
++-------------------+-------------------+-------------------+
+| 100.5999984741211 | 100.5999984741211 | 100.5999984741211 |
++-------------------+-------------------+-------------------+
 ```
 
 ```sql
-select k1, min(k_decimal) from t1 group by k1;
+SELECT percentile_approx(if(response_time>90,response_time,NULL), 0.5) FROM response_times;
 ```
 
-Decimal type: Returns the minimum high-precision decimal value.
+Only non-NULL data is calculated.
 
 ```text
-+------+----------------+
-| k1   | min(k_decimal) |
-+------+----------------+
-|    1 |          10.01 |
-|    2 |          30.03 |
-|    3 |           NULL |
-+------+----------------+
++-----------------------------------------------------------------+
+| percentile_approx(if(response_time>90,response_time,NULL), 0.5) |
++-----------------------------------------------------------------+
+|                                               100.5999984741211 |
++-----------------------------------------------------------------+
 ```
 
 ```sql
-select k1, min(k_array) from t1 group by k1;
+SELECT percentile_approx(NULL, 0.99) FROM response_times;
 ```
 
-For Array type: Returns the minimum array value for each group(Compare elements one by one; null is the smallest element.).
+Returns NULL when all input data is NULL.
 
 ```text
-+------+----------------+
-| k1   | min(k_array)   |
-+------+----------------+
-|    1 | [10, 20]       |
-|    2 | [10, 20, null] |
-|    3 | NULL           |
-+------+----------------+
++-------------------------------+
+| percentile_approx(NULL, 0.99)  |
++-------------------------------+
+|                          NULL  |
++-------------------------------+
 ```
 
-```sql
-select min(k_string) from t1 where k1 = 3;
-```
 
-When all values in the group are NULL, returns NULL.
-
-```text
-+---------------+
-| min(k_string) |
-+---------------+
-| NULL          |
-+---------------+
-```
-
-```sql
-select min(k_string) from t1;
-```
-
-Minimum value of all data.
-
-```text
-+---------------+
-| min(k_string) |
-+---------------+
-| apple         |
-+---------------+
-```
