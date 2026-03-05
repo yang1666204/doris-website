@@ -1,136 +1,175 @@
 ---
 {
-  "title": "SUB_REPLACE",
+  "title": "TO_BASE64",
   "language": "en",
-  "description": "The subreplace function is used to replace substrings within a string."
+  "description": "The TOBASE64 function converts an input string to Base64 encoded format. Base64 is an encoding method based on 64 printable characters,"
 }
 ---
 
 ## Description
 
-The `sub_replace` function is used to replace substrings within a string. You can specify the substring to be replaced and the target string to replace it with. It returns a new string where the substring starting from `start` with length `len` in `str` is replaced by `new_str`. If `start` or `len` is a negative integer, it returns NULL. The default value for `len` is the length of `new_str`.
+The TO_BASE64 function converts an input string to Base64 encoded format. Base64 is an encoding method based on 64 printable characters, commonly used to transmit data in protocols that don't support binary data, such as email, URL parameters, JSON, etc. This function follows the RFC 4648 standard, using the standard Base64 character set (A-Z, a-z, 0-9, +, /) and padding character (=).
 
 ## Syntax
 
 ```sql
-sub_replace(<str>, <new_str>, [ ,<start> [ , <len> ] ])
+TO_BASE64(<str>)
 ```
 
 ## Parameters
 
-| Parameter   | Description                                                                                                                             |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `<str>`     | The target string in which the replacement will occur                                                                                   |
-| `<new_str>` | The string that will replace the specified substring                                                                                    |
-| `<start>`   | `start` is the position where the replacement operation begins, indicating from which position in the string the replacement will start |
-| `<len>`     | `len` is an optional parameter that specifies the length of the substring to be replaced                                                |
+| Parameter | Description                                                                    |
+| --------- | ------------------------------------------------------------------------------ |
+| `<str>`   | The string to be Base64 encoded. Type: VARCHAR |
 
 ## Return Value
 
-Returns the string after replacement.
+Returns VARCHAR type, representing the Base64 encoded string.
+
+Encoding rules:
+
+- Uses standard Base64 character set: A-Z, a-z, 0-9, +, /
+- Uses = as padding character, ensuring output length is a multiple of 4
+- Supports correct encoding of UTF-8 multi-byte characters
+- Output string contains only ASCII printable characters
+
+Special cases:
+
+- If input is NULL, returns NULL
+- If input is empty string, returns empty string
+- Automatically handles UTF-8 character encoding
+- Output length is always 4/3 times the input byte count (rounded up to multiple of 4)
 
 ## Examples
 
-1. Basic usage: specify position and length replacement
+1. Basic character encoding
 
 ```sql
-SELECT sub_replace('doris', '***', 1, 2);
+SELECT TO_BASE64('1'), TO_BASE64('A');
 ```
 
 ```text
-+-----------------------------------+
-| sub_replace('doris', '***', 1, 2) |
-+-----------------------------------+
-| d***is                            |
-+-----------------------------------+
++----------------+----------------+
+| TO_BASE64('1') | TO_BASE64('A') |
++----------------+----------------+
+| MQ==           | QQ==           |
++----------------+----------------+
 ```
 
-2. Using default length replacement
+2. Multi-character string encoding
 
 ```sql
-SELECT sub_replace('hello', 'Hi', 0);
+SELECT TO_BASE64('234'), TO_BASE64('Hello');
 ```
 
 ```text
-+--------------------------------+
-| sub_replace('hello', 'Hi', 0)  |
-+--------------------------------+
-| Hillo                          |
-+--------------------------------+
++------------------+--------------------+
+| TO_BASE64('234') | TO_BASE64('Hello') |
++------------------+--------------------+
+| MjM0             | SGVsbG8=           |
++------------------+--------------------+
 ```
 
-3. Negative parameter returns NULL
+3. NULL and empty string handling
 
 ```sql
-SELECT sub_replace('hello', 'Hi', -1, 2);
+SELECT TO_BASE64(NULL), TO_BASE64('');
 ```
 
 ```text
-+------------------------------------+
-| sub_replace('hello', 'Hi', -1, 2)  |
-+------------------------------------+
-| NULL                               |
-+------------------------------------+
++-----------------+---------------+
+| TO_BASE64(NULL) | TO_BASE64('') |
++-----------------+---------------+
+| NULL            |               |
++-----------------+---------------+
 ```
 
-4. NULL value handling
+4. Long string encoding
 
 ```sql
-SELECT sub_replace(NULL, 'new', 0, 3);
+SELECT TO_BASE64('Hello World'), TO_BASE64('The quick brown fox');
 ```
 
 ```text
-+-------------------------------------+
-| sub_replace(NULL, 'new', 0, 3)      |
-+-------------------------------------+
-| NULL                                |
-+-------------------------------------+
++-------------------------+-------------------------------+
+| TO_BASE64('Hello World') | TO_BASE64('The quick brown fox') |
++-------------------------+-------------------------------+
+| SGVsbG8gV29ybGQ=        | VGhlIHF1aWNrIGJyb3duIGZveA==  |
++-------------------------+-------------------------------+
 ```
 
-5. UTF-8 string
+5. Numbers and special characters
 
 ```sql
-SELECT sub_replace('doris', 'ṛìḍḍ', 1, 2);
+SELECT TO_BASE64('123456'), TO_BASE64('!@#$%^&*()');
 ```
 
 ```text
-+-------------------------------------------+
-| sub_replace('doris', 'ṛìḍḍ', 1, 2)        |
-+-------------------------------------------+
-| dṛìḍḍis                                   |
-+-------------------------------------------+
++---------------------+------------------------+
+| TO_BASE64('123456') | TO_BASE64('!@#$%^&*()') |
++---------------------+------------------------+
+| MTIzNDU2            | IUAjJCVeJiooKQ==       |
++---------------------+------------------------+
 ```
 
-6. Start position exceeds string length
+6. UTF-8 multi-byte characters
 
 ```sql
-SELECT sub_replace('hello', 'Hi', 9, 2);
+SELECT TO_BASE64('ṭṛì'), TO_BASE64('ḍḍumai hello');
 ```
 
 ```text
-+----------------------------------+
-| sub_replace('hello', 'Hi', 9, 2) |
-+----------------------------------+
-| NULL                             |
-+----------------------------------+
++-------------------+---------------------------+
+| TO_BASE64('ṭṛì')  | TO_BASE64('ḍḍumai hello') |
++-------------------+---------------------------+
+| 4bmt4bmb4bmA      | 4bmN4bmNdW1haSBoZWxsbw==  |
++-------------------+---------------------------+
 ```
 
-7. Specified replacement length exceeds remaining string length
+7. Email address encoding
 
 ```sql
-SELECT sub_replace('hello', 'Hi', 1, 9);
+SELECT TO_BASE64('user@example.com'), TO_BASE64('admin.test@company.org');
 ```
 
 ```text
-+----------------------------------+
-| sub_replace('hello', 'Hi', 1, 9) |
-+----------------------------------+
-| hHi                              |
-+----------------------------------+
++------------------------------+-----------------------------------+
+| TO_BASE64('user@example.com') | TO_BASE64('admin.test@company.org') |
++------------------------------+-----------------------------------+
+| dXNlckBleGFtcGxlLmNvbQ==     | YWRtaW4udGVzdEBjb21wYW55Lm9yZw== |
++------------------------------+-----------------------------------+
+```
+
+8. JSON data encoding
+
+```sql
+SELECT TO_BASE64('{"name":"John","age":30}'), TO_BASE64('[1,2,3,4,5]');
+```
+
+```text
++--------------------------------------+----------------------+
+| TO_BASE64('{"name":"John","age":30}') | TO_BASE64('[1,2,3,4,5]') |
++--------------------------------------+----------------------+
+| eyJuYW1lIjoiSm9obiIsImFnZSI6MzB9     | WzEsMiwzLDQsNV0=     |
++--------------------------------------+----------------------+
+```
+
+9. Different length strings and padding
+
+```sql
+SELECT TO_BASE64('a'), TO_BASE64('ab'), TO_BASE64('abc');
+```
+
+```text
++----------------+-----------------+------------------+
+| TO_BASE64('a') | TO_BASE64('ab') | TO_BASE64('abc') |
++----------------+-----------------+------------------+
+| YQ==           | YWI=            | YWJj             |
++----------------+-----------------+------------------+
 ```
 
 ### Keywords
 
     ```
-    SUB_REPLACE, REPLACE
+    TO_BASE64, BASE64
     ```
