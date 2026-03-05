@@ -1,83 +1,84 @@
 ---
 {
-  "title": "TAN",
+  "title": "TANH",
   "language": "en",
-  "description": "Returns the tangent of x, where x is the value in radians."
+  "description": "Returns the hyperbolic tangent of x."
 }
 ---
 
 ## Description
 
-Returns the tangent of x, where x is the value in radians.
+Returns the hyperbolic tangent of x.
 
 ## Syntax
 
 ```sql
-TAN(<x>)
+TANH(<x>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                         |
-| --------- | --------------------------------------------------- |
-| `<x>`     | The value for which the tangent is to be calculated |
+| Parameter | Description                                                    |
+| --------- | -------------------------------------------------------------- |
+| `<x>`     | The value for which the hyperbolic tangent is to be calculated |
 
 ## Return Value
 
-Returns the tangent of x.
+The hyperbolic tangent of parameter x.
 
 ## Special Cases
 
 - When `x` is NaN, returns NaN
-- When `x` is positive or negative infinity, returns NaN
+- When `x` is positive infinity, returns 1
+- When `x` is negative infinity, returns -1
 - When `x` is NULL, returns NULL
 
 ## Example
 
 ```sql
-select tan(0),tan(1),tan(-1);
+select tanh(0),tanh(1);
 ```
 
 ```text
-+------------------------+------------------------+-------------------------+
-| tan(cast(0 as DOUBLE)) | tan(cast(1 as DOUBLE)) | tan(cast(-1 as DOUBLE)) |
-+------------------------+------------------------+-------------------------+
-|                      0 |     1.5574077246549023 |     -1.5574077246549023 |
-+------------------------+------------------------+-------------------------+
++-------------------------+-------------------------+
+| tanh(cast(0 as DOUBLE)) | tanh(cast(1 as DOUBLE)) |
++-------------------------+-------------------------+
+|                       0 |      0.7615941559557649 |
++-------------------------+-------------------------+
 ```
 
 ```sql
-select tan(cast('nan' as double));
-```
-
-```text
-+----------------------------+
-| tan(cast('nan' AS DOUBLE)) |
-+----------------------------+
-| NaN                        |
-+----------------------------+
-```
-
-```sql
-select tan(cast('inf' as double));
-```
-
-```text
-+----------------------------+
-| tan(cast('inf' AS DOUBLE)) |
-+----------------------------+
-| NaN                        |
-+----------------------------+
-```
-
-```sql
-select tan(cast('-inf' as double));
+select tanh(cast('nan' as double));
 ```
 
 ```text
 +-----------------------------+
-| tan(cast('-inf' AS DOUBLE)) |
+| tanh(cast('nan' AS DOUBLE)) |
 +-----------------------------+
 | NaN                         |
 +-----------------------------+
+```
+
+```sql
+select tanh(cast('inf' as double));
+```
+
+```text
++-----------------------------+
+| tanh(cast('inf' AS DOUBLE)) |
++-----------------------------+
+| 1                           |
++-----------------------------+
+```
+
+```sql
+select tanh(cast('-inf' as double));
+```
+
+```text
++------------------------------+
+| tanh(cast('-inf' AS DOUBLE)) |
++------------------------------+
+| -1                           |
++------------------------------+
 ```
