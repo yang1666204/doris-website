@@ -1,19 +1,19 @@
 ---
 {
-  "title": "MAP_KEYS",
+  "title": "MAP_SIZE",
   "language": "en",
-  "description": "Extracts the keys from a given map into an ARRAY of the corresponding type."
+  "description": "Calculates the number of elements in a Map"
 }
 ---
 
 ## Description
 
-Extracts the keys from a given `map` into an [`ARRAY`](../../../basic-element/sql-data-types/semi-structured/ARRAY.md) of the corresponding type.
+Calculates the number of elements in a Map
 
 ## Syntax
 
 ```sql
-MAP_KEYS(<map>)
+MAP_SIZE(<map>)
 ```
 
 ## Parameters
@@ -22,29 +22,36 @@ MAP_KEYS(<map>)
 
 ## Return Value
 
-Extracts the keys from a given `map` into an [`ARRAY`](../../../basic-element/sql-data-types/semi-structured/ARRAY.md) of the corresponding type.
+Returns the number of elements in the Map
+
+## Usage Notes
+
+1. Both NULL keys and values are counted.
+2. For NULL parameters, returns NULL.
 
 ## Examples
 
 1. Regular parameters
+
     ```sql
-    select map_keys(map()),map_keys(map(1, "100", 0.1, 2, null, null));
+    select map_size(map()), map_size(map(1, "100", 0.1, 2, null, null));
     ```
+
     ```text
     +-----------------+---------------------------------------------+
-    | map_keys(map()) | map_keys(map(1, "100", 0.1, 2, null, null)) |
+    | map_size(map()) | map_size(map(1, "100", 0.1, 2, null, null)) |
     +-----------------+---------------------------------------------+
-    | []              | [1.0, 0.1, null]                            |
+    |               0 |                                           3 |
     +-----------------+---------------------------------------------+
     ```
 2. NULL parameters
     ```sql
-    select map_keys(NULL);
+    select map_size(NULL);
     ```
     ```text
     +----------------+
-    | map_keys(NULL) |
+    | map_size(NULL) |
     +----------------+
-    | NULL           |
+    |           NULL |
     +----------------+
     ```
