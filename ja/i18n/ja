@@ -1,116 +1,76 @@
 ---
 {
-  "title": "JSON_ARRAY",
+  "title": "FIRST_VALUE",
   "language": "en",
-  "description": "Generate a JSON array containing the specified elements. Returns an empty array when no parameters are passed."
+  "description": "FIRSTVALUE() is a window function that returns the first value in an ordered set of values within a window partition."
 }
 ---
 
 ## Description
 
-Generate a JSON array containing the specified elements. Returns an empty array when no parameters are passed.
+FIRST_VALUE() is a window function that returns the first value in an ordered set of values within a window partition. The handling of null values can be controlled using the IGNORE NULL options.
 
 ## Syntax
 
 ```sql
-JSON_ARRAY([<expression>, ...]) 
+FIRST_VALUE(expr[, ignore_null])
 ```
-
-## Arguments
-
-### Variable arguments:
-
-- `<expression>`: Elements to be included in the JSON array can be of a single type or multiple types, including NULL.
-
-## Returns
-
-[`Nullable(JSON)`](../../../basic-element/sql-data-types/semi-structured/JSON.md): Returns a JSON array containing the specified values. If no values are specified, an empty JSON array is returned.
 
 ## Parameters
 
-### Variable parameters:
-
-- `<expression>`: Elements to be included in the JSON array. Can be single or multiple values of different types, including NULL.
+| Parameter                        | Description                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| expr                             | The expression from which to get the first value,supported: tinyint/smallint/int/bigint/float/double/decimal/string/date/datetime/array/struct/map/bitmap |
+| ignore_null | Optional boolean Type. When set, null values are ignored, returning the first non-null value                                                              |
 
 ## Return Value
 
-[`JSON`](../../../basic-element/sql-data-types/semi-structured/JSON.md): Returns a JSON array composed of the parameter list.
-
-## Usage Notes
-
-- JSON_ARRAY implementation converts different types of parameters to JSON values by implicitly calling the [`TO_JSON`](./to-json.md) function, so parameters must be types supported by [`TO_JSON`](./to-json.md)
-- NULL will be converted to JSON null. If you don't want to retain null values in the array, you can use the function [`JSON_ARRAY_IGNORE_NULL`](./json-array-ignore-null.md).
-- If the parameter type is not supported by [`TO_JSON`](./to-json.md), you will get an error. You can first convert that parameter to String type, for example:
-    ```sql
-    select JSON_ARRAY(CAST(NOW() as String));
-    ```
-  > The NOW() function returns a DateTime type, which needs to be converted to String type using the CAST function
-- If the parameter is a JSON string and you want to add it to the array as a JSON object, you should explicitly call the [`JSON_PARSE`](./json-parse.md) function to parse it as a JSON object:
-  ```sql
-  select JSON_ARRAY(JSON_PARSE('{"key": "value"}'));
-  ```
+Returns the same data type as the input expression.
 
 ## Examples
 
-1. Regular parameters
-    ```sql
-    select json_array() as empty_array, json_array(1) v1, json_array(1, 'abc') v2;
-    ```
-    ```
-    +-------------+------+-----------+
-    | empty_array | v1   | v2        |
-    +-------------+------+-----------+
-    | []          | [1]  | [1,"abc"] |
-    +-------------+------+-----------+
-    ```
-2. NULL parameters
-    ```sql
-    select json_array(null) v1, json_array(1, null, 'I am a string') v2;
-    ```
-    ```
-    +--------+--------------------------+
-    | v1     | v2                       |
-    +--------+--------------------------+
-    | [null] | [1,null,"I am a string"] |
-    +--------+--------------------------+
-    ```
-3. Unsupported parameter types
-    ```sql
-    select json_array('item1', map(123, 'abc'));
-    ```
-    ```
-    ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: to_json(MAP<TINYINT,VARCHAR(3)>)
-    ```
-4. Map type parameters can be explicitly converted to JSON
-    ```sql
-    select json_array(1, cast(map('key', 'value') as json));
-    ```
-    ```
-    +--------------------------------------------------+
-    | json_array(1, cast(map('key', 'value') as json)) |
-    +--------------------------------------------------+
-    | [1,{"key":"value"}]                              |
-    +--------------------------------------------------+
-    ```
-5. The JSON string will be added to the array in the form of a string
-    ```sql
-    select json_array('{"key1": "value", "key2": [1, "I am a string", 3]}');
-    ```
-    ```
-    +------------------------------------------------------------------+
-    | json_array('{"key1": "value", "key2": [1, "I am a string", 3]}') |
-    +------------------------------------------------------------------+
-    | ["{\"key1\": \"value\", \"key2\": [1, \"I am a string\", 3]}"]   |
-    +------------------------------------------------------------------+
-    ```
-6. A JSON string can be parsed using `json_parse` and then passed to `json_array`
-    ```sql
-    select json_array(json_parse('{"key1": "value", "key2": [1, "I am a string", 3]}'));
-    ```
-    ```
-    +------------------------------------------------------------------------------+
-    | json_array(json_parse('{"key1": "value", "key2": [1, "I am a string", 3]}')) |
-    +------------------------------------------------------------------------------+
-    | [{"key1":"value","key2":[1,"I am a string",3]}]                              |
-    +------------------------------------------------------------------------------+
-    ```
+```sql
+WITH example_data AS (
+    SELECT 1 as column1, NULL as column2, 'A' as group_name
+    UNION ALL
+    SELECT 1, 10, 'A'
+    UNION ALL
+    SELECT 1, NULL, 'A'
+    UNION ALL
+    SELECT 1, 20, 'A'
+    UNION ALL
+    SELECT 2, NULL, 'B'
+    UNION ALL
+    SELECT 2, 30, 'B'
+    UNION ALL
+    SELECT 2, 40, 'B'
+)
+SELECT 
+    group_name,
+    column1,
+    column2,
+    FIRST_VALUE(column2) OVER (
+        PARTITION BY column1 
+        ORDER BY column2 NULLS LAST
+    ) AS first_value_default,
+    FIRST_VALUE(column2, true) OVER (
+        PARTITION BY column1 
+        ORDER BY column2
+    ) AS first_value_ignore_null
+FROM example_data
+ORDER BY column1, column2;
+```
+
+```text
++------------+---------+---------+---------------------+-------------------------+
+| group_name | column1 | column2 | first_value_default | first_value_ignore_null |
++------------+---------+---------+---------------------+-------------------------+
+| A          |       1 |    NULL |                  10 |                    NULL |
+| A          |       1 |    NULL |                  10 |                    NULL |
+| A          |       1 |      10 |                  10 |                      10 |
+| A          |       1 |      20 |                  10 |                      10 |
+| B          |       2 |    NULL |                  30 |                    NULL |
+| B          |       2 |      30 |                  30 |                      30 |
+| B          |       2 |      40 |                  30 |                      30 |
++------------+---------+---------+---------------------+-------------------------+
+```
