@@ -1,57 +1,72 @@
 ---
 {
     "title": "GROUP_BITMAP_XOR",
-    "language": "en"
+    "language": "en",
+    "description": "Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Mainly used to merge the values of multiple bitmaps and perform bitwise xor calculations on the results.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## GROUP_BITMAP_XOR
-### description
-#### Syntax
-
-`BITMAP GROUP_BITMAP_XOR(expr)`
-
-Perform an xor calculation on expr, and return a new bitmap.
-
-### example
-
-```
-mysql>  select page, bitmap_to_string(user_id) from pv_bitmap;
-+------+-----------------------------+
-| page | bitmap_to_string(`user_id`) |
-+------+-----------------------------+
-| m    | 4,7,8                       |
-| m    | 1,3,6,15                    |
-| m    | 4,7                         |
-+------+-----------------------------+
-
-mysql> select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
-+------+-----------------------------------------------+
-| page | bitmap_to_string(group_bitmap_xor(`user_id`)) |
-+------+-----------------------------------------------+
-| m    | 1,3,6,8,15                                    |
-+------+-----------------------------------------------+
+```sql
+GROUP_BITMAP_XOR(<expr>)
 ```
 
-### keywords
+## Parameters
 
-    GROUP_BITMAP_XOR,BITMAP
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | Supported bitmap data types |
+
+## Return Value
+
+The data type of the return value is BITMAP. If there is no valid data in the group, returns NULL.
+
+## Example
+
+```sql
+-- setup
+CREATE TABLE pv_bitmap (
+	page varchar(10),
+	user_id BITMAP
+) DISTRIBUTED BY HASH(page) BUCKETS 1
+PROPERTIES ("replication_num" = "1");
+INSERT INTO pv_bitmap VALUES
+	('m', to_bitmap(4)),
+	('m', to_bitmap(7)),
+	('m', to_bitmap(8)),
+	('m', to_bitmap(1)),
+	('m', to_bitmap(3)),
+	('m', to_bitmap(6)),
+	('m', to_bitmap(15)),
+	('m', to_bitmap(4)),
+	('m', to_bitmap(7));
+```
+
+```sql
+select page, bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap group by page;
+```
+
+```text
++------+---------------------------------------------+
+| page | bitmap_to_string(group_bitmap_xor(user_id)) |
++------+---------------------------------------------+
+| m    | 1,3,6,8,15                                  |
++------+---------------------------------------------+
+```
+
+```sql
+select bitmap_to_string(group_bitmap_xor(user_id)) from pv_bitmap where page is null;
+```
+
+```text
++---------------------------------------------+
+| bitmap_to_string(group_bitmap_xor(user_id)) |
++---------------------------------------------+
+| NULL                                        |
++---------------------------------------------+
+```
