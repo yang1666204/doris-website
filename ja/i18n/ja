@@ -1,45 +1,49 @@
 ---
 {
-  "title": "XXHASH_32",
+  "title": "XXHASH_64",
   "language": "en",
-  "description": "Calculate the 32-bit xxhash value of the input string or binary."
+  "description": "Calculates the 64-bit xxhash value of the input string or binary."
 }
 ---
 
 ## Description
 
-Calculate the 32-bit xxhash value of the input string or binary.
+Calculates the 64-bit xxhash value of the input string or binary.
 
--Note: When calculating hash values, it is recommended to use `xxhash_32` instead of `murmur_hash3_32`.
+-Note: After testing, the performance of `xxhash_64` is about twice that of `murmur_hash3_64`, so when calculating hash values, it is recommended to use `xxhash_64` instead of `murmur_hash3_64`.
+
+## Alias
+
+- `XXHASH3_64`
 
 ## Syntax
 
 ```sql
-XXHASH_32( <input> [ , <input> ... ] )
+XXHASH_64( <input> [ , <input> ... ] )
 ```
 
 ## Parameters
 
 | parameter | description                                                              |
 | --------- | ------------------------------------------------------------------------ |
-| `<input>` | The 32-bit xxhash value to be calculated, accept string and binary types |
+| `<input>` | The 64-bit xxhash value to be calculated, accept string and binary types |
 
 ## Return Value
 
-Returns the 32-bit xxhash value of the input string.
+Returns the 64-bit xxhash value of the input string.
 
 ## Examples
 
 ```sql
-select xxhash_32(NULL), xxhash_32("hello"), xxhash_32("hello", "world");
+select xxhash_64(NULL), xxhash_64("hello"), xxhash_64("hello", "world");
 ```
 
 ```text
-+-----------------+--------------------+-----------------------------+
-| xxhash_32(NULL) | xxhash_32('hello') | xxhash_32('hello', 'world') |
-+-----------------+--------------------+-----------------------------+
-|            NULL |          -83855367 |                  -920844969 |
-+-----------------+--------------------+-----------------------------+
++-----------------+----------------------+-----------------------------+
+| xxhash_64(NULL) | xxhash_64('hello')   | xxhash_64('hello', 'world') |
++-----------------+----------------------+-----------------------------+
+|            NULL | -7685981735718036227 |         7001965798170371843 |
++-----------------+----------------------+-----------------------------+
 ```
 
 ```sql
@@ -58,15 +62,15 @@ SELECT * FROM mysql_catalog.binary_test.binary_test;
 ```
 
 ```sql
-SELECT XXHASH_32(vb), XXHASH_32(vc) FROM mysql_catalog.binary_test.binary_test;
+SELECT XXHASH_64(vb), XXHASH_64(vc) FROM mysql_catalog.binary_test.binary_test;
 ```
 
 ```text
-+---------------+---------------+
-| XXHASH_32(vb) | XXHASH_32(vc) |
-+---------------+---------------+
-|     852579327 |     852579327 |
-|    -242012205 |    -242012205 |
-|          NULL |          NULL |
-+---------------+---------------+
++---------------------+---------------------+
+| XXHASH_64(vb)       | XXHASH_64(vc)       |
++---------------------+---------------------+
+| 8696274497037089104 | 8696274497037089104 |
+| 7095089596068863775 | 7095089596068863775 |
+|                NULL |                NULL |
++---------------------+---------------------+
 ```
