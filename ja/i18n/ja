@@ -1,82 +1,84 @@
 ---
 {
-  "title": "KURT,KURT_POP,KURTOSIS",
+  "title": "LINEAR_HISTOGRAM",
   "language": "en",
-  "description": "The KURTOSIS function calculates the kurtosis of the data. The formula used is: fourth central moment / (variance squared) - 3."
+  "description": "The LINEARHISTOGRAM function is used to describe data distribution."
 }
 ---
 
 ## Description
 
-The KURTOSIS function calculates the [kurtosis](https://en.wikipedia.org/wiki/Kurtosis) of the data. The formula used is: fourth central moment / (variance squared) - 3.
-
-## Alias
-
-KURT_POP, KURTOSIS
+The LINEAR_HISTOGRAM function is used to describe data distribution. It uses an "equal width" bucketing strategy and divides the data into buckets according to the value size.
 
 ## Syntax
 
 ```sql
-KURTOSIS(<expr>)
-KURT_POP(<expr>)
-KURT(<expr>)
+LINEAR_HISTOGRAM(<expr>, DOUBLE <interval>[, DOUBLE <offset>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                         |
-| --------- | ------------------------------------------------------------------- |
-| `<expr>`  | The expression to calculate, type Double supported. |
+| Parameter  | Description                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `interval` | The width of the bucket, supports types: TinyInt, SmallInt, Int, BigInt, LargeInt, Float, Double, Decimal. |
+| `offset`   | Optional. Default is 0, range is `[0, interval)`, type Double supported.                                   |
 
 ## Return Value
 
-Returns a DOUBLE value.
-Returns NULL when variance is zero.
-Returns NULL when there is no valid data in the group.
+Returns a computed value of JSON type.
 
 ## Example
 
 ```sql
 -- setup
-create table statistic_test(
-    tag int,
-    val1 double,
-    val2 double
-) distributed by hash(tag) buckets 1
+create table histogram_test(
+  a int
+) distributed by hash(a) buckets 1
 properties ("replication_num"="1");
-insert into statistic_test values
-    (1, -10, -10),
-    (2, -20, null),
-    (3, 100, null),
-    (4, 100, null),
-    (5, 1000, 1000);
+insert into histogram_test values
+  (0), (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (null);
 ```
 
 ```sql
-select kurt(val1), kurt(val2) from statistic_test;
+select linear_histogram(a, 2) from histogram_test;
 ```
 
 ```text
-+---------------------+------------+
-| kurt(val1)          | kurt(val2) |
-+---------------------+------------+
-| 0.16212458373485106 |         -2 |
-+---------------------+------------+
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, 2)                                                                                                                                                                                                                                                                                                                         |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":6,"buckets":[{"lower":0.0,"upper":2.0,"count":2,"acc_count":2},{"lower":2.0,"upper":4.0,"count":2,"acc_count":4},{"lower":4.0,"upper":6.0,"count":2,"acc_count":6},{"lower":6.0,"upper":8.0,"count":2,"acc_count":8},{"lower":8.0,"upper":10.0,"count":2,"acc_count":10},{"lower":10.0,"upper":12.0,"count":2,"acc_count":12}]} |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
 ```sql
-select kurt(val1), kurt(val2) from statistic_test group by tag;
+select linear_histogram(a, 2, 1) from histogram_test;
 ```
 
 ```text
-+------------+------------+
-| kurt(val1) | kurt(val2) |
-+------------+------------+
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-|       NULL |       NULL |
-+------------+------------+
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| linear_histogram(a, 2, 1)                                                                                                                                                                                                                                                                                                                                                                         |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| {"num_buckets":7,"buckets":[{"lower":-1.0,"upper":1.0,"count":1,"acc_count":1},{"lower":1.0,"upper":3.0,"count":2,"acc_count":3},{"lower":3.0,"upper":5.0,"count":2,"acc_count":5},{"lower":5.0,"upper":7.0,"count":2,"acc_count":7},{"lower":7.0,"upper":9.0,"count":2,"acc_count":9},{"lower":9.0,"upper":11.0,"count":2,"acc_count":11},{"lower":11.0,"upper":13.0,"count":1,"acc_count":12}]} |
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
+```sql
+select linear_histogram(a, 2, 1) from histogram_test where a is null;
+```
+
+```text
++--------------------------------+
+| linear_histogram(a, 2, 1)      |
++--------------------------------+
+| {"num_buckets":0,"buckets":[]} |
+```
+
+Field description:
+
+- `num_buckets`: Number of buckets.
+- `buckets`: Buckets in the histogram.
+  - `lower`: Lower bound (inclusive).
+  - `upper`: Upper bound (exclusive).
+  - `count`: Number of elements in the bucket.
+  - `acc_count`: Accumulated count up to this bucket.
