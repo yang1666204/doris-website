@@ -1,28 +1,10 @@
 ---
 {
     "title": "Hive HLL UDF",
-    "language": "en"
+    "language": "en",
+    "description": "The Hive HLL UDF provides a set of UDFs for generating HLL operations in Hive tables, which are identical to Doris HLL."
 }
 ---
-
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
 
 # Hive HLL UDF
 
@@ -164,7 +146,7 @@ select k3, hll_cardinality(hll_union(uuid)) from hive_hll_table group by k3;
 
 ### Method 1: Catalog (Recommended)
 
-Create Hive table specified as TEXT format. For Binary type, Hive will save it as a base64 encoded string. At this time, you can use the Hive Catalog to directly import the HLL data into Doris using the [hll_from_base64](../sql-manual/sql-functions/hll-functions/hll-from-base64.md) function.
+Create Hive table specified as TEXT format. For Binary type, Hive will save it as a base64 encoded string. At this time, you can use the Hive Catalog to directly import the HLL data into Doris using the [hll_from_base64](../sql-manual/sql-functions/scalar-functions/hll-functions/hll-from-base64) function.
 
 Here is a complete example:
 
@@ -181,7 +163,7 @@ CREATE TABLE IF NOT EXISTS `hive_hll_table`(
 -- then reuse the previous steps to insert data from a normal table into it using the to_hll function
 ```
 
-2. [Create a Doris catalog](../lakehouse/datalake-analytics/hive.md)
+2. [Create a Doris catalog](../lakehouse/catalogs/hive-catalog)
 
 ```sql
 CREATE CATALOG hive PROPERTIES (
@@ -243,6 +225,3 @@ select k3, hll_cardinality(hll_union(hll_from_base64(uuid))) from hive.hive_test
 +------+---------------------------------------------------+
 ```
 
-### Method 2: Spark Load
-
- See details: [Spark Load](https://doris.apache.org/zh-CN/docs/1.2/data-operate/import/import-way/spark-load-manual) -> Basic operation -> Creating Load (Example 3: when the upstream data source is hive binary type table)
