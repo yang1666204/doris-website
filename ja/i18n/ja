@@ -1,186 +1,142 @@
 ---
 {
-  "title": "RPAD",
+  "title": "RTRIM_IN",
   "language": "en",
-  "description": "The RPAD function (Right Padding) is used to pad the right side of a string with specified characters until it reaches a specified length."
+  "description": "The RTRIMIN function removes specified characters from the right side of a string. When no character set is specified,"
 }
 ---
 
 ## Description
 
-The RPAD function (Right Padding) is used to pad the right side of a string with specified characters until it reaches a specified length. If the target length is less than the original string length, the string is truncated. This function calculates by character length, not byte length.
+The RTRIM_IN function removes specified characters from the right side of a string. When no character set is specified, it removes trailing spaces by default. When a character set is specified, it removes all specified characters from the right side (regardless of their order in the set).
+
+The key feature of RTRIM_IN is that it removes any combination of characters from the specified set, while the RTRIM function removes characters based on exact string matching.
 
 ## Syntax
 
 ```sql
-RPAD(<str>, <len>, <pad>)
+RTRIM_IN(<str>[, <rhs>])
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------------------- |
-| `<str>`   | The source string to be padded. Type: VARCHAR                               |
-| `<len>`   | The target character length (not byte length). Type: INT |
-| `<pad>`   | The string to pad with. Type: VARCHAR                                       |
+| Parameter | Description                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------ |
+| `<str>`   | The string to be processed. Type: VARCHAR                              |
+| `<rhs>`   | Optional parameter, the set of characters to be removed. Type: VARCHAR |
 
 ## Return Value
 
-Returns VARCHAR type, representing the padded or truncated string.
-
-Padding rules:
-
-- If len > original string length: repeatedly pad with pad string on the right until total length reaches len
-- If len = original string length: return the original string
-- If len < original string length: truncate the string, returning only the first len characters
-- The pad string is used cyclically, possibly using only partial characters
-- Calculated by character length, supports UTF-8 multi-byte characters
+Returns VARCHAR type, representing the processed string.
 
 Special cases:
 
-- If any parameter is NULL, returns NULL
-- If pad is an empty string and len > str length, returns an empty string
-- If len is 0, returns an empty string
-- If len is negative, returns NULL
+- If str is NULL, returns NULL
+- If rhs is not specified, removes all trailing spaces
+- If rhs is specified, removes all characters from the right side that appear in rhs until encountering the first character not in rhs
 
 ## Examples
 
-1. Basic right padding
+1. Remove trailing spaces
 
 ```sql
-SELECT RPAD('hi', 5, 'xy'), RPAD('hello', 8, '*');
+SELECT rtrim_in('ab d   ') str;
 ```
 
 ```text
-+---------------------+-----------------------+
-| RPAD('hi', 5, 'xy') | RPAD('hello', 8, '*') |
-+---------------------+-----------------------+
-| hixyx               | hello***              |
-+---------------------+-----------------------+
++------+
+| str  |
++------+
+| ab d |
++------+
 ```
 
-2. String truncation
+2. Remove specified character set
 
 ```sql
-SELECT RPAD('hello', 1, ''), RPAD('hello world', 5, 'x');
+SELECT rtrim_in('ababccaab', 'ab') str;
 ```
 
 ```text
-+----------------------+------------------------------+
-| RPAD('hello', 1, '') | RPAD('hello world', 5, 'x')  |
-+----------------------+------------------------------+
-| h                    | hello                        |
-+----------------------+------------------------------+
++---------+
+| str     |
++---------+
+| ababcc  |
++---------+
 ```
 
-3. NULL value handling
+3. Comparison with RTRIM function
 
 ```sql
-SELECT RPAD(NULL, 5, 'x'), RPAD('hi', NULL, 'x'), RPAD('hi', 5, NULL);
+SELECT rtrim_in('ababccaab', 'ab'), rtrim('ababccaab', 'ab');
 ```
 
 ```text
-+---------------------+------------------------+----------------------+
-| RPAD(NULL, 5, 'x')  | RPAD('hi', NULL, 'x')  | RPAD('hi', 5, NULL)  |
-+---------------------+------------------------+----------------------+
-| NULL                | NULL                   | NULL                 |
-+---------------------+------------------------+----------------------+
++-----------------------------+--------------------------+
+| rtrim_in('ababccaab', 'ab') | rtrim('ababccaab', 'ab') |
++-----------------------------+--------------------------+
+| ababcc                      | ababcca                  |
++-----------------------------+--------------------------+
 ```
 
-4. Empty string and zero length
+4. Character set order does not matter
 
 ```sql
-SELECT RPAD('', 0, ''), RPAD('hi', 0, 'x'), RPAD('', 5, '*');
+SELECT rtrim_in('Helloabc', 'cba');
 ```
 
 ```text
-+-----------------+-------------------+--------------------+
-| RPAD('', 0, '') | RPAD('hi', 0, 'x') | RPAD('', 5, '*')   |
-+-----------------+-------------------+--------------------+
-|                 |                   | *****              |
-+-----------------+-------------------+--------------------+
++-----------------------------+
+| rtrim_in('Helloabc', 'cba') |
++-----------------------------+
+| Hello                       |
++-----------------------------+
 ```
 
-5. Empty padding string
+5. UTF-8 character support
 
 ```sql
-SELECT RPAD('hello', 10, ''), RPAD('hi', 2, '');
+SELECT rtrim_in('ṭṛì ḍḍumai+++', '+');
 ```
 
 ```text
-+-----------------------+-------------------+
-| RPAD('hello', 10, '')  | RPAD('hi', 2, '') |
-+-----------------------+-------------------+
-|                       | hi                |
-+-----------------------+-------------------+
++------------------------------------+
+| rtrim_in('ṭṛì ḍḍumai+++', '+')    |
++------------------------------------+
+| ṭṛì ḍḍumai                         |
++------------------------------------+
 ```
 
-6. Long padding string and cycling
+6. NULL value handling
 
 ```sql
-SELECT RPAD('hello', 10, 'world'), RPAD('X', 7, 'ABC');
+SELECT rtrim_in(NULL, 'abc');
 ```
 
 ```text
-+----------------------------+----------------------+
-| RPAD('hello', 10, 'world') | RPAD('X', 7, 'ABC')  |
-+----------------------------+----------------------+
-| helloworld                 | XABCABC              |
-+----------------------------+----------------------+
++------------------------+
+| rtrim_in(NULL, 'abc')  |
++------------------------+
+| NULL                   |
++------------------------+
 ```
 
-7. UTF-8 multi-byte character padding
+7. Empty character handling
 
 ```sql
-SELECT RPAD('hello', 10, 'ṭṛì'), RPAD('ḍḍumai', 3, 'x');
+SELECT rtrim_in('', 'abc'), rtrim_in('abc', '');
 ```
 
 ```text
-+---------------------------+--------------------------+
-| RPAD('hello', 10, 'ṭṛì')  | RPAD('ḍḍumai', 3, 'x')   |
-+---------------------------+--------------------------+
-| helloṭṛìṭṛ                | ḍḍu                      |
-+---------------------------+--------------------------+
++---------------------+---------------------+
+| rtrim_in('', 'abc') | rtrim_in('abc', '') |
++---------------------+---------------------+
+|                     | abc                 |
++---------------------+---------------------+
 ```
 
-8. Number string formatting
+### Keywords
 
-```sql
-SELECT RPAD('$99', 8, '.'), RPAD('Item1', 10, ' ');
-```
-
-```text
-+---------------------+------------------------+
-| RPAD('$99', 8, '.') | RPAD('Item1', 10, ' ') |
-+---------------------+------------------------+
-| $99.....            | Item1                  |
-+---------------------+------------------------+
-```
-
-9. Table column alignment
-
-```sql
-SELECT RPAD('Name', 15, ' '), RPAD('Price', 10, ' ');
-```
-
-```text
-+------------------------+------------------------+
-| RPAD('Name', 15, ' ')  | RPAD('Price', 10, ' ') |
-+------------------------+------------------------+
-| Name                   | Price                  |
-+------------------------+------------------------+
-```
-
-10. Negative length handling
-
-```sql
-SELECT RPAD('hello', -1, 'x'), RPAD('test', -5, '*');
-```
-
-```text
-+------------------------+------------------------+
-| RPAD('hello', -1, 'x') | RPAD('test', -5, '*')  |
-+------------------------+------------------------+
-| NULL                   | NULL                   |
-+------------------------+------------------------+
-```
+    ```
+    RTRIM_IN, RTRIM
+    ```
