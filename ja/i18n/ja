@@ -1,19 +1,19 @@
 ---
 {
-  "title": "MAP_SIZE",
+  "title": "MAP_VALUES",
   "language": "en",
-  "description": "Calculates the number of elements in a Map"
+  "description": "Extracts the values from a given MAP into an ARRAY of the corresponding type."
 }
 ---
 
 ## Description
 
-Calculates the number of elements in a Map
+Extracts the values from a given [`MAP`](../../../basic-element/sql-data-types/semi-structured/MAP.md) into an [`ARRAY`](../../../basic-element/sql-data-types/semi-structured/ARRAY.md) of the corresponding type.
 
 ## Syntax
 
 ```sql
-MAP_SIZE(<map>)
+MAP_VALUES(<map>)
 ```
 
 ## Parameters
@@ -22,36 +22,37 @@ MAP_SIZE(<map>)
 
 ## Return Value
 
-Returns the number of elements in the Map
+Extracts the values from a given `map` into an [`ARRAY`](../../../basic-element/sql-data-types/semi-structured/ARRAY.md) of the corresponding type.
 
 ## Usage Notes
 
-1. Both NULL keys and values are counted.
-2. For NULL parameters, returns NULL.
+1. For NULL parameters, returns NULL.
+2. For empty MAP objects, returns an empty array.
+3. NULL values in the MAP are also included in the returned array.
 
 ## Examples
 
 1. Regular parameters
 
     ```sql
-    select map_size(map()), map_size(map(1, "100", 0.1, 2, null, null));
+    select map_values(map()), map_values(map(1, "100", 0.1, 2, 0.3, null));
     ```
 
     ```text
-    +-----------------+---------------------------------------------+
-    | map_size(map()) | map_size(map(1, "100", 0.1, 2, null, null)) |
-    +-----------------+---------------------------------------------+
-    |               0 |                                           3 |
-    +-----------------+---------------------------------------------+
+    +-------------------+----------------------------------------------+
+    | map_values(map()) | map_values(map(1, "100", 0.1, 2, 0.3, null)) |
+    +-------------------+----------------------------------------------+
+    | []                | ["100", "2", null]                           |
+    +-------------------+----------------------------------------------+
     ```
 2. NULL parameters
     ```sql
-    select map_size(NULL);
+    select map_values(null);
     ```
     ```text
-    +----------------+
-    | map_size(NULL) |
-    +----------------+
-    |           NULL |
-    +----------------+
+    +------------------+
+    | map_values(null) |
+    +------------------+
+    | NULL             |
+    +------------------+
     ```
