@@ -1,57 +1,117 @@
 ---
 {
-  "title": "VARIANT_TYPE",
-  "language": "en",
-  "description": "The VARIANTTYPE function returns the actual type of a VARIANT value."
+  "title": "STRUCT_ELEMENT",
+  "language": "en-US",
+  "description": "Returns a specific field within a struct data column. The function supports accessing fields in a struct through field position (index) or field name."
 }
 ---
 
-## Function
+## Description
 
-The `VARIANT_TYPE` function returns the actual type of a `VARIANT` value.  
-This function is typically used for debugging or analyzing the structure of `VARIANT` data, assisting in type determination and data processing.
+Returns a specific field within a struct data column. The function supports accessing fields in a struct through field position (index) or field name.
 
 ## Syntax
 
 ```sql
-VARIANT_TYPE(variant_value)
+STRUCT_ELEMENT( <struct>, <field_location_or_name> )
 ```
 
 ## Parameters
 
-- `variant_value`: A value of type `VARIANT`.
+- `<struct>`: Input struct column
+- `<field_location_or_name>`: Field position (starting from 1) or field name, only supports constants
 
 ## Return Value
 
-- Returns a string representing the actual type of the `VARIANT` value.
-  - The string follows the `{"key":"value"}` structure.
-  - The key represents the subfield path, and the value represents the type.
+Return type: Field value type supported by struct
 
-## Notes
+Return value meaning:
 
-1. Used to find the actual type stored in a `VARIANT` column.
-2. For each row in the table, the subfields are read to obtain the type. In practice, use `LIMIT` to restrict the number of rows to avoid slow execution.
+- Returns the specified field value
+- If the input struct is null, returns null
+- If the specified field does not exist, an error will be reported
 
-## Example
+## Usage
 
-```SQL
-CREATE TABLE variant_table(
-    k INT,
-    v VARIANT NULL
-)
-DUPLICATE KEY(`k`)
-DISTRIBUTED BY HASH(`k`) BUCKETS 1
-PROPERTIES (
-    "replication_num" = "1"
-);
+- Supports accessing by field position (index), index starts from 1
+- Supports accessing by field name, field name must match exactly
+- The second parameter must be a constant (cannot be a column)
+- The function is marked as AlwaysNullable, return value may be null
 
-INSERT INTO variant_table VALUES(1, '{"a": 10, "b": 1.2, "c" : "ddddd"}'), (2, NULL);
+## Examples
 
-SELECT VARIANT_TYPE(v) FROM variant_table;
-+-------------------------------------------+
-| VARIANT_TYPE(v)                           |
-+-------------------------------------------+
-| {"a":"tinyint","b":"double","c":"string"} |
-| NULL                                      |
-+-------------------------------------------+
+**Query Examples:**
+
+Access by position:
+
+```sql
+select struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 1);
++--------------------------------------------------------------------------------+
+| struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 1) |
++--------------------------------------------------------------------------------+
+| Alice                                                                          |
++--------------------------------------------------------------------------------+
+```
+
+Access by field name:
+
+```sql
+select struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 'age');
++------------------------------------------------------------------------------------+
+| struct_element(named_struct('name', 'Alice', 'age', 25, 'city', 'Beijing'), 'age') |
++------------------------------------------------------------------------------------+
+|                                                                                 25 |
++------------------------------------------------------------------------------------+
+```
+
+Accessing struct containing complex types:
+
+```sql
+select struct_element(named_struct('array', [1,2,3], 'map', {'key':'value'}), 'array');
++---------------------------------------------------------------------------------+
+| struct_element(named_struct('array', [1,2,3], 'map', {'key':'value'}), 'array') |
++---------------------------------------------------------------------------------+
+| [1, 2, 3]                                                                       |
++---------------------------------------------------------------------------------+
+```
+
+Accessing result with null field value:
+
+```sql
+select struct_element(named_struct('name', null, 'age', 25), 'name');
++---------------------------------------------------------------+
+| struct_element(named_struct('name', null, 'age', 25), 'name') |
++---------------------------------------------------------------+
+| NULL                                                          |
++---------------------------------------------------------------+
+```
+
+Error Examples
+
+Accessing non-existent field name:
+
+```sql
+select struct_element(named_struct('name', 'Alice', 'age', 25), 'nonexistent');
+ERROR 1105 (HY000): errCode = 2, detailMessage = the specified field name nonexistent was not found: struct_element(named_struct('name', 'Alice', 'age', 25), 'nonexistent')
+```
+
+Accessing out-of-bounds index:
+
+```sql
+select struct_element(named_struct('name', 'Alice', 'age', 25), 5);
+ERROR 1105 (HY000): errCode = 2, detailMessage = the specified field index out of bound: struct_element(named_struct('name', 'Alice', 'age', 25), 5)
+```
+
+Second parameter is not a constant:
+
+```sql
+select struct_element(named_struct('name', 'Alice', 'age', 25), inv) from var_with_index where k = 4;
+ERROR 1105 (HY000): errCode = 2, detailMessage = struct_element only allows constant int or string second parameter: struct_element(named_struct('name', 'Alice', 'age', 25), inv)
+```
+
+Input struct is NULL, will report error:
+
+```sql
+select struct_element(NULL, 5);
+ERROR 1105 (HY000): errCode = 2, detailMessage = Can not find the compatibility function signature: struct_element(NULL, TINYINT)
 ```
