@@ -1,18 +1,18 @@
 ---
 {
-  "title": "LARGEINT",
+  "title": "SMALLINT",
   "language": "en",
-  "description": "LARGEINT 16-byte signed integer, range [-2^127 + 1 ~ 2^127 - 1]"
+  "description": "SMALLINT 2-byte signed integer, range [-32768, 32767]"
 }
 ---
 
-## LARGEINT
+## SMALLINT
 
 ### Description
 
-LARGEINT
-16-byte signed integer, range [-2^127 + 1 ~ 2^127 - 1]
+SMALLINT
+2-byte signed integer, range [-32768, 32767]
 
 ### keywords
 
-BIGINT
+SMALLINT
