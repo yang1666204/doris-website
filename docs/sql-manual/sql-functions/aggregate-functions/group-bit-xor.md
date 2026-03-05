@@ -1,60 +1,68 @@
 ---
 {
     "title": "GROUP_BIT_XOR",
-    "language": "en"
+    "language": "en",
+    "description": "Performs a bitwise XOR operation on all values in a single integer column or expression."
 }
 ---
 
-<!-- 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+## Description
 
-  http://www.apache.org/licenses/LICENSE-2.0
+Performs a bitwise XOR operation on all values in a single integer column or expression.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+## Syntax
 
-## GROUP_BIT_XOR
-### description
-#### Syntax
-
-`expr GROUP_BIT_XOR(expr)`
-
-Perform an xor calculation on expr, and return a new expr.
-All ints are supported
-
-### example
-
-```
-mysql> select * from group_bit;
-+-------+
-| value |
-+-------+
-|     3 |
-|     1 |
-|     2 |
-|     4 |
-+-------+
-4 rows in set (0.02 sec)
-
-mysql> select group_bit_xor(value) from group_bit;
-+------------------------+
-| group_bit_xor(`value`) |
-+------------------------+
-|                      4 |
-+------------------------+
+```sql
+GROUP_BIT_XOR(<expr>)
 ```
 
-### keywords
+## Parameters
 
-    GROUP_BIT_XOR,BIT
+| Parameter | Description |
+| -- | -- |
+| `<expr>` | Supports types: TinyInt, SmallInt, Integer, BigInt, LargeInt. |
+
+## Return Value
+
+Returns an integer value of the same type as <expr>. If all values are NULL, returns NULL. NULL values are not involved in the bitwise operation.
+
+## Example
+
+```sql
+-- setup
+create table group_bit(
+    value int
+) distributed by hash(value) buckets 1
+properties ("replication_num"="1");
+
+insert into group_bit values
+    (3),
+    (1),
+    (2),
+    (4),
+    (NULL);
+```
+
+```sql
+select group_bit_xor(value) from group_bit;
+```
+
+```text
++----------------------+
+| group_bit_xor(value) |
++----------------------+
+|                    4 |
++----------------------+
+```
+
+```sql
+select group_bit_xor(value) from group_bit where value is null;
+```
+
+```text
++----------------------+
+| group_bit_xor(value) |
++----------------------+
+|                 NULL |
++----------------------+
+```
