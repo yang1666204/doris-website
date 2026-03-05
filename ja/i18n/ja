@@ -1,78 +1,61 @@
 ---
 {
-  "title": "BITMAP_AND_NOT,BITMAP_ANDNOT",
+  "title": "BITMAP_AND",
   "language": "en",
-  "description": "Perform a NOT operation on two BITMAPs and return the result. The first input parameter is called base BITMAP and the second is called exclude BITMAP."
+  "description": "Computes the intersection of two or more input BITMAPs and returns a new BITMAP."
 }
 ---
 
 ## Description
 
-Perform a NOT operation on two BITMAPs and return the result. The first input parameter is called `base BITMAP` and the second is called `exclude BITMAP`.
-
-## Alias
-
-- BITMAP_ANDNOT
+Computes the intersection of two or more input BITMAPs and returns a new BITMAP.
 
 ## Syntax
 
 ```sql
-BITMAP_AND_NOT(<bitmap1>, <bitmap2>)
+BITMAP_AND(<bitmap>, <bitmap>,[, <bitmap>...])
 ```
 
 ## Parameters
 
-| Parameter   | Description                      |
-| ----------- | -------------------------------- |
-| `<bitmap1>` | `Base BITMAP` to be negated      |
-| `<bitmap2>` | `Exclusion BITMAP` to be negated |
+| Parameter  | Description                                                    |
+| ---------- | -------------------------------------------------------------- |
+| `<bitmap>` | One of the original BITMAPs whose intersection is being sought |
 
 ## Return Value
 
-Returns a BITMAP.
+Returns a BITMAP
 
-- If the parameter has a NULL value, returns NULL
+- If the parameter has a NULL value, it returns NULL
 
 ## Examples
 
 ```sql
-select bitmap_count(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_from_string('3,4,5'))) cnt;
+select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'))) as res;
 ```
 
 ```text
 +------+
-| cnt  |
-+------+
-|    2 |
-+------+
-```
-
-```sql
-select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_from_string('3,4,5'))) as cnt;
-```
-
-```text
-+------+
-| cnt  |
+| res  |
 +------+
 | 1,2  |
 +------+
 ```
 
 ```sql
-select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),bitmap_empty())) cnt;
+select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'),bitmap_empty())) as res;
 ```
 
 ```text
-+-------+
-| cnt   |
-+-------+
-| 1,2,3 |
-+-------+
++------+
+| res  |
++------+
+|      |
++------+
 ```
 
 ```sql
-select bitmap_to_string(bitmap_and_not(bitmap_from_string('1,2,3'),NULL)) as res;
+select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'),NULL)) as res;
 ```
 
 ```text
