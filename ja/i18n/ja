@@ -1,156 +1,166 @@
 ---
 {
-  "title": "Kill Query",
+  "title": "Resource Group",
   "language": "en",
-  "description": "You can cancel currently executing operations or disconnect current connection sessions using the KILL command."
+  "description": "Resource Group is a mechanism under the compute-storage integration architecture that achieves physical isolation between different workloads."
 }
 ---
 
-You can cancel currently executing operations or disconnect current connection sessions using the `KILL` command. This document introduces related operations and considerations.
+Resource Group is a mechanism under the compute-storage integration architecture that achieves physical isolation between different workloads. Its basic principle is illustrated in this diagram:
 
-## Getting Query Identifiers
+![Resource Group under the compute-storage integration architecture](/images/resource_group.png)
 
-`KILL` requires a query identifier to cancel the corresponding query request. Query identifiers include: Query ID, Connection ID, and Trace ID.
+- By using tags, BEs are divided into different groups, each identified by the tag's name. For example, in the diagram above, host1, host2, and host3 are all set to group a, while host4 and host5 are set to group b.
 
-You can obtain query identifiers through the following methods.
+- Different replicas of a table are placed in different groups. For instance, in the diagram above, table1 has 3 replicas, all located in group a, while table2 has 4 replicas, with 2 in group a and 2 in group b.
 
-### PROCESSLIST
+- During queries, different Resource Groups are used based on the user. For example, online users can only access data on host1, host2, and host3, so they can access both table1 and table2. However, offline users can only access host4 and host5, so they can only access data from table2. Since table1 does not have corresponding replicas in group b, accessing it would result in an error.
 
-Through the `processlist` system table, you can get all current session connections and query operations being executed in the connections. This includes the Query ID and Connection ID.
+Essentially, a Resource Group is a placement strategy for table replicas, so it has the following advantages and limitations:
 
-```sql
-mysql> SHOW PROCESSLIST;
-+------------------+------+------+---------------------+---------------------+----------+------+---------+------+-------+-----------------------------------+------------------+---------------+--------------+
-| CurrentConnected | Id   | User | Host                | LoginTime           | Catalog  | Db   | Command | Time | State | QueryId                           | Info             | FE            | CloudCluster |
-+------------------+------+------+---------------------+---------------------+----------+------+---------+------+-------+-----------------------------------+------------------+---------------+--------------+
-| No               |    2 | root | 172.20.32.136:54850 | 2025-05-11 10:41:52 | internal |      | Query   |    6 | OK    | 12ccf7f95c1c4d2c-b03fa9c652757c15 | select sleep(20) | 172.20.32.152 | NULL         |
-| Yes              |    3 | root | 172.20.32.136:54862 | 2025-05-11 10:41:55 | internal |      | Query   |    0 | OK    | b710ed990d4144ee-8b15bb53002b7710 | show processlist | 172.20.32.152 | NULL         |
-| No               |    1 | root | 172.20.32.136:47964 | 2025-05-11 10:41:54 | internal |      | Sleep   |   11 | EOF   | b60daa992bac4fe4-b29466aacce67d27 |                  | 172.20.32.153 | NULL         |
-+------------------+------+------+---------------------+---------------------+----------+------+---------+------+-------+-----------------------------------+------------------+---------------+--------------+
-```
+- Different Resource Groups use different BEs, so they are completely isolated from each other. Even if a BE within a group fails, it will not affect queries in other groups. Since data loading require multiple replicas to succeed, if the remaining number of replicas does not meet the quorum, the data loading will still fail.
 
-- `CurrentConnected`: `Yes` indicates the connection corresponding to the current session.
-- `Id`: The unique identifier of the connection, i.e., Connection ID.
-- `QueryId`: The unique identifier of the Query. Displays the Query Id of the most recently executed or currently executing SQL command.
+- Each Resource Group must have at least one replica of each table. For example, if you want to establish 5 Resource Groups and each group may access all tables, then each table needs 5 replicas, which can result in significant storage costs.
 
-Note that by default, `SHOW PROCESSLIST` only displays all session connections on the FE node that the current session is connected to, and does not display session connections from other FE nodes.
+## Typical Use Cases
 
-If you want to display session connections from all FE nodes, you need to set the following session variable:
+- Read-write isolation: A cluster can be divided into two Resource Groups, with an Offline Resource Group for executing ETL jobs and an Online Resource Group for handling online queries. Data is stored with 3 replicas, with 2 replicas in the Online Resource Group and 1 replica in the Offline Resource Group. The Online Resource Group is primarily used for high-concurrency, low-latency online data services, while large queries or offline ETL operations can be executed using nodes in the Offline Resource Group. This allows for the provision of both online and offline services within a unified cluster.
 
-```
-SET show_all_fe_connection=true;
-```
+- Isolation between different businesses: When data is not shared between multiple businesses, a Resource Group can be assigned to each business, ensuring no interference between them. This effectively consolidates multiple physical clusters into a single large cluster for management.
 
-Then execute the `SHOW PROCESSLIST` command again to display session connections from all FE nodes.
+- Isolation between different users: For example, if there is a business table within a cluster that needs to be shared among all three users, but it is desirable to minimize resource contention between them, we can create 3 replicas of the table, stored in 3 different Resource Groups, and bind each user to a specific Resource Group.
 
-You can also view through the system table in `information_schema`:
+## Configure Resource Group
 
-```
-SELECT * FROM information_schema.processlist;
-```
+### Setting Tags for BEs
 
-By default, `processlist` displays session connections from all FE nodes without requiring additional settings.
+Assuming the current Doris cluster has 6 BE nodes, named host[1-6]. Initially, all BE nodes belong to a default resource group (Default).
 
-### TRACE ID
+We can use the following commands to divide these 6 nodes into 3 resource groups: group_a, group_b, and group_c.
 
-> This feature is supported since versions 2.1.11 and 3.0.7.
+   ```sql
+   alter system modify backend "host1:9050" set ("tag.location" = "group_a");
+   alter system modify backend "host2:9050" set ("tag.location" = "group_a");
+   alter system modify backend "host3:9050" set ("tag.location" = "group_b");
+   alter system modify backend "host4:9050" set ("tag.location" = "group_b");
+   alter system modify backend "host5:9050" set ("tag.location" = "group_c");
+   alter system modify backend "host6:9050" set ("tag.location" = "group_c");
+   ```
 
-By default, the system automatically generates a Query ID for each query. Users need to first obtain the Query ID through the `processlist` system table before performing a KILL operation.
+    ```
+    Here, we will form Resource Group group_a with host[1-2], Resource Group group_b with host[3-4], and Resource Group group_c with host[5-6].
+    ```
 
-In addition, users can also customize a Trace ID and perform KILL operations using the Trace ID.
+> Note: A BE can only belong to one Resource Group.
 
-```
-SET session_context = "trace_id:your_trace_id";
-```
+### Redistribution data by Resource Group
 
-Where `your_trace_id` is the user-defined Trace ID. It can be any string but cannot contain the `;` symbol.
+After dividing the resource groups, you can distribute different replicas of user data across different resource groups. Assuming we have a user table named UserTable, and we want to store one replica in each of the three resource groups. This can be achieved through the following table creation statement:
 
-Trace ID is a session-level parameter and only applies to the current session. Doris will map subsequent query requests in the current session to this Trace ID.
+   ```sql
+   create table UserTable
+   (k1 int, k2 int)
+   distributed by hash(k1) buckets 1
+   properties(
+       "replication_allocation"="tag.location.group_a:1, tag.location.group_b:1, tag.location.group_c:1"
+   )
+   ```
 
-## Kill Requests
+In this way, the data in the UserTable will be stored in three replicas, each located on nodes within the resource groups group_a, group_b, and group_c, respectively.
 
-The `KILL` statement supports canceling specified query operations as well as disconnecting specified session connections.
+The following diagram demonstrates the current division of nodes and data distribution:
 
-Regular users can cancel queries sent by their own user through the `KILL` operation. ADMIN users can cancel queries sent by themselves and any other users.
+   ```text
+    ┌────────────────────────────────────────────────────┐
+    │                                                    │
+    │         ┌──────────────────┐  ┌──────────────────┐ │
+    │         │ host1            │  │ host2            │ │
+    │         │  ┌─────────────┐ │  │                  │ │
+    │ group_a │  │   replica1  │ │  │                  │ │
+    │         │  └─────────────┘ │  │                  │ │
+    │         │                  │  │                  │ │
+    │         └──────────────────┘  └──────────────────┘ │
+    │                                                    │
+    ├────────────────────────────────────────────────────┤
+    ├────────────────────────────────────────────────────┤
+    │                                                    │
+    │         ┌──────────────────┐  ┌──────────────────┐ │
+    │         │ host3            │  │ host4            │ │
+    │         │                  │  │  ┌─────────────┐ │ │
+    │ group_b │                  │  │  │   replica2  │ │ │
+    │         │                  │  │  └─────────────┘ │ │
+    │         │                  │  │                  │ │
+    │         └──────────────────┘  └──────────────────┘ │
+    │                                                    │
+    ├────────────────────────────────────────────────────┤
+    ├────────────────────────────────────────────────────┤
+    │                                                    │
+    │         ┌──────────────────┐  ┌──────────────────┐ │
+    │         │ host5            │  │ host6            │ │
+    │         │                  │  │  ┌─────────────┐ │ │
+    │ group_c │                  │  │  │   replica3  │ │ │
+    │         │                  │  │  └─────────────┘ │ │
+    │         │                  │  │                  │ │
+    │         └──────────────────┘  └──────────────────┘ │
+    │                                                    │
+    └────────────────────────────────────────────────────┘
+   ```
 
-### Kill Query
+When a database contains a very large number of tables, modifying the distribution strategy for each table can be cumbersome. Therefore, Doris also supports setting a unified data distribution strategy at the database level, but the settings for individual tables have higher priority than those at the database level. For example, consider a database db1 with four tables: table1 requires a replica distribution strategy of group_a:1,group_b:2, while table2, table3, and table4 require a strategy of group_c:1,group_b:2.
 
-Syntax:
+    ```
+    To create db1 with a default distribution strategy, you can use the following statement:
+    ```
 
-```sql
-KILL QUERY "query_id" | "trace_id" | connection_id;
-```
+   ```sql
+   CREATE DATABASE db1 PROPERTIES (
+   "replication_allocation" = "tag.location.group_c:1, tag.location.group_b:2"
+   )
+   ```
 
-`KILL QUERY` is used to cancel a specified running query operation.
+    ```
+    Create table1 with a specific distribution strategy:
+    ```
 
-- `"query_id"`
+   ```sql
+   CREATE TABLE table1
+   (k1 int, k2 int)
+   distributed by hash(k1) buckets 1
+   properties(
+   "replication_allocation"="tag.location.group_a:1, tag.location.group_b:2"
+   )
+   ```
 
-  The Query ID obtained through the `processlist` system table. Must be wrapped in quotes. For example:
+For table2, table3, and table4, you do not need to specify replication_allocation in their creation statements, as they will inherit the database-level default strategy.
 
-  `KILL QUERY "d36417cc05ff41ab-9d3afe49be251055";`
+:::caution
+Changing the replica distribution strategy at the database level will not affect existing tables.
+:::
 
-  This operation will attempt to find the Query ID on all FE nodes and cancel the corresponding query.
+## Setting Resource Groups for Users
 
-- `"trace_id"`
+You can use the following statements to restrict users' access to specific resource groups. For example, user1 can only use nodes in the group_a resource group, user2 can only use group_b, and user3 can use all three resource groups:
 
-  The Trace ID customized through `session_context`. Must be wrapped in quotes. For example:
+   ```sql
+   set property for 'user1' 'resource_tags.location' = 'group_a';
+   set property for 'user2' 'resource_tags.location' = 'group_b';
+   set property for 'user3' 'resource_tags.location' = 'group_a, group_b, group_c';
+   ```
 
-  `KILL QUERY "your_trace_id";`
+After setting, when user1 queries the UserTable, it will only access data replicas on nodes in the group_a resource group and use computing resources from this group. User3's queries can use replicas and computing resources from any resource group.
 
-  This operation will attempt to find the Trace ID on all FE nodes and cancel the corresponding query.
+> Note: By default, the resource_tags.location property for users is empty. In versions before 2.0.2, users are not restricted by tags and can use any resource group. In versions 2.0.3 and later, ordinary users can only use the default resource group by default. Root and admin users can use any resource group.
 
-  > This feature is supported since versions 2.1.11 and 3.0.7.
+:::caution Caution:
+After modifying the resource_tags.location property, users need to re-establish connections for the changes to take effect.
+:::
 
-- `connection_id`
+## Resource Group Allocation for Data Loading Jobs
 
-  The Connection ID obtained through the `processlist` system table. Must be an integer greater than 0 and cannot be wrapped in quotes. For example:
+The resource usage for data loading jobs (including insert, broker load, routine load, stream load, etc.) can be divided into two parts:
 
-  `KILL QUERY 55;`
+- Computing Part: responsible for reading data sources, data transformation, and distribution.
 
-  This operation only applies to session connections on the currently connected FE, and will cancel the query currently being executed on the corresponding session connection.
+- Writing Part: responsible for data encoding, compression, and writing to disk.
 
-### Kill Connection
-
-Killing a connection will disconnect the specified session connection and also cancel any query operations being executed on the connection.
-
-Syntax:
-
-```sql
-KILL [CONNECTION] connection_id;
-```
-
-The `CONNECTION` keyword can be omitted.
-
-- `connection_id`
-
-  The Connection ID obtained through the `processlist` system table. Must be an integer greater than 0 and cannot be wrapped in quotes. For example:
-
-  ```sql
-  KILL CONNECTION 55;
-  KILL 55;
-  ```
-
-  Connection IDs on different FEs may be the same, but this operation only affects the session connection on the currently connected FE.
-
-## Best Practices
-
-1. Implementing query management through custom Trace ID
-
-   Custom Trace IDs allow you to specify unique identifiers for queries in advance, making it easier for management system to implement the [Cancel Query] function. You can customize Trace IDs in the following ways:
-
-   - Set `session_context` before each query
-
-     Users generate their own Trace ID. It is recommended to use UUID to ensure the uniqueness of the Trace ID.
-
-     ```sql
-     SET session_context="trace_id:your_trace_id";
-     SELECT * FROM table ...;
-     ```
-
-   - Add Trace ID in the query statement
-
-     ```sql
-     SELECT /*+SET_VAR(session_context=trace_id:your_trace_id)*/ * FROM table ...;
-     ```
-
-   Afterward, management system can cancel running operations at any time using the Trace ID.
+Since writing resources must be on nodes where data replicas are located, and computing resources can be allocated from any node, Resource Groups can only restrict the resources used for the computing part in data loading scenarios.
