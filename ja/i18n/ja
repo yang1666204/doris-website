@@ -1,120 +1,227 @@
 ---
 {
-  "title": "REPLACE",
+  "title": "REVERSE",
   "language": "en",
-  "description": "The REPLACE function is used to replace all occurrences of a specified substring in a string with a new substring."
+  "description": "The REVERSE function is used to reverse the order of an input sequence. For string arguments, it returns a string with the character order reversed;"
 }
 ---
 
 ## Description
 
-The REPLACE function is used to replace all occurrences of a specified substring in a string with a new substring. This function replaces all matching instances of the substring in the string, performing a global replace operation.
-
-**Difference from REPLACE_EMPTY function:**
-
-- `REPLACE()` replaces the specified substring, including empty strings
-- `REPLACE_EMPTY()` is specifically used to replace empty values or empty strings with a specified value
+The REVERSE function is used to reverse the order of an input sequence. For string arguments, it returns a string with the character order reversed; for array arguments, it returns an array with the element order reversed. This function reverses by character and can correctly handle UTF-8 multi-byte characters.
 
 ## Syntax
 
 ```sql
-REPLACE(<str>, <old>, <new>)
+REVERSE(<seq>)
 ```
 
 ## Parameters
 
-| Parameter | Description                                                                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<str>`   | The source string where replacement will occur. Type: VARCHAR                                                  |
-| `<old>`   | The target substring to be replaced. If not found in str, no replacement occurs. Type: VARCHAR |
-| `<new>`   | The new substring used to replace old. Type: VARCHAR                                                           |
+| Parameter | Description                                                                            |
+| --------- | -------------------------------------------------------------------------------------- |
+| `<seq>`   | The string or array to reverse. Type: VARCHAR or ARRAY |
 
 ## Return Value
 
-Returns VARCHAR type, representing the new string after replacement.
+Returns the reversed sequence of the same type as the input:
 
-Replacement rules:
-
-- Replaces all matching old substrings in the string
-- Replacement is case-sensitive
-- If old is an empty string, returns the original string (no operation performed)
-- If new is an empty string, effectively deletes all matching old substrings
+- String input: Returns VARCHAR type, a string with reversed character order
+- Array input: Returns ARRAY type, an array with reversed element order
 
 Special cases:
 
-- If any parameter is NULL, returns NULL
-- If str is an empty string, returns an empty string
-- If old is an empty string, returns the original str (no replacement)
-- If old is not found in str, returns the original str
+- If parameter is NULL, returns NULL
+- If string is empty, returns empty string
+- If array is empty, returns empty array
+- A single-character string remains the same after reversal
 
 ## Examples
 
-1. Basic replacement operation
+1. Basic string reversal
 
 ```sql
-SELECT REPLACE('hello world', 'world', 'universe');
+SELECT REVERSE('hello');
 ```
 
 ```text
-+---------------------------------------------+
-| REPLACE('hello world', 'world', 'universe') |
-+---------------------------------------------+
-| hello universe                              |
-+---------------------------------------------+
++------------------+
+| REVERSE('hello') |
++------------------+
+| olleh            |
++------------------+
 ```
 
-2. Replace multiple matches
+2. Array element reversal
 
 ```sql
-SELECT REPLACE('apple apple apple', 'apple', 'orange');
+SELECT REVERSE(['hello', 'world']);
 ```
 
 ```text
-+------------------------------------------------+
-| REPLACE('apple apple apple', 'apple', 'orange') |
-+------------------------------------------------+
-| orange orange orange                           |
-+------------------------------------------------+
++-----------------------------+
+| REVERSE(['hello', 'world']) |
++-----------------------------+
+| ["world", "hello"]          |
++-----------------------------+
 ```
 
-3. Delete substring (replace with empty string)
+3. NULL value handling
 
 ```sql
-SELECT REPLACE('banana', 'a', '');
+SELECT REVERSE(NULL);
 ```
 
 ```text
-+---------------------------+
-| REPLACE('banana', 'a', '') |
-+---------------------------+
-| bnn                       |
-+---------------------------+
++---------------+
+| REVERSE(NULL) |
++---------------+
+| NULL          |
++---------------+
 ```
 
-4. NULL value handling
+4. Empty string and empty array
 
 ```sql
-SELECT REPLACE(NULL, 'old', 'new'), REPLACE('test', NULL, 'new'), REPLACE('test', 'old', NULL);
+SELECT REVERSE(''), REVERSE([]);
 ```
 
 ```text
-+------------------------------+------------------------------+------------------------------+
-| REPLACE(NULL, 'old', 'new')  | REPLACE('test', NULL, 'new') | REPLACE('test', 'old', NULL) |
-+------------------------------+------------------------------+------------------------------+
-| NULL                         | NULL                         | NULL                         |
-+------------------------------+------------------------------+------------------------------+
++-------------+-------------+
+| REVERSE('') | REVERSE([]) |
++-------------+-------------+
+|             | []          |
++-------------+-------------+
 ```
 
-5. UTF-8 character replacement
+5. Single character and single element
 
 ```sql
-SELECT REPLACE('ṭṛì ḍḍumai test ṭṛì ḍḍumannàri', 'ṭṛì', 'replaced');
+SELECT REVERSE('A'), REVERSE(['single']);
 ```
 
 ```text
-+-----------------------------------------------------------+
-| REPLACE('ṭṛì ḍḍumai test ṭṛì ḍḍumannàri', 'ṭṛì', 'replaced') |
-+-----------------------------------------------------------+
-| replaced ḍḍumai test replaced ḍḍumannàri                  |
-+-----------------------------------------------------------+
++--------------+--------------------+
+| REVERSE('A') | REVERSE(['single']) |
++--------------+--------------------+
+| A            | ["single"]         |
++--------------+--------------------+
+```
+
+6. Numbers and special characters
+
+```sql
+SELECT REVERSE('12345'), REVERSE('!@#$%');
+```
+
+```text
++------------------+------------------+
+| REVERSE('12345') | REVERSE('!@#$%') |
++------------------+------------------+
+| 54321            | %$#@!            |
++------------------+------------------+
+```
+
+7. UTF-8 multi-byte characters
+
+```sql
+SELECT REVERSE('ṭṛì ḍḍumai'), REVERSE('ḍḍumannàri');
+```
+
+```text
++-----------------------+------------------------+
+| REVERSE('ṭṛì ḍḍumai') | REVERSE('ḍḍumannàri') |
++-----------------------+------------------------+
+| iamuḍḍ ìṛṭ            | irànnaumuḍḍ            |
++-----------------------+------------------------+
+```
+
+8. Mixed character types
+
+```sql
+SELECT REVERSE('Hello123'), REVERSE('test@email.com');
+```
+
+```text
++---------------------+--------------------------+
+| REVERSE('Hello123') | REVERSE('test@email.com') |
++---------------------+--------------------------+
+| 321olleH            | moc.liame@tset           |
++---------------------+--------------------------+
+```
+
+9. Multi-element array
+
+```sql
+SELECT REVERSE([1, 2, 3, 4, 5]), REVERSE(['a', 'b', 'c']);
+```
+
+```text
++---------------------------+------------------------+
+| REVERSE([1, 2, 3, 4, 5])  | REVERSE(['a', 'b', 'c']) |
++---------------------------+------------------------+
+| [5, 4, 3, 2, 1]           | ["c", "b", "a"]        |
++---------------------------+------------------------+
+```
+
+10. Palindrome test
+
+```sql
+SELECT REVERSE('level'), REVERSE('12321');
+```
+
+```text
++------------------+-------------------+
+| REVERSE('level') | REVERSE('12321')  |
++------------------+-------------------+
+| level            | 12321             |
++------------------+-------------------+
+```
+
+## Description
+
+The REVERSE function is used to reverse the order of characters in a string or the order of elements in an array.
+
+## Syntax
+
+```sql
+REVERSE( <seq> )
+```
+
+## Parameters
+
+| Parameter | Description                                                           |
+| --------- | --------------------------------------------------------------------- |
+| `<seq>`   | The string or array whose order needs to be reversed. |
+
+## Return Value
+
+Returns the string or array with the reversed order. Special cases:
+
+- If any Parameter is NULL, NULL will be returned.
+
+## Examples
+
+```sql
+SELECT reverse('hello');
+```
+
+```text
++------------------+
+| REVERSE('hello') |
++------------------+
+| olleh            |
++------------------+
+```
+
+```sql
+SELECT reverse(['hello', 'world']);
+```
+
+```text
++-----------------------------+
+| reverse(['hello', 'world']) |
++-----------------------------+
+| ["world", "hello"]          |
++-----------------------------+
 ```
