@@ -1,96 +1,64 @@
 ---
 {
-  "title": "HLL_TO_BASE64",
+  "title": "ALTER STORAGE VAULT",
   "language": "en",
-  "description": "Converts an input HLL to a base64-encoded string."
+  "description": "Modify the mutable properties of a Storage Vault."
 }
 ---
 
 ## Description
 
-Converts an input HLL to a base64-encoded string.
+Modify the mutable properties of a Storage Vault.
 
 ## Syntax
 
 ```sql
-HLL_TO_BASE64(<hll_input>)
+ALTER STORAGE VAULT <storage_vault_name>
+PROPERTIES (<storage_vault_property>)
 ```
 
-## Parameters
+## Required Parameters
 
-| Parameter     | Description                                                                                               |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
-| `<hll_input>` | The HyperLogLog (HLL) data to be converted to a base64-encoded string. |
+**<storage_vault_property>**
 
-## Return Value
+> - type: candidate values are s3, hdfs. this field is optional after 3.0.8
 
-A Base64 encoded string of the HLL.
-Returns `NULL` if the HLL is `NULL`.
+> When type is s3, the allowed property fields are as follows:
+>
+> - s3.access_key: ak for s3 vault
+> - s3.secret_key: sk for s3 vault
+> - vault_name: The name of the vault. When a vault is set as the default storage vault using the statement `SET <original_vault_name> DEFAULT STORAGE VAULT`, its name cannot be modified. To rename the vault, you must first unset the default storage vault by executing the `UNSET DEFAULT STORAGE VAULT` command, and then modify its name. Finally, if you need to set the renamed vault as the default storage vault, you can use the statement `SET <new_vault_name> DEFAULT STORAGE VAULT`.
+> - use_path_style: Whether to allow path style url, optional values are true, false. The default value is false.
 
-::: note
+> When type is hdfs, the following fields are prohibited:
+>
+> - path_prefix: Storage path prefix
+> - fs.defaultFS: hdfs name
 
-Due to the non-guaranteed order of elements in a HLL, the generated Base64 string may not always be the same for the same content. However, the decoded HLL from `hll_from_base64` will be the same.
+## Permission Control
 
-:::
+The user executing this SQL command must have at least ADMIN_PRIV permissions.
 
 ## Examples
 
-```sql
-select hll_to_base64(NULL);
-```
-
-```text
-+---------------------+
-| hll_to_base64(NULL) |
-+---------------------+
-| NULL                |
-+---------------------+
-```
+Modify s3 storage vault ak
 
 ```sql
-select hll_to_base64(hll_empty());
+ALTER STORAGE VAULT old_vault_name
+PROPERTIES (
+  "type"="S3",
+  "VAULT_NAME" = "new_vault_name",
+   "s3.access_key" = "new_ak"
+);
 ```
 
-```text
-+----------------------------+
-| hll_to_base64(hll_empty()) |
-+----------------------------+
-| AA==                       |
-+----------------------------+
-```
-
-```sql
-select hll_to_base64(hll_hash('abc'));
-```
-
-```text
-+--------------------------------+
-| hll_to_base64(hll_hash('abc')) |
-+--------------------------------+
-| AQEC5XSzrpDsdw==               |
-+--------------------------------+
-```
+Modify hdfs storage vault
 
 ```sql
-select hll_union_agg(hll_from_base64(hll_to_base64(pv))), hll_union_agg(pv) from test_hll;
-```
-
-```text
-+---------------------------------------------------+-------------------+
-| hll_union_agg(hll_from_base64(hll_to_base64(pv))) | hll_union_agg(pv) |
-+---------------------------------------------------+-------------------+
-|                                                 3 |                 3 |
-+---------------------------------------------------+-------------------+
-```
-
-```sql
-select hll_cardinality(hll_from_base64(hll_to_base64(hll_hash('abc'))));
-```
-
-```text
-+------------------------------------------------------------------+
-| hll_cardinality(hll_from_base64(hll_to_base64(hll_hash('abc')))) |
-+------------------------------------------------------------------+
-|                                                                1 |
-+------------------------------------------------------------------+
+ALTER STORAGE VAULT old_vault_name
+PROPERTIES (
+  "type"="hdfs",
+  "VAULT_NAME" = "new_vault_name",
+  "hadoop.username" = "hdfs"
+);
 ```
