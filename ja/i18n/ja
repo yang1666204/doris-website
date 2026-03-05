@@ -1,239 +1,207 @@
 ---
 {
-  "title": "Doris and MaxCompute Data Integration",
+  "title": "BigQuery",
   "language": "en",
-  "description": "Achieve bidirectional data integration between Apache Doris and Alibaba Cloud MaxCompute through MaxCompute Catalog, supporting data import, write-back, and database/table management to help enterprises build an efficient lakehouse architecture."
+  "description": "During the process of migrating BigQuery, it is usually necessary to use object storage as an intermediate medium."
 }
 ---
 
-This document describes how to achieve data integration between Apache Doris and Alibaba Cloud MaxCompute through [MaxCompute Catalog](../catalogs/maxcompute-catalog.md):
+During the process of migrating BigQuery, it is usually necessary to use object storage as an intermediate medium. The core process is as follows: First, use BigQuery's [Export](https://cloud.google.com/bigquery/docs/exporting-data) statement to export data to GCS (Google Cloud Storage); then, use Doris's S3 Load function to read data from the object storage and load it into Doris. For details, please refer to [S3 Load](./amazon-s3.md).
 
-- **Data Import**: Quickly import data from MaxCompute into Doris for analysis.
-- **Data Write-back** (4.1.0+): Write analysis results or data from other sources in Doris back to MaxCompute.
-- **Database/Table Management** (4.1.0+): Create and manage MaxCompute databases and tables directly in Doris.
+## Considerations
 
-This document is based on Apache Doris version 2.1.9. Some features require version 4.1.0 or later.
+1. Before the migration, it is necessary to select Doris' [Data Model](../../../table-design/data-model/overview.md), as well as the strategies for [Partitioning](../../../table-design/data-partitioning/dynamic-partitioning.md) and [Bucketing](../../../table-design/data-partitioning/data-bucketing.md) according to the table structure of BigQuery. For more table creation strategies, please refer to [Load Best Practices](../load-best-practices.md).
+2. When BigQuery exports data in JSON type, it does not support exporting in Parquet format. You can export it in JSON format instead.
+3. When BigQuery exports data of the Time type, it is necessary to export it after casting it to the String type.
 
-## Environment Preparation
+## Data type mapping
 
-### 01 Enable MaxCompute Open Storage API
+| BigQuery           | Doris          | Comment                         |
+| ------------------ | -------------- | ------------------------------- |
+| Array              | Array          |                                 |
+| BOOLEAN            | BOOLEAN        |                                 |
+| DATE               | DATE           |                                 |
+| DATETIME/TIMESTAMP | DATETIME       |                                 |
+| JSON               | JSON           |                                 |
+| INT64              | BIGINT         |                                 |
+| NUMERIC            | DECIMAL        |                                 |
+| FLOAT64            | DOUBLE         |                                 |
+| STRING             | VARCHAR/STRING | VARCHAR maximum length is 65535 |
+| STRUCT             | STRUCT         |                                 |
+| TIME               | STRING         |                                 |
+| OTHER              | UNSUPPORTED    |                                 |
 
-In the [MaxCompute Console](https://maxcompute.console.aliyun.com/), navigate to the left sidebar -> `Tenant Management` -> `Tenant Properties` -> Enable the `Open Storage (Storage API) Switch`
+## 1. Create Table
 
-### 02 Grant MaxCompute Permissions
+When migrating a BigQuery table to Doris, it is necessary to create a Doris table first.
 
-Doris uses AK/SK to access MaxCompute services. Ensure that the IAM user corresponding to the AK/SK has the following roles or permissions for the MaxCompute service:
+Suppose we already have the following table and data in BigQuery.
 
-```json
-{
-    "Statement": [
-        {
-            "Action": [
-                "odps:List",
-                "odps:Usage"
-            ],
-            "Effect": "Allow",
-            "Resource": ["acs:odps:*:regions/*/quotas/pay-as-you-go"]
-        }
-    ],
-    "Version": "1"
-}
-```
-
-### 03 Verify Doris and MaxCompute Network Environment
-
-It is strongly recommended that the Doris cluster and MaxCompute service are in the same VPC, with proper security groups configured.
-
-The examples in this document are tested under the same VPC network conditions.
-
-## Importing MaxCompute Data
-
-### 01 Create Catalog
-
-```sql
-CREATE CATALOG mc PROPERTIES (
-    "type" = "max_compute",
-    "mc.default.project" = "xxx",
-    "mc.access_key" = "AKxxxxx",
-    "mc.secret_key" = "SKxxxxx",
-    "mc.endpoint" = "xxxxx"
-);
-```
-
-To support Schema hierarchy (3.1.3+):
-
-```sql
-CREATE CATALOG mc PROPERTIES (
-    "type" = "max_compute",
-    "mc.default.project" = "xxx",
-    "mc.access_key" = "AKxxxxx",
-    "mc.secret_key" = "SKxxxxx",
-    "mc.endpoint" = "xxxxx",
-    "mc.enable.namespace.schema" = "true"
-);
-```
-
-For more details, please refer to the [MaxCompute Catalog](../catalogs/maxcompute-catalog.md) documentation.
-
-### 02 Import TPCH Dataset
-
-We use the TPCH 100 dataset from MaxCompute public datasets as an example (data has already been imported into MaxCompute), and use the `CREATE TABLE AS SELECT` statement to import MaxCompute data into Doris.
-
-This dataset contains 7 tables. The largest table `lineitem` has 16 columns, 600,037,902 rows, and occupies approximately 30GB of disk space.
-
-```sql
--- switch catalog
-SWITCH internal;
--- create database
-CREATE DATABASE tpch_100g;
--- ingest data
-CREATE TABLE tpch_100g.lineitem AS SELECT * FROM mc.selectdb_test.lineitem;
-CREATE TABLE tpch_100g.nation AS SELECT * FROM mc.selectdb_test.nation;
-CREATE TABLE tpch_100g.orders AS SELECT * FROM mc.selectdb_test.orders;
-CREATE TABLE tpch_100g.part AS SELECT * FROM mc.selectdb_test.part;
-CREATE TABLE tpch_100g.partsupp AS SELECT * FROM mc.selectdb_test.partsupp;
-CREATE TABLE tpch_100g.region AS SELECT * FROM mc.selectdb_test.region;
-CREATE TABLE tpch_100g.supplier AS SELECT * FROM mc.selectdb_test.supplier;
-```
-
-On a Doris cluster with a single BE (16C 64G), the above operations executed serially take approximately 6-7 minutes.
-
-### 03 Import GitHub Event Dataset
-
-We use the GitHub Event dataset from MaxCompute public datasets as an example (data has already been imported into MaxCompute), and use the `CREATE TABLE AS SELECT` statement to import MaxCompute data into Doris.
-
-Here we select data from 365 partitions of the `dwd_github_events_odps` table, from `2015-01-01` to `2016-01-01`. The data contains 32 columns, 212,786,803 rows, and occupies approximately 10GB of disk space.
-
-```sql
--- switch catalog
-SWITCH internal;
--- create database
-CREATE DATABASE github_events;
--- ingest data
-CREATE TABLE github_events.dwd_github_events_odps
-AS SELECT * FROM mc.github_events.dwd_github_events_odps
-WHERE ds BETWEEN '2015-01-01' AND '2016-01-01';
-```
-
-On a Doris cluster with a single BE (16C 64G), the above operation takes approximately 2 minutes.
-
-## Writing Data Back to MaxCompute (4.1.0+)
-
-Starting from version 4.1.0, Doris supports writing data back to MaxCompute. This feature is applicable to the following scenarios:
-
-- **Analysis Result Write-back**: After completing data analysis in Doris, write the results back to MaxCompute for use by other systems.
-- **Data Processing**: Leverage Doris's powerful computing capabilities to perform ETL processing on data, and store the processed data in MaxCompute.
-- **Cross-source Data Integration**: Consolidate data from multiple sources in Doris and write it to MaxCompute for unified management.
-
-:::note
-
-- This is an experimental feature, supported starting from version 4.1.0.
-- Supports writing to partitioned and non-partitioned tables.
-- Does not support writing to clustered tables, transactional tables, Delta Tables, and external tables.
-  :::
-
-### 01 INSERT INTO Append Write
-
-The INSERT operation appends data to the MaxCompute target table.
-
-```sql
--- Switch to MaxCompute Catalog
-SWITCH mc;
-
--- Insert a single row of data
-INSERT INTO mc_db.mc_tbl VALUES (val1, val2, val3, val4);
-
--- Import data from Doris internal table to MaxCompute
-INSERT INTO mc_db.mc_tbl SELECT col1, col2 FROM internal.db1.tbl1;
-
--- Write to specific columns
-INSERT INTO mc_db.mc_tbl(col1, col2) VALUES (val1, val2);
-
--- Write to specific partition (you can specify only some partition columns, with the rest written dynamically)
-INSERT INTO mc_db.mc_tbl PARTITION(ds='20250201') SELECT id, name FROM internal.db1.source_tbl;
-```
-
-### 02 INSERT OVERWRITE Overwrite Write
-
-INSERT OVERWRITE completely replaces the existing data in the table with new data.
-
-```sql
--- Full table overwrite
-INSERT OVERWRITE TABLE mc_db.mc_tbl VALUES (val1, val2, val3, val4);
-
--- Overwrite from another table
-INSERT OVERWRITE TABLE mc_db.mc_tbl(col1, col2) SELECT col1, col2 FROM internal.db1.tbl1;
-
--- Overwrite specific partition
-INSERT OVERWRITE TABLE mc_db.mc_tbl PARTITION(ds='20250101') VALUES (10, 'new1');
-```
-
-### 03 CTAS Create Table and Write
-
-You can use the `CREATE TABLE AS SELECT` statement to create a new table in MaxCompute and write data to it.
-
-```sql
--- Create table in MaxCompute and import data
-CREATE TABLE mc_db.mc_new_tbl AS SELECT * FROM internal.db1.source_tbl;
-```
-
-## Database/Table Management (4.1.0+)
-
-Starting from version 4.1.0, Doris supports creating and deleting databases and tables directly in MaxCompute. This feature is applicable to the following scenarios:
-
-- **Unified Data Management**: Manage metadata from multiple data sources centrally in Doris, without switching to the MaxCompute console.
-- **Automated Data Pipelines**: Dynamically create target tables in ETL workflows to achieve end-to-end automation.
-
-:::note
-
-- This is an experimental feature, supported starting from version 4.1.0.
-- This feature is only available when the `mc.enable.namespace.schema` property is set to `true`.
-- Supports creating and deleting partitioned and non-partitioned tables.
-- Does not support creating clustered tables, transactional tables, Delta Tables, and external tables.
-  :::
-
-### 01 Create and Drop Database
-
-```sql
--- Switch to MaxCompute Catalog
-SWITCH mc;
-
--- Create Schema
-CREATE DATABASE IF NOT EXISTS mc_schema;
-
--- Create using fully qualified name
-CREATE DATABASE IF NOT EXISTS mc.mc_schema;
-
--- Drop Schema (will also delete all tables within it)
-DROP DATABASE IF EXISTS mc.mc_schema;
-```
-
-:::caution
-For MaxCompute Database, dropping it will also delete all tables within it. Please proceed with caution.
-:::
-
-### 02 Create and Drop Table
-
-```sql
--- Create non-partitioned table
-CREATE TABLE mc_schema.mc_tbl1 (
-    id INT,
-    name STRING,
-    amount DECIMAL(18, 6),
-    create_time DATETIME
-);
-
--- Create partitioned table
-CREATE TABLE mc_schema.mc_tbl2 (
-    id INT,
-    val STRING,
-    ds STRING,
-    region STRING
+```SQL
+CREATE OR REPLACE TABLE test.sales_data (
+    order_id      INT64,
+    customer_name STRING,
+    order_date    DATE,
+    amount        NUMERIC(10,2),
+    country       STRING
 )
-PARTITION BY (ds, region)();
+PARTITION BY  order_date
 
--- Drop table (will also delete data, including partition data)
-DROP TABLE IF EXISTS mc_schema.mc_tbl1;
+
+INSERT INTO test.sales_data (order_id, customer_name, order_date, amount, country) VALUES
+(1, 'Alice', '2025-04-08', 99.99, 'USA'),
+(2, 'Bob', '2025-04-08', 149.50, 'Canada'),
+(3, 'Charlie', '2025-04-09', 75.00, 'UK'),
+(4, 'Diana', '2025-04-10', 200.00, 'Australia');
 ```
 
-For more details, please refer to the [MaxCompute Catalog](../catalogs/maxcompute-catalog.md) documentation.
+According to this table structure, a Doris primary key partitioned table can be created. The partition field should be the same as that in BigQuery, and the table should be partitioned on a daily basis.
+
+```sql
+CREATE TABLE `sales_data` (
+  order_id      INT,
+  order_date    DATE NOT NULL,
+  customer_name VARCHAR(128),
+  amount        DECIMAL(10,2),
+  country       VARCHAR(48)
+) ENGINE=OLAP
+UNIQUE KEY(`order_id`,`order_date`)
+PARTITION BY RANGE(`order_date`) (
+PARTITION p20250408 VALUES [('2025-04-08'), ('2025-04-09')),
+PARTITION p20250409 VALUES [('2025-04-09'), ('2025-04-10')),
+PARTITION p20250410 VALUES [('2025-04-10'), ('2025-04-11'))
+)
+DISTRIBUTED BY HASH(`order_id`) BUCKETS 16
+PROPERTIES (
+ "dynamic_partition.enable" = "true",
+ "dynamic_partition.time_unit" = "DAY",
+ "dynamic_partition.end" = "5",
+ "dynamic_partition.prefix" = "p",
+ "dynamic_partition.buckets" = "16",
+ "replication_num" = "1"
+);
+```
+
+## 2. Export BigQuery Data
+
+2.1. **Export to GCS Parquet format file through Export method**
+
+   ```sql
+   EXPORT DATA
+     OPTIONS (
+       uri = 'gs://mybucket/export/sales_data/*.parquet',
+       format = 'PARQUET')
+   AS (
+     SELECT *
+     FROM test.sales_data 
+   );
+   ```
+
+2.2. **View the exported files on GCS**
+
+The above command will export the data of sales_data to GCS, and each partition will generate one or more files with increasing file names. For details, please refer to [exporting-data](https://cloud.google.com/bigquery/docs/exporting-data#exporting_data_into_one_or_more_files), as follows:
+
+![gcs_export](/images/data-operate/gcs_export.png)
+
+## 3. Load Data to Doris
+
+S3 Load is an asynchronous data load method. After execution, Doris actively pulls data from the data source. The data source supports object storage compatible with the S3 protocol, including ([AWS S3](./amazon-s3.md)，[GCS](./google-cloud-storage.md)，[AZURE](./azure-storage.md)，etc)
+
+This method is suitable for scenarios involving large volumes of data that require asynchronous processing in the background. For data imports that need to be handled synchronously, refer to  [TVF Load](./amazon-s3.md#load-with-tvf)。
+
+_Note: For **Parquet/ORC format files that contain complex types (Struct/Array/Map)**, TVF Load must be used._
+
+3.1. **Loading data from a single file**
+
+   ```sql
+   LOAD LABEL sales_data_2025_04_08
+   (
+       DATA INFILE("s3://mybucket/export/sales_data/000000000000.parquet")
+       INTO TABLE sales_data
+       FORMAT AS "parquet"
+       (order_id, order_date, customer_name, amount, country)
+   )
+   WITH S3
+   (
+       "provider" = "GCP",
+       "s3.endpoint" = "storage.asia-southeast1.rep.googleapis.com",  
+       "s3.region" = "asia-southeast1",
+       "s3.access_key" = "<ak>",
+       "s3.secret_key" = "<sk>"
+   );
+   ```
+
+3.2. **Check Load Status via SHOW LOAD**
+
+Since S3 Load import is submitted asynchronously, you can check the status of a specific label using SHOW LOAD:
+
+   ```yaml
+   mysql> show load where label = "label_sales_data_2025_04_08"\G
+   *************************** 1. row ***************************
+           JobId: 17956078
+           Label: label_sales_data_2025_04_08
+           State: FINISHED
+         Progress: 100.00% (1/1)
+             Type: BROKER
+         EtlInfo: unselected.rows=0; dpp.abnorm.ALL=0; dpp.norm.ALL=2
+         TaskInfo: cluster:storage.asia-southeast1.rep.googleapis.com; timeout(s):3600; max_filter_ratio:0.0; priority:NORMAL
+         ErrorMsg: NULL
+       CreateTime: 2025-04-10 17:50:53
+     EtlStartTime: 2025-04-10 17:50:54
+   EtlFinishTime: 2025-04-10 17:50:54
+   LoadStartTime: 2025-04-10 17:50:54
+   LoadFinishTime: 2025-04-10 17:50:54
+             URL: NULL
+       JobDetails: {"Unfinished backends":{"5eec1be8612d4872-91040ff1e7208a4f":[]},"ScannedRows":2,"TaskNumber":1,"LoadBytes":91,"All backends":{"5eec1be8612d4872-91040ff1e7208a4f":[10022]},"FileNumber":1,"FileSize":1620}
+   TransactionId: 766228
+     ErrorTablets: {}
+             User: root
+         Comment: 
+   1 row in set (0.00 sec)
+   ```
+
+3.3. **Handle Load Errors**
+
+When there are multiple load tasks, you can use the following statement to query the dates and reasons for data load failures.
+
+   ```yaml
+   mysql> show load where state='CANCELLED' and label like "label_test%"\G
+   *************************** 1. row ***************************
+           JobId: 18312384
+           Label: label_test123
+           State: CANCELLED
+         Progress: 100.00% (3/3)
+             Type: BROKER
+         EtlInfo: unselected.rows=0; dpp.abnorm.ALL=4; dpp.norm.ALL=0
+         TaskInfo: cluster:storage.asia-southeast1.rep.googleapis.com; timeout(s):14400; max_filter_ratio:0.0; priority:NORMAL
+         ErrorMsg: type:ETL_QUALITY_UNSATISFIED; msg:quality not good enough to cancel
+       CreateTime: 2025-04-15 17:32:59
+     EtlStartTime: 2025-04-15 17:33:02
+   EtlFinishTime: 2025-04-15 17:33:02
+   LoadStartTime: 2025-04-15 17:33:02
+   LoadFinishTime: 2025-04-15 17:33:02
+             URL: http://10.16.10.6:28747/api/_load_error_log?file=__shard_2 error_log_insert_stmt_7602ccd7c3a4854-95307efca7bfe342_7602ccd7c3a4854_95307efca7bfe342
+       JobDetails: {"Unfinished backends":{"7602ccd7c3a4854-95307efca7bfe341":[]},"ScannedRows":4,"TaskNumber":1,"LoadBytes":188,"All backends":{"7602ccd7c3a4854-95307efca7bfe341":[10022]},"FileNumber":3,"FileSize":4839}
+   TransactionId: 769213
+     ErrorTablets: {}
+             User: root
+         Comment: 
+   ```
+
+As shown in the example above, the issue is a **data quality error**(ETL_QUALITY_UNSATISFIED). To view the detailed error, you need to visit the URL provided in the result. For example, the data exceeded the defined length of the country column in the table schema:
+
+   ```python
+   [root@VM-10-6-centos ~]$ curl "http://10.16.10.6:28747/api/_load_error_log?file=__shard_2/error_log_insert_stmt_7602ccd7c3a4854-95307efca7bfe342_7602ccd7c3a4854_95307efca7bfe342"
+   Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [USA] schema length: 1; actual length: 3; . src line []; 
+   Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [Canada] schema length: 1; actual length: 6; . src line []; 
+   Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [UK] schema length: 1; actual length: 2; . src line []; 
+   Reason: column_name[country], the length of input is too long than schema. first 32 bytes of input str: [Australia] schema length: 1; actual length: 9; . src line [];
+   ```
+
+For data quality errors, if you want to allow skipping erroneous records, you can set a fault tolerance rate in the Properties section of the S3 Load task. For details, refer to [Load Configuration Parameters](../../import/import-way/broker-load-manual.md#related-configurations)。
+
+3.4. **Loading data from multiple files**
+
+When migrating a large volume of historical data, it is recommended to use a batch load strategy. Each batch corresponds to one or a few partitions in Doris. It is recommended to keep the data size under 100GB per batch to reduce system load and lower the cost of retries in case of load failures.
+
+You can refer to the script [s3_load_file_demo.sh](https://github.com/apache/doris/blob/master/samples/load/shell/s3_load_file_demo.sh), which can split the file list under the specified directory on the object storage and submit multiple S3 Load tasks to Doris in batches to achieve the effect of batch load.
