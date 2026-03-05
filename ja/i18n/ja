@@ -1,67 +1,56 @@
 ---
 {
-  "title": "BITMAP_AND",
+  "title": "BITMAP_CONTAINS",
   "language": "en",
-  "description": "Computes the intersection of two or more input BITMAPs and returns a new BITMAP."
+  "description": "Calculates whether the input value is in the BITMAP and returns a boolean value."
 }
 ---
 
 ## Description
 
-Computes the intersection of two or more input BITMAPs and returns a new BITMAP.
+Calculates whether the input value is in the BITMAP and returns a boolean value.
 
 ## Syntax
 
 ```sql
-BITMAP_AND(<bitmap>, <bitmap>,[, <bitmap>...])
+BITMAP_CONTAINS(<bitmap>, <bigint>)
 ```
 
 ## Parameters
 
-| Parameter  | Description                                                    |
-| ---------- | -------------------------------------------------------------- |
-| `<bitmap>` | One of the original BITMAPs whose intersection is being sought |
+| Parameter  | Description                             |
+| ---------- | --------------------------------------- |
+| `<bitmap>` | BITMAP collection                       |
+| `<bitint>` | The integer to be checked for existence |
 
 ## Return Value
 
-Returns a BITMAP
+Returns a boolean
 
-- If the parameter has a NULL value, it returns NULL
+- If the parameter is NULL, returns NULL
 
 ## Examples
 
 ```sql
-select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'))) as res;
+select bitmap_contains(to_bitmap(1),2) cnt1, bitmap_contains(to_bitmap(1),1) cnt2;
 ```
 
 ```text
-+------+
-| res  |
-+------+
-| 1,2  |
-+------+
++------+------+
+| cnt1 | cnt2 |
++------+------+
+|    0 |    1 |
++------+------+
 ```
 
 ```sql
-select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'),bitmap_empty())) as res;
+select bitmap_contains(NULL,2) cnt1, bitmap_contains(to_bitmap(1),NULL) cnt2;
 ```
 
 ```text
-+------+
-| res  |
-+------+
-|      |
-+------+
-```
-
-```sql
-select bitmap_to_string(bitmap_and(bitmap_from_string('1,2,3'), bitmap_from_string('1,2'), bitmap_from_string('1,2,3,4,5'),NULL)) as res;
-```
-
-```text
-+------+
-| res  |
-+------+
-| NULL |
-+------+
++------+------+
+| cnt1 | cnt2 |
++------+------+
+| NULL | NULL |
++------+------+
 ```
