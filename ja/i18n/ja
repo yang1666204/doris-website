@@ -1,128 +1,209 @@
 ---
 {
-  "title": "Generating TPC-H on Hive/Iceberg",
+  "title": "Variables",
   "language": "en",
-  "description": "Doris supports using the Trino Connector compatible framework to quickly build TPCH test sets with the TPCH Connector."
+  "description": "In Doris, variables are divided into system variables and user variables. Both are case-insensitive."
 }
 ---
 
-Doris supports using the [Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide) compatible framework to quickly build TPCH test sets with the [TPCH Connector](https://trino.io/docs/current/connector/tpch.html).
+## Description
 
-By combining the data write-back function of Hive/Iceberg tables, you can quickly build TPCH test datasets for Doris, Hive, and Iceberg tables through Doris.
+In Doris, variables are divided into system variables and user variables. Both are case-insensitive.
 
-This document mainly introduces how to deploy and use the TPCH Connector to build test datasets.
+System variables affect the behavior of Doris. Both system variables and user variables can be used in user queries.
 
-:::tip
-This feature is supported starting from Doris version 3.0.0.
-:::
+## System Variables
 
-## Compile TPCH Connector
+System variables are a set of variables predefined by Doris to control database behavior and performance. The main features are as follows:
 
-> Requires JDK version 17.
+- Variable Types:
 
-```shell
-git clone https://github.com/trinodb/trino.git
-git checkout 435
-cd trino/plugin/trino-tpch
-mvn clean install -DskipTests
-```
+  - Read-only variables: These variables are set by the system and cannot be modified by users, such as `version`, `current_timestamp`, etc.
 
-After compilation, you will get the `trino-tpch-435/` directory under `trino/plugin/trino-tpch/target/`.
+  - Modifiable variables: Users can modify the values of these variables at runtime, such as `exec_mem_limit`, `time_zone`, etc.
 
-You can also directly download the precompiled [trino-tpch-435.tar.gz](https://github.com/morningman/trino-connectors/releases/download/trino-connectors/trino-tpch-435.tar.gz) and extract it.
+- Scope:
 
-## Deploy TPCH Connector
+  - Global variables (Global): Affect all sessions and set with `SET GLOBAL`.
 
-Place the `trino-tpch-435/` directory into the `connectors/` directory of all FE and BE deployment paths. (If not present, you can create it manually).
+  - Session variables (Session): Only affect the current session and set with `SET`.
 
-```text
-├── bin
-├── conf
-├── connectors
-│   ├── trino-tpch-435
-...
-```
+  - Some variables have both global and session scopes.
 
-After deployment, it is recommended to restart the FE and BE nodes to ensure the Connector can be loaded correctly.
+- Access Methods:
 
-## Create TPCH Catalog
+  - Use `SHOW VARIABLES` to view all system variables.
+
+  - Use `SHOW VARIABLES LIKE 'pattern'` to view specific variables by pattern matching.
+
+- Persistence:
+
+  - Modifications to global variables are reset to default values after a system restart; session restarts do not reset to default values.
+
+  - Changes to session variables are lost after the session ends.
+
+## User-Defined Variables
+
+User-defined variables are a mechanism for temporarily storing data within a session. The main features are as follows:
+
+- Naming Rules:
+
+  - Must be prefixed with `@`.
+
+  - Variable names can include letters, numbers, and underscores.
+
+  - Case-insensitive.
+
+- Scope:
+
+  - Only valid within the current session.
+
+  - Automatically destroyed after the session ends.
+
+  - Variables with the same name in different sessions are independent of each other.
+
+- Assignment Methods:
+
+  - Use `SET @var_name = value` syntax for assignment.
+
+  - Supports assigning values using expression results.
+
+- Data Types:
+
+  - Can store numbers (integers, floating-point numbers).
+
+  - Can store strings.
+
+  - Can store date-time values.
+
+  - Can store NULL values.
+
+  - The type is automatically determined at assignment.
+
+## System Variable Definitions and Query Statements
+
+- SHOW VARIABLES
+
+  You can view variables with `SHOW VARIABLES LIKE 'variable_name'`.
+
+    ```sql
+    SHOW VARIABLES LIKE '%time_zone%';
+    +------------------+----------------+----------------+---------+
+    | Variable_name    | Value          | Default_Value  | Changed |
+    +------------------+----------------+----------------+---------+
+    | system_time_zone | Asia/Hong_Kong | Asia/Hong_Kong | 0       |
+    | time_zone        | Asia/Hong_Kong | Asia/Hong_Kong | 0       |
+    +------------------+----------------+----------------+---------+
+    ```
+
+  Or view all variables with `SHOW VARIABLES`.
+
+    ```sql
+    SHOW VARIABLES
+    +------------------------------------------------------------------+---------------------------------------+---------------------------------------+---------+
+    | Variable_name                                                    | Value                                 | Default_Value                         | Changed |
+    +------------------------------------------------------------------+---------------------------------------+---------------------------------------+---------+
+    | DML_PLAN_RETRY_TIMES                                             | 3                                     | 3                                     | 0       |
+    | adaptive_pipeline_task_serial_read_on_limit                      | 10000                                 | 10000                                 | 0       |
+    | allow_modify_materialized_view                              | false                                 | false                                 | 0       |
+    | allow_partition_column_nullable                            | true                                  | true                                  | 0       |
+    | analyze_timeout                                           | 43200                                 | 43200                                 | 0       |
+    | version                                                      | 5.7.99                                | 5.7.99                                | 0       |
+    | version_comment                                                | Doris version doris0.0.0--de61c5823 | Doris version doris-0.0--de61c5823 | 0       |
+    | wait_full_block_schedule_times                                 | 2                                     | 2                                     | 0       |
+    | wait_timeout                                               | 28800                                 | 28800                                 | 0       |
+    | workload_group                                                 |                                       |                                       | 0       |
+    +------------------------------------------------------------------+---------------------------------------+---------------------------------------+---------+
+    360 rows in set (0.01 sec)
+    ```
+
+- SET
+
+  Some variables can be set to take effect globally or only in the current session.
+
+  Set to take effect only in the current session with `SET`. For example:
+
+    ```sql
+    SET exec_mem_limit = 137438953472;
+    SHOW VARIABLES LIKE '%exec_mem_limit%';
+    +----------------+--------------+---------------+---------+
+    | Variable_name  | Value        | Default_Value | Changed |
+    +----------------+--------------+---------------+---------+
+    | exec_mem_limit | 137438953472 | 2147483648    | 1       |
+    +----------------+--------------+---------------+---------+
+    1 row in set (0.01 sec)
+    SET forward_to_master = true;
+    SHOW VARIABLES LIKE '%forward_to_master%';
+    +-------------------+-------+---------------+---------+
+    | Variable_name     | Value | Default_Value | Changed |
+    +-------------------+-------+---------------+---------+
+    | forward_to_master | true  | true          | 0       |
+    +-------------------+-------+---------------+---------+
+    1 row in set (0.00 sec)
+    SET time_zone = "Asia/Shanghai";
+    SHOW VARIABLES LIKE '%time_zone%';
+    +------------------+----------------+----------------+---------+
+    | Variable_name    | Value          | Default_Value  | Changed |
+    +------------------+----------------+----------------+---------+
+    | time_zone        | Asia/Shanghai  | Asia/Hong_Kong | 1       |
+    | system_time_zone | Asia/Hong_Kong | Asia/Hong_Kong | 0       |
+    +------------------+----------------+----------------+---------+
+    2 rows in set (0.00 sec)
+    ```
+
+  Set globally
+
+    ```sql
+    SET GLOBAL exec_mem_limit = 137438953472;
+    SHOW VARIABLES LIKE '%exec_mem_limit%';
+    +----------------+--------------+---------------+---------+
+    | Variable_name  | Value        | Default_Value | Changed |
+    +----------------+--------------+---------------+---------+
+    | exec_mem_limit | 137438953472 | 2147483648    | 1       |
+    +----------------+--------------+---------------+---------+
+    1 row in set (0.01 sec)
+    ```
+
+- UNSET
+
+  Syntax:
+
+    ```sql
+    UNSET (GLOBAL | SESSION | LOCAL)? VARIABLE (ALL | identifier)
+    unset global variable exec_mem_limit;
+    SHOW VARIABLES LIKE '%exec_mem_limit%';
+    +----------------+------------+---------------+---------+
+    | Variable_name  | Value      | Default_Value | Changed |
+    +----------------+------------+---------------+---------+
+    | exec_mem_limit | 2147483648 | 2147483648    | 0       |
+    +----------------+------------+---------------+---------+
+    1 row in set (0.00 sec)
+    ```
+
+## User Variable Definition and Query Statements
+
+User-defined variables can be defined with the following statement:
 
 ```sql
-CREATE CATALOG `tpch` PROPERTIES (
-    "type" = "trino-connector",
-    "trino.connector.name" = "tpch",
-    "trino.tpch.column-naming" = "STANDARD",
-    "trino.tpch.splits-per-node" = "32"
-);
+SET @var_name = constant_value|constant_expr;
 ```
 
-The `tpch.splits-per-node` is the concurrency number, which is recommended to be set to 2 times the number of cores per BE machine to achieve optimal concurrency. This improves data generation efficiency.
-
-When `"tpch.column-naming" = "STANDARD"`, the column names in the TPCH table will start with the table name abbreviation, such as `l_orderkey`, otherwise, it is `orderkey`.
-
-## Use TPCH Catalog
-
-The TPCH Catalog has pre-configured TPCH datasets of different Scale Factors, which can be viewed using the `SHOW DATABASES` and `SHOW TABLES` commands.
+Setting examples:
 
 ```sql
-mysql> SWITCH tpch;
-Query OK, 0 rows affected (0.00 sec)
-
-mysql> SHOW DATABASES;
-+--------------------+
-| Database           |
-+--------------------+
-| information_schema |
-| mysql              |
-| sf1                |
-| sf100              |
-| sf1000             |
-| sf10000            |
-| sf100000           |
-| sf300              |
-| sf3000             |
-| sf30000            |
-| tiny               |
-+--------------------+
-
-mysql> USE sf1;
-mysql> SHOW TABLES;
-+---------------+
-| Tables_in_sf1 |
-+---------------+
-| customer      |
-| lineitem      |
-| nation        |
-| orders        |
-| part          |
-| partsupp      |
-| region        |
-| supplier      |
-+---------------+
+SET @v1 = "A";
+SET @v2 = 32+33;
+SET @v3 = str_to_date("2024-12-29 10:11:12", '%Y-%m-%d %H:%i:%s');
 ```
 
-You can directly query these tables using the SELECT statement.
-
-:::tip
-The data in these pre-configured datasets is not actually stored but is generated in real-time during queries. Therefore, these pre-configured datasets are not suitable for direct Benchmark testing. They are suitable for writing datasets into other target tables (such as Doris internal tables, Hive, Iceberg, and all other data sources that Doris supports writing to) through `INSERT INTO SELECT`, and then performing performance testing on the target tables.
-:::
-
-## Build TPCH Test Dataset
-
-The following example quickly builds a TPCH test dataset on Hive using the CTAS statement:
+Can be used in queries
 
 ```sql
-CREATE TABLE hive.tpch100.customer PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.customer  ;
-CREATE TABLE hive.tpch100.lineitem PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.lineitem  ;
-CREATE TABLE hive.tpch100.nation   PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.nation    ;
-CREATE TABLE hive.tpch100.orders   PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.orders    ;
-CREATE TABLE hive.tpch100.part     PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.part      ;
-CREATE TABLE hive.tpch100.partsupp PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.partsupp  ;
-CREATE TABLE hive.tpch100.region   PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.region    ;
-CREATE TABLE hive.tpch100.supplier PROPERTIES("file_format" = "parquet") AS SELECT * FROM tpch.sf100.supplier  ;
+SELECT @v1, @v2, @v3;
++------+------+--------------------+
+| @v1  | @v2  | @v3                 |
++------+------+--------------------+
+| A    |   65 | 2024-12-29 10:11:12 |
++------+------+--------------------+
+1 row in set (0.01 sec)
 ```
-
-:::tip
-In a Doris cluster with 3 16C BE nodes, creating a TPCH 1000 Hive dataset takes about 25 minutes, and TPCH 10000 takes about 4 to 5 hours.
-:::
-
