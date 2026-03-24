@@ -151,9 +151,14 @@ jobs:
       - name: Prepare translation input
         if: needs.detect_changes.outputs.has_changed == 'true'
         run: |
+          echo "Changed English files JSON:"
+          echo '${{ needs.detect_changes.outputs.changed_files }}'
           mkdir -p .i18n/input
           echo '${{ needs.detect_changes.outputs.changed_files }}' > files.json
           node scripts/i18n/prepare.js files.json .i18n/input manifest.json ja-source
+          echo "Prepared files:"
+          ls -la .i18n/input || true
+          echo "Prepared file count: $(find .i18n/input -type f | wc -l)"
 
       - name: Verify intermediate files exist
         if: needs.detect_changes.outputs.has_changed == 'true'
@@ -210,7 +215,27 @@ jobs:
           mkdir -p ./ja-build
           cp -a "$SRC_DIR"/. ./ja-build/
 
+      - name: Check generated changes
+        id: generated_changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- ja-source ja-build; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No git changes detected in ja-source/ja-build."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Detected git changes in ja-source/ja-build."
+          fi
+
+      - name: Guard against empty translation result
+        if: needs.detect_changes.outputs.has_changed == 'true' && steps.generated_changes.outputs.has_changes != 'true'
+        run: |
+          echo "English docs changed, but no updates were generated in ja-source/ja-build."
+          echo "Please check translation logs and path mapping."
+          exit 1
+
       - uses: peter-evans/create-pull-request@v6
+        if: steps.generated_changes.outputs.has_changes == 'true'
         with:
           base: master
           branch: auto/i18n-ja-${{ github.run_id }}
