@@ -605,6 +605,29 @@ Support for Nested Namespace needs to be explicitly enabled. For details, please
 
 ### Aliyun DLF
 <details>
+    <summary>4.1+ Version</summary>
+    <Tabs>
+        <TabItem value='DLF 2.5+' label='DLF 2.5+' default>
+            ```sql
+            CREATE CATALOG iceberg_dlf2_catalog PROPERTIES (
+                'type' = 'iceberg',
+                'iceberg.catalog.type' = 'rest',
+                'iceberg.rest.uri' = 'http://<region>-vpc.dlf.aliyuncs.com/iceberg',
+                'warehouse' = '<your-catalog-name>',
+                'iceberg.rest.sigv4-enabled' = 'true',
+                'iceberg.rest.signing-name' = 'DlfNext',
+                'iceberg.rest.access-key-id' = '<ak>',
+                'iceberg.rest.secret-access-key' = '<sk>',
+                'iceberg.rest.signing-region' = '<region>',
+                'iceberg.rest.vended-credentials-enabled' = 'true',
+                'io-impl' = 'org.apache.iceberg.rest.DlfFileIO',
+                'fs.oss.support' = 'true'
+            );
+            ```
+        </TabItem>
+    </Tabs>
+</details>
+<details>
     <summary>3.1+ Version</summary>
     <Tabs>
         <TabItem value='DLF 1.0' label='DLF 1.0' default>
@@ -2140,6 +2163,21 @@ Supported schema change operations include:
 
     Use the `MODIFY COLUMN` statement to modify column attributes, including type, nullable, default value, comment, and column position.
 
+    Since version 4.0.4, Doris supports modifying complex types (STRUCT, ARRAY, MAP), including safe type promotions and appending struct fields.
+    
+    Safe type promotions supported in nested types:
+    - INT -> BIGINT, LARGEINT
+    - TINYINT -> SMALLINT, INT, BIGINT, LARGEINT
+    - SMALLINT -> INT, BIGINT, LARGEINT
+    - BIGINT -> LARGEINT
+    - FLOAT -> DOUBLE
+    - VARCHAR(n) -> VARCHAR(m) where m > n
+    
+    Constraints for complex types:
+    - All new nested fields must be nullable.
+    - Cannot change optional to required.
+    - Default values for complex types only support NULL.
+
     Note: When modifying column attributes, all attributes that are not being modified should also be explicitly specified with their original values.
 
     ```sql
@@ -2155,6 +2193,23 @@ Supported schema change operations include:
   );
   -- Modify the id column type to BIGINT, set as NOT NULL, default value to 0, and add comment
   ALTER TABLE iceberg_table MODIFY COLUMN id BIGINT NOT NULL DEFAULT 0 COMMENT 'This is a modified id column';
+  ```
+
+  Example of modifying complex types:
+
+  ```sql
+  -- Create Iceberg table with complex types
+  CREATE TABLE iceberg_tbl (
+      id BIGINT,
+      user_info STRUCT<name:STRING, scores:ARRAY<INT>, age:INT>,
+      dt STRING
+  );
+
+  -- Append a new field (email) to the STRUCT column
+  ALTER TABLE iceberg_tbl MODIFY COLUMN user_info STRUCT<name:STRING, scores:ARRAY<INT>, age:INT, email:STRING>;
+
+  -- Promote the nested ARRAY element type from INT to BIGINT
+  ALTER TABLE iceberg_tbl MODIFY COLUMN user_info STRUCT<name:STRING, scores:ARRAY<BIGINT>, age:INT, email:STRING>;
   ```
 
 * **Reorder Columns**
