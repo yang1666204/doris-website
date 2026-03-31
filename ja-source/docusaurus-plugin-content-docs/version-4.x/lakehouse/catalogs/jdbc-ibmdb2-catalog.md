@@ -2,12 +2,12 @@
 {
   "title": "IBM Db2 JDBC カタログ",
   "language": "ja",
-  "description": "Doris JDBC CatalogはIBM Db2データベースに標準JDBCインターフェースを通じて接続することをサポートしています。"
+  "description": "Doris JDBC カタログはIBM Db2データベースに標準JDBCインターフェースを通じて接続することをサポートしています。"
 }
 ---
-Doris JDBC Catalogは、標準のJDBCインターフェースを通じてIBM Db2データベースへの接続をサポートしています。このドキュメントでは、IBM Db2データベース接続の設定方法について説明します。
+Doris JDBC カタログは、標準のJDBCインターフェースを通じてIBM Db2データベースへの接続をサポートしています。このドキュメントでは、IBM Db2データベース接続の設定方法について説明します。
 
-JDBC Catalogの概要については、以下を参照してください：[JDBC Catalog Overview](./jdbc-catalog-overview.md)
+JDBC カタログの概要については、以下を参照してください：[JDBC カタログ 概要](./jdbc-catalog-overview.md)
 
 ## 使用上の注意
 
