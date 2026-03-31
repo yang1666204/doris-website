@@ -2,12 +2,12 @@
 {
   "title": "Kafkaカタログ",
   "language": "ja",
-  "description": "Apache Doris Kafka Catalogガイド：Trino Connectorフレームワークを通じてKafkaデータストリームに接続し、Kafka Topicデータをクエリ・統合します。Schema Registry、複数のデータフォーマットをサポートし、KafkaとDorisデータの迅速な統合を実現します。"
+  "description": "Apache Doris Kafka カタログガイド：Trino Connectorフレームワークを通じてKafkaデータストリームに接続し、Kafka Topicデータをクエリ・統合します。Schema Registry、複数のデータフォーマットをサポートし、KafkaとDorisデータの迅速な統合を実現します。"
 }
 ---
 ## 概要
 
-Kafka Catalogは[Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/)互換性フレームワークを通じてTrino Kafka Connectorを使用し、Kafka Topicデータにアクセスします。
+Kafka カタログは[Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/)互換性フレームワークを通じてTrino Kafka Connectorを使用し、Kafka Topicデータにアクセスします。
 
 :::note
 - これは実験的な機能で、バージョン3.0.1以降でサポートされています。

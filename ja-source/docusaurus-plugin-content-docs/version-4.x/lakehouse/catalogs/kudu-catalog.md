@@ -2,12 +2,12 @@
 {
   "title": "Kudu カタログ",
   "language": "ja",
-  "description": "Apache Doris Kudu Catalogガイド：Trino Connectorフレームワークを通じてKuduデータベースに接続し、Kuduテーブルデータをクエリおよび統合します。Kerberos認証、複数のデータ型マッピングをサポートし、KuduとDoris間の迅速なデータ統合を可能にします。"
+  "description": "Apache Doris Kudu カタログガイド：Trino Connectorフレームワークを通じてKuduデータベースに接続し、Kuduテーブルデータをクエリおよび統合します。Kerberos認証、複数のデータ型マッピングをサポートし、KuduとDoris間の迅速なデータ統合を可能にします。"
 }
 ---
 ## 概要
 
-Kudu CatalogはTrino Kudu Connectorを使用して、[Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/)互換性フレームワークを通じてKuduテーブルにアクセスします。
+Kudu カタログはTrino Kudu Connectorを使用して、[Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/)互換性フレームワークを通じてKuduテーブルにアクセスします。
 
 :::note
 - これは実験的機能で、バージョン3.0.1以降でサポートされています。
