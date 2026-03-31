@@ -64,6 +64,20 @@ $ yarn build
 
 This command generates static content into the `build` directory and can be served using any static contents hosting service.
 
+### Japanese Build Refresh
+
+Japanese source content is maintained in `ja-source`, while the deploy workflows consume the generated static site in `ja-build`.
+
+To refresh `ja-build` locally, run:
+
+```
+$ yarn refresh:ja-build
+```
+
+This command temporarily copies `ja-source` to `i18n/ja`, runs a multi-locale Docusaurus build for `en` and `ja`, extracts `build/ja` into `ja-build`, and then removes the temporary `i18n/ja` and `build` directories.
+
+Do not replace `ja-build` with the output of a standalone `docusaurus build --locale ja`. That output uses root-level asset paths such as `/assets/...`, while the deployed Japanese site is served from `/ja` and must keep `/ja/assets/...` paths from `build/ja`.
+
 ### Deployment
 
 Using SSH:
