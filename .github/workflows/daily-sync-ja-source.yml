@@ -1,0 +1,121 @@
+name: Daily Sync JA Source
+
+# This workflow keeps ja-source aligned with changed English docs.
+# It translates changed docs into ja-source and syncs matching deletions/sidebar labels.
+
+on:
+    schedule:
+        - cron: '30 10 * * *'
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: 'Git ref to sync from'
+                required: false
+                default: 'master'
+
+permissions:
+    contents: write
+    pull-requests: write
+
+concurrency:
+    group: daily-sync-ja-source
+    cancel-in-progress: false
+
+jobs:
+    sync-ja-source:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.ref || 'master' }}
+                  fetch-depth: 0
+
+            - name: Use Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 20
+
+            - name: Install dependencies
+              run: |
+                  npm install -g yarn
+                  yarn cache clean
+                  yarn install --frozen-lockfile
+
+            - name: Read last synced SHA
+              id: sync_state
+              run: |
+                  LAST_SYNC_SHA=$(node -e "const fs=require('fs');const state=JSON.parse(fs.readFileSync('.github/ja-sync-state.json','utf8'));process.stdout.write(state.lastSyncedSourceSha || '')")
+                  if [ -z "$LAST_SYNC_SHA" ]; then
+                    LAST_SYNC_SHA=$(git rev-parse HEAD^)
+                  fi
+                  echo "last_sync_sha=$LAST_SYNC_SHA" >> "$GITHUB_OUTPUT"
+                  echo "current_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+            - name: Collect changed English docs
+              run: |
+                  git diff --diff-filter=ACMRT --name-only "${{ steps.sync_state.outputs.last_sync_sha }}" HEAD -- docs versioned_docs > .i18n_changed_files.txt
+                  git diff --diff-filter=D --name-only "${{ steps.sync_state.outputs.last_sync_sha }}" HEAD -- docs versioned_docs > .i18n_deleted_files.txt
+
+                  node -e "const fs=require('fs');const files=fs.readFileSync('.i18n_changed_files.txt','utf8').split('\n').map(s=>s.trim()).filter(Boolean).filter(f=>/\\.(md|mdx)$/i.test(f));fs.writeFileSync('files.json', JSON.stringify(files, null, 2));"
+                  node -e "const fs=require('fs');const files=fs.readFileSync('.i18n_deleted_files.txt','utf8').split('\n').map(s=>s.trim()).filter(Boolean).filter(f=>/\\.(md|mdx)$/i.test(f));fs.writeFileSync('deleted-files.json', JSON.stringify(files, null, 2));"
+
+            - name: Debug changed files
+              run: |
+                  echo "Changed markdown files:"
+                  cat files.json
+                  echo "Deleted markdown files:"
+                  cat deleted-files.json
+
+            - name: Translate changed English docs into ja-source
+              env:
+                  AWS_API_KEY: ${{ secrets.AWS_API_KEY }}
+              run: |
+                  mkdir -p .i18n/input .i18n/output
+                  if [ "$(jq length files.json)" -gt 0 ]; then
+                    node scripts/i18n/prepare.js \
+                      files.json \
+                      .i18n/input \
+                      manifest.json \
+                      "ja-source"
+
+                    node scripts/i18n/translate-claude.js \
+                      .i18n/input \
+                      .i18n/output
+
+                    node scripts/i18n/post-process.js \
+                      .i18n/output \
+                      "ja-source"
+
+                    node scripts/i18n/replace-ja-terms.js \
+                      "ja-source/docusaurus-plugin-content-docs"
+                  fi
+
+            - name: Sync deleted English docs to ja-source
+              run: |
+                  if [ "$(jq length deleted-files.json)" -gt 0 ]; then
+                    node scripts/i18n/sync-deletions.js deleted-files.json ja-source
+                  fi
+
+            - name: Sync sidebar translations into ja-source
+              env:
+                  AWS_API_KEY: ${{ secrets.AWS_API_KEY }}
+              run: |
+                  node scripts/i18n/sync-ja-sidebar-translations.js
+
+            - name: Update sync state
+              run: |
+                  node scripts/i18n/update-ja-sync-state.js .github/ja-sync-state.json "${{ steps.sync_state.outputs.current_sha }}"
+
+            - name: Create pull request
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  base: master
+                  branch: auto/sync-ja-source-${{ github.run_id }}
+                  commit-message: 'chore(i18n): sync ja-source from english docs'
+                  title: '[auto-i18n] Sync ja-source from English docs'
+                  body: |
+                      This PR contains daily synchronized Japanese source updates generated from changed English docs.
+                  add-paths: |
+                      ja-source/**
+                      .github/ja-sync-state.json

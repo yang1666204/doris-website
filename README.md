@@ -78,6 +78,8 @@ This command temporarily copies `ja-source` to `i18n/ja`, runs a multi-locale Do
 
 Do not replace `ja-build` with the output of a standalone `docusaurus build --locale ja`. That output uses root-level asset paths such as `/assets/...`, while the deployed Japanese site is served from `/ja` and must keep `/ja/assets/...` paths from `build/ja`.
 
+The repository also includes a daily translation workflow that syncs changed English docs into `ja-source`. It translates changed files under `docs/` and `versioned_docs/`, syncs matching deletions, updates Japanese sidebar translation JSON, and opens an automated PR instead of pushing directly to `master`.
+
 ### Deployment
 
 Using SSH:
