@@ -365,7 +365,8 @@ const sidebars: SidebarsConfig = {
                                         'lakehouse/best-practices/doris-onelake',
                                         'lakehouse/best-practices/doris-unity-catalog',
                                         'lakehouse/best-practices/doris-lakekeeper',
-                                        'lakehouse/best-practices/doris-nessie'
+                                        'lakehouse/best-practices/doris-nessie',
+                                        'lakehouse/best-practices/doris-dlf-iceberg'
                                     ],
                                 },
                                 {
@@ -440,6 +441,7 @@ const sidebars: SidebarsConfig = {
                                 'lakehouse/storages/baidu-bos',
                                 'lakehouse/storages/minio',
                                 'lakehouse/storages/juicefs',
+                                'lakehouse/storages/ozone'
                             ],
                         },
                         {
@@ -1161,7 +1163,22 @@ const sidebars: SidebarsConfig = {
                                         'sql-manual/basic-element/sql-data-types/semi-structured/MAP',
                                         'sql-manual/basic-element/sql-data-types/semi-structured/STRUCT',
                                         'sql-manual/basic-element/sql-data-types/semi-structured/JSON',
-                                        'sql-manual/basic-element/sql-data-types/semi-structured/VARIANT',
+                                        {
+                                            type: 'category',
+                                            label: 'VARIANT',
+                                            link: {
+                                                type: 'doc',
+                                                id: 'sql-manual/basic-element/sql-data-types/semi-structured/variant-workload-guide',
+                                            },
+                                            collapsed: false,
+                                            items: [
+                                                {
+                                                    type: 'doc',
+                                                    id: 'sql-manual/basic-element/sql-data-types/semi-structured/VARIANT',
+                                                    label: 'VARIANT Reference',
+                                                },
+                                            ],
+                                        },
                                     ],
                                 },
                                 {
@@ -1602,6 +1619,7 @@ const sidebars: SidebarsConfig = {
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/murmur-hash3-32',
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/murmur-hash3-64',
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/murmur-hash3-64-v2',
+                                        "sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/murmur-hash3-u64-v2",
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/sha',
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/sha2',
                                         'sql-manual/sql-functions/scalar-functions/encrypt-digest-functions/sm3',
@@ -2079,6 +2097,10 @@ const sidebars: SidebarsConfig = {
                                 'sql-manual/sql-functions/table-functions/explode-numbers-outer',
                                 'sql-manual/sql-functions/table-functions/explode-split',
                                 'sql-manual/sql-functions/table-functions/explode-split-outer',
+                                'sql-manual/sql-functions/table-functions/json-each',
+                                'sql-manual/sql-functions/table-functions/json-each-outer',
+                                'sql-manual/sql-functions/table-functions/json-each-text',
+                                'sql-manual/sql-functions/table-functions/json-each-text-outer',
                                 'sql-manual/sql-functions/table-functions/posexplode',
                                 'sql-manual/sql-functions/table-functions/posexplode-outer',
                             ],
