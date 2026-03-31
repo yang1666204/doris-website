@@ -1,0 +1,61 @@
+name: Weekly Refresh JA Build
+
+# ja-build must be generated from the multi-locale build output build/ja.
+# A standalone `docusaurus build --locale ja` produces root-level `/assets/...`
+# references and is not compatible with the deployed `/ja` subpath site.
+
+on:
+    schedule:
+        - cron: '0 2 * * 1'
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: 'Git ref to build from'
+                required: false
+                default: 'master'
+
+permissions:
+    contents: write
+    pull-requests: write
+
+concurrency:
+    group: weekly-refresh-ja-build
+    cancel-in-progress: false
+
+jobs:
+    refresh-ja-build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.ref || 'master' }}
+                  fetch-depth: 0
+
+            - name: Use Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 20
+
+            - name: Install dependencies
+              run: |
+                  npm install -g yarn
+                  yarn cache clean
+                  yarn install --frozen-lockfile
+
+            - name: Refresh ja-build
+              run: |
+                  export NODE_OPTIONS=--max-old-space-size=8192
+                  yarn refresh:ja-build
+
+            - name: Create pull request
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  base: master
+                  branch: auto/refresh-ja-build-${{ github.run_id }}
+                  commit-message: 'chore(i18n): refresh ja-build'
+                  title: '[auto-i18n] Refresh ja-build'
+                  body: |
+                      This PR refreshes `ja-build` from the latest `ja-source`.
+                  add-paths: |
+                      ja-build/**

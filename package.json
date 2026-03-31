@@ -9,6 +9,7 @@
         "start:ja": "docusaurus start --locale ja",
         "postinstall": "node scripts/patch-search-tokenize.js",
         "build": "PWA_SERVICE_WORKER_URL=https://doris.apache.org/sw.js docusaurus build",
+        "build:ja": "PWA_SERVICE_WORKER_URL=https://doris.apache.org/sw.js docusaurus build --locale ja",
         "build:version": "docusaurus set-versions && docusaurus build",
         "swizzle": "docusaurus swizzle",
         "deploy": "docusaurus deploy",
@@ -19,6 +20,9 @@
         "write-translations": "docusaurus write-translations --locale zh-CN",
         "write-translations:ja": "docusaurus write-translations --locale ja",
         "write-heading-ids": "docusaurus write-heading-ids",
+        "sync:ja-source": "node scripts/i18n/sync-ja-source-to-i18n.js",
+        "sync:ja-sidebar": "node scripts/i18n/sync-ja-sidebar-translations.js",
+        "refresh:ja-build": "node scripts/i18n/refresh-ja-build.js",
         "typecheck": "tsc"
     },
     "dependencies": {
