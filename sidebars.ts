@@ -225,8 +225,34 @@ const sidebars: SidebarsConfig = {
                             type: 'category',
                             label: 'Continuous Load',
                             items: [
-                                'data-operate/import/streaming-job/streaming-job-tvf',
-                                'data-operate/import/streaming-job/streaming-job-multi-table',
+                                'data-operate/import/streaming-job/continuous-load-overview',
+                                {
+                                    type: 'category',
+                                    label: 'MySQL',
+                                    items: [
+                                        'data-operate/import/streaming-job/continuous-load-mysql-single',
+                                        'data-operate/import/streaming-job/continuous-load-mysql-multi',
+                                    ],
+                                },
+                                {
+                                    type: 'category',
+                                    label: 'PostgreSQL',
+                                    items: [
+                                        'data-operate/import/streaming-job/continuous-load-postgresql-single',
+                                        'data-operate/import/streaming-job/continuous-load-postgresql-multi',
+                                    ],
+                                },
+                                'data-operate/import/streaming-job/continuous-load-s3',
+                                {
+                                    type: 'category',
+                                    label: 'Setup Guide',
+                                    items: [
+                                        'data-operate/import/streaming-job/prerequisites/amazon-rds-mysql',
+                                        'data-operate/import/streaming-job/prerequisites/amazon-aurora-mysql',
+                                        'data-operate/import/streaming-job/prerequisites/amazon-rds-postgresql',
+                                        'data-operate/import/streaming-job/prerequisites/amazon-aurora-postgresql',
+                                    ],
+                                },
                             ],
                         },
                         {
@@ -2111,6 +2137,7 @@ const sidebars: SidebarsConfig = {
                             label: 'Table Valued Functions',
                             items: [
                                 'sql-manual/sql-functions/table-valued-functions/backends',
+                                'sql-manual/sql-functions/table-valued-functions/cdc-stream',
                                 'sql-manual/sql-functions/table-valued-functions/catalogs',
                                 'sql-manual/sql-functions/table-valued-functions/file',
                                 'sql-manual/sql-functions/table-valued-functions/frontends',
