@@ -279,13 +279,17 @@ const config = {
                     //    <span>Help Shape the Future of Apache Doris: 2026 User Survey</span> 
                     //    <p style="margin-left:0.675rem;font-size:0.875rem;line-height:1rem;font-weight:700;letter-spacing:0.28px;">Register Now -></p> 
                     //        </a>`
-                    en: `<a href="https://forms.gle/7RKm6CGSNhdW8ZnK9" target="_blank" style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
-                        <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-star-white.svg">
-                        <span style="font-size:0.875rem;font-weight:700;line-height:1rem; margin-right:0.675rem; text-decoration: none;">NEW</span>
-                       <span>Help Shape the Future of Apache Doris: 2026 User Survey</span> 
-                           </a>`
-                    //     }),
-                    //     content: JSON.stringify({
+                    // en: `<a href="https://forms.gle/7RKm6CGSNhdW8ZnK9" target="_blank" style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
+                    //     <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-star-white.svg">
+                    //     <span style="font-size:0.875rem;font-weight:700;line-height:1rem; margin-right:0.675rem; text-decoration: none;">NEW</span>
+                    //    <span>Help Shape the Future of Apache Doris: 2026 User Survey</span> 
+                    //        </a>`
+                    en: `<p style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
+                    <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-warning.svg">
+                    <span>Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on <a style="font-weight:600;" href="https://discord.com/invite/tGTh2SQV" target="_blank" >Discord</a> in the meantime.</span>
+                    </p>`
+                        //     }),
+                        //     content: JSON.stringify({
                     //         zh: `<a href="https://doris-summit.org.cn" target="_blank" style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
                     //     <img style="width: 60px; height: 24px; margin-right: 34px;" src="/images/doris-summit.svg">
                     //    <span style="font-weight:700; font-size:0.875rem; line-height: 120%;">Powering Real-Time Analytics & Search  in the AI Era | 2025 年 11 月 05 日-06 日 · 全网直播</span> 
