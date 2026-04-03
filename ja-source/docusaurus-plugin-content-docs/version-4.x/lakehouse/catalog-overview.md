@@ -2,10 +2,10 @@
 {
   "title": "データカタログ概要",
   "language": "ja",
-  "description": "Apache Doris Data Catalogの概念と使用法について学習します。外部データカタログを作成してHive、Iceberg、Paimon、PostgreSQL、その他のデータソースに接続し、フェデレーテッドクロスソースクエリ、データ取り込み、ライトバックを行います。"
+  "description": "Apache Doris Data カタログの概念と使用法について学習します。外部データカタログを作成してHive、Iceberg、Paimon、PostgreSQL、その他のデータソースに接続し、フェデレーテッドクロスソースクエリ、データ取り込み、ライトバックを行います。"
 }
 ---
-Data Catalogはデータソースのプロパティを記述します。
+Data カタログはデータソースのプロパティを記述します。
 
 Dorisでは、異なるデータソース（Hive、Iceberg、Paimon、PostgreSQLなど）を指す複数のdata catalogを作成できます。Dorisはdata catalogを通じて、対応するデータソースからデータベース、テーブル、スキーマ、パーティション、データ位置を自動的に取得します。ユーザーは標準のSQL文を使用してこれらのdata catalogにアクセスしてデータ分析を行い、複数のdata catalog間のデータでjoinクエリを実行できます。
 
@@ -13,22 +13,22 @@ Dorisにはdata catalogが2つのタイプあります：
 
 | タイプ | 説明 |
 | ---------------- | -------------------------------------------------------- |
-| Internal Catalog | `internal`という固定名を持つ組み込みdata catalogで、Doris内部テーブルデータの保存に使用されます。作成、変更、削除はできません。 |
-| External Catalog | 外部data catalogで、Internal Catalog以外のすべてのdata catalogを指します。ユーザーは外部data catalogの作成、変更、削除ができます。 |
+| Internal カタログ | `internal`という固定名を持つ組み込みdata catalogで、Doris内部テーブルデータの保存に使用されます。作成、変更、削除はできません。 |
+| External カタログ | 外部data catalogで、Internal カタログ以外のすべてのdata catalogを指します。ユーザーは外部data catalogの作成、変更、削除ができます。 |
 
 Data catalogは主に以下の3つのタイプのシナリオに適用されますが、data catalogによって適用シナリオが異なります。詳細については対応するdata catalogドキュメントを参照してください。
 
 | シナリオ | 説明 |
 | ---- | ------------------------------------------- |
-| Query Acceleration | Hive、Iceberg、Paimonなどのlakehouseデータのクエリを直接高速化します。 |
-| Data Integration | ZeroETLアプローチで異なるデータソースに直接アクセスして結果データを生成するか、異なるデータソース間の便利なデータフローを可能にします。 |
+| クエリ加速 | Hive、Iceberg、Paimonなどのlakehouseデータのクエリを直接高速化します。 |
+| Data 統合 | ZeroETLアプローチで異なるデータソースに直接アクセスして結果データを生成するか、異なるデータソース間の便利なデータフローを可能にします。 |
 | Data Write-Back | Dorisを通じてデータを処理・変換し、外部データソースに書き戻します。 |
 
-この記事では[Iceberg Catalog](./catalogs/iceberg-catalog)を例として、data catalogの基本操作を紹介します。異なるdata catalogの詳細な紹介については、対応するdata catalogドキュメントを参照してください。
+この記事では[Iceberg カタログ](./catalogs/iceberg-catalog)を例として、data catalogの基本操作を紹介します。異なるdata catalogの詳細な紹介については、対応するdata catalogドキュメントを参照してください。
 
-## Data Catalogの作成
+## Data カタログの作成
 
-`CREATE CATALOG`文を使用してIceberg Catalogを作成します。
+`CREATE CATALOG`文を使用してIceberg カタログを作成します。
 
 ```sql
 CREATE CATALOG iceberg_catalog PROPERTIES (

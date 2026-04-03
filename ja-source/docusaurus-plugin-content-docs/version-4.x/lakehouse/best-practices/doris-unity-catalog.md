@@ -1,17 +1,17 @@
 ---
 {
-  "title": "Databricks Unity Catalogとの統合",
+  "title": "Databricks Unity カタログとの統合",
   "language": "ja",
-  "description": "企業がLakehouseアーキテクチャの下で増大するデータ資産をますます管理するようになるにつれて、クロスプラットフォームで高性能な"
+  "description": "企業がレイクハウスアーキテクチャの下で増大するデータ資産をますます管理するようになるにつれて、クロスプラットフォームで高性能な"
 }
 ---
-企業がLakehouseアーキテクチャの下で増大するデータ資産を管理するにつれ、クロスプラットフォームで高性能、かつガバナンスされたデータアクセス機能への需要がより急務となっています。次世代リアルタイム分析データベースであるApache Dorisは、[Databricks Unity Catalog](https://www.databricks.com/product/unity-catalog)との深い統合を実現し、企業が統一されたガバナンスフレームワークの下でDatabricksによって管理されるデータレイクに直接アクセスし、効率的にクエリできるようにし、シームレスなデータ接続を実現しています。
+企業がレイクハウスアーキテクチャの下で増大するデータ資産を管理するにつれ、クロスプラットフォームで高性能、かつガバナンスされたデータアクセス機能への需要がより急務となっています。次世代リアルタイム分析データベースであるApache Dorisは、[Databricks Unity カタログ](https://www.databricks.com/product/unity-catalog)との深い統合を実現し、企業が統一されたガバナンスフレームワークの下でDatabricksによって管理されるデータレイクに直接アクセスし、効率的にクエリできるようにし、シームレスなデータ接続を実現しています。
 
 **この文書を通じて、以下について深く理解できます:**
 
 - Databricks環境セットアップ: DatabricksでのExternal Locations、Catalogs、およびIcebergテーブルの作成方法と関連する権限設定
 
-- DorisのUnity Catalogへの接続: DorisをDatabricks Unity Catalogに接続し、Icebergテーブルにアクセスする方法
+- DorisのUnity カタログへの接続: DorisをDatabricks Unity カタログに接続し、Icebergテーブルにアクセスする方法
 
 > 注意: この機能にはDorisバージョン3.1.3以上が必要です。
 
@@ -19,7 +19,7 @@
 
 ### External Locationの作成
 
-Unity Catalogでは、[External Location](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-external-locations)はクラウドオブジェクトストレージのパスをStorage Credentialsに関連付ける安全なオブジェクトです。External Locationsは外部アクセスをサポートし、Unity CatalogはCredential Vending機能を通じて外部システムに短期間の認証情報を発行し、外部システムがこれらのパスにアクセスできるようにします。
+Unity カタログでは、[External Location](https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-external-locations)はクラウドオブジェクトストレージのパスをStorage Credentialsに関連付ける安全なオブジェクトです。External Locationsは外部アクセスをサポートし、Unity カタログはCredential Vending機能を通じて外部システムに短期間の認証情報を発行し、外部システムがこれらのパスにアクセスできるようにします。
 
 ![unity1](/images/integrations/lakehouse/unity/unity-1.png)
 
@@ -27,17 +27,17 @@ Unity Catalogでは、[External Location](https://docs.databricks.com/aws/en/sql
 
 ![unity2](/images/integrations/lakehouse/unity/unity-2.png)
 
-作成後、External Catalogとその対応するCredentialを確認できます:
+作成後、External カタログとその対応するCredentialを確認できます:
 
 ![unity3](/images/integrations/lakehouse/unity/unity-3.png)
 
-### Catalogの作成
+### カタログの作成
 
-インターフェースでCreate Catalogオプションをクリックします。
+インターフェースでCreate カタログオプションをクリックします。
 
 ![unity4](/images/integrations/lakehouse/unity/unity-4.png)
 
-Catalog名を入力します。`Use default storage`のチェックを外し、先ほど作成したExternal Locationを選択します。
+カタログ名を入力します。`Use default storage`のチェックを外し、先ほど作成したExternal Locationを選択します。
 
 ![unity5](/images/integrations/lakehouse/unity/unity-5.png)
 

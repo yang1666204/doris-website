@@ -11,25 +11,25 @@
 
 Dorisは、拡張可能なコネクターフレームワーク、コンピュート・ストレージ分離アーキテクチャ、高性能データ処理エンジン、およびデータエコシステムのオープン性を通じて、ユーザーに優れたlakhouseソリューションを提供します。
 
-![doris lakehouse architecture](/images/Lakehouse/lakehouse-arch-1.jpeg)
+![doris lakehouse architecture](/images/レイクハウス/lakehouse-arch-1.jpeg)
 
 ### 柔軟なデータアクセス
 
-Dorisは、拡張可能なコネクターフレームワークを通じて主要なデータシステムとデータフォーマットアクセスをサポートし、SQLベースの統一されたデータ分析機能を提供します。これにより、ユーザーは既存のデータを移動することなく、クロスプラットフォームのデータクエリと分析を容易に実行できます。詳細については、[Catalog Overview](./catalog-overview.md)を参照してください。
+Dorisは、拡張可能なコネクターフレームワークを通じて主要なデータシステムとデータフォーマットアクセスをサポートし、SQLベースの統一されたデータ分析機能を提供します。これにより、ユーザーは既存のデータを移動することなく、クロスプラットフォームのデータクエリと分析を容易に実行できます。詳細については、[カタログ 概要](./catalog-overview.md)を参照してください。
 
 ### データソースコネクター
 
 Hive、Iceberg、Hudi、Paimon、またはJDBCプロトコルをサポートするデータベースシステムなど、Dorisは容易に接続し、効率的にデータにアクセスできます。
 
-lakhouseシステムについて、DorisはHive Metastore、AWS Glue、Unity Catalogなどのメタデータサービスからデータテーブルの構造と分散情報を取得し、合理的なクエリプランニングを実行し、MPPアーキテクチャを活用した分散コンピューティングを行います。
+lakhouseシステムについて、DorisはHive Metastore、AWS Glue、Unity カタログなどのメタデータサービスからデータテーブルの構造と分散情報を取得し、合理的なクエリプランニングを実行し、MPPアーキテクチャを活用した分散コンピューティングを行います。
 
-詳細については、[Iceberg Catalog](./catalogs/iceberg-catalog.mdx)など、各catalogドキュメントを参照してください。
+詳細については、[Iceberg カタログ](./catalogs/iceberg-catalog.mdx)など、各catalogドキュメントを参照してください。
 
 #### 拡張可能なコネクターフレームワーク
 
 Dorisは優れた拡張性フレームワークを提供し、開発者が企業内の独自のデータソースに迅速に接続し、高速なデータ相互運用性を実現することを支援します。
 
-Dorisは、Catalog、Database、Tableの3つのレベルの標準を定義し、開発者が必要なデータソースレベルに容易にマッピングできるようにします。Dorisはまた、メタデータサービスとストレージサービスアクセス用の標準インターフェースを提供し、開発者は対応するインターフェースを実装するだけでデータソース接続を完了できます。
+Dorisは、カタログ、Database、tableの3つのレベルの標準を定義し、開発者が必要なデータソースレベルに容易にマッピングできるようにします。Dorisはまた、メタデータサービスとストレージサービスアクセス用の標準インターフェースを提供し、開発者は対応するインターフェースを実装するだけでデータソース接続を完了できます。
 
 DorisはTrino Connectorプラグインと互換性があり、TrinoプラグインパッケージをDorisクラスターに直接デプロイし、最小限の設定で対応するデータソースにアクセスできます。Dorisは既に[Kudu](./catalogs/kudu-catalog.md)、[BigQuery](./catalogs/bigquery-catalog.md)、[Delta Lake](./catalogs/delta-lake-catalog.md)などのデータソースへの接続を完了しています。[新しいプラグインを自分で適用する](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide)こともできます。
 
