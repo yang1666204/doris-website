@@ -172,7 +172,7 @@ SELECT * FROM S3(
     SELECT * FROM cdc_stream(
         "type" = "mysql",
         "jdbc_url" = "jdbc:mysql://127.0.0.1:3306",
-        "driver_url" = "mysql-connector-j-8.0.31.jar",
+        "driver_url" = "mysql-connector-java-8.0.25.jar",
         "driver_class" = "com.mysql.cj.jdbc.Driver",
         "user" = "root",
         "password" = "123456",
@@ -191,7 +191,7 @@ SELECT * FROM S3(
     SELECT * FROM cdc_stream(
         "type" = "postgres",
         "jdbc_url" = "jdbc:postgresql://127.0.0.1:5432/postgres",
-        "driver_url" = "postgresql-42.5.0.jar",
+        "driver_url" = "postgresql-42.5.1.jar",
         "driver_class" = "org.postgresql.Driver",
         "user" = "postgres",
         "password" = "postgres",
@@ -210,7 +210,7 @@ SELECT * FROM S3(
     ON STREAMING
     FROM MYSQL (
             "jdbc_url" = "jdbc:mysql://127.0.0.1:3306",
-            "driver_url" = "mysql-connector-j-8.0.31.jar",
+            "driver_url" = "mysql-connector-java-8.0.25.jar",
             "driver_class" = "com.mysql.cj.jdbc.Driver",
             "user" = "root",
             "password" = "123456",
@@ -230,7 +230,7 @@ SELECT * FROM S3(
     ON STREAMING
     FROM POSTGRES (
         "jdbc_url" = "jdbc:postgresql://127.0.0.1:5432/postgres",
-        "driver_url" = "postgresql-42.5.0.jar",
+        "driver_url" = "postgresql-42.5.1.jar",
         "driver_class" = "org.postgresql.Driver",
         "user" = "postgres",
         "password" = "postgres",

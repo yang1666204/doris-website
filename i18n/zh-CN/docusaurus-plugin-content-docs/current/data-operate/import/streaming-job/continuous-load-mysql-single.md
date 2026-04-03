@@ -17,19 +17,7 @@ Doris 支持通过 Job + [CDC Stream TVF](../../../sql-manual/sql-functions/tabl
 1. 支持 exactly-once 语义。
 2. 目前只支持主键表同步。
 3. 需要 Load 权限。
-3. 需要在 MySQL 端开启 Binlog，如果使用云服务，请参考[配置指南](./continuous-load-overview.md)。
-
-## 前提条件
-
-需要在 MySQL 端开启 Binlog，即 my.cnf 配置文件中增加：
-
-```ini
-log-bin=mysql-bin
-binlog_format=ROW
-server-id=1
-```
-
-如果您使用的是云服务，请参考对应的配置指南。
+3. 需要在 MySQL 端开启 Binlog，请参考[配置指南](./continuous-load-overview.md)。
 
 ## 快速上手
 
@@ -45,7 +33,7 @@ INSERT INTO db1.tbl1
 SELECT * FROM cdc_stream(
     "type" = "mysql",
     "jdbc_url" = "jdbc:mysql://127.0.0.1:3306",
-    "driver_url" = "mysql-connector-j-8.0.31.jar",
+    "driver_url" = "mysql-connector-java-8.0.25.jar",
     "driver_class" = "com.mysql.cj.jdbc.Driver",
     "user" = "root",
     "password" = "123456",
@@ -69,7 +57,7 @@ select * from jobs("type"="insert") where ExecuteType = "STREAMING";
 | -------------- | ------- | ------------------------------------------------------------ |
 | type           | -       | 数据源类型，填写 `mysql`                                      |
 | jdbc_url       | -       | MySQL JDBC 连接串                                             |
-| driver_url     | -       | JDBC 驱动 jar 包路径                                          |
+| driver_url     | -       | JDBC 驱动 jar 包路径，支持文件名、本地绝对路径和 HTTP 地址三种方式，详见 [JDBC Catalog 概述](../../../lakehouse/catalogs/jdbc-catalog-overview.md) |
 | driver_class   | -       | JDBC 驱动类名                                                |
 | user           | -       | 数据库用户名                                                  |
 | password       | -       | 数据库密码                                                    |

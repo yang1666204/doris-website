@@ -19,16 +19,6 @@
 3. 需要 Load 权限，若下游表不存在还需有 Create 权限。
 4. 自动创建表阶段，如果目标表已存在则会跳过，用户可以根据不同的场景自定义表。
 
-## 前提条件
-
-需要在 PostgreSQL 端配置逻辑复制，即 postgresql.conf 增加：
-
-```ini
-wal_level=logical
-```
-
-如果您使用的是云服务，请参考[配置指南](./continuous-load-overview.md)。
-
 ## 快速上手
 
 ### 创建导入作业
@@ -40,7 +30,7 @@ CREATE JOB test_postgres_job
 ON STREAMING
 FROM POSTGRES (
     "jdbc_url" = "jdbc:postgresql://127.0.0.1:5432/postgres",
-    "driver_url" = "postgresql-42.5.0.jar",
+    "driver_url" = "postgresql-42.5.1.jar",
     "driver_class" = "org.postgresql.Driver",
     "user" = "postgres",
     "password" = "postgres",
@@ -67,7 +57,7 @@ select * from jobs("type"="insert") where ExecuteType = "STREAMING";
 | 参数           | 默认值  | 说明                                                         |
 | -------------- | ------- | ------------------------------------------------------------ |
 | jdbc_url       | -       | PostgreSQL JDBC 连接串                                        |
-| driver_url     | -       | JDBC 驱动 jar 包路径                                          |
+| driver_url     | -       | JDBC 驱动 jar 包路径，支持文件名、本地绝对路径和 HTTP 地址三种方式，详见 [JDBC Catalog 概述](../../../lakehouse/catalogs/jdbc-catalog-overview.md) |
 | driver_class   | -       | JDBC 驱动类名                                                |
 | user           | -       | 数据库用户名                                                  |
 | password       | -       | 数据库密码                                                    |

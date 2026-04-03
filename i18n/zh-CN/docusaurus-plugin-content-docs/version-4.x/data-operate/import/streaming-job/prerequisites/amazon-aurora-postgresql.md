@@ -8,7 +8,7 @@
 
 ## 概述
 
-在使用 Doris 持续导入功能从 Amazon Aurora PostgreSQL 同步数据之前，需要确保 Aurora 集群已开启逻辑复制（Logical Replication）。本文档将指导您完成所有前置配置步骤。
+Doris 持续导入支持 Amazon Aurora PostgreSQL-Compatible Edition 14 及以上版本。在同步数据之前，需要确保 Aurora 集群已开启逻辑复制（Logical Replication）。本文档将指导您完成所有前置配置步骤。
 
 ## 步骤一：检查当前配置
 

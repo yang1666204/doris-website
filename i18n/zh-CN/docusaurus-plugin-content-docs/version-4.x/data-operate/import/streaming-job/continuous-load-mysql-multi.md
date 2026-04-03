@@ -19,18 +19,6 @@
 3. 需要 Load 权限，若下游表不存在还需有 Create 权限。
 4. 自动创建表阶段，如果目标表已存在则会跳过，用户可以根据不同的场景自定义表。
 
-## 前提条件
-
-需要在 MySQL 端开启 Binlog，即 my.cnf 配置文件中增加：
-
-```ini
-log-bin=mysql-bin
-binlog_format=ROW
-server-id=1
-```
-
-如果您使用的是云服务，请参考[配置指南](./continuous-load-overview.md)。
-
 ## 快速上手
 
 ### 创建导入作业
@@ -42,7 +30,7 @@ CREATE JOB multi_table_sync
 ON STREAMING
 FROM MYSQL (
         "jdbc_url" = "jdbc:mysql://127.0.0.1:3306",
-        "driver_url" = "mysql-connector-j-8.0.31.jar",
+        "driver_url" = "mysql-connector-java-8.0.25.jar",
         "driver_class" = "com.mysql.cj.jdbc.Driver",
         "user" = "root",
         "password" = "123456",
@@ -65,7 +53,7 @@ select * from jobs("type"="insert") where ExecuteType = "STREAMING"
       ExecuteType: STREAMING
 RecurringStrategy: \N
            Status: RUNNING
-       ExecuteSql: FROM MYSQL('include_tables'='user_info','database'='test','driver_class'='com.mysql.cj.jdbc.Driver','driver_url'='mysql-connector-j-8.0.31.jar','offset'='initial','jdbc_url'='jdbc:mysql://127.0.0.1:3306','user'='root' ) TO DATABASE target_test_db ('table.create.properties.replication_num'='1')
+       ExecuteSql: FROM MYSQL('include_tables'='user_info','database'='test','driver_class'='com.mysql.cj.jdbc.Driver','driver_url'='mysql-connector-java-8.0.25.jar','offset'='initial','jdbc_url'='jdbc:mysql://127.0.0.1:3306','user'='root' ) TO DATABASE target_test_db ('table.create.properties.replication_num'='1')
        CreateTime: 2025-12-10 10:19:35
  SucceedTaskCount: 1
   FailedTaskCount: 0
@@ -96,7 +84,7 @@ TO DATABASE target_test_db
 | 参数           | 默认值  | 说明                                                         |
 | -------------- | ------- | ------------------------------------------------------------ |
 | jdbc_url       | -       | MySQL JDBC 连接串                                             |
-| driver_url     | -       | JDBC 驱动 jar 包路径                                          |
+| driver_url     | -       | JDBC 驱动 jar 包路径，支持文件名、本地绝对路径和 HTTP 地址三种方式，详见 [JDBC Catalog 概述](../../../lakehouse/catalogs/jdbc-catalog-overview.md) |
 | driver_class   | -       | JDBC 驱动类名                                                |
 | user           | -       | 数据库用户名                                                  |
 | password       | -       | 数据库密码                                                    |
