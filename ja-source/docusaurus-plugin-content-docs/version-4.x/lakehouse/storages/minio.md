@@ -10,8 +10,8 @@
 
 この文書では、以下のシナリオに適用される、MinIOにアクセスするために必要なパラメータについて説明します：
 
-- Catalogプロパティ
-- Table Valued Functionプロパティ
+- カタログプロパティ
+- table Valued Functionプロパティ
 - Broker Loadプロパティ
 - Exportプロパティ
 - Outfileプロパティ
@@ -20,7 +20,7 @@
 
 ## パラメータ概要
 
-| Property Name                  | Legacy Name              | Description                                                  | Default Value | Required |
+| Property Name                  | Legacy Name              | 詳細                                                  | Default Value | Required |
 | ------------------------------ | ------------------------ | ------------------------------------------------------------ | ------------- | -------- |
 | minio.endpoint                 | s3.endpoint              | MinIOエンドポイント、MinIOのアクセスエンドポイント               |               | Yes      |
 | minio.access_key               | s3.access_key            | MinIOアクセスキー、認証に使用されるMinIOアクセスキー |               | Yes      |
