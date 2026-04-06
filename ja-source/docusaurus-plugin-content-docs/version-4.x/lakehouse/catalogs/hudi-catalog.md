@@ -2,10 +2,10 @@
 {
   "title": "Hudi カタログ",
   "language": "ja",
-  "description": "Hudi CatalogはHive Catalogを再利用します。Hive Metastoreまたは Hive Metastoreと互換性のあるメタデータサービスに接続することで、"
+  "description": "Hudi カタログはHive カタログを再利用します。Hive Metastoreまたは Hive Metastoreと互換性のあるメタデータサービスに接続することで、"
 }
 ---
-Hudi Catalogは、Hive Catalogを再利用します。Hive Metastoreまたは、Hive Metastoreと互換性のあるメタデータサービスに接続することで、DorisはHudiのデータベースとテーブル情報を自動的に取得し、データクエリを実行することができます。
+Hudi カタログは、Hive カタログを再利用します。Hive Metastoreまたは、Hive Metastoreと互換性のあるメタデータサービスに接続することで、DorisはHudiのデータベースとテーブル情報を自動的に取得し、データクエリを実行することができます。
 
 [Apache DorisとApache Hudiのクイックスタート](../best-practices/doris-hudi.md)。
 
@@ -17,7 +17,7 @@ Hudi Catalogは、Hive Catalogを再利用します。Hive Metastoreまたは、
 | データ統合 | Hudiデータを読み取ってDoris内部テーブルに書き込み、またはDorisコンピューティングエンジンを使用してZeroETL操作を実行します。 |
 | データライトバック | サポートされていません。 |
 
-## Catalogの設定
+## カタログの設定
 
 ### 構文
 
