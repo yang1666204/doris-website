@@ -2,10 +2,10 @@
 {
   "title": "S3/HDFSでのファイル解析",
   "language": "ja",
-  "description": "Apache Doris Table Value Function (TVF) を使用して、S3やHDFSなどのストレージシステム上のParquet、ORC、CSV、JSONファイルを直接クエリ・分析する方法を学習します。自動スキーマ推論、マルチファイルマッチング、データインポートをサポートしています。"
+  "description": "Apache Doris table Value Function (TVF) を使用して、S3やHDFSなどのストレージシステム上のParquet、ORC、CSV、JSONファイルを直接クエリ・分析する方法を学習します。自動スキーマ推論、マルチファイルマッチング、データインポートをサポートしています。"
 }
 ---
-Table Value Function (TVF) 機能により、Dorisは事前にデータをインポートすることなく、オブジェクトストレージやHDFS上のファイルを直接テーブルとしてクエリ・分析でき、自動カラム型推論をサポートします。
+table Value Function (TVF) 機能により、Dorisは事前にデータをインポートすることなく、オブジェクトストレージやHDFS上のファイルを直接テーブルとしてクエリ・分析でき、自動カラム型推論をサポートします。
 
 ## サポートされるストレージシステム
 
