@@ -7,7 +7,7 @@
 ---
 ## 概要
 
-Delta Lake Catalog は [Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/) 互換性フレームワークと Trino Delta Lake Connector を使用して Delta Lake テーブルにアクセスします。
+Delta Lake カタログ は [Trino Connector](https://doris.apache.org/community/how-to-contribute/trino-connector-developer-guide/) 互換性フレームワークと Trino Delta Lake Connector を使用して Delta Lake テーブルにアクセスします。
 
 :::note
 - これは実験的機能で、バージョン 3.0.1 以降でサポートされています。
