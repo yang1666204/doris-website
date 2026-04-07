@@ -1,10 +1,15 @@
 ---
 {
-    "title": "MySQL 单表导入",
+    "title": "MySQL 单表同步",
+    "sidebar_label": "单表同步",
     "language": "zh-CN",
     "description": "Doris 可以通过 Job + CDC Stream TVF 的方式，将 MySQL 单张表的全量和增量数据持续同步到 Doris 中。"
 }
 ---
+
+:::tip
+该功能自 4.1.0 版本起支持。
+:::
 
 ## 概述
 

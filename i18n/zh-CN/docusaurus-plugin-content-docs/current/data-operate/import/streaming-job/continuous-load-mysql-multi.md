@@ -1,16 +1,17 @@
 ---
 {
-    "title": "MySQL 多表导入",
+    "title": "MySQL 整库同步",
     "language": "zh-CN",
-    "description": "Doris 可以通过 Streaming Job 的方式，将 MySQL 多张表的全量和增量数据持续同步到 Doris 中。"
+    "sidebar_label": "整库同步",
+    "description": "Doris 可以通过 Streaming Job 的方式，将 MySQL 整库的全量和增量数据持续同步到 Doris 中。"
 }
 ---
 
 ## 概述
 
-支持通过 Job 将 MySQL 数据库的多张表的全量和增量数据，通过 Stream Load 的方式持续同步到 Doris 中。适用于需要实时同步多表数据到 Doris 的场景。
+支持通过 Job 将 MySQL 整库或指定多张表的全量和增量数据，通过 Stream Load 的方式持续同步到 Doris 中。适用于需要实时同步整库数据到 Doris 的场景。
 
-通过集成 [Flink CDC](https://github.com/apache/flink-cdc) 能力，Doris 支持从 MySQL 数据库读取变更日志，实现多表的全量和增量数据同步。首次同步时会自动创建 Doris 下游表（主键表），并保持主键与上游一致。
+通过集成 [Flink CDC](https://github.com/apache/flink-cdc) 能力，Doris 支持从 MySQL 数据库读取变更日志，实现整库的全量和增量数据同步。首次同步时会自动创建 Doris 下游表（主键表），并保持主键与上游一致。
 
 **注意事项：**
 
@@ -98,7 +99,7 @@ TO DATABASE target_test_db
 
 ### 导入命令
 
-创建多表同步作业语法如下：
+创建整库同步作业语法如下：
 
 ```sql
 CREATE JOB <job_name>
