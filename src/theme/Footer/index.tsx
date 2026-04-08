@@ -16,6 +16,7 @@ import { WechatIcon } from '@site/src/components/Icons/wechat';
 import { YoutubeIcon } from '@site/src/components/Icons/youtube';
 import { LinkedinIcon } from '@site/src/components/Icons/linkedin';
 import { MediumIcon } from '@site/src/components/Icons/medium';
+import { DiscordIcon } from '@site/src/components/Icons/discord-icon';
 import Translate from '@docusaurus/Translate';
 import Link from '@docusaurus/Link';
 import { normalizePathname } from '@site/src/utils/locale';
@@ -92,12 +93,12 @@ function Footer(): React.ReactElement | null {
                                     <TwitterIcon />
                                 </a>
                                 <a
-                                    href="https://doris.apache.org/slack"
-                                    title="slack"
+                                    href="https://discord.gg/JemTbMKj"
+                                    title="discord"
                                     target="_blank"
                                     className="item"
                                 >
-                                    <SlackIcon />
+                                    <DiscordIcon />
                                 </a>
                             </div>
                             <div className="social">

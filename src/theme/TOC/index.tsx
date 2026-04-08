@@ -7,7 +7,7 @@ import { HomeIcon } from '../../components/Icons/home-icon';
 import { PdfIcon } from '../../components/Icons/pdf-icon';
 import { ForumIcon } from '../../components/Icons/forum-icon';
 import { GithubIcon } from '../../components/Icons/github-icon';
-import { SlackIcon } from '../../components/Icons/slack-icon';
+import { DiscordIconSmall } from '../../components/Icons/discord-icon-small';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import { DOWNLOAD_PDFS } from '@site/src/constant/download.data';
 import { VERSIONS, DEFAULT_VERSION } from '@site/src/constant/version';
@@ -143,13 +143,13 @@ export default function TOC({ className, ...props }: Props): React.ReactElement 
                     <Link
                         className="toc-icon-content group"
                         to={
-                            'https://doris.apache.org/slack'
+                            'https://discord.gg/JemTbMKj'
                         }
                     >
                         <div style={{ padding: '2px' }}>
-                            <SlackIcon className="group-hover:text-primary" />
+                            <DiscordIconSmall className="group-hover:text-primary" />
                         </div>
-                        <span className="group-hover:text-primary">Chat on Slack</span>
+                        <span className="group-hover:text-primary">Chat on Discord</span>
                     </Link>
                 ) : null}
             </div>

@@ -191,5 +191,5 @@ CREATE TABLE doris_sink (
 );
 ```
 
-If you've got any questions, find Apache Doris developers on [Slack](https://doris.apache.org/slack).
+If you've got any questions, find Apache Doris developers on [Discord](https://discord.gg/JemTbMKj).
 
