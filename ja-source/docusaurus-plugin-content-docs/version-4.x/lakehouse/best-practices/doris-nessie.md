@@ -5,7 +5,7 @@
   "description": "この記事では、Apache DorisとNessieを統合してIcebergデータの効率的なクエリと管理を実現する方法をガイドします。環境準備から最終的なクエリまでの全プロセスを段階的に説明します。"
 }
 ---
-[Nessie](https://projectnessie.org/)は、データレイクのためのオープンソースのトランザクショナルカタログで、データにGitのようなバージョン管理機能を提供します。Iceberg REST Catalogの仕様を実装し、Apache Icebergを含む複数のテーブル形式にわたって、ブランチ、タグ、タイムトラベルなどの機能をサポートします。
+[Nessie](https://projectnessie.org/)は、データレイクのためのオープンソースのトランザクショナルカタログで、データにGitのようなバージョン管理機能を提供します。Iceberg REST カタログの仕様を実装し、Apache Icebergを含む複数のテーブル形式にわたって、ブランチ、タグ、タイムトラベルなどの機能をサポートします。
 
 この記事では、Apache DorisとNessieを統合してIcebergデータの効率的なクエリと管理を実現する方法を説明します。環境準備から最終的なクエリまで、全体のプロセスを段階的にご案内します。
 
@@ -23,7 +23,7 @@
 
 ### 1.1 S3ストレージバケットの作成
 
-まず、後で作成するIcebergテーブルデータを格納するために、`nessie-doris-demo`という名前のS3 Bucketを作成します。
+まず、後で作成するIcebergテーブルデータを格納するために、`nessie-doris-demo`という名前のS3 バケットを作成します。
 
 ```bash
 # Create S3 storage bucket
