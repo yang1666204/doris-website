@@ -44,7 +44,7 @@ For the first time in Doris community, you can:
 
 * Join Doris Wechat Group (add WeChat-ID: morningman-cmy, note: join Doris Group) and ask questions at any time.
 
-* Enter Doris's [Slack](https://doris.apache.org/slack)
+* Enter Doris's [Discord](https://discord.gg/JemTbMKj)
 
 Learn the development trends of Doris project in time and give your opinions on the topics you are concerned about.
 

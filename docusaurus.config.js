@@ -152,7 +152,7 @@ const config = {
                     },
                     {
                         from: '/slack',
-                        to: 'https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-3b8tlr3le-Z~IrrVxkzqniFjhL17d1oQ'
+                        to: 'https://discord.gg/JemTbMKj'
                     }
                 ],
                 createRedirects(existingPath) {
