@@ -10,7 +10,7 @@ import './styles.scss';
 import { MailIcon } from '@site/src/components/Icons/mail';
 import { GithubIcon } from '@site/src/components/Icons/github';
 import { TwitterIcon } from '@site/src/components/Icons/twitter';
-import { SlackIcon } from '@site/src/components/Icons/slack';
+import { SlackIcon } from '@site/src/components/Icons/discord';
 import { BilibiliIcon } from '@site/src/components/Icons/bilibili';
 import { WechatIcon } from '@site/src/components/Icons/wechat';
 import { YoutubeIcon } from '@site/src/components/Icons/youtube';
@@ -93,7 +93,7 @@ function Footer(): React.ReactElement | null {
                                     <TwitterIcon />
                                 </a>
                                 <a
-                                    href="https://discord.gg/JemTbMKj"
+                                    href="/discord"
                                     title="discord"
                                     target="_blank"
                                     className="item"
