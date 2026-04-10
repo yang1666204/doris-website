@@ -10,8 +10,8 @@
 
 この文書では、DorisにおけるORCファイル形式の読み取りと書き込みのサポートについて説明します。以下の機能に適用されます：
 
-* Catalogでのデータの読み取りと書き込み
-* Table Valued Functionsを使用したデータの読み取り
+* カタログでのデータの読み取りと書き込み
+* table Valued Functionsを使用したデータの読み取り
 * Broker Loadによるデータの読み取り
 * Export時のデータの書き込み
 * Outfileによるデータの書き込み

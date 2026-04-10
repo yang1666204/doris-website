@@ -7,8 +7,8 @@
 ---
 この文書では、Alibaba Cloud OSSにアクセスするために必要なパラメータについて説明します。これらは以下のシナリオで適用されます：
 
-- Catalogプロパティ
-- Table Valued Functionプロパティ
+- カタログプロパティ
+- table Valued Functionプロパティ
 - Broker Loadプロパティ
 - Exportプロパティ
 - Outfileプロパティ
