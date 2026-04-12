@@ -2,12 +2,12 @@
 {
   "title": "PostgreSQL JDBCカタログ",
   "language": "ja",
-  "description": "Doris JDBC CatalogはJDBCインターフェースを介してPostgreSQLデータベースへの接続をサポートします。"
+  "description": "Doris JDBC カタログはJDBCインターフェースを介してPostgreSQLデータベースへの接続をサポートします。"
 }
 ---
-Doris JDBC Catalog は標準のJDBCインターフェースを介してPostgreSQLデータベースへの接続をサポートします。この文書では、PostgreSQLデータベース接続の設定方法について説明します。
+Doris JDBC カタログ は標準のJDBCインターフェースを介してPostgreSQLデータベースへの接続をサポートします。この文書では、PostgreSQLデータベース接続の設定方法について説明します。
 
-JDBC Catalogの概要については、以下を参照してください: [JDBC Catalog Overview](./jdbc-catalog-overview.md)
+JDBC カタログの概要については、以下を参照してください: [JDBC カタログ 概要](./jdbc-catalog-overview.md)
 
 ## 使用上の注意
 
