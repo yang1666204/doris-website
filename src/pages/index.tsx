@@ -37,7 +37,7 @@ export default function Home(): JSX.Element {
         },
         {
             label: <Translate id="homepage.banner.button2">Join Discord</Translate>,
-            link: 'https://discord.gg/JemTbMKj',
+            link: '/discord',
             type: 'ghost',
         },
     ];
@@ -97,7 +97,7 @@ export default function Home(): JSX.Element {
                     <WarningIcon className="homepage-warning-banner__icon" />
                     <span>
                         Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on{' '}
-                        <Link className="homepage-warning-banner__link" to="https://discord.com/invite/tGTh2SQV">
+                        <Link className="homepage-warning-banner__link" to="/discord">
                             Discord
                         </Link>{' '}
                         in the meantime.
@@ -245,7 +245,7 @@ export default function Home(): JSX.Element {
             img: (
                <img width={60} height={60} src={require(`@site/static/images/discord-icon.png`).default} alt="discord icon" />
             ),
-            href: 'https://discord.gg/JemTbMKj',
+            href: '/discord',
         },
         {
             title: <Translate id="community.title.c4">Twitter</Translate>,

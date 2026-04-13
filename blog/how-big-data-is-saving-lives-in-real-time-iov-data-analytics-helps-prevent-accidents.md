@@ -110,5 +110,5 @@ Building a data platform to suit your use case is not easy, I hope this post hel
 
 Apache Doris [GitHub repo](https://github.com/apache/doris)
 
-Find Apache Doris makers on [Discord](https://discord.gg/JemTbMKj)
+Find Apache Doris makers on [Discord](/discord)
 

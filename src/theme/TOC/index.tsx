@@ -143,7 +143,7 @@ export default function TOC({ className, ...props }: Props): React.ReactElement 
                     <Link
                         className="toc-icon-content group"
                         to={
-                            'https://discord.gg/JemTbMKj'
+                            '/discord'
                         }
                     >
                         <div style={{ padding: '2px' }}>

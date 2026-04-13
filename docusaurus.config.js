@@ -152,7 +152,7 @@ const config = {
                     },
                     {
                         from: '/slack',
-                        to: 'https://discord.gg/JemTbMKj'
+                        to: 'https://discord.gg/ATXQqX8g8F'
                     }
                 ],
                 createRedirects(existingPath) {
@@ -286,7 +286,7 @@ const config = {
                     //        </a>`
                     en: `<p style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
                     <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-warning.svg">
-                    <span>Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on <a style="font-weight:600;" href="https://discord.com/invite/tGTh2SQV" target="_blank" >Discord</a> in the meantime.</span>
+                    <span>Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on <a style="font-weight:600;" href="/discord" target="_blank" >Discord</a> in the meantime.</span>
                     </p>`
                         //     }),
                         //     content: JSON.stringify({
