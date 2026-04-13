@@ -17,7 +17,6 @@ import { useHistory, useLocation } from '@docusaurus/router';
 // import BlogListPageStructuredData from '@theme/BlogListPage/StructuredData';
 const allText = 'All';
 const HIDDEN_BLOG_TABS = new Set(['Release Notes', 'Top News']);
-const FIXED_BLOG_TABS = ['Glossary'];
 
 function getBlogCategories(props) {
     const { siteConfig } = useDocusaurusContext();
@@ -58,22 +57,6 @@ function getBlogCategories(props) {
             });
         }
     });
-
-    FIXED_BLOG_TABS.forEach(tabLabel => {
-        if (!categories.some(category => category.label === tabLabel)) {
-            categories.push({
-                label: tabLabel,
-                values: [],
-            });
-        }
-    });
-
-    const glossaryIndex = categories.findIndex(category => category.label === 'Glossary');
-    if (glossaryIndex > -1 && glossaryIndex !== categories.length - 1) {
-        const [glossaryCategory] = categories.splice(glossaryIndex, 1);
-        categories.push(glossaryCategory);
-    }
-
     return categories;
 }
 

@@ -97,7 +97,7 @@ export default function Home(): JSX.Element {
                     <WarningIcon className="homepage-warning-banner__icon" />
                     <span>
                         Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on{' '}
-                        <Link className="homepage-warning-banner__link" to="/discord">
+                        <Link className="homepage-warning-banner__link" to="https://discord.com/invite/tGTh2SQV">
                             Discord
                         </Link>{' '}
                         in the meantime.
