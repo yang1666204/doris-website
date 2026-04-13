@@ -2,10 +2,10 @@
 {
   "title": "DorisとMaxCompute データ統合",
   "language": "ja",
-  "description": "MaxCompute Catalogを通じてApache DorisとAlibaba Cloud MaxCompute間の双方向データ統合を実現し、データインポート、ライトバック、データベース/テーブル管理をサポートして、企業の効率的なlakehouseアーキテクチャ構築を支援します。"
+  "description": "MaxCompute カタログを通じてApache DorisとAlibaba Cloud MaxCompute間の双方向データ統合を実現し、データインポート、ライトバック、データベース/テーブル管理をサポートして、企業の効率的なlakehouseアーキテクチャ構築を支援します。"
 }
 ---
-この文書では、[MaxCompute Catalog](../catalogs/maxcompute-catalog.md)を通じてApache DorisとAlibaba Cloud MaxComputeの間でデータ統合を実現する方法について説明します：
+この文書では、[MaxCompute カタログ](../catalogs/maxcompute-catalog.md)を通じてApache DorisとAlibaba Cloud MaxComputeの間でデータ統合を実現する方法について説明します：
 
 - **データインポート**：MaxComputeからDorisに分析用データを迅速にインポートします。
 - **データライトバック**（4.1.0+）：Dorisの分析結果や他のソースからのデータをMaxComputeにライトバックします。
