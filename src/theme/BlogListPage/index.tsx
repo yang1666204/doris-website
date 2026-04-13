@@ -59,6 +59,7 @@ function getBlogCategories(props) {
         }
     });
 
+
     FIXED_BLOG_TABS.forEach(tabLabel => {
         if (!categories.some(category => category.label === tabLabel)) {
             categories.push({
