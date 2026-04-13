@@ -62,6 +62,11 @@ export const NavbarCommonRight = ({ star }: NavbarCommonRightProps) => {
                 href="https://doris.apache.org/slack"
                 target="_blank"
             ></Link>
+             <Link
+                className="slack-btn desktop header-right-button-discord"
+                href="https://discord.gg/ATXQqX8g8F"
+                target="_blank"
+            ></Link>
         </>
     );
 };

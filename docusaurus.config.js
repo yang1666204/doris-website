@@ -4,15 +4,15 @@ const VERSIONS = require('./versions.json');
 const { markdownBoldPlugin } = require('./config/markdown-bold-plugin');
 const { DEFAULT_VERSION } = require('./src/constant/version');
 
-	const lightCodeTheme = themes.dracula;
+const lightCodeTheme = themes.dracula;
 
-	const logoImg = '/images/logo-doris.svg';
+const logoImg = '/images/logo-doris.svg';
 
-	function getDocsVersions() {
-	    const result = {};
-	    VERSIONS.map(version => {
-	        if (version === 'current') {
-	            result[version] = {
+function getDocsVersions() {
+    const result = {};
+    VERSIONS.map(version => {
+        if (version === 'current') {
+            result[version] = {
                 label: 'Dev',
                 path: 'dev',
                 banner: 'unreleased',
@@ -185,14 +185,14 @@ const config = {
                     //     // if (versionDocsDirPath === 'versioned_docs/version-dev') {
                     //     //     return `https://github.com/apache/doris-website/edit/master/docs/${locale}/docs/${docPath}`;
                     //     // }
-	                    // },
-	                    showLastUpdateAuthor: false,
-	                    showLastUpdateTime: false,
-	                    remarkPlugins: [markdownBoldPlugin, require('remark-math')],
-	                    rehypePlugins: [
-	                        [
-	                            require('rehype-katex'),
-	                            {
+                    // },
+                    showLastUpdateAuthor: false,
+                    showLastUpdateTime: false,
+                    remarkPlugins: [markdownBoldPlugin, require('remark-math')],
+                    rehypePlugins: [
+                        [
+                            require('rehype-katex'),
+                            {
                                 strict: process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' ? false : 'warn',
                             }
                         ]
@@ -246,7 +246,7 @@ const config = {
                 highlightSearchTermsOnTargetPage: true,
                 // indexPages: true,
                 indexDocs: true,
-                docsRouteBasePath: ['docs','ja/docs','zh-CN/docs'],
+                docsRouteBasePath: ['docs', 'ja/docs', 'zh-CN/docs'],
                 indexBlog: false,
                 explicitSearchResultPath: true,
                 searchBarShortcut: true,
@@ -284,12 +284,16 @@ const config = {
                     //     <span style="font-size:0.875rem;font-weight:700;line-height:1rem; margin-right:0.675rem; text-decoration: none;">NEW</span>
                     //    <span>Help Shape the Future of Apache Doris: 2026 User Survey</span> 
                     //        </a>`
+                    // en: `<p style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
+                    // <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-warning.svg">
+                    // <span>Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on <a style="font-weight:600;" href="https://discord.com/invite/tGTh2SQV" target="_blank" >Discord</a> in the meantime.</span>
+                    // </p>`
                     en: `<p style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
-                    <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-warning.svg">
-                    <span>Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on <a style="font-weight:600;" href="https://discord.com/invite/tGTh2SQV" target="_blank" >Discord</a> in the meantime.</span>
+                    <img style="width: 19px; height: 19px; margin-right: 3px;" src="/images/navbar-star-white.svg">
+                    <span> <a style="font-weight:600;" href="https://doris.apache.org/slack" target="_blank" >Slack</a> is back! Welcome home! All channels and history remain intact. Also, our  <a style="font-weight:600;" href="https://discord.gg/ATXQqX8g8F" target="_blank" >Discord</a> community is here to stay.</span>
                     </p>`
-                        //     }),
-                        //     content: JSON.stringify({
+                    //     }),
+                    //     content: JSON.stringify({
                     //         zh: `<a href="https://doris-summit.org.cn" target="_blank" style="display:flex; width: 100%; align-items: center; justify-content: center; margin-left: 4px; text-decoration: none;">
                     //     <img style="width: 60px; height: 24px; margin-right: 34px;" src="/images/doris-summit.svg">
                     //    <span style="font-weight:700; font-size:0.875rem; line-height: 120%;">Powering Real-Time Analytics & Search  in the AI Era | 2025 年 11 月 05 日-06 日 · 全网直播</span> 

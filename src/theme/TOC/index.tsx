@@ -11,6 +11,7 @@ import { SlackIcon } from '../../components/Icons/slack-icon';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import { DOWNLOAD_PDFS } from '@site/src/constant/download.data';
 import { VERSIONS, DEFAULT_VERSION } from '@site/src/constant/version';
+import { DiscordIconSmall } from '../../components/Icons/discord-icon-small';
 import { normalizePathname } from '@site/src/utils/locale';
 import { Spin } from 'antd';
 import Link from '@docusaurus/Link';
@@ -150,6 +151,20 @@ export default function TOC({ className, ...props }: Props): React.ReactElement 
                             <SlackIcon className="group-hover:text-primary" />
                         </div>
                         <span className="group-hover:text-primary">Chat on Slack</span>
+                    </Link>
+                ) : null}
+
+                {!isCN ? (
+                    <Link
+                        className="toc-icon-content group"
+                        to={
+                            'https://discord.gg/JemTbMKj'
+                        }
+                    >
+                        <div style={{ padding: '2px' }}>
+                             <DiscordIconSmall className="group-hover:text-primary" />
+                        </div>
+                        <span className="group-hover:text-primary">Chat on Discord</span>
                     </Link>
                 ) : null}
             </div>

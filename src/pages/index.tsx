@@ -40,6 +40,11 @@ export default function Home(): JSX.Element {
             link: 'https://doris.apache.org/slack',
             type: 'ghost',
         },
+        {
+            label: <Translate id="homepage.banner.button3">Join Discord</Translate>,
+            link: 'https://discord.gg/ATXQqX8g8F',
+            type: 'ghost',
+        },
     ];
     const banner = {
         title: (
@@ -70,40 +75,50 @@ export default function Home(): JSX.Element {
             </div>
         ),
         event: (
-            // <Link
-            //     to={'https://forms.gle/7RKm6CGSNhdW8ZnK9'}
-            //     style={{ background: 'linear-gradient(0deg, var(--Doris-Green-Doris-green-50, #F0FFF7) 0%, var(--Doris-Green-Doris-green-50, #F0FFF7) 100%), #FFF', textDecoration: 'none' }}
-            //     className="lg:rounded-full rounded-[1.625rem] mb-8 text-center group lg:w-[45rem] mx-auto lg:flex-row flex-col flex py-4 px-[2.25rem] items-center justify-center"
-            // >
-            //     <div className="lg:mb-0 mb-4 flex items-center">
-            //         <HomeEventStarIcon className="text-primary"/>
-            //         <span className="ml-[3px] group-hover:text-primary font-bold text-[#11A679] text-[0.875rem]/[1rem]">
-            //             NEW
-            //         </span>
-            //     </div>
-            //     <p className="lg:ml-[0.75rem] group-hover:text-primary text-[1rem]/[1rem] text-[#000]">
-            //         Help Shape the Future of Apache Doris: 2026 User Survey
-            //     </p>
-            // </Link>
-            <p
+            <div
                 style={{
                     background:
                         'linear-gradient(0deg, var(--Doris-Green-Doris-green-50, #F0FFF7) 0%, var(--Doris-Green-Doris-green-50, #F0FFF7) 100%), #FFF',
                     textDecoration: 'none',
                 }}
-                className="homepage-warning-banner lg:rounded-full rounded-[1.625rem] mb-8 group lg:w-[45rem] mx-auto py-4 px-[2.25rem]"
+                className="lg:rounded-full rounded-[1.625rem] mb-8 text-center group lg:w-[45rem] mx-auto lg:flex-row flex-col flex py-4 px-[2.25rem] items-center justify-center"
             >
-                <span className="homepage-warning-banner__content">
-                    <WarningIcon className="homepage-warning-banner__icon" />
-                    <span>
-                        Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on{' '}
-                        <Link className="homepage-warning-banner__link" to="https://discord.com/invite/tGTh2SQV">
-                            Discord
-                        </Link>{' '}
-                        in the meantime.
+                <div className="lg:mb-0 mb-4 flex items-center">
+                    <HomeEventStarIcon className="text-primary" />
+                    <span className="ml-[3px] group-hover:text-primary font-bold text-[#11A679] text-[0.875rem]/[1rem]">
+                        NEW
                     </span>
-                </span>
-            </p>
+                </div>
+                <p className="lg:ml-[0.75rem] text-[1rem]/[1rem] text-[#000]">
+                    <Link to="https://doris.apache.org/slack" target="_blank" className="underline">
+                        Slack
+                    </Link>{' '}
+                    is back! Welcome home! All channels and history remain intact. Also, our{' '}
+                    <Link to="https://discord.gg/ATXQqX8g8F" target="_blank" className="underline">
+                        Discord
+                    </Link>{' '}
+                    community is here to stay.
+                </p>
+            </div>
+            // <p
+            //     style={{
+            //         background:
+            //             'linear-gradient(0deg, var(--Doris-Green-Doris-green-50, #F0FFF7) 0%, var(--Doris-Green-Doris-green-50, #F0FFF7) 100%), #FFF',
+            //         textDecoration: 'none',
+            //     }}
+            //     className="homepage-warning-banner lg:rounded-full rounded-[1.625rem] mb-8 group lg:w-[45rem] mx-auto py-4 px-[2.25rem]"
+            // >
+            //     <span className="homepage-warning-banner__content">
+            //         <WarningIcon className="homepage-warning-banner__icon" />
+            //         <span>
+            //             Slack community removed due to a Slack-side issue. Awaiting their resolution. Pls reach us on{' '}
+            //             <Link className="homepage-warning-banner__link" to="https://discord.com/invite/tGTh2SQV">
+            //                 Discord
+            //             </Link>{' '}
+            //             in the meantime.
+            //         </span>
+            //     </span>
+            // </p>
         ),
         bannerImg: require('@site/static/images/home-banner.png').default,
         buttons,
