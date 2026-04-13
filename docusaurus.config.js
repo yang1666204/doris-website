@@ -4,6 +4,14 @@ const VERSIONS = require('./versions.json');
 const { markdownBoldPlugin } = require('./config/markdown-bold-plugin');
 const { DEFAULT_VERSION } = require('./src/constant/version');
 
+// Allow filtering doc versions via environment variable.
+// Usage: DOCS_VERSIONS="current,4.x" yarn docusaurus build
+// This uses Docusaurus's native onlyIncludeVersions option
+// instead of modifying versions.json.
+const ONLY_VERSIONS = process.env.DOCS_VERSIONS
+    ? process.env.DOCS_VERSIONS.split(',').map(v => v.trim()).filter(Boolean)
+    : null;
+
 const lightCodeTheme = themes.dracula;
 
 const logoImg = '/images/logo-doris.svg';
@@ -121,6 +129,16 @@ const config = {
                 sidebarPath: require.resolve('./sidebarsCommunity.json'),
             }),
         ],
+        [
+            'content-docs',
+            /** @type {import('@docusaurus/plugin-content-docs').Options} */
+            ({
+                id: 'releases',
+                path: 'releasenotes',
+                routeBasePath: '/releases',
+                sidebarPath: require.resolve('./sidebarsReleases.json'),
+            }),
+        ],
         async function tailwindcssPlugin(context, options) {
             return {
                 name: 'docusaurus-tailwindcss',
@@ -147,26 +165,35 @@ const config = {
                         to: `/docs/${DEFAULT_VERSION}/gettingStarted/quick-start`,
                     },
                     {
-                        from: '/docs/4.0/releasenotes/v4.0/release-4.0.0/',
-                        to: '/docs/4.x/releasenotes/v4.0/release-4.0.0'
-                    },
-                    {
                         from: '/slack',
                         to: 'https://join.slack.com/t/apachedoriscommunity/shared_invite/zt-3b8tlr3le-Z~IrrVxkzqniFjhL17d1oQ'
                     }
                 ],
                 createRedirects(existingPath) {
+                    const redirects = [];
+
                     if (existingPath.includes('/gettingStarted/what-is-apache-doris') || existingPath.startsWith('/docs/3.x/')) {
                         // Redirect from /gettingStarted/what-is-new to /gettingStarted/what-is-apache-doris
-                        return [
+                        redirects.push(
                             existingPath.replace(
                                 '/gettingStarted/what-is-apache-doris',
                                 '/gettingStarted/what-is-new',
                             ),
                             existingPath.replace('/docs/3.x/', '/docs/'), existingPath.replace('/docs/3.x/', '/docs/3.0/')
-                        ];
+                        );
                     }
-                    return undefined; // Return a falsy value: no redirect created
+
+                    // Redirect old versioned releasenotes URLs to new /releases/ paths
+                    // e.g. /docs/4.x/releasenotes/v4.0/release-4.0.5 -> /releases/v4.0/release-4.0.5
+                    if (existingPath.startsWith('/releases/')) {
+                        const releasePath = existingPath.replace('/releases/', '');
+                        const oldVersionPrefixes = ['4.x', '3.x', '2.1', '2.0', '1.2', '4.0', '3.1', '3.0', 'dev'];
+                        for (const ver of oldVersionPrefixes) {
+                            redirects.push(`/docs/${ver}/releasenotes/${releasePath}`);
+                        }
+                    }
+
+                    return redirects.length > 0 ? redirects : undefined;
                 },
             },
         ],
@@ -177,7 +204,12 @@ const config = {
             /** @type {import('@docusaurus/preset-classic').Options} */
             ({
                 docs: {
-                    lastVersion: getLatestVersion(),
+                    ...(ONLY_VERSIONS && { onlyIncludeVersions: ONLY_VERSIONS }),
+                    // When filtering versions, lastVersion must be in the
+                    // included list. Fall back to the first included version.
+                    lastVersion: ONLY_VERSIONS && !ONLY_VERSIONS.includes(getLatestVersion())
+                        ? ONLY_VERSIONS[0]
+                        : getLatestVersion(),
                     versions: getDocsVersions(),
                     sidebarPath: require.resolve('./sidebars.ts'),
                     // editUrl: ({ locale, versionDocsDirPath, docPath }) => {
@@ -345,6 +377,11 @@ const config = {
                         position: 'left',
                     },
                     {
+                        label: 'Releases',
+                        to: '/releases/all-release',
+                        position: 'left',
+                    },
+                    {
                         label: 'Vendors',
                         to: '/vendors',
                         position: 'left',
@@ -493,6 +530,11 @@ const config = {
                     {
                         label: 'Community',
                         to: '/community/join-community',
+                        position: 'left',
+                    },
+                    {
+                        label: 'Releases',
+                        to: '/releases/all-release',
                         position: 'left',
                     },
                     {
