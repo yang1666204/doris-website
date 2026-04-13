@@ -59,7 +59,7 @@ export const NavbarCommonRight = ({ star }: NavbarCommonRightProps) => {
             {star && <div className="gh-count text-[1rem]/[1rem]">{star}k</div>}
             <Link
                 className="slack-btn desktop header-right-button-slack"
-                href="/discord"
+                href="https://doris.apache.org/slack"
                 target="_blank"
             ></Link>
         </>

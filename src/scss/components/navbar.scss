@@ -179,12 +179,12 @@
             min-width: 1.625rem;
             padding-left: 2.25rem;
             height: 1.625rem;
-            background: url('@site/static/images/icon/discord-black.svg') no-repeat left center;
+            background: url('@site/static/images/icon/slack.png') no-repeat left center;
             background-size: contain;
             position: relative;
             margin-left: 1rem;
             &:hover {
-                background: url('@site/static/images/icon/discord-hover.svg') no-repeat left center;
+                background: url('@site/static/images/icon/slack-hover.png') no-repeat left center;
                 background-size: contain;
             }
         }
