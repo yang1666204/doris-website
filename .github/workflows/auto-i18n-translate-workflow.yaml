@@ -1,0 +1,260 @@
+name: Auto Translate Docs (EN -> JA)
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/**/*.md"
+      - "docs/**/*.mdx"
+      - "versioned_docs/**/*.md"
+      - "versioned_docs/**/*.mdx"
+      - "community/**/*.md"
+      - "community/**/*.mdx"
+
+concurrency:
+  group: auto-i18n-master
+  cancel-in-progress: true
+
+jobs:
+  detect_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_files: ${{ steps.diff.outputs.changed_files }}
+      deleted_files: ${{ steps.diff.outputs.deleted_files }}
+      has_changed: ${{ steps.diff.outputs.has_changed }}
+      has_deleted: ${{ steps.diff.outputs.has_deleted }}
+      has_work: ${{ steps.diff.outputs.has_work }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        name: Detect changed/deleted English docs
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.event.before }}"
+          HEAD="${{ github.sha }}"
+          EMPTY_TREE="$(git hash-object -t tree /dev/null)"
+
+          if [ -z "${BASE}" ] || [ "${BASE}" = "0000000000000000000000000000000000000000" ]; then
+            if git rev-parse "${HEAD}^" >/dev/null 2>&1; then
+              BASE="$(git rev-parse "${HEAD}^")"
+            else
+              BASE="${EMPTY_TREE}"
+            fi
+          fi
+
+          echo "Diff range: ${BASE}..${HEAD}"
+
+          git diff --name-status "${BASE}" "${HEAD}" > raw-diff.txt || true
+
+          : > changed.txt
+          : > deleted.txt
+
+          while IFS=$'\t' read -r status path1 path2; do
+            [ -z "${status}" ] && continue
+
+            case "${status}" in
+              D)
+                candidate="${path1}"
+                if [[ "${candidate}" =~ ^(docs|versioned_docs|community)/.*\.mdx?$ ]]; then
+                  echo "${candidate}" >> deleted.txt
+                fi
+                ;;
+              R*)
+                old_path="${path1}"
+                new_path="${path2}"
+                if [[ "${old_path}" =~ ^(docs|versioned_docs|community)/.*\.mdx?$ ]]; then
+                  echo "${old_path}" >> deleted.txt
+                fi
+                if [[ "${new_path}" =~ ^(docs|versioned_docs|community)/.*\.mdx?$ ]]; then
+                  echo "${new_path}" >> changed.txt
+                fi
+                ;;
+              A|C|M|T)
+                candidate="${path1}"
+                if [[ "${candidate}" =~ ^(docs|versioned_docs|community)/.*\.mdx?$ ]]; then
+                  echo "${candidate}" >> changed.txt
+                fi
+                ;;
+            esac
+          done < raw-diff.txt
+
+          sort -u changed.txt -o changed.txt
+          sort -u deleted.txt -o deleted.txt
+
+          changed_json="$(jq -R -s -c 'split("\n")[:-1]' changed.txt)"
+          deleted_json="$(jq -R -s -c 'split("\n")[:-1]' deleted.txt)"
+
+          echo "changed_files=${changed_json}" >> "$GITHUB_OUTPUT"
+          echo "deleted_files=${deleted_json}" >> "$GITHUB_OUTPUT"
+
+          if [ "${changed_json}" = "[]" ]; then
+            echo "has_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "${deleted_json}" = "[]" ]; then
+            echo "has_deleted=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_deleted=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "${changed_json}" != "[]" ] || [ "${deleted_json}" != "[]" ]; then
+            echo "has_work=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_work=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Debug outputs
+        run: |
+          echo "changed_files: ${{ steps.diff.outputs.changed_files }}"
+          echo "deleted_files: ${{ steps.diff.outputs.deleted_files }}"
+          echo "has_changed: ${{ steps.diff.outputs.has_changed }}"
+          echo "has_deleted: ${{ steps.diff.outputs.has_deleted }}"
+          echo "has_work: ${{ steps.diff.outputs.has_work }}"
+
+  translate_and_build:
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: needs.detect_changes.outputs.has_work == 'true'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm install -g yarn
+          yarn install --frozen-lockfile
+
+      - name: Test AWS API Access
+        if: needs.detect_changes.outputs.has_changed == 'true'
+        env:
+          AWS_API_KEY: ${{ secrets.AWS_API_KEY }}
+        run: |
+          echo "Testing AWS API Access..."
+          node scripts/i18n/test-aws-access.js
+
+      - name: Prepare translation input
+        if: needs.detect_changes.outputs.has_changed == 'true'
+        run: |
+          echo "Changed English files JSON:"
+          echo '${{ needs.detect_changes.outputs.changed_files }}'
+          mkdir -p .i18n/input
+          echo '${{ needs.detect_changes.outputs.changed_files }}' > files.json
+          node scripts/i18n/prepare.js files.json .i18n/input manifest.json ja-source
+          echo "Prepared files:"
+          ls -la .i18n/input || true
+          echo "Prepared file count: $(find .i18n/input -type f | wc -l)"
+
+      - name: Verify intermediate files exist
+        if: needs.detect_changes.outputs.has_changed == 'true'
+        run: |
+          COUNT=$(find .i18n/input -type f | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No intermediate files generated in .i18n/input"
+            exit 1
+          fi
+
+      - name: Translate via Claude API
+        if: needs.detect_changes.outputs.has_changed == 'true'
+        env:
+          AWS_API_KEY: ${{ secrets.AWS_API_KEY }}
+        run: |
+          mkdir -p .i18n/output
+          node scripts/i18n/translate-claude.js \
+            .i18n/input \
+            .i18n/output
+
+      - name: Restore markdown and write ja-source docs
+        if: needs.detect_changes.outputs.has_changed == 'true'
+        run: |
+          node scripts/i18n/post-process.js \
+            .i18n/output \
+            ja-source
+
+      - name: Sync deleted docs to ja-source and sidebars
+        if: needs.detect_changes.outputs.has_deleted == 'true'
+        run: |
+          echo '${{ needs.detect_changes.outputs.deleted_files }}' > deleted-files.json
+          node scripts/i18n/sync-deletions.js deleted-files.json ja-source
+
+      - name: Build ja site and refresh ja-build
+        run: |
+          rm -rf i18n/ja
+          mkdir -p i18n/ja
+          cp -a ./ja-source/. ./i18n/ja/
+
+          export NODE_OPTIONS=--max-old-space-size=8192
+          PWA_SERVICE_WORKER_URL=https://doris.apache.org/sw.js yarn docusaurus build --locale ja
+
+          SRC_DIR="./build/ja"
+          if [ ! -d "$SRC_DIR" ]; then
+            SRC_DIR="./build"
+          fi
+
+          if [ ! -d "$SRC_DIR" ]; then
+            echo "Cannot find ja build output directory"
+            exit 1
+          fi
+
+          rm -rf ./ja-build
+          mkdir -p ./ja-build
+          cp -a "$SRC_DIR"/. ./ja-build/
+
+      - name: Check generated changes
+        id: generated_changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- ja-source ja-build; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No git changes detected in ja-source/ja-build."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Detected git changes in ja-source/ja-build."
+          fi
+
+      - name: Guard against empty translation result
+        if: needs.detect_changes.outputs.has_changed == 'true' && steps.generated_changes.outputs.has_changes != 'true'
+        run: |
+          echo "English docs changed, but no updates were generated in ja-source/ja-build."
+          echo "Please check translation logs and path mapping."
+          exit 1
+
+      - name: Debug generated change output
+        run: |
+          echo "steps.generated_changes.outputs.has_changes=${{ steps.generated_changes.outputs.has_changes }}"
+
+      - name: Create pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: master
+          branch: auto/i18n-ja-${{ github.run_id }}
+          commit-message: "chore(i18n): auto translate docs and build ja artifacts"
+          title: "[auto-i18n] Translate docs to Japanese and update ja-build"
+          body: |
+            This PR contains automatically translated Japanese docs and refreshed `ja-build` artifacts.
+          add-paths: |
+            ja-source/**
+            ja-build/**
+
+      - name: Debug create-pr outputs
+        run: |
+          echo "pull-request-number=${{ steps.cpr.outputs.pull-request-number }}"
+          echo "pull-request-url=${{ steps.cpr.outputs.pull-request-url }}"
+          echo "pull-request-operation=${{ steps.cpr.outputs.pull-request-operation }}"
