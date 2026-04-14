@@ -30,10 +30,11 @@ const SOURCE_MAP = {
   },
 };
 
-const [, , deletedFilesJsonPath] = process.argv;
+const [, , deletedFilesJsonPath, targetRootArg] = process.argv;
+const targetRoot = targetRootArg || path.join('i18n', 'ja');
 
 if (!deletedFilesJsonPath) {
-  console.error('Usage: node sync-deletions.js <deleted-files.json>');
+  console.error('Usage: node sync-deletions.js <deleted-files.json> [targetRoot]');
   process.exit(1);
 }
 
@@ -52,8 +53,8 @@ function parseDeletedSourcePath(filePath) {
     }
     const version = conf.localeVersion;
     const docId = filename.replace(/\.(md|mdx)$/i, '');
-    const jaPath = path.join('i18n', 'ja', conf.pluginDir, version, filename);
-    const sidebarPath = path.join('i18n', 'ja', conf.pluginDir, conf.getSidebarFile(version));
+    const jaPath = path.join(targetRoot, conf.pluginDir, version, filename);
+    const sidebarPath = path.join(targetRoot, conf.pluginDir, conf.getSidebarFile(version));
     return { sourceRoot: 'docs', version, docId, jaPath, sidebarPath };
   }
 
@@ -67,8 +68,8 @@ function parseDeletedSourcePath(filePath) {
       return null;
     }
     const docId = filename.replace(/\.(md|mdx)$/i, '');
-    const jaPath = path.join('i18n', 'ja', conf.pluginDir, version, filename);
-    const sidebarPath = path.join('i18n', 'ja', conf.pluginDir, conf.getSidebarFile(version));
+    const jaPath = path.join(targetRoot, conf.pluginDir, version, filename);
+    const sidebarPath = path.join(targetRoot, conf.pluginDir, conf.getSidebarFile(version));
     return { sourceRoot: 'versioned_docs', version, docId, jaPath, sidebarPath };
   }
 
@@ -80,8 +81,8 @@ function parseDeletedSourcePath(filePath) {
     }
     const version = conf.localeVersion;
     const docId = filename.replace(/\.(md|mdx)$/i, '');
-    const jaPath = path.join('i18n', 'ja', conf.pluginDir, version, filename);
-    const sidebarPath = path.join('i18n', 'ja', conf.pluginDir, conf.getSidebarFile(version));
+    const jaPath = path.join(targetRoot, conf.pluginDir, version, filename);
+    const sidebarPath = path.join(targetRoot, conf.pluginDir, conf.getSidebarFile(version));
     return { sourceRoot: 'community', version, docId, jaPath, sidebarPath };
   }
 
@@ -205,7 +206,7 @@ function main() {
 
     if (fs.existsSync(parsed.jaPath)) {
       fs.unlinkSync(parsed.jaPath);
-      removeEmptyDirsUpward(path.dirname(parsed.jaPath), path.join('i18n', 'ja'));
+      removeEmptyDirsUpward(path.dirname(parsed.jaPath), targetRoot);
       jaDeletedCount += 1;
       console.log(`[ja] deleted: ${parsed.jaPath}`);
     } else {
