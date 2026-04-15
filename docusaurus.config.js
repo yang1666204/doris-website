@@ -3,6 +3,9 @@ const versionsPlugin = require('./config/versions-plugin');
 const VERSIONS = require('./versions.json');
 const { markdownBoldPlugin } = require('./config/markdown-bold-plugin');
 const { DEFAULT_VERSION } = require('./src/constant/version');
+const { ssrTemplate } = require('./config/ssrTemplate');
+const customDocusaurusPlugin = require('./config/custom-docusaurus-plugin');
+
 
 // Allow filtering doc versions via environment variable.
 // Usage: DOCS_VERSIONS="current,4.x" yarn docusaurus build
@@ -139,6 +142,7 @@ const config = {
                 sidebarPath: require.resolve('./sidebarsReleases.json'),
             }),
         ],
+        process.env.NODE_ENV === 'development' ? null : customDocusaurusPlugin,
         async function tailwindcssPlugin(context, options) {
             return {
                 name: 'docusaurus-tailwindcss',
@@ -671,6 +675,7 @@ const config = {
             //     },
             // ],s
         }),
+    ssrTemplate
 };
 
 module.exports = config;
