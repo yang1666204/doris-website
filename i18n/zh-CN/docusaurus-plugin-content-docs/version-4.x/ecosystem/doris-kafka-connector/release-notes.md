@@ -7,6 +7,24 @@
 
 # Doris Kafka Connector Release Notes
 
+## 26.0.0
+
+### 功能与改进
+
+- StreamLoad 默认启用 gzip 压缩 [#95](https://github.com/apache/doris-kafka-connector/pull/95)
+- 修复 Schema Evolution 中连接复用不当导致的 JDBC 连接激增问题 [#94](https://github.com/apache/doris-kafka-connector/pull/94)
+- 添加 Confluent 构建脚本 [#86](https://github.com/apache/doris-kafka-connector/pull/86)
+- 更新 ConfigDef 配置 [#85](https://github.com/apache/doris-kafka-connector/pull/85)
+
+### Bug 修复
+
+- 修复 'topic2table' 配置的检查问题 [#83](https://github.com/apache/doris-kafka-connector/pull/83)
+- 修复 README 中网站文档链接 [#84](https://github.com/apache/doris-kafka-connector/pull/84)
+
+### 致谢
+
+@JNSimba @rnb-tron
+
 ## 25.0.0
 
 ### 功能与改进

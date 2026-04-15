@@ -7,6 +7,22 @@
 
 # Spark Doris Connector Release Notes
 
+## 26.0.0
+
+### 改进
+
+- StreamLoad 写入默认启用 gzip 压缩 [#356](https://github.com/apache/doris-spark-connector/pull/356)
+- 为 Arrow Flight 读取添加日志 [#354](https://github.com/apache/doris-spark-connector/pull/354)
+- 支持 HTTP 请求使用 UTF-8 字符集 [#347](https://github.com/apache/doris-spark-connector/pull/347)
+
+### Bug 修复
+
+- 修复 Spark 3.3、3.4 和 3.5 中的列投影问题 [#353](https://github.com/apache/doris-spark-connector/pull/353)
+
+### 致谢
+
+@JNSimba @gnehil
+
 ## 25.2.0
 
 ### 改进

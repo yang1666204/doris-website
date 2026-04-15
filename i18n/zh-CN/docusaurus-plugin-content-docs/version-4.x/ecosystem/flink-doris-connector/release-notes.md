@@ -7,6 +7,16 @@
 
 # Flink Doris Connector Release Notes
 
+## 26.1.0
+
+### 功能与改进
+
+- StreamLoad 默认启用 gz 压缩 [#648](https://github.com/apache/doris-flink-connector/pull/648)
+
+### 致谢
+
+@JNSimba
+
 ## 26.0.0
 
 ### 功能与改进

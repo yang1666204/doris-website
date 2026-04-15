@@ -2326,6 +2326,9 @@ const FLINK_SAME_SOURCE_2510 =
 const FLINK_SAME_SOURCE_2600 =
     'https://downloads.apache.org/doris/flink-connector/26.0.0/apache-doris-flink-connector-26.0.0-src.tgz';
 
+const FLINK_SAME_SOURCE_2610 =
+    'https://downloads.apache.org/doris/flink-connector/26.1.0/apache-doris-flink-connector-26.1.0-src.tgz';
+
 const SPARK_SAME_SOURCE_132 =
     'https://downloads.apache.org/doris/spark-connector/1.3.2/apache-doris-spark-connector-1.3.2-src.tar.gz';
 const SPARK_SAME_SOURCE_120 =
@@ -2334,11 +2337,21 @@ const SPARK_SAME_SOURCE_120 =
 const SPARK_SAME_SOURCE_2520 =
     'https://downloads.apache.org/doris/spark-connector/25.2.0/apache-doris-spark-connector-25.2.0-src.tgz';
 
+const SPARK_SAME_SOURCE_2600 =
+    'https://downloads.apache.org/doris/spark-connector/26.0.0/apache-doris-spark-connector-26.0.0-src.tgz';
+
 export const TOOL_VERSIONS = [
     {
         label: ToolsEnum.Kafka,
         value: ToolsEnum.Kafka,
         children: [
+            {
+                label: '26.0.0',
+                value: '26.0.0',
+                gz: 'https://downloads.apache.org/doris/kafka-connector/26.0.0/apache-doris-kafka-connector-26.0.0-src.tgz',
+                Source: 'https://downloads.apache.org/doris/kafka-connector/26.0.0/apache-doris-kafka-connector-26.0.0-src.tgz',
+                Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/doris-kafka-connector/26.0.0/doris-kafka-connector-26.0.0.jar',
+            },
             {
                 label: '25.0.0',
                 value: '25.0.0',
@@ -2366,6 +2379,75 @@ export const TOOL_VERSIONS = [
         label: ToolsEnum.Flink,
         value: ToolsEnum.Flink,
         children: [
+            {
+                label: '26.1.0',
+                value: '26.1.0',
+                children: [
+                    {
+                        value: '2.2',
+                        label: 'For Flink 2.2',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-2.2/26.1.0/flink-doris-connector-2.2-26.1.0.jar',
+                    },
+                    {
+                        value: '2.1',
+                        label: 'For Flink 2.1',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-2.1/26.1.0/flink-doris-connector-2.1-26.1.0.jar',
+                    },
+                    {
+                        value: '2.0',
+                        label: 'For Flink 2.0',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-2.0/26.1.0/flink-doris-connector-2.0-26.1.0.jar',
+                    },
+                    {
+                        value: '1.20',
+                        label: 'For Flink 1.20',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.20/26.1.0/flink-doris-connector-1.20-26.1.0.jar',
+                    },
+                    {
+                        value: '1.19',
+                        label: 'For Flink 1.19',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.19/26.1.0/flink-doris-connector-1.19-26.1.0.jar',
+                    },
+                    {
+                        value: '1.18',
+                        label: 'For Flink 1.18',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.18/26.1.0/flink-doris-connector-1.18-26.1.0.jar',
+                    },
+                    {
+                        value: '1.17',
+                        label: 'For Flink 1.17',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.17/26.1.0/flink-doris-connector-1.17-26.1.0.jar',
+                    },
+                    {
+                        value: '1.16',
+                        label: 'For Flink 1.16',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.16/26.1.0/flink-doris-connector-1.16-26.1.0.jar',
+                    },
+                    {
+                        value: '1.15',
+                        label: 'For Flink 1.15',
+                        gz: FLINK_SAME_SOURCE_2610,
+                        Source: FLINK_SAME_SOURCE_2610,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/flink-doris-connector-1.15/26.1.0/flink-doris-connector-1.15-26.1.0.jar',
+                    },
+                ],
+            },
             {
                 label: '26.0.0',
                 value: '26.0.0',
@@ -2733,6 +2815,54 @@ export const TOOL_VERSIONS = [
         label: ToolsEnum.Spark,
         value: ToolsEnum.Spark,
         children: [
+            {
+                label: '26.0.0',
+                value: '26.0.0',
+                children: [
+                    {
+                        value: '3.5_2.12',
+                        label: 'For Spark 3.5_2.12',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/spark-doris-connector-spark-3.5/26.0.0/spark-doris-connector-spark-3.5-26.0.0.jar',
+                    },
+                    {
+                        value: '3.4_2.12',
+                        label: 'For Spark 3.4_2.12',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/spark-doris-connector-spark-3.4/26.0.0/spark-doris-connector-spark-3.4-26.0.0.jar',
+                    },
+                    {
+                        value: '3.3_2.12',
+                        label: 'For Spark 3.3_2.12',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/spark-doris-connector-spark-3.3/26.0.0/spark-doris-connector-spark-3.3-26.0.0.jar',
+                    },
+                    {
+                        value: '3.2_2.12',
+                        label: 'For Spark 3.2_2.12',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/spark-doris-connector-spark-3.2/26.0.0/spark-doris-connector-spark-3.2-26.0.0.jar',
+                    },
+                    {
+                        value: '3.1_2.12',
+                        label: 'For Spark 3.1_2.12',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repository.apache.org/content/repositories/releases/org/apache/doris/spark-doris-connector-spark-3.1/26.0.0/spark-doris-connector-spark-3.1-26.0.0.jar',
+                    },
+                    {
+                        value: '2_2.11',
+                        label: 'For Spark 2_2.11',
+                        gz: SPARK_SAME_SOURCE_2600,
+                        Source: SPARK_SAME_SOURCE_2600,
+                        Binary: 'https://repo1.maven.org/maven2/org/apache/doris/spark-doris-connector-spark-2/26.0.0/spark-doris-connector-spark-2-26.0.0.jar',
+                    },
+                ],
+            },
             {
                 label: '25.2.0',
                 value: '25.2.0',
